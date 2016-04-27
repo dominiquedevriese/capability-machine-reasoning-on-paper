@@ -1,0 +1,209 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{thmtools}
+\usepackage{stmaryrd}
+
+\declaretheorem[numbered=yes,name=Lemma]{lemma}
+\declaretheorem[numbered=yes,name=Definition]{definition}
+
+\newcommand{\update}[2]{[#1 \mapsto #2]}%TODO change this to nicer notation \Phi[heap.a \mapsto w]
+
+\newcommand{\var}[1]{\mathit{#1}}
+\newcommand{\hv}{hv}
+\newcommand{\rv}{rv}
+\newcommand{\lv}{lv}
+\newcommand{\pc}{\mathit{pc}}
+\newcommand{\pcreg}{\mathrm{pc}}
+\newcommand{\addr}{a}
+\newcommand{\word}{w}
+\newcommand{\len}{len}
+\newcommand{\mem}{mem}
+\newcommand{\reg}{reg}
+\newcommand{\heap}{heap}
+\newcommand{\mode}{mode}
+\newcommand{\perm}{perm}
+\newcommand{\failed}{failed}
+\newcommand{\halted}{halted}
+\newcommand{\false}{\mathit{false}}
+\newcommand{\true}{\mathit{true}}
+\newcommand{\decode}{\mathit{decode}}
+\newcommand{\updatePcPerm}{\mathit{updatePcPerm}}
+\newcommand{\executeAllowed}{\mathit{executeAllowed}}
+\newcommand{\nonZero}[1]{\mathit{nonZero}(#1)}
+\newcommand{\readAllowed}[1]{\mathit{readAllowed}(#1)}
+\newcommand{\writeAllowed}[1]{\mathit{writeAllowed}(#1)}
+
+\newcommand{\plaindom}[1]{\mathrm{#1}}
+\newcommand{\Caps}{\plaindom{Cap}}
+\newcommand{\Words}{\plaindom{Word}}
+\newcommand{\Addrs}{\plaindom{Addr}}
+\newcommand{\Mems}{\plaindom{Mem}}
+\newcommand{\RegName}{\plaindom{RegName}}
+\newcommand{\Regs}{\plaindom{Reg}}
+\newcommand{\Heaps}{\plaindom{Heap}}
+\newcommand{\Confs}{\plaindom{Conf}}
+\newcommand{\Lens}{\plaindom{Len}}
+\newcommand{\Instrs}{\plaindom{Instructions}}
+\newcommand{\nats}{\mathbb{N}}
+
+\newcommand{\Perms}{\plaindom{Perm}}
+
+\newcommand{\refreg}[1]{\lfloor #1 \rfloor}
+\newcommand{\refheap}[1]{\langle #1 \rangle_h}
+
+\newcommand{\instr}[1]{\mathtt{#1}}
+\newcommand{\fail}{\instr{fail}}
+\newcommand{\halt}{\instr{halt}}
+\newcommand{\oneinstr}[2]{\instr{#1} \; #2}
+\newcommand{\jmp}[1]{\oneinstr{jmp}{#1}}
+
+
+\newcommand{\twoinstr}[3]{\instr{#1} \; #2 \; #3}
+\newcommand{\jnz}[2]{\twoinstr{jnz}{#1}{#2}}
+\newcommand{\isptr}[2]{\twoinstr{isptr}{#1}{#2}}
+\newcommand{\setptr}[2]{\twoinstr{setptr}{#1}{#2}}
+\newcommand{\move}[2]{\twoinstr{move}{#1}{#2}}
+\newcommand{\store}[2]{\twoinstr{store}{#1}{#2}}
+\newcommand{\load}[2]{\twoinstr{load}{#1}{#2}}
+\newcommand{\lea}[2]{\twoinstr{lea}{#1}{#2}}
+
+\newcommand{\threeinstr}[4]{\instr{#1} \; #2 \; #3 \; #4}
+\newcommand{\restrict}[3]{\threeinstr{restrict}{#1}{#2}{#3}}
+\newcommand{\subseg}[3]{\threeinstr{subseg}{#1}{#2}{#3}}
+\newcommand{\plus}[3]{\threeinstr{plus}{#1}{#2}{#3}}
+
+\newcommand{\plainperm}[1]{\mathrm{#1}}
+\newcommand{\readonly}{\plainperm{ro}}
+\newcommand{\readwrite}{\plainperm{rw}}
+\newcommand{\exec}[1]{\plainperm{x_{#1}}}
+\newcommand{\entry}[1]{\plainperm{e_{#1}}}
+\newcommand{\key}{\plainperm{k}}
+
+\newcommand{\sem}[1]{\left\llbracket #1 \right\rrbracket}
+
+\begin{document}
+$\RegName$ contains $\pcreg$, but is otherwise some undefined, finite set.
+\begin{align*}
+\Addrs &::= \nats & & &
+\Words &::= \Caps + \nats \\
+\Regs  &::= \RegName \rightarrow \Words & & &
+\Heaps &::= \Addrs \rightarrow \Words \\
+\Perms &::= \{\readonly, \readwrite, \exec{u}, \exec{p}, \entry{u}, \entry {p}, \key\} & & &
+\Mems  &::= \Regs \times \Heaps \\
+\Lens  &::= \nats & & &
+\Caps  &::= \Perms \times \Lens \times \Addrs \\
+\Confs &::= \Mems + \{\failed, \halted\}
+\end{align*}
+Notation:
+$$\begin{array}{rcl}
+i      &\in& \Instrs \\
+r      &\in& \RegName\\
+\mem   &::=& (\reg,\heap)\\
+\len   &\in& \nats \\
+\pc    &\in& \Caps \\
+\pcreg &\in& \RegName \\
+\Phi   &::=& \mem \in \Confs\\
+\addr      &\in& \Addrs\\
+\perm  &\in& \Perms\\
+(\perm,len,\addr) &\in& \Caps \\
+\end{array}$$
+Further definitions:
+$$\begin{array}{rcl}
+\lv    &::=& \refreg{r} \\
+\hv    &::=& \refheap{r}\\
+\rv    &::=& n \mid \lv \\
+i      &::=& \fail \mid \halt \mid 
+             \jmp{\lv} \mid \jnz{\lv}{\rv} \mid
+             \isptr{\lv}{\rv} \mid \setptr{\lv}{\rv} \mid \\
+       &   & \lea{\lv}{\rv} \mid\move{\lv}{\rv} \mid \load{\lv}{\hv} \mid \store{\hv}{\rv} \mid  \\
+       &   & \restrict{\lv}{\rv}{\rv} \mid \subseg{\lv}{\rv}{\rv} \mid \plus{\lv}{\rv}{\rv}
+\end{array}$$
+
+\begin{align*}
+\decode &:\nats \rightarrow \Instrs
+\end{align*}
+%TODO for some decode function
+
+\begin{align*}
+\Phi & \rightarrow \sem{\decode(\Phi.\reg(\pcreg))}(\Phi) & & \text{if $\Phi.\reg(\pcreg) = (\exec{\_},{\_},{\_})$} \\
+\Phi & \rightarrow \failed                                      & & \text{otherwise}
+\end{align*}
+\begin{align*}
+  \executeAllowed(\perm) &=
+                           \begin{cases}
+                             \true & \text{if } \perm \in \{\exec{u},\exec{p},\entry{u},\entry{p}\} \\
+                             \false & \text{otherwise}
+                           \end{cases} \\
+  \readAllowed{\perm} &=
+                           \begin{cases}
+                             \true & \text{if } \perm \in \{\readonly, \readwrite, \exec{u},\exec{p}\} \\
+                             \false & \text{otherwise}
+                           \end{cases} \\
+  \writeAllowed{\perm} &=
+                           \begin{cases}
+                             \true & \text{if } \perm \in \{\readwrite\} \\
+                             \false & \text{otherwise}
+                           \end{cases} \\
+  \updatePcPerm (\perm,\len,\addr) &=
+                                     \begin{cases}
+                                       (\perm,\len,\addr) & \text{if $\perm\in\{\exec{u},\exec{p}\}$} \\
+                                       (\exec{\var{m}},\len,\addr) & \text{if $\perm = \entry{\var{m}}$}
+                                     \end{cases} \\
+  \nonZero{w} &=
+                \begin{cases}
+                  \true & \text{if $w\in \Caps$ or $w\in \nats$ and $w \neq 0$}\\
+                  \false & \text{otherwise}
+                \end{cases}
+\end{align*}
+%\Phi.reg(rv) to some other notation. It should only look up reg, if it is a regname otherwise just the litteral.
+\begin{align*}
+  \sem{\fail}(\Phi)     & = \failed \\
+  \sem{\halt}(\Phi)     & = \halted \\
+  \sem{\jmp{\lv}}(\Phi) & = \begin{cases}
+                            (\Phi.\reg\update{\pcreg}{\updatePcPerm(c)}) & \text{if }\Phi.reg(lv) = c \\
+                                                                         & \text{  and }c=(\perm,\len,\addr)\\
+                                                                         & \text{  and }\executeAllowed(\perm)\\
+                            \failed & \text{otherwise }
+                            \end{cases} \\
+  \sem{\jnz{\lv}{\rv}}(\Phi) & = \begin{cases}
+                            \Phi.\reg\update{\pcreg}{\updatePcPerm(\var{c})} &
+                            \begin{array}{l}
+                              \text{if $\nonZero{\Phi.\reg(\rv)}$} \\ 
+                              \text{  and $\Phi.reg(lv) = c$} \\
+                              \text{  and $c=(\perm,\len,\addr)$}\\
+                              \text{  and $\executeAllowed(\perm)$}
+                            \end{array}
+                            \\ %TODO Maybe combine with jump. (failed + this)
+                            \Phi.\reg\update{\pcreg}{\Phi.\reg(\pcreg) + 1} & \text{if not $\nonZero{\Phi.\reg(\rv)}$}\\
+                            \failed & \text{otherwise }
+                            \end{cases} \\
+ \sem{\load{\refreg{r_1}}{\refheap{r_2}}} & =
+                                 \begin{cases}
+                                   \Phi.\reg\update{r_1}{\var{w}} &
+                                   \begin{array}{l}
+                                     \text{if }\Phi.\reg(r_2) = (\perm,\len,\addr)\\
+                                     \text{  and }\readAllowed{\perm} \text{ and } \var{w} = \Phi.\heap(\addr)
+                                   \end{array}\\
+                                   \failed & \text{otherwise }
+                                 \end{cases}\\
+ \sem{\store{\refheap{r_1}}{\refreg{r_2}}} & =
+                                 \begin{cases}
+                                   \Phi.\heap\update{\addr}{\var{w}} &
+                                   \begin{array}{l}
+                                     \text{if }\Phi.\reg(r_1) = (\perm,\len,\addr)\\
+                                     \text{  and }\writeAllowed{\perm} \text{ and } \var{w} = \Phi.\reg(r_2)
+                                   \end{array}\\
+                                   \failed & \text{otherwise }
+                                 \end{cases}\\
+ \sem{\move{\refreg{r_1}}{\rv}} & =
+                                 \begin{cases}
+                                   \Phi.\reg\update{r_1}{\Phi.\reg(\rv)} & \text{if $r_1 \neq \pcreg$} \\
+                                   \failed   & \text{otherwise }
+                                 \end{cases}\\
+\end{align*}
+
+
+\end{document}
