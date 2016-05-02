@@ -6,6 +6,8 @@
 \usepackage{thmtools}
 \usepackage{stmaryrd}
 
+\usepackage{tikz}
+
 \declaretheorem[numbered=yes,name=Lemma]{lemma}
 \declaretheorem[numbered=yes,name=Definition]{definition}
 
@@ -19,22 +21,27 @@
 \newcommand{\pcreg}{\mathrm{pc}}
 \newcommand{\addr}{a}
 \newcommand{\word}{w}
-\newcommand{\len}{len}
+\newcommand{\start}{start}
+\newcommand{\addrend}{end}
 \newcommand{\mem}{mem}
 \newcommand{\reg}{reg}
 \newcommand{\heap}{heap}
 \newcommand{\mode}{mode}
 \newcommand{\perm}{perm}
-\newcommand{\failed}{failed}
-\newcommand{\halted}{halted}
+
+\newcommand{\failed}{\mathit{failed}}
+\newcommand{\halted}{\mathit{halted}}
+
 \newcommand{\false}{\mathit{false}}
 \newcommand{\true}{\mathit{true}}
-\newcommand{\decode}{\mathit{decode}}
-\newcommand{\updatePcPerm}{\mathit{updatePcPerm}}
-\newcommand{\executeAllowed}{\mathit{executeAllowed}}
-\newcommand{\nonZero}[1]{\mathit{nonZero}(#1)}
-\newcommand{\readAllowed}[1]{\mathit{readAllowed}(#1)}
-\newcommand{\writeAllowed}[1]{\mathit{writeAllowed}(#1)}
+
+\newcommand{\plainfun}[1]{\mathit{#1}}
+\newcommand{\decode}{\plainfun{decode}}
+\newcommand{\updatePcPerm}[1]{\plainfun{updatePcPerm}}
+\newcommand{\executeAllowed}[1]{\plainfun{executeAllowed}(#1)}
+\newcommand{\nonZero}[1]{\plainfun{nonZero}(#1)}
+\newcommand{\readAllowed}[1]{\plainfun{readAllowed}(#1)}
+\newcommand{\writeAllowed}[1]{\plainfun{writeAllowed}(#1)}
 
 \newcommand{\plaindom}[1]{\mathrm{#1}}
 \newcommand{\Caps}{\plaindom{Cap}}
@@ -45,7 +52,6 @@
 \newcommand{\Regs}{\plaindom{Reg}}
 \newcommand{\Heaps}{\plaindom{Heap}}
 \newcommand{\Confs}{\plaindom{Conf}}
-\newcommand{\Lens}{\plaindom{Len}}
 \newcommand{\Instrs}{\plaindom{Instructions}}
 \newcommand{\nats}{\mathbb{N}}
 
@@ -78,9 +84,10 @@
 \newcommand{\plainperm}[1]{\mathrm{#1}}
 \newcommand{\readonly}{\plainperm{ro}}
 \newcommand{\readwrite}{\plainperm{rw}}
-\newcommand{\exec}[1]{\plainperm{x_{#1}}}
-\newcommand{\entry}[1]{\plainperm{e_{#1}}}
-\newcommand{\key}{\plainperm{k}}
+\newcommand{\exec}{\plainperm{rx}}
+\newcommand{\entry}{\plainperm{e}}
+\newcommand{\rwx}{\plainperm{rwx}}
+\newcommand{\noperm}{\plainperm{o}}
 
 \newcommand{\sem}[1]{\left\llbracket #1 \right\rrbracket}
 
@@ -91,24 +98,44 @@ $\RegName$ contains $\pcreg$, but is otherwise some undefined, finite set.
 \Words &::= \Caps + \nats \\
 \Regs  &::= \RegName \rightarrow \Words & & &
 \Heaps &::= \Addrs \rightarrow \Words \\
-\Perms &::= \{\readonly, \readwrite, \exec{u}, \exec{p}, \entry{u}, \entry {p}, \key\} & & &
+\Perms &::= \{\readonly, \readwrite, \exec, \entry, \rwx, \noperm \} & & &
 \Mems  &::= \Regs \times \Heaps \\
-\Lens  &::= \nats & & &
-\Caps  &::= \Perms \times \Lens \times \Addrs \\
+\Caps  &::= \Perms \times \Addrs \times \Addrs \times \Addrs & & &
 \Confs &::= \Mems + \{\failed, \halted\}
 \end{align*}
+
+\begin{figure}[!h]
+  \centering
+  \begin{tikzpicture}[main node/.style={}]
+  \node[main node] (1) {$\rwx$};
+  \node[main node] (2) [below right of=1] {$\exec$};
+  \node[main node] (3) [below of=2] {$\entry$};
+  \node[main node] (4) [below left of=1] {$\readwrite$};
+  \node[main node] (5) [below of=4] {$\readonly$};
+  \node[main node] (6) [below right of=5] {$\noperm$};
+
+  \path[every node/.style={font=\sffamily\small}]
+    (1) edge (2)
+    (2) edge (3)
+    (3) edge (6)
+    (1) edge (4)
+    (4) edge (5)
+    (5) edge (6);
+\end{tikzpicture}
+\caption{Permission hierarchy}
+\label{fig:perm-hier}
+\end{figure}
 Notation:
 $$\begin{array}{rcl}
-i      &\in& \Instrs \\
-r      &\in& \RegName\\
-\mem   &::=& (\reg,\heap)\\
-\len   &\in& \nats \\
-\pc    &\in& \Caps \\
-\pcreg &\in& \RegName \\
-\Phi   &::=& \mem \in \Confs\\
-\addr      &\in& \Addrs\\
-\perm  &\in& \Perms\\
-(\perm,len,\addr) &\in& \Caps \\
+i       &\in& \Instrs \\
+r       &\in& \RegName\\
+\mem    &::=& (\reg,\heap)\\
+\pc     &\in& \Caps \\
+\pcreg  &\in& \RegName \\
+\Phi    &::=& \mem \in \Confs\\
+\addr   &\in& \Addrs\\
+\perm   &\in& \Perms\\
+(\perm,\start,\addrend,\addr) &\in& \Caps \\
 \end{array}$$
 Further definitions:
 $$\begin{array}{rcl}
@@ -132,25 +159,25 @@ i      &::=& \fail \mid \halt \mid
 \Phi & \rightarrow \failed                                      & & \text{otherwise}
 \end{align*}
 \begin{align*}
-  \executeAllowed(\perm) &=
+  \executeAllowed{\perm} &=
                            \begin{cases}
-                             \true & \text{if } \perm \in \{\exec{u},\exec{p},\entry{u},\entry{p}\} \\
+                             \true & \text{if } \perm \in \{ \rwx, \exec, \entry \} \\
                              \false & \text{otherwise}
                            \end{cases} \\
   \readAllowed{\perm} &=
                            \begin{cases}
-                             \true & \text{if } \perm \in \{\readonly, \readwrite, \exec{u},\exec{p}\} \\
+                             \true & \text{if } \perm \in \{ \rwx, \exec, \readwrite, \readonly \} \\
                              \false & \text{otherwise}
                            \end{cases} \\
   \writeAllowed{\perm} &=
                            \begin{cases}
-                             \true & \text{if } \perm \in \{\readwrite\} \\
+                             \true & \text{if } \perm \in \{ \rwx, \readwrite\} \\
                              \false & \text{otherwise}
                            \end{cases} \\
-  \updatePcPerm (\perm,\len,\addr) &=
+  \updatePcPerm{\perm,\start,\addrend,\addr} &=
                                      \begin{cases}
-                                       (\perm,\len,\addr) & \text{if $\perm\in\{\exec{u},\exec{p}\}$} \\
-                                       (\exec{\var{m}},\len,\addr) & \text{if $\perm = \entry{\var{m}}$}
+                                       (\perm,\start,\addrend,\addr) & \text{if $\perm\in\{ \rwx, \exec \}$} \\
+                                       (\exec,\start,\addrend,\addr) & \text{if $\perm = \entry$}
                                      \end{cases} \\
   \nonZero{w} &=
                 \begin{cases}
@@ -158,23 +185,24 @@ i      &::=& \fail \mid \halt \mid
                   \false & \text{otherwise}
                 \end{cases}
 \end{align*}
-%\Phi.reg(rv) to some other notation. It should only look up reg, if it is a regname otherwise just the litteral.
+%TODO: \Phi.reg(rv) to some other notation. It should only look up reg, if it is a regname otherwise just the litteral.
+%TODO: Update semantics according to changes.
 \begin{align*}
   \sem{\fail}(\Phi)     & = \failed \\
   \sem{\halt}(\Phi)     & = \halted \\
   \sem{\jmp{\lv}}(\Phi) & = \begin{cases}
-                            (\Phi.\reg\update{\pcreg}{\updatePcPerm(c)}) & \text{if }\Phi.reg(lv) = c \\
-                                                                         & \text{  and }c=(\perm,\len,\addr)\\
-                                                                         & \text{  and }\executeAllowed(\perm)\\
+                            (\Phi.\reg\update{\pcreg}{\updatePcPerm{c}}) & \text{if }\Phi.reg(lv) = c \\
+                                                                         & \text{  and }c=(\perm,\start,addrend,\addr)\\
+                                                                         & \text{  and }\executeAllowed{\perm}\\
                             \failed & \text{otherwise }
                             \end{cases} \\
   \sem{\jnz{\lv}{\rv}}(\Phi) & = \begin{cases}
-                            \Phi.\reg\update{\pcreg}{\updatePcPerm(\var{c})} &
+                            \Phi.\reg\update{\pcreg}{\updatePcPerm{\var{c}}} &
                             \begin{array}{l}
                               \text{if $\nonZero{\Phi.\reg(\rv)}$} \\ 
                               \text{  and $\Phi.reg(lv) = c$} \\
-                              \text{  and $c=(\perm,\len,\addr)$}\\
-                              \text{  and $\executeAllowed(\perm)$}
+                              \text{  and $c=(\perm,\start,\addrend,\addr)$}\\
+                              \text{  and $\executeAllowed{\perm}$}
                             \end{array}
                             \\ %TODO Maybe combine with jump. (failed + this)
                             \Phi.\reg\update{\pcreg}{\Phi.\reg(\pcreg) + 1} & \text{if not $\nonZero{\Phi.\reg(\rv)}$}\\
@@ -184,7 +212,7 @@ i      &::=& \fail \mid \halt \mid
                                  \begin{cases}
                                    \Phi.\reg\update{r_1}{\var{w}} &
                                    \begin{array}{l}
-                                     \text{if }\Phi.\reg(r_2) = (\perm,\len,\addr)\\
+                                     \text{if }\Phi.\reg(r_2) = (\perm,\start,\addrend,\addr)\\
                                      \text{  and }\readAllowed{\perm} \text{ and } \var{w} = \Phi.\heap(\addr)
                                    \end{array}\\
                                    \failed & \text{otherwise }
@@ -193,7 +221,7 @@ i      &::=& \fail \mid \halt \mid
                                  \begin{cases}
                                    \Phi.\heap\update{\addr}{\var{w}} &
                                    \begin{array}{l}
-                                     \text{if }\Phi.\reg(r_1) = (\perm,\len,\addr)\\
+                                     \text{if }\Phi.\reg(r_1) = (\perm,\start,\addrend,\addr)\\
                                      \text{  and }\writeAllowed{\perm} \text{ and } \var{w} = \Phi.\reg(r_2)
                                    \end{array}\\
                                    \failed & \text{otherwise }
