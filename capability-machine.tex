@@ -14,7 +14,7 @@
 \declaretheorem[numbered=yes,name=Lemma]{lemma}
 \declaretheorem[numbered=yes,name=Definition]{definition}
 
-\newcommand{\update}[2]{[#1 \mapsto #2]}%TODO change this to nicer notation \Phi[heap.a \mapsto w]
+\newcommand{\update}[2]{[#1 \mapsto #2]}
 \newcommand{\sem}[1]{\left\llbracket #1 \right\rrbracket}
 
 %Math notation
@@ -47,6 +47,14 @@
 \newcommand{\perm}{\var{perm}}
 
 \newcommand{\stdcap}[1][\perm]{\left(#1,\start,\addrend,\offset \right)}
+
+%Memory projections
+\newcommand{\plainproj}[1]{\mathrm{#1}}
+\newcommand{\memheap}{\Phi.\plainproj{heap}}
+\newcommand{\memreg}{\Phi.\plainproj{reg}}
+
+\newcommand{\updateHeap}[3][\Phi]{#1\update{\plainproj{heap}.#2}{#3}}
+\newcommand{\updateReg}[3][\Phi]{#1\update{\plainproj{reg}.#2}{#3}}
 
 %Configuration end states
 \newcommand{\failed}{\mathit{failed}}
@@ -156,7 +164,7 @@ $\RegName$ contains $\pcreg$, but is otherwise some undefined, finite set.
 \Perms &::= \{ \noperm, \readonly, \readwrite, \exec, \entry, \rwx\} & & &
 \Mems  &::= \Regs \times \Heaps \\
 \Caps  &::= \Perms \times \Addrs \times \Addrs \times \Addrs & & &
-\Confs &::= \Mems + \{\failed, \halted\}
+\Confs &::= \Mems + \{\failed, \halted \times \Mems\}
 \end{align*}
 
 \begin{figure}[!h]
@@ -188,6 +196,8 @@ r       &\in& \RegName\\
 \pc     &\in& \Caps \\
 \pcreg  &\in& \RegName \\
 \Phi    &::=& \mem \in \Confs\\
+\memheap&\in& \Heaps \\
+\memreg &\in& \Regs \\
 \addr   &\in& \Addrs\\
 \perm   &\in& \Perms\\
 (\perm,\start,\addrend,\addr) &\in& \Caps \\
@@ -247,13 +257,13 @@ i      &::=& \fail \mid \halt \mid
   \sem{\fail}(\Phi)     & = \failed \\
   \sem{\halt}(\Phi)     & = \halted \\
   \sem{\jmp{\lv}}(\Phi) & = \begin{cases}
-                            (\Phi.\reg\update{\pcreg}{\updatePcPerm{c}}) & \text{if }\Phi.reg(lv) = c \\
+                            (\updateReg{\pcreg}{\updatePcPerm{c}}) & \text{if }\Phi.reg(lv) = c \\
                                                                          & \text{  and }c=(\perm,\start,addrend,\addr)\\
                                                                          & \text{  and }\executeAllowed{\perm}\\
                             \failed & \text{otherwise }
                             \end{cases} \\
   \sem{\jnz{\lv}{\rv}}(\Phi) & = \begin{cases}
-                            \Phi.\reg\update{\pcreg}{\updatePcPerm{\var{c}}} &
+                            \updateReg{\pcreg}{\updatePcPerm{\var{c}}} &
                             \begin{array}{l}
                               \text{if $\nonZero{\Phi.\reg(\rv)}$} \\ 
                               \text{  and $\Phi.reg(lv) = c$} \\
@@ -261,12 +271,12 @@ i      &::=& \fail \mid \halt \mid
                               \text{  and $\executeAllowed{\perm}$}
                             \end{array}
                             \\ %TODO Maybe combine with jump. (failed + this)
-                            \Phi.\reg\update{\pcreg}{\Phi.\reg(\pcreg) + 1} & \text{if not $\nonZero{\Phi.\reg(\rv)}$}\\
+                            \updateReg{\pcreg}{\Phi.\reg(\pcreg) + 1} & \text{if not $\nonZero{\Phi.\reg(\rv)}$}\\
                             \failed & \text{otherwise }
                             \end{cases} \\
  \sem{\load{\refreg{r_1}}{\refheap{r_2}}} & =
                                  \begin{cases}
-                                   \Phi.\reg\update{r_1}{\var{w}} &
+                                   \updateReg{r_1}{\var{w}} &
                                    \begin{array}{l}
                                      \text{if }\Phi.\reg(r_2) = (\perm,\start,\addrend,\addr)\\
                                      \text{  and }\readAllowed{\perm} \text{ and } \var{w} = \Phi.\heap(\addr)
@@ -275,7 +285,7 @@ i      &::=& \fail \mid \halt \mid
                                  \end{cases}\\
  \sem{\store{\refheap{r_1}}{\refreg{r_2}}} & =
                                  \begin{cases}
-                                   \Phi.\heap\update{\addr}{\var{w}} &
+                                   \updateHeap{\addr}{\var{w}} &
                                    \begin{array}{l}
                                      \text{if }\Phi.\reg(r_1) = (\perm,\start,\addrend,\addr)\\
                                      \text{  and }\writeAllowed{\perm} \text{ and } \var{w} = \Phi.\reg(r_2)
@@ -284,7 +294,7 @@ i      &::=& \fail \mid \halt \mid
                                  \end{cases}\\
  \sem{\move{\refreg{r_1}}{\rv}} & =
                                  \begin{cases}
-                                   \Phi.\reg\update{r_1}{\Phi.\reg(\rv)} & \text{if $r_1 \neq \pcreg$} \\
+                                   \updateReg{r_1}{\Phi.\reg(\rv)} & \text{if $r_1 \neq \pcreg$} \\
                                    \failed   & \text{otherwise }
                                  \end{cases}\\
 \end{align*}
@@ -355,7 +365,7 @@ The heap layout for the above program can be seen in Figure~\ref{tab:tick-disp-h
 \label{sec:logical-relation}
 \subsection{Worlds}
 \[
-\Worlds \cong \frac{1}{2} (\RegionName \parfun (\Worlds \monfun \UPred{\Addrs \parfun \Worlds}))
+\Worlds \cong \frac{1}{2} (\RegionName \parfun (\Worlds \monfun \UPred{\Addrs \parfun \Words}))
 \]
 
 \[
@@ -382,7 +392,7 @@ The heap layout for the above program can be seen in Figure~\ref{tab:tick-disp-h
                    & \qquad \qquad   \forall n' < n, W' \future W, v \ldotp \\
                    & \qquad \qquad \quad \heapSat{n'}{W'} \land \\
                    & \qquad \qquad \quad \npair[n']{v} \in \stdvr(W') \\
-                   & \qquad \qquad \qquad  \Rightarrow \exists W'' \future W' \ldotp \heapSat[\Phi\update{a}{v}]{n''}{W''}
+                   & \qquad \qquad \qquad  \Rightarrow \exists W'' \future W' \ldotp \heapSat[\memheap\update{a}{v}]{n''}{W''} \}
 \union \\
                    & \{ \npair{\stdcap[\exec] = c} \mid \\
                    & \quad (\exists r \in \RegionName \ldotp \\
