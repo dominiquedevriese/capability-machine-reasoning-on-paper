@@ -333,7 +333,7 @@ Assume an $\encodePerm$ function that encodes a permission as an integer:
                                                \failed & \text{otherwise }
                                              \end{cases}\\
  \sem{\move{\refreg{r_1}}{\rv}}            & = \begin{cases}
-                                                 \stdUpdatePc{updateReg{r_1}{\memreg(\rv)}} & \text{if $r_1 \neq \pcreg$} \\ % For now we do this, so you need to use a jump to move stuff into pc.
+                                                 \stdUpdatePc{\updateReg{r_1}{\memreg(\rv)}} & \text{if $r_1 \neq \pcreg$} \\ % For now we do this, so you need to use a jump to move stuff into pc.
                                                  \failed   & \text{otherwise }
                                  \end{cases}
 \end{align*}
@@ -480,13 +480,36 @@ The heap layout for the above program can be seen in Figure~\ref{tab:tick-disp-h
                    & \qquad \qquad \quad \heapSat{n'}{W'} \land \\
                    & \qquad \qquad \quad \npair[n']{v} \in \stdvr(W') \\
                    & \qquad \qquad \qquad  \Rightarrow \exists W'' \future W' \ldotp \heapSat[\memheap\update{a}{v}]{n''}{W''} \}
-\union \\
+\union \\ & \dots\text{Continues on next page.}
+\end{align*}
+\begin{align*}
                    & \{ \npair{\stdcap[\exec] = c} \mid \\
                    & \quad (\exists r \in \RegionName \ldotp \\
                    & \qquad  \forall \addr \in \{\start, \dots, \addrend \} \ldotp \\
                    & \qquad \quad  \forall \npair{\heapseg} \in W(r)(W)\ldotp \\
                    & \qquad \qquad   \addr \in \dom(\heapseg) \land \\
                    & \qquad \qquad   \npair[n-1]{\heapseg(\addr)} \in \stdvr(W)) \\
+                   & \quad \land \\
+                   & \quad \forall n' < n \ldotp \forall W' \future W \ldotp \\
+                   & \qquad \forall \npair[n']{v_1,\dots,v_k} \in \stdvr(W') \ldotp \\
+                   & \qquad \quad \npair[n']{[\pcreg \mapsto c, r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \in \stder(W') \}
+\union \\
+% For the entry case a capability is acceptable, if we can change it to an execute permission and put it as the pc and we otherwise have valid words in the registers, then the register file should be valid.
+                   & \{ \npair{\stdcap[\entry]} \mid \\
+                   & \quad \forall n' < n \ldotp \forall W' \future W \ldotp \\
+                   & \qquad \forall \npair[n']{v_1,\dots,v_k} \in \stdvr(W') \ldotp \\
+                   & \qquad \quad \npair[n']{[\pcreg \mapsto (\stdcap[\exec]), r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \in \stder(W') \}
+\union \\
+                   & \{ \npair{\stdcap[\exec] = c} \mid \\
+                   & \quad \exists r \in \RegionName \ldotp \\
+                   & \qquad  \forall \addr \in \{\start, \dots, \addrend \} \ldotp \\
+                   & \qquad \quad  \forall \npair{\heapseg} \in W(r)(W)\ldotp \\
+                   & \qquad \qquad   \addr \in \dom(\heapseg) \land \\
+                   & \qquad \qquad   \npair[n-1]{\heapseg(\addr)} \in \stdvr(W) \land \\
+                   & \qquad \qquad   \forall n' < n, W' \future W, v \ldotp \\
+                   & \qquad \qquad \quad \heapSat{n'}{W'} \land \\
+                   & \qquad \qquad \quad \npair[n']{v} \in \stdvr(W') \\
+                   & \qquad \qquad \qquad  \Rightarrow \exists W'' \future W' \ldotp \heapSat[\memheap\update{a}{v}]{n''}{W''} \}
                    & \quad \land \\
                    & \quad \forall n' < n \ldotp \forall W' \future W \ldotp \\
                    & \qquad \forall \npair[n']{v_1,\dots,v_k} \in \stdvr(W') \ldotp \\
