@@ -24,6 +24,8 @@
 \newcommand{\union}{\mathbin{\cup}}
 \DeclareMathOperator{\dom}{dom}
 
+\newcommand{\undefined}{\mathit{undefined}}
+
 \newcommand{\false}{\mathit{false}}
 \newcommand{\true}{\mathit{true}}
 
@@ -50,15 +52,15 @@
 
 %Memory projections
 \newcommand{\plainproj}[1]{\mathrm{#1}}
-\newcommand{\memheap}{\Phi.\plainproj{heap}}
-\newcommand{\memreg}{\Phi.\plainproj{reg}}
+\newcommand{\memheap}[1][\Phi]{#1.\plainproj{heap}}
+\newcommand{\memreg}[1][\Phi]{#1.\plainproj{reg}}
 
 \newcommand{\updateHeap}[3][\Phi]{#1\update{\plainproj{heap}.#2}{#3}}
 \newcommand{\updateReg}[3][\Phi]{#1\update{\plainproj{reg}.#2}{#3}}
 
 %Configuration end states
-\newcommand{\failed}{\mathit{failed}}
-\newcommand{\halted}{\mathit{halted}}
+\newcommand{\failed}{\textsl{failed}}
+\newcommand{\halted}{\textsl{halted}}
 
 %Functions
 \newcommand{\plainfun}[1]{\mathit{#1}}
@@ -70,6 +72,7 @@
 \newcommand{\nonZero}[1]{\plainfun{nonZero}(#1)}
 \newcommand{\readAllowed}[1]{\plainfun{readAllowed}(#1)}
 \newcommand{\writeAllowed}[1]{\plainfun{writeAllowed}(#1)}
+\newcommand{\withinBounds}[1]{\plainfun{withinBounds}(#1)}
 
 %World operations
 \newcommand{\future}{\mathbin{\sqsupseteq}}
@@ -201,6 +204,7 @@ r       &\in& \RegName\\
 \addr   &\in& \Addrs\\
 \perm   &\in& \Perms\\
 (\perm,\start,\addrend,\addr) &\in& \Caps \\
+n       &\in& \ints\\
 \end{array}$$
 Further definitions:
 $$\begin{array}{rcl}
@@ -215,14 +219,23 @@ i      &::=& \fail \mid \halt \mid
 \end{array}$$
 
 \subsection*{Semantics}
+Assume a $\decode$ function that decodes integer to instructions:
 \begin{align*}
 \decode &:\ints \rightarrow \Instrs
 \end{align*}
-%TODO for some decode function
-
+Assume an $\encodePerm$ function that encodes a permission as an integer:
 \begin{align*}
-\Phi & \rightarrow \sem{\decode(\Phi.\reg(\pcreg))}(\Phi) & & \text{if $\Phi.\reg(\pcreg) = (\exec{\_},{\_},{\_})$} \\
-\Phi & \rightarrow \failed                                      & & \text{otherwise}
+\encodePerm &: \Perms \rightarrow \ints
+\end{align*}
+\begin{align*}
+  \Phi & \rightarrow \sem{\decode(\memreg(\pcreg))}(\Phi) & &                                   
+                                                              \arraycolsep=0pt
+                                                              \begin{array}{l}
+                                                                \text{if $\memreg(\pcreg) = \stdcap$}\\
+                                                                \quad\text{and $\start \leq \addr < \addrend$}\\
+                                                                \quad\text{and $\perm \in \{ \exec,\rwx \}$ }
+                                                              \end{array}\\
+\Phi & \rightarrow \failed                                 & & \text{otherwise}
 \end{align*}
 \begin{align*}
   \executeAllowed{\perm} &=
@@ -249,55 +262,117 @@ i      &::=& \fail \mid \halt \mid
                 \begin{cases}
                   \true & \text{if $w\in \Caps$ or $w\in \ints$ and $w \neq 0$}\\
                   \false & \text{otherwise}
-                \end{cases}
+                \end{cases} \\
+  \withinBounds{(\_,\start,\addrend,\addr)} &=
+                                              \begin{cases}
+                                                \true  & \text{if $\start \leq \addr \leq \addrend$} \\
+                                                \false & \text{otherwise}
+                                              \end{cases}
 \end{align*}
 %TODO: \Phi.reg(rv) to some other notation. It should only look up reg, if it is a regname otherwise just the litteral.
-%TODO: Update semantics according to changes.
 \begin{align*}
-  \sem{\fail}(\Phi)     & = \failed \\
-  \sem{\halt}(\Phi)     & = \halted \\
-  \sem{\jmp{\lv}}(\Phi) & = \begin{cases}
-                            (\updateReg{\pcreg}{\updatePcPerm{c}}) & \text{if }\Phi.reg(lv) = c \\
-                                                                         & \text{  and }c=(\perm,\start,addrend,\addr)\\
-                                                                         & \text{  and }\executeAllowed{\perm}\\
-                            \failed & \text{otherwise }
-                            \end{cases} \\
-  \sem{\jnz{\lv}{\rv}}(\Phi) & = \begin{cases}
-                            \updateReg{\pcreg}{\updatePcPerm{\var{c}}} &
-                            \begin{array}{l}
-                              \text{if $\nonZero{\Phi.\reg(\rv)}$} \\ 
-                              \text{  and $\Phi.reg(lv) = c$} \\
-                              \text{  and $c=(\perm,\start,\addrend,\addr)$}\\
-                              \text{  and $\executeAllowed{\perm}$}
-                            \end{array}
-                            \\ %TODO Maybe combine with jump. (failed + this)
-                            \updateReg{\pcreg}{\Phi.\reg(\pcreg) + 1} & \text{if not $\nonZero{\Phi.\reg(\rv)}$}\\
-                            \failed & \text{otherwise }
-                            \end{cases} \\
- \sem{\load{\refreg{r_1}}{\refheap{r_2}}} & =
-                                 \begin{cases}
-                                   \updateReg{r_1}{\var{w}} &
-                                   \begin{array}{l}
-                                     \text{if }\Phi.\reg(r_2) = (\perm,\start,\addrend,\addr)\\
-                                     \text{  and }\readAllowed{\perm} \text{ and } \var{w} = \Phi.\heap(\addr)
-                                   \end{array}\\
-                                   \failed & \text{otherwise }
-                                 \end{cases}\\
- \sem{\store{\refheap{r_1}}{\refreg{r_2}}} & =
-                                 \begin{cases}
-                                   \updateHeap{\addr}{\var{w}} &
-                                   \begin{array}{l}
-                                     \text{if }\Phi.\reg(r_1) = (\perm,\start,\addrend,\addr)\\
-                                     \text{  and }\writeAllowed{\perm} \text{ and } \var{w} = \Phi.\reg(r_2)
-                                   \end{array}\\
-                                   \failed & \text{otherwise }
-                                 \end{cases}\\
- \sem{\move{\refreg{r_1}}{\rv}} & =
-                                 \begin{cases}
-                                   \updateReg{r_1}{\Phi.\reg(\rv)} & \text{if $r_1 \neq \pcreg$} \\
-                                   \failed   & \text{otherwise }
-                                 \end{cases}\\
+  \sem{\fail}(\Phi)                        & = \failed \\
+  \sem{\halt}(\Phi)                        & = (\halted,\Phi) \\
+  \sem{\jmp{\lv}}(\Phi)                    & = 
+                                             \begin{cases}
+                                               \updateReg{\pcreg}{\updatePcPerm{c}} &
+                                               \arraycolsep=0pt
+                                               \begin{array}{l}
+                                                 \text{if }\memreg(lv) = c \\
+                                                 \quad\text{and }c=(\perm,\start,\addrend,\addr)\\
+                                                 \quad\text{and }\executeAllowed{\perm}
+                                               \end{array} \\
+                                               \failed                              & \text{otherwise }
+                                             \end{cases} \\
+  \sem{\jnz{\lv}{\rv}}(\Phi)               & = 
+                                             \begin{cases}
+                                               \updateReg{\pcreg}{\updatePcPerm{\var{c}}} &
+                                               \arraycolsep=0pt
+                                               \begin{array}{l}
+                                                 \text{if $\nonZero{\memreg(\rv)}$} \\ 
+                                                 \quad\text{and $\memreg(lv) = c$} \\
+                                                 \quad\text{and $c=(\perm,\start,\addrend,\addr)$}\\
+                                                 \quad\text{and $\executeAllowed{\perm}$}
+                                               \end{array}
+                                               \\ %TODO Maybe combine with jump. (failed + this)
+                                               \updateReg{\pcreg}{\memreg(\pcreg) + 1} & \text{if not $\nonZero{\memreg(\rv)}$}\\
+                                               \failed & \text{otherwise }
+                                             \end{cases} \\
+ \sem{\load{\refreg{r_1}}{\refheap{r_2}}}  & = 
+                                             \begin{cases}
+                                               \updateReg{r_1}{\var{w}} &
+                                               \arraycolsep=0pt
+                                               \begin{array}{l}
+                                                 \text{if } r_1 \neq \pcreg \\
+                                                 \quad\text{and }\memreg(r_2) = (\perm,\start,\addrend,\addr) = \var{c} \\
+                                                 \quad\text{and }\readAllowed{\perm} \text{ and } \withinBounds{\var{c}} \\
+                                                 \quad\text{and }\var{w} = \memheap(\addr)
+                                               \end{array}\\
+                                               \failed & \text{otherwise }
+                                             \end{cases}\\
+ \sem{\store{\refheap{r_1}}{\refreg{r_2}}} & = 
+                                             \begin{cases}
+                                               \updateHeap{\addr}{\var{w}} &
+                                               \arraycolsep=0pt
+                                               \begin{array}{l}
+                                                 \text{if }\memreg(r_1) = (\perm,\start,\addrend,\addr) = \var{c} \\
+                                                 \quad\text{and }\writeAllowed{\perm} \text{ and } \withinBounds{\var{c}} \\
+                                                 \quad\text{and }\var{w} = \memreg(r_2)
+                                               \end{array}\\
+                                               \failed & \text{otherwise }
+                                             \end{cases}\\
+ \sem{\move{\refreg{r_1}}{\rv}}            & = \begin{cases}
+                                                 \updateReg{r_1}{\memreg(\rv)} & \text{if $r_1 \neq \pcreg$} \\ % For now we do this, so you need to use a jump to move stuff into pc.
+                                                 \failed   & \text{otherwise }
+                                 \end{cases}
 \end{align*}
+\begin{align*}
+  \sem{\lea{\refreg{r_1}}{\rv}}            & =
+                                             \begin{cases}
+                                               \updateReg{r_1}{\var{c}} &
+                                                 \arraycolsep=0pt
+                                                 \begin{array}{l}
+                                                   \text{if either $n = \rv$ or $\rv = \refheap{r_2}$ and $n = \memreg(r_2)$} \\
+                                                   \quad\text{and in either case $n \in \ints $} \\
+                                                   \quad\text{and $\memreg(r_1) = \stdcap$}\\
+                                                   \quad\text{and $\var{c} = (\perm,\start,\addrend,\addr + n)$}
+                                                 \end{array}\\
+                                               \failed               & \text{otherwise}
+                                             \end{cases} 
+\\ % In the M-Machine, lea checks whether the pointer stay within the allowed range in the pointer.
+  \sem{\restrict{\refreg{r_1}}{\rv_1}{\rv_2}}           & =
+                                             \begin{cases}
+                                               \updateReg{r_1}{\var{c}}  &
+                                                 \arraycolsep=0pt
+                                                 \begin{array}{l}
+                                                   \text{if $r_1 \neq \pcreg$}\\
+                                                   \quad\text{and $\memreg(\rv_1) = c'$}\\
+                                                   \quad\text{and $c' = \stdcap$}\\
+                                                   \quad\text{and either $\rv_2 = n$ or $\memreg(\rv_2) = n$}\\
+                                                   \quad\text{and in either case $n \in \ints$}\\
+                                                   \quad\text{and $\var{newPerm} = \encodePerm(n)$}\\
+                                                   \quad\text{and $\var{newPerm} \sqsubseteq \perm$}\\
+                                                   \quad\text{and $c = (\var{newPerm},\start,\addrend,\addr)$}
+                                                 \end{array}\\
+                                               \failed                   & \text{otherwise}
+                                             \end{cases} \\ 
+  \sem{\plus{\refreg{r_1}}{\rv_1}{\rv_2}}               & =
+                                                          \begin{cases}
+                                                            \updateReg{r_1}{n_1+n_2} &
+                                                            \arraycolsep=0pt
+                                                            \begin{array}{l}
+                                                              \text{if $r_1 \neq \pcreg$}\\
+                                                              \quad\text{and $r_1\neq \pcreg$}\\
+                                                              \quad\text{for $i \in \{1,2\}$}\\
+                                                              \qquad\text{$n_i = \rv_i$ or $n_i = \memreg{\rv_i}$}
+                                                              \qquad\text{and in either case $n_i \in \ints$}
+                                                            \end{array}
+                                                          \end{cases}\\
+  \sem{\isptr{\lv}{\rv}} & = \undefined \\ 
+  \sem{\setptr{\lv}{\rv}} & = \undefined \\ 
+  \sem{\subseg{\lv}{\rv}{\rv}} & = \undefined 
+\end{align*}
+
 \section{Examples}
 \label{sec:examples}
 \subsection{Ticket Dispenser}
@@ -434,7 +509,7 @@ Consider what the ``good observations'' should be? Before we do that - what shou
 \begin{align*}
   \heapSat{n}{W} & & \text{iff} & &
                                 \begin{gathered}
-\exists \heapseg_{rem} \ldotp \Phi.\heap = \heapseg_{rem} \uplus \biguplus_{r\in \dom(W)} \heapseg_r\\
+\exists \heapseg_{rem} \ldotp \memheap = \heapseg_{rem} \uplus \biguplus_{r\in \dom(W)} \heapseg_r\\
 \text{and}\\
 \forall r \in \dom(W) \ldotp \npair{\heapseg_r} \in W(r)(W)
 \end{gathered}
