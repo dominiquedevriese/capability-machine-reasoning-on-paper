@@ -48,7 +48,7 @@
 \newcommand{\mode}{\var{mode}}
 \newcommand{\perm}{\var{perm}}
 
-\newcommand{\stdcap}[1][\perm]{\left(#1,\start,\addrend,\offset \right)}
+\newcommand{\stdcap}[1][\perm]{\left(#1,\start,\addrend,\addr \right)}
 
 %Memory projections
 \newcommand{\plainproj}[1]{\mathrm{#1}}
@@ -73,6 +73,7 @@
 \newcommand{\readAllowed}[1]{\plainfun{readAllowed}(#1)}
 \newcommand{\writeAllowed}[1]{\plainfun{writeAllowed}(#1)}
 \newcommand{\withinBounds}[1]{\plainfun{withinBounds}(#1)}
+\newcommand{\stdUpdatePc}[1]{\plainfun{updatePc(#1)}}
 
 %World operations
 \newcommand{\future}{\mathbin{\sqsupseteq}}
@@ -267,7 +268,17 @@ Assume an $\encodePerm$ function that encodes a permission as an integer:
                                               \begin{cases}
                                                 \true  & \text{if $\start \leq \addr \leq \addrend$} \\
                                                 \false & \text{otherwise}
-                                              \end{cases}
+                                              \end{cases} \\
+  \stdUpdatePc{\Phi} &=
+                       \begin{cases}
+                         \updateReg{\pcreg}{\var{newPc}} & 
+                           \arraycolsep=0pt
+                           \begin{array}{l}
+                             \text{if $\memreg(\pcreg) = \stdcap$}\\
+                             \quad\text{and $\var{newPc} = (\perm,\start,\addrend,\addr + 1)$}\\
+                           \end{array} \\
+                           \failed & \text{otherwise}
+                       \end{cases} \\
 \end{align*}
 %TODO: \Phi.reg(rv) to some other notation. It should only look up reg, if it is a regname otherwise just the litteral.
 \begin{align*}
@@ -295,12 +306,12 @@ Assume an $\encodePerm$ function that encodes a permission as an integer:
                                                  \quad\text{and $\executeAllowed{\perm}$}
                                                \end{array}
                                                \\ %TODO Maybe combine with jump. (failed + this)
-                                               \updateReg{\pcreg}{\memreg(\pcreg) + 1} & \text{if not $\nonZero{\memreg(\rv)}$}\\
+                                               \stdUpdatePc{\Phi} & \text{if not $\nonZero{\memreg(\rv)}$}\\
                                                \failed & \text{otherwise }
                                              \end{cases} \\
  \sem{\load{\refreg{r_1}}{\refheap{r_2}}}  & = 
                                              \begin{cases}
-                                               \updateReg{r_1}{\var{w}} &
+                                               \stdUpdatePc{\updateReg{r_1}{\var{w}}} &
                                                \arraycolsep=0pt
                                                \begin{array}{l}
                                                  \text{if } r_1 \neq \pcreg \\
@@ -312,7 +323,7 @@ Assume an $\encodePerm$ function that encodes a permission as an integer:
                                              \end{cases}\\
  \sem{\store{\refheap{r_1}}{\refreg{r_2}}} & = 
                                              \begin{cases}
-                                               \updateHeap{\addr}{\var{w}} &
+                                               \stdUpdatePc{\updateHeap{\addr}{\var{w}}} &
                                                \arraycolsep=0pt
                                                \begin{array}{l}
                                                  \text{if }\memreg(r_1) = (\perm,\start,\addrend,\addr) = \var{c} \\
@@ -322,14 +333,14 @@ Assume an $\encodePerm$ function that encodes a permission as an integer:
                                                \failed & \text{otherwise }
                                              \end{cases}\\
  \sem{\move{\refreg{r_1}}{\rv}}            & = \begin{cases}
-                                                 \updateReg{r_1}{\memreg(\rv)} & \text{if $r_1 \neq \pcreg$} \\ % For now we do this, so you need to use a jump to move stuff into pc.
+                                                 \stdUpdatePc{updateReg{r_1}{\memreg(\rv)}} & \text{if $r_1 \neq \pcreg$} \\ % For now we do this, so you need to use a jump to move stuff into pc.
                                                  \failed   & \text{otherwise }
                                  \end{cases}
 \end{align*}
 \begin{align*}
   \sem{\lea{\refreg{r_1}}{\rv}}            & =
                                              \begin{cases}
-                                               \updateReg{r_1}{\var{c}} &
+                                               \stdUpdatePc{\updateReg{r_1}{\var{c}}} &
                                                  \arraycolsep=0pt
                                                  \begin{array}{l}
                                                    \text{if either $n = \rv$ or $\rv = \refheap{r_2}$ and $n = \memreg(r_2)$} \\
@@ -342,7 +353,7 @@ Assume an $\encodePerm$ function that encodes a permission as an integer:
 \\ % In the M-Machine, lea checks whether the pointer stay within the allowed range in the pointer.
   \sem{\restrict{\refreg{r_1}}{\rv_1}{\rv_2}}           & =
                                              \begin{cases}
-                                               \updateReg{r_1}{\var{c}}  &
+                                               \stdUpdatePc{\updateReg{r_1}{\var{c}}}  &
                                                  \arraycolsep=0pt
                                                  \begin{array}{l}
                                                    \text{if $r_1 \neq \pcreg$}\\
@@ -358,15 +369,16 @@ Assume an $\encodePerm$ function that encodes a permission as an integer:
                                              \end{cases} \\ 
   \sem{\plus{\refreg{r_1}}{\rv_1}{\rv_2}}               & =
                                                           \begin{cases}
-                                                            \updateReg{r_1}{n_1+n_2} &
+                                                            \stdUpdatePc{\updateReg{r_1}{n_1+n_2}} &
                                                             \arraycolsep=0pt
                                                             \begin{array}{l}
                                                               \text{if $r_1 \neq \pcreg$}\\
                                                               \quad\text{and $r_1\neq \pcreg$}\\
                                                               \quad\text{for $i \in \{1,2\}$}\\
-                                                              \qquad\text{$n_i = \rv_i$ or $n_i = \memreg{\rv_i}$}
+                                                              \qquad\text{$n_i = \rv_i$ or $n_i = \memreg{\rv_i}$}\\
                                                               \qquad\text{and in either case $n_i \in \ints$}
-                                                            \end{array}
+                                                            \end{array}\\
+                                                            \failed & \text{otherwise}
                                                           \end{cases}\\
   \sem{\isptr{\lv}{\rv}} & = \undefined \\ 
   \sem{\setptr{\lv}{\rv}} & = \undefined \\ 
