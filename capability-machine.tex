@@ -19,6 +19,7 @@
 
 %Math notation
 \newcommand{\parfun}{\rightharpoonup}
+\newcommand{\monnefun}{\stackrel{\textit{\tiny{mon, ne}}}{\longrightarrow}}
 \newcommand{\monfun}{\stackrel{\textit{\tiny{mon}}}{\longrightarrow}}
 \newcommand{\defeq}{\stackrel{\textit{\tiny{def}}}{=}}
 \newcommand{\union}{\mathbin{\cup}}
@@ -238,6 +239,7 @@ Assume an $\encodePerm$ function that encodes a permission as an integer:
                                                               \end{array}\\
 \Phi & \rightarrow \failed                                 & & \text{otherwise}
 \end{align*}
+It is assumed that address 0 is used for I/O, so whatever resides in location 0 after an execution can be seen as a result. As we will see in the semantics, it is assumed that the inital process starts with a readwrite capability for this location.
 \begin{align*}
   \executeAllowed{\perm} &=
                            \begin{cases}
@@ -388,33 +390,69 @@ Assume an $\encodePerm$ function that encodes a permission as an integer:
 \section{Examples}
 \label{sec:examples}
 \subsection{Ticket Dispenser}
-\newcommand{\size}{\var{size}}
-Assume the instructions of some adversary resides in the memory starting at the memory location marked with $\codelabel{adv}$.
 \label{sec:tick-disp}
+\newcommand{\size}{\var{size}}
+\newcommand{\rio}{r_{io}}
+Assume the instructions of some adversary resides in the memory starting at the memory location marked with $\codelabel{adv}$. Assume that the register $\rio$ contains a capability for the address in memory where I/O is written to (we assume this address is 0).
 \[
   \begin{array}{r l}
+% Allocate memory for ticket dispenser program
     \init: & \move{\refreg{r_1}}{\size} \\
            & \move{\refreg{r_0}}{\refreg{\pcreg}} \\
            & \lea{\refreg{r_0}}{3} \\
            & \jmp{\malloc} \\
+% Save ticket dispenser code
            & \store{\refheap{r_1}}{(\encode(i_1))} \\
            & \lea{\refreg{r_1}}{1} \\
            & \store{\refheap{r_1}}{(\encode(i_2))} \\
            & \lea{\refreg{r_1}}{1} \\
            & \vdots \\
-           & \store{\refheap{r_1}}{(\encode(i_6))} \\
+           & \store{\refheap{r_1}}{(\encode(i_7))} \\
            & \lea{\refreg{r_1}}{1} \\
+% Save capability for counter
            & \move{\refreg{r_0}}{\refreg{r_1}} \\
            & \lea{\refreg{r_0}}{1} \\
            & \store{\refheap{r_1}}{\refreg{r_0}} \\
            & \lea{\refreg{r_1}}{1} \\
+% Save capability for counter two addresses after jump to adv.
+           & \move{\refreg{r_3}}{\refreg{\pcreg}} \\
+           & \lea{\refreg{r_3}}{17} \\
+           & \store{\refheap{r_3}}{r_0} \\
+           & \move{\refreg{r_3}}{0} \\
+% Save counter
            & \store{\refheap{r_1}}{0} \\
-           & \lea{\refreg{r_1}}{-7} \\
-           & \restrict{\refreg{r_1}}{\refreg{r_1}}{(\encodePerm{(\entry)})} \\
+% Sent pointer to start of ticket dispenser code
+           & \lea{\refreg{r_1}}{-8} \\
+% Set io to -1
+           & \store{\refheap{\rio}}{-1} \\
+% Store io capability just after jump to adv
            & \move{\refreg{r_0}}{\refreg{\pcreg}} \\
-           & \lea{\refreg{r_0}}{4} \\
+           & \lea{\refreg{r_0}}{9} \\
+           & \store{\refheap{r_0}}{\refreg{\rio}} \\
+% Overwrite io register
+           & \move{\refreg{\rio}}{0} \\
+% Set up entry pointer to ticketDispenser for adv.
+           & \restrict{\refreg{r_1}}{\refreg{r_1}}{(\encodePerm{(\entry)})} \\
+% Set up return pointer
+           & \move{\refreg{r_0}}{\refreg{\pcreg}} \\
+           & \lea{\refreg{r_0}}{5} \\
            & \restrict{\refreg{r_0}}{\refreg{r_0}}{(\encodePerm{(\entry)})} \\
-           & \jmp{\codelabel{adv}}
+% jump to adv
+           & \jmp{\codelabel{adv}} \\
+           & 0 \quad (\text{this address will be overwritten})\\
+           & 0 \quad (\text{this address will be overwritten})\\
+% retrieve io capability
+           & \move{\refreg{r_0}}{\refreg{\pcreg}} \\
+           & \lea{r_0}{-2} \\
+           & \load{\refreg{r_1}}{\refheap{r_0}} \\
+% retieve counter capability
+           & \lea{r_0}{1} \\
+           & \load{\refreg{r_2}}{\refheap{r_0}} \\
+% load the value of the counter
+           & \load{\refreg{r_0}}{\refheap{r_2}} \\
+% store the value of the counter to io
+           & \store{\refheap{r_1}}{\refreg{r_0}} \\
+           & \halt
   \end{array}
 \]
 Here $\size$ is 9. $i_1 \dots i_7$ refers to the instructions in the following program:
@@ -430,7 +468,7 @@ Here $\size$ is 9. $i_1 \dots i_7$ refers to the instructions in the following p
   \end{array}
 \]
 The heap layout for the above program can be seen in Figure~\ref{tab:tick-disp-heap}.
-\begin{figure}[h]
+\begin{figure}[ht]
   \centering
   \begin{tabular}{ | c | l | }
     \hline
@@ -450,15 +488,15 @@ The heap layout for the above program can be seen in Figure~\ref{tab:tick-disp-h
 \end{figure}
 In the JS paper, the ticket dispenser program dereferences the counter and returns the value. It does not seem like a similar thing would work here as the adversary can do even more. In particular, the adversary can execute a $\halt$ instruction that will cause the machine to halt (successfully). The adversary could also choose never to return to the return address, which we set up for him.
 \begin{lemma}
- Given $\Phi$, if $\memheap$ contains the ticket dispenser program starting at the address labelled $\init$, $\memreg(\pcreg) = (\exec,\init,\init+26,\init)$, and $\Phi \rightarrow^* (\halted,\Phi')$, then if $i$ was the address returned by the call to $\malloc$, then $\refheap(i+8)$ is even and positive.
+ Given $\Phi$, if $\memheap$ contains the ticket dispenser program starting at the address labelled $\init$, $\memreg(\pcreg) = (\exec,\init,\init+56,\init)$, and $\Phi \rightarrow^* (\halted,\Phi')$, then the I/O address (that is $\memheap[\Phi'](0)$) contains either $-1$ or a number that is $\geq 0$ and even.
 \end{lemma}
-The magic number 26 is the size of the ticet dispenser program (minus one), so the $\Phi$ is assumed to have an execute permission for the area of the heap where the program resides.
+The magic number 56 is the size of the above big program (minus one), so the configuration is assumed to have an execute permission for the area of the heap where the program resides.
 
 \section{Logical Relation}
 \label{sec:logical-relation}
 \subsection{Worlds}
 \[
-\Worlds \cong \frac{1}{2} (\RegionName \parfun (\Worlds \monfun \UPred{\Addrs \parfun \Words}))
+\Worlds \cong \frac{1}{2} (\RegionName \parfun (\Worlds \monnefun \UPred{\Addrs \parfun \Words}))
 \]
 
 \[
@@ -546,7 +584,7 @@ Consider what the ``good observations'' should be? Before we do that - what shou
 \end{align*}
 
 
-\begin{definition}[Heap staisfaction/erasure]
+\begin{definition}[Heap satisfaction/erasure]
 \begin{align*}
   \heapSat{n}{W} & & \text{iff} & &
                                       \arraycolsep=0pt
@@ -558,6 +596,10 @@ Consider what the ``good observations'' should be? Before we do that - what shou
                                       \end{array}\\
 \end{align*}
 \end{definition}
+\begin{lemma}[FTLR]
+  For some configuration 
+\end{lemma}
+
 \section{Related reading}
 \label{sec:related-reading}
 
