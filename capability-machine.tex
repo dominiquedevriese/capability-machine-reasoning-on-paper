@@ -534,17 +534,17 @@ The magic number 56 is the size of the above big program (minus one), so the con
                    & \qquad \qquad   \addr \in \dom(\heapseg) \land \\
                    & \qquad \qquad   \npair[n-1]{\heapseg(\addr)} \in \stdvr(W)) \\
                    & \quad \land \\
-                   & \quad \forall n' < n \ldotp \forall W' \future W \ldotp \\
+                   & \quad (\forall n' < n \ldotp \forall W' \future W \ldotp \\
                    & \qquad \forall \npair[n']{v_1,\dots,v_k} \in \stdvr(W'),\addr' \in \{\start, \dots, \addrend \} \ldotp \\
-                   & \qquad \quad \npair[n']{[\pcreg \mapsto (\exec,\start,\addrend,\addr'), r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \in \stder(W') \}
+                   & \qquad \quad \npair[n']{[\pcreg \mapsto (\exec,\start,\addrend,\addr'), r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \in \stder(W')) \}
 \union \\
 % For the entry case a capability is acceptable, if we can change it to an execute permission and put it as the pc and we otherwise have valid words in the registers, then the register file should be valid.
                    & \{ \npair{\stdcap[\entry]} \mid \\
                    & \quad \forall n' < n \ldotp \forall W' \future W \ldotp \\
                    & \qquad \forall \npair[n']{v_1,\dots,v_k} \in \stdvr(W') \ldotp \\
-                   & \qquad \quad \npair[n']{[\pcreg \mapsto (\stdcap[\exec]), r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \in \stder(W') \}
+                   & \qquad \quad \npair[n']{[\pcreg \mapsto \stdcap[\exec], r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \in \stder(W') \}
 \union \\
-                   & \{ \npair{\stdcap[\exec] = c} \mid \\
+                   & \{ \npair{\stdcap[\rwx] = c} \mid \\
                    & \quad \exists r \in \RegionName \ldotp \\
                    & \qquad  \forall \addr \in \{\start, \dots, \addrend \} \ldotp \\
                    & \qquad \quad  \forall \npair{\heapseg} \in W(r)(W)\ldotp \\
@@ -553,18 +553,18 @@ The magic number 56 is the size of the above big program (minus one), so the con
                    & \qquad \qquad   \forall n' < n, W' \future W, v \ldotp \\
                    & \qquad \qquad \quad \heapSat{n'}{W'} \land \\
                    & \qquad \qquad \quad \npair[n']{v} \in \stdvr(W') \\
-                   & \qquad \qquad \qquad  \Rightarrow \exists W'' \future W' \ldotp \heapSat[\memheap\update{a}{v}]{n''}{W''} \}
+                   & \qquad \qquad \qquad  \Rightarrow \exists W'' \future W' \ldotp \heapSat[\memheap\update{a}{v}]{n''}{W''} \\
                    & \quad \land \\
                    & \quad \forall n' < n \ldotp \forall W' \future W \ldotp \\
-                   & \qquad \forall \npair[n']{v_1,\dots,v_k} \in \stdvr(W') \ldotp \\
-                   & \qquad \quad \npair[n']{[\pcreg \mapsto c, r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \in \stder(W') \}
+                   & \qquad \forall \npair[n']{v_1,\dots,v_k} \in \stdvr(W'),\addr' \in \{\start, \dots, \addrend \} \ldotp \\
+                   & \qquad \quad \npair[n']{[\pcreg \mapsto (\exec,\start,\addrend,\addr'), r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \in \stder(W') \}
 \}
 \end{align*}
 
 Consider what the ``good observations'' should be? Before we do that - what should the end result of a computation be?
 \begin{align*}
   \observations \quad : & \quad  \Worlds \monfun \UPred{\Confs} \\%TODO: What should this be?
-  \observations (W) \defeq & \{ (\reg,\heap) \mid (\reg,\heap) \diverge \}
+  \observations (W) \defeq & \{ (n,\reg,\heap) \mid (\reg,\heap) \diverge \}
 \end{align*}
 \begin{align*}
   \stdkr \quad : & \quad  \Worlds \monfun \UPred{\Words} \\%TODO: What should this be?
@@ -572,7 +572,7 @@ Consider what the ``good observations'' should be? Before we do that - what shou
                    & \quad \forall v\ldotp \in \stdvr(W) \Rightarrow \\
                    & \qquad  \forall W' \future W\ldotp %on the whiteboard, we had public future world.
                      \forall \heapSat[\heap]{n'}{W'}, \npair{v_1 \dots v_k} \in \stdvr(W') \ldotp \\
-                   & \qquad \quad ([\pcreg \mapsto \updatePcPerm{c},r_0 \mapsto v,r_1 \mapsto v_1,\dots, r_k \mapsto v_k], \heap) \in \observations(W) \}
+                   & \qquad \quad (n,[\pcreg \mapsto \updatePcPerm{c},r_0 \mapsto v,r_1 \mapsto v_1,\dots, r_k \mapsto v_k], \heap) \in \observations(W) \}
 \end{align*}
 
 \begin{align*}
@@ -580,7 +580,7 @@ Consider what the ``good observations'' should be? Before we do that - what shou
   \stder(W) \defeq & \{ \npair{\reg} \mid \\
                    & \quad \forall \npair{c} \in \stdkr(W) \\
                    & \qquad  \forall \heapSat[\heap]{n}{W}, \heap_f \ldotp \\
-                   & \qquad \quad (\reg\update{r_0}{c},\heap \uplus \heap_f) \in \observations(W) \}
+                   & \qquad \quad (n,\reg\update{r_0}{c},\heap \uplus \heap_f) \in \observations(W) \}
 \end{align*}
 
 
@@ -597,7 +597,7 @@ Consider what the ``good observations'' should be? Before we do that - what shou
 \end{align*}
 \end{definition}
 \begin{lemma}[FTLR]
-  For some configuration 
+  For all $n \in \nats$, $W \in \Worlds$, and register files $\reg$, if for all $r \in RegName$ $(n,\reg(r)) \in \stdvr(W)$, then $(n,\reg) \in \stder(W)$
 \end{lemma}
 
 \section{Related reading}
