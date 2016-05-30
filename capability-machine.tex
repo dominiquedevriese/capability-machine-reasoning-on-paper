@@ -7,12 +7,17 @@
 \usepackage{stmaryrd}
 \usepackage{natbib}
 \usepackage{url}
+\usepackage{array}
+\usepackage{arydshln}
+\usepackage{ifthen}
 
 \usepackage{tikz}
-
+\usepackage{multirow}
 
 \declaretheorem[numbered=yes,name=Lemma]{lemma}
 \declaretheorem[numbered=yes,name=Definition]{definition}
+
+\newcommand{\forcenewline}{$\phantom{v}$\\}
 
 \newcommand{\update}[2]{[#1 \mapsto #2]}
 \newcommand{\sem}[1]{\left\llbracket #1 \right\rrbracket}
@@ -84,6 +89,8 @@
 \newcommand{\codelabel}[1]{\mathit{#1}}
 \newcommand{\init}{\codelabel{init}}
 \newcommand{\malloc}{\codelabel{malloc}}
+\newcommand{\counter}{\codelabel{counter}}
+\newcommand{\iocap}{\codelabel{iocap}}
 
 %Type(s)
 \newcommand{\type}[1]{\mathrm{#1}}
@@ -114,8 +121,10 @@
 \newcommand{\valueintr}[1]{\intr{V}{#1}}
 \newcommand{\exprintr}[1]{\intr{E}{#1}}
 \newcommand{\contintr}[1]{\intr{K}{#1}}
+\newcommand{\envintr}[1]{\intr{G}{#1}}
 \newcommand{\stdvr}{\valueintr{\asmType}}
 \newcommand{\stder}{\exprintr{\asmType}}
+\newcommand{\stdgr}{\envintr{\asmType}}
 \newcommand{\stdkr}{\contintr{\asmType}}
 \newcommand{\observations}{\mathcal{O}}
 \newcommand{\npair}[2][n]{\left(#1,#2 \right)}
@@ -393,69 +402,83 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
 \label{sec:tick-disp}
 \newcommand{\size}{\var{size}}
 \newcommand{\rio}{r_{io}}
+\newcommand{\mrlen}{5cm}
+\newcommand{\bracket}[1]{\multirow{#1}{*}{\ensuremath{
+ \left . \vphantom{\begin{array}{l}
+ \ifthenelse{\equal{#1}{1}}{3\\}{
+    \ifthenelse{\equal{#1}{2}}{3\\3\\}{
+    \ifthenelse{\equal{#1}{3}}{3\\3\\3\\}{
+    \ifthenelse{\equal{#1}{4}}{3\\3\\3\\3\\}{
+    \ifthenelse{\equal{#1}{5}}{3\\3\\3\\3\\3\\}{
+    \ifthenelse{\equal{#1}{6}}{3\\3\\3\\3\\3\\3\\}{
+      3\\3\\3\\3\\3\\3\\3\\ %7
+  }}}}}}
+  \end{array}} \right \}}}
+}
+\newcommand{\annotate}[2]{\multirow{#1}{\mrlen}{\scriptsize #2}}
 Assume the instructions of some adversary resides in the memory starting at the memory location marked with $\codelabel{adv}$. Assume that the register $\rio$ contains a capability for the address in memory where I/O is written to (we assume this address is 0).
 \[
-  \begin{array}{r l}
+  \begin{array}{r l l p{\mrlen}}
 % Allocate memory for ticket dispenser program
-    \init: & \move{\refreg{r_1}}{\size} \\
-           & \move{\refreg{r_0}}{\refreg{\pcreg}} \\
-           & \lea{\refreg{r_0}}{3} \\
-           & \jmp{\malloc} \\
+    \init: & \move{\refreg{r_1}}{\size} &  \bracket{4} & \annotate{4}{Allocate memory for the ticket dispenser program (including memory for counter and capability for counter)}\\
+           & \move{\refreg{r_0}}{\refreg{\pcreg}} & & \\
+           & \lea{\refreg{r_0}}{3} & & \\
+           & \jmp{\malloc} & & \\
 % Save ticket dispenser code
-           & \store{\refheap{r_1}}{(\encode(i_1))} \\
-           & \lea{\refreg{r_1}}{1} \\
-           & \store{\refheap{r_1}}{(\encode(i_2))} \\
-           & \lea{\refreg{r_1}}{1} \\
-           & \vdots \\
-           & \store{\refheap{r_1}}{(\encode(i_7))} \\
-           & \lea{\refreg{r_1}}{1} \\
+           & \store{\refheap{r_1}}{(\encode(i_1))} & \bracket{7} & \annotate{7}{Store the ticket dispenser program in the newly allocated memory} \\
+           & \lea{\refreg{r_1}}{1} & & \\
+           & \store{\refheap{r_1}}{(\encode(i_2))} & & \\
+           & \lea{\refreg{r_1}}{1} & & \\
+           & \vdots & & \\
+           & \store{\refheap{r_1}}{(\encode(i_7))} & & \\
+           & \lea{\refreg{r_1}}{1} & & \\
 % Save capability for counter
-           & \move{\refreg{r_0}}{\refreg{r_1}} \\
-           & \lea{\refreg{r_0}}{1} \\
-           & \store{\refheap{r_1}}{\refreg{r_0}} \\
-           & \lea{\refreg{r_1}}{1} \\
+           & \move{\refreg{r_0}}{\refreg{r_1}} & \bracket{4} & \annotate{4}{Store a capability for the counter address after the ticket dispenser program} \\
+           & \lea{\refreg{r_0}}{1} & & \\
+           & \store{\refheap{r_1}}{\refreg{r_0}} & & \\
+           & \lea{\refreg{r_1}}{1} & & \\
 % Save capability for counter two addresses after jump to adv.
-           & \move{\refreg{r_3}}{\refreg{\pcreg}} \\
-           & \lea{\refreg{r_3}}{17} \\
-           & \store{\refheap{r_3}}{r_0} \\
-           & \move{\refreg{r_3}}{0} \\
+           & \move{\refreg{r_2}}{\refreg{\pcreg}} & \bracket{3} & \annotate{3}{Store a capability for the counter in this code} \\
+           & \lea{\refreg{r_2}}{\counter} & & \\
+           & \store{\refheap{r_2}}{r_0} & & \\
+           & \move{\refreg{r_2}}{0} & \bracket{1} & \annotate{1}{Overwrite capability for counter} \\
 % Save counter
-           & \store{\refheap{r_1}}{0} \\
-% Sent pointer to start of ticket dispenser code
-           & \lea{\refreg{r_1}}{-8} \\
+           & \store{\refheap{r_1}}{0} & \bracket{1} & \annotate{1}{Initialize counter to 0} \\
+% Change pointer to point to start of ticket dispenser code
+           & \lea{\refreg{r_1}}{-8} & \bracket{1} & \annotate{1}{Capability points to start of td code \footnote{This is also the argument for the adversary}} \\
 % Set io to -1
-           & \store{\refheap{\rio}}{-1} \\
+           & \store{\refheap{\rio}}{-1} & \bracket{1} & \annotate{1}{Initialize io to $-1$} \\
 % Store io capability just after jump to adv
-           & \move{\refreg{r_0}}{\refreg{\pcreg}} \\
-           & \lea{\refreg{r_0}}{9} \\
-           & \store{\refheap{r_0}}{\refreg{\rio}} \\
+           & \move{\refreg{r_0}}{\refreg{\pcreg}} & \bracket{3} & \annotate{3}{Store the io capability on the stack} \\
+           & \lea{\refreg{r_0}}{\iocap} & & \\
+           & \store{\refheap{r_0}}{\refreg{\rio}} & & \\
 % Overwrite io register
-           & \move{\refreg{\rio}}{0} \\
+           & \move{\refreg{\rio}}{0} & \bracket{1} & \annotate{1}{Overwrite io register} \\
 % Set up entry pointer to ticketDispenser for adv.
-           & \restrict{\refreg{r_1}}{\refreg{r_1}}{(\encodePerm{(\entry)})} \\
+           & \restrict{\refreg{r_1}}{\refreg{r_1}}{(\encodePerm{(\entry)})} &\bracket{1} & \annotate{1}{Restrict cap. to td} \\
 % Set up return pointer
-           & \move{\refreg{r_0}}{\refreg{\pcreg}} \\
-           & \lea{\refreg{r_0}}{5} \\
-           & \restrict{\refreg{r_0}}{\refreg{r_0}}{(\encodePerm{(\entry)})} \\
+           & \move{\refreg{r_0}}{\refreg{\pcreg}} & \bracket{3} & \annotate{3}{Setup a return pointer for the adversary} \\
+           & \lea{\refreg{r_0}}{5} & & \\
+           & \restrict{\refreg{r_0}}{\refreg{r_0}}{(\encodePerm{(\entry)})} & & \\
 % jump to adv
-           & \jmp{\codelabel{adv}} \\
-           & 0 \quad (\text{this address will be overwritten})\\
-           & 0 \quad (\text{this address will be overwritten})\\
+           & \jmp{\codelabel{adv}} & \bracket{1} & \annotate{1}{Jump to the adversary} \\
+           & 0 & \bracket{1} & \annotate{1}{Address reserved for io cap.} \\
+           & 0 & \bracket{1} & \annotate{1}{Address reserved for counter cap.} \\
 % retrieve io capability
-           & \move{\refreg{r_0}}{\refreg{\pcreg}} \\
-           & \lea{r_0}{-2} \\
-           & \load{\refreg{r_1}}{\refheap{r_0}} \\
+           & \move{\refreg{r_0}}{\refreg{\pcreg}} & \bracket{3} & \annotate{3}{Retrieve the io capabiltiy} \\
+           & \lea{r_0}{-2} & & \\
+           & \load{\refreg{\rio}}{\refheap{r_0}} & & \\
 % retieve counter capability
-           & \lea{r_0}{1} \\
-           & \load{\refreg{r_2}}{\refheap{r_0}} \\
+           & \lea{r_0}{1} & \bracket{2} & \annotate{2}{Retrieve the counter capability} \\
+           & \load{\refreg{r_1}}{\refheap{r_0}} & & \\
 % load the value of the counter
-           & \load{\refreg{r_0}}{\refheap{r_2}} \\
+           & \load{\refreg{r_0}}{\refheap{r_1}} & \bracket{2} & \annotate{2}{Read the counter and write it to io address} \\
 % store the value of the counter to io
-           & \store{\refheap{r_1}}{\refreg{r_0}} \\
+           & \store{\refheap{\rio}}{\refreg{r_0}} & & \\
            & \halt
   \end{array}
 \]
-Here $\size$ is 9. $i_1 \dots i_7$ refers to the instructions in the following program:
+Here $\size$ is 9. The variables $\counter$ and $\iocap$ are resepctively the offsets to the addresses reserved for the counter and io capabilities. $i_1 \dots i_7$ refers to the instructions in the following program:
 \[
   \begin{array}{r l}
     i_1 :& \move{\refreg{r_2}}{\refreg{\pcreg}} \\
@@ -488,7 +511,7 @@ The heap layout for the above program can be seen in Figure~\ref{tab:tick-disp-h
 \end{figure}
 In the JS paper, the ticket dispenser program dereferences the counter and returns the value. It does not seem like a similar thing would work here as the adversary can do even more. In particular, the adversary can execute a $\halt$ instruction that will cause the machine to halt (successfully). The adversary could also choose never to return to the return address, which we set up for him.
 \begin{lemma}
- Given $\Phi$, if $\memheap$ contains the ticket dispenser program starting at the address labelled $\init$, $\memreg(\pcreg) = (\exec,\init,\init+56,\init)$, and $\Phi \rightarrow^* (\halted,\Phi')$, then the I/O address (that is $\memheap[\Phi'](0)$) contains either $-1$ or a number that is $\geq 0$ and even.
+ Given $\Phi$, if $\memheap$ contains the ticket dispenser program starting at the address labelled $\init$, $\memreg(\pcreg) = (\rwx,\init,\init+56,\init)$, and $\Phi \rightarrow^* (\halted,\Phi')$, then the I/O address (that is $\memheap[\Phi'](0)$) contains either $-1$ or a number that is $\geq 0$ and even.
 \end{lemma}
 The magic number 56 is the size of the above big program (minus one), so the configuration is assumed to have an execute permission for the area of the heap where the program resides.
 
@@ -564,7 +587,7 @@ The magic number 56 is the size of the above big program (minus one), so the con
 Consider what the ``good observations'' should be? Before we do that - what should the end result of a computation be?
 \begin{align*}
   \observations \quad : & \quad  \Worlds \monfun \UPred{\Confs} \\%TODO: What should this be?
-  \observations (W) \defeq & \{ (n,\reg,\heap) \mid (\reg,\heap) \diverge \}
+  \observations (W) \defeq & \{ \npair{(\reg,\heap)} \mid (\reg,\heap) \diverge \}
 \end{align*}
 \begin{align*}
   \stdkr \quad : & \quad  \Worlds \monfun \UPred{\Words} \\%TODO: What should this be?
@@ -578,11 +601,17 @@ Consider what the ``good observations'' should be? Before we do that - what shou
 \begin{align*}
   \stder \quad : & \quad \Worlds \monfun \UPred{\Words} \\%TODO: What should this be?
   \stder(W) \defeq & \{ \npair{\reg} \mid \\
-                   & \quad \forall \npair{c} \in \stdkr(W) \\
+                   & \quad \forall \npair{c} \in \stdkr(W) \ldotp \\
                    & \qquad  \forall \heapSat[\heap]{n}{W}, \heap_f \ldotp \\
                    & \qquad \quad (n,\reg\update{r_0}{c},\heap \uplus \heap_f) \in \observations(W) \}
 \end{align*}
 
+\begin{align*}
+  \stdgr \quad : & \quad \Worlds \monfun \UPred{\Regs} \\
+  \stdgr(W) \defeq & \{ \npair{\reg} \mid \\
+                    & \quad \forall r \in \RegName \ldotp \\
+                    & \qquad  \npair{\reg(r)} \in \stdvr(W) \}
+\end{align*}
 
 \begin{definition}[Heap satisfaction/erasure]
 \begin{align*}
@@ -595,9 +624,11 @@ Consider what the ``good observations'' should be? Before we do that - what shou
                                       \qquad\forall \iota \in \dom(W) \ldotp \npair{r(\iota)} \in W(\iota)(W)
                                       \end{array}\\
 \end{align*}
+
+
 \end{definition}
-\begin{lemma}[FTLR]
-  For all $n \in \nats$, $W \in \Worlds$, and register files $\reg$, if for all $r \in RegName$ $(n,\reg(r)) \in \stdvr(W)$, then $(n,\reg) \in \stder(W)$
+\begin{lemma}[Fundamental theorem of logical relations (FTLR)] \forcenewline
+  If for all $n \in \nats$, $W \in \Worlds$, and register files $\reg$, $\npair{\reg} \in \stdgr(W)$, then $(n,\reg) \in \stder(W)$
 \end{lemma}
 
 \section{Related reading}
