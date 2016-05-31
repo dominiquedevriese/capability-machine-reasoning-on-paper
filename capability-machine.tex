@@ -416,7 +416,7 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
   \end{array}} \right \}}}
 }
 \newcommand{\annotate}[2]{\multirow{#1}{\mrlen}{\scriptsize #2}}
-Assume the instructions of some adversary resides in the memory starting at the memory location marked with $\codelabel{adv}$. Assume that the register $\rio$ contains a capability for the address in memory where I/O is written to (we assume this address is 0).
+Assume the instructions of some adversary resides in the memory starting at the memory location marked with $\codelabel{adv}$. Assume that the register $\rio$ initially contains a capability for the address in memory where I/O is written to (we assume this address is 0).
 \[
   \begin{array}{r l l p{\mrlen}}
 % Allocate memory for ticket dispenser program
@@ -511,9 +511,9 @@ The heap layout for the above program can be seen in Figure~\ref{tab:tick-disp-h
 \end{figure}
 In the JS paper, the ticket dispenser program dereferences the counter and returns the value. It does not seem like a similar thing would work here as the adversary can do even more. In particular, the adversary can execute a $\halt$ instruction that will cause the machine to halt (successfully). The adversary could also choose never to return to the return address, which we set up for him.
 \begin{lemma}
- Given $\Phi$, if $\memheap$ contains the ticket dispenser program starting at the address labelled $\init$, $\memreg(\pcreg) = (\rwx,\init,\init+56,\init)$, and $\Phi \rightarrow^* (\halted,\Phi')$, then the I/O address (that is $\memheap[\Phi'](0)$) contains either $-1$ or a number that is $\geq 0$ and even.
+ Given $\Phi$, if $\memheap$ contains the ticket dispenser program starting at the address labelled $\init$, $\memreg(\pcreg) = (\rwx,\init,\init+\var{proglen}-1,\init)$, $\memreg(\rio) = (\readwrite,0,0,0)$, and $\Phi \rightarrow^* (\halted,\Phi')$, then the I/O address (that is $\memheap[\Phi'](0)$) contains either $-1$ or a number that is $\geq 0$ and even.
 \end{lemma}
-The magic number 56 is the size of the above big program (minus one), so the configuration is assumed to have an execute permission for the area of the heap where the program resides.
+The variable $\var{proglen}$ is the length of the above program (which is about 57), so the in the initial configuration the $\pcreg$ register is assumed to have an execute and write permission for the area of the heap where the program resides.
 
 \section{Logical Relation}
 \label{sec:logical-relation}
@@ -589,6 +589,7 @@ Consider what the ``good observations'' should be? Before we do that - what shou
   \observations \quad : & \quad  \Worlds \monfun \UPred{\Confs} \\%TODO: What should this be?
   \observations (W) \defeq & \{ \npair{(\reg,\heap)} \mid (\reg,\heap) \diverge \}
 \end{align*}
+``Continuation'' relation:
 \begin{align*}
   \stdkr \quad : & \quad  \Worlds \monfun \UPred{\Words} \\%TODO: What should this be?
   \stdkr(W) \defeq & \{ \npair{c} \mid \\
@@ -597,7 +598,7 @@ Consider what the ``good observations'' should be? Before we do that - what shou
                      \forall \heapSat[\heap]{n'}{W'}, \npair{v_1 \dots v_k} \in \stdvr(W') \ldotp \\
                    & \qquad \quad (n,[\pcreg \mapsto \updatePcPerm{c},r_0 \mapsto v,r_1 \mapsto v_1,\dots, r_k \mapsto v_k], \heap) \in \observations(W) \}
 \end{align*}
-
+``Expression'' relation:
 \begin{align*}
   \stder \quad : & \quad \Worlds \monfun \UPred{\Words} \\%TODO: What should this be?
   \stder(W) \defeq & \{ \npair{\reg} \mid \\
@@ -605,7 +606,7 @@ Consider what the ``good observations'' should be? Before we do that - what shou
                    & \qquad  \forall \heapSat[\heap]{n}{W}, \heap_f \ldotp \\
                    & \qquad \quad (n,\reg\update{r_0}{c},\heap \uplus \heap_f) \in \observations(W) \}
 \end{align*}
-
+Register-file relation:
 \begin{align*}
   \stdgr \quad : & \quad \Worlds \monfun \UPred{\Regs} \\
   \stdgr(W) \defeq & \{ \npair{\reg} \mid \\
