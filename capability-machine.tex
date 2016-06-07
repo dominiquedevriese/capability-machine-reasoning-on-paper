@@ -11,6 +11,7 @@
 \usepackage{arydshln}
 \usepackage{ifthen}
 
+
 \usepackage{tikz}
 \usepackage{multirow}
 
@@ -23,6 +24,7 @@
 \newcommand{\sem}[1]{\left\llbracket #1 \right\rrbracket}
 
 %Math notation
+\newcommand{\restrictfun}[1]{|_{#1}}
 \newcommand{\parfun}{\rightharpoonup}
 \newcommand{\monnefun}{\stackrel{\textit{\tiny{mon, ne}}}{\longrightarrow}}
 \newcommand{\monfun}{\stackrel{\textit{\tiny{mon}}}{\longrightarrow}}
@@ -524,6 +526,15 @@ The variable $\var{proglen}$ is the length of the above program (which is about 
 \]
 
 \[
+  \iota_{\var{start},\var{end}} \; : \; \Worlds \monfun \UPred{\Addrs \parfun \Heaps}
+\]
+\begin{align*}
+  \iota_{\var{start},\var{end}}(W) \defeq & \{ \npair{\heapseg} \mid \dom(\heapseg) = [\var{start},\var{end}] \land \\
+                                     & \forall \addr \in \dom(\heapseg) \ldotp \npair{\heapseg(\addr)} \in \stdvr(W) \}
+\end{align*}
+
+
+\[
 \stdvr \; : \;  \Worlds \monfun \UPred{\Words}
 \]
 \begin{align*}
@@ -531,25 +542,29 @@ The variable $\var{proglen}$ is the length of the above program (which is about 
 \union \\
                    & \{ \npair{\stdcap[\noperm] } \} 
 \union \\
-                   & \{ \npair{\stdcap[\readonly]} \mid \\
-                   & \quad \exists r \in \RegionName \ldotp \\
-                   & \qquad  \forall \addr \in \{\start, \dots, \addrend \} \ldotp \\
-                   & \qquad \quad  \forall \npair{\heapseg} \in W(r)(W)\ldotp \\
-                   & \qquad \qquad   \addr \in \dom(\heapseg) \land \\
-                   & \qquad \qquad   \npair[n-1]{\heapseg(\addr)} \in \stdvr(W)\} 
+                   & \{ \npair{\stdcap[\readonly] } \mid \\
+                   & \exists r \ldotp \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r) \subseteq_{n-1} \iota_{\start',\addrend'} \}\\
+%                   & \quad \exists r \in \RegionName \ldotp \\
+%                   & \qquad  \forall \addr \in \{\start, \dots, \addrend \} \ldotp \\
+%                   & \qquad \quad  \forall \npair{\heapseg} \in W(r)(W)\ldotp \\
+%                   & \qquad \qquad   \addr \in \dom(\heapseg) \land \\
+%                   & \qquad \qquad   \npair[n-1]{\heapseg(\addr)} \in \stdvr(W)\} 
 \union \\
-                   & \{ \npair{\readwrite} \mid \\
-                   & \quad \exists r \in \RegionName \ldotp \\
-                   & \qquad  \forall \addr \in \{\start, \dots, \addrend \} \ldotp \\
-                   & \qquad \quad  \forall \npair{\heapseg} \in W(r)(W)\ldotp \\
-                   & \qquad \qquad   \addr \in \dom(\heapseg) \land \\
-                   & \qquad \qquad   \npair[n-1]{\heapseg(\addr)} \in \stdvr(W) \land \\
-                   & \qquad \qquad   \forall n' < n, W' \future W, v \ldotp \\
-                   & \qquad \qquad \quad \heapSat{n'}{W'} \land \\
-                   & \qquad \qquad \quad \npair[n']{v} \in \stdvr(W') \\
-                   & \qquad \qquad \qquad  \Rightarrow \exists W'' \future W' \ldotp \heapSat[\memheap\update{a}{v}]{n''}{W''} \}
-\union \\ & \dots\text{Continues on next page.}
+                   & \{ \npair{\stdcap[\readwrite] } \mid \\
+                   & \exists r \ldotp \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r) =_{n-1} \iota_{\start',\addrend'} \} \\
+%                   & \quad \exists r \in \RegionName \ldotp \\
+%                   & \qquad  \forall \addr \in \{\start, \dots, \addrend \} \ldotp \\
+%                   & \qquad \quad  \forall \npair{\heapseg} \in W(r)(W)\ldotp \\
+%                   & \qquad \qquad   \addr \in \dom(\heapseg) \land \\
+%                   & \qquad \qquad   \npair[n-1]{\heapseg(\addr)} \in \stdvr(W) \land \\
+%                   & \qquad \qquad   \forall n' < n, W' \future W, v \ldotp \\
+%                   & \qquad \qquad \quad \heapSat{n'}{W'} \land \\
+%                   & \qquad \qquad \quad \npair[n']{v} \in \stdvr(W') \\
+%                   & \qquad \qquad \qquad  \Rightarrow \exists W'' \future W' \ldotp \heapSat[\memheap\update{a}{v}]{n''}{W''} \}
+\union \\
+                   & \dots\text{Continues on next page.}
 \end{align*}
+
 \begin{align*}
                    & \{ \npair{\stdcap[\exec] = c} \mid \\
                    & \quad (\exists r \in \RegionName \ldotp \\
@@ -593,7 +608,7 @@ Consider what the ``good observations'' should be? Before we do that - what shou
                            & \quad (\exists \reg', \heap', i \leq n \ldotp (\reg,\heap) \step[i] \failed) \lor \\
                            & \quad (\forall \heap', i \leq n \ldotp (\reg,\heap) \step[i] (\halted,\heap)  \\
                            & \qquad \Rightarrow \npair[n-i]{\heap(0)} \in \stdvr(W) \land \\
-                           & \qquad \qquad \forall r \ldotp 0 \in \dom(W(r)) \ldotp \npair[n-i]{\heap(0)} \in W(r)(W) )\}
+                           & \qquad \qquad \forall r \ldotp 0 \in \dom(W(r)) \ldotp \npair[n-i]{\heap \restrictfun[\{0\}]} \in W(r)(W) )\}
 \end{align*}
 The ``good observations'' are as follows
 \begin{itemize}
