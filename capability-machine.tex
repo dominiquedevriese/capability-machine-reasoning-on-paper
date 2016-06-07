@@ -29,6 +29,9 @@
 \newcommand{\monnefun}{\stackrel{\textit{\tiny{mon, ne}}}{\longrightarrow}}
 \newcommand{\monfun}{\stackrel{\textit{\tiny{mon}}}{\longrightarrow}}
 \newcommand{\defeq}{\stackrel{\textit{\tiny{def}}}{=}}
+\newcommand{\nequal}[1][n]{\stackrel{\tiny{#1}}{=}}
+\newcommand{\nsubeq}[1][n]{\stackrel{\tiny{#1}}{\subseteq}}
+\newcommand{\nsupeq}[1][n]{\stackrel{\tiny{#1}}{\supseteq}}
 \newcommand{\union}{\mathbin{\cup}}
 \DeclareMathOperator{\dom}{dom}
 
@@ -76,12 +79,19 @@
 \newcommand{\encode}{\plainfun{encode}}
 \newcommand{\encodePerm}{\plainfun{encodePerm}}
 \newcommand{\updatePcPerm}[1]{\plainfun{updatePcPerm}(#1)}
+
 \newcommand{\executeAllowed}[1]{\plainfun{executeAllowed}(#1)}
 \newcommand{\nonZero}[1]{\plainfun{nonZero}(#1)}
 \newcommand{\readAllowed}[1]{\plainfun{readAllowed}(#1)}
 \newcommand{\writeAllowed}[1]{\plainfun{writeAllowed}(#1)}
 \newcommand{\withinBounds}[1]{\plainfun{withinBounds}(#1)}
 \newcommand{\stdUpdatePc}[1]{\plainfun{updatePc(#1)}}
+
+\newcommand{\readCond}[1]{\plainfun{readCondition}(#1)}
+\newcommand{\writeCond}[1]{\plainfun{writeCondition}(#1)}
+\newcommand{\execCond}[1]{\plainfun{executeCondition}(#1)}
+\newcommand{\entryCond}[1]{\plainfun{entryCondition}(#1)}
+
 
 %World operations
 \newcommand{\future}{\mathbin{\sqsupseteq}}
@@ -530,9 +540,23 @@ The variable $\var{proglen}$ is the length of the above program (which is about 
 \]
 \begin{align*}
   \iota_{\var{start},\var{end}}(W) \defeq & \{ \npair{\heapseg} \mid \dom(\heapseg) = [\var{start},\var{end}] \land \\
-                                     & \forall \addr \in \dom(\heapseg) \ldotp \npair{\heapseg(\addr)} \in \stdvr(W) \}
+                                     & \quad \forall \addr \in \dom(\heapseg) \ldotp \npair{\heapseg(\addr)} \in \stdvr(W) \}
 \end{align*}
 
+\begin{align*}
+  \readCond{n,W,\start,\addrend} = & \;\exists r \in \RegionName \ldotp \\
+                                   & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r) \nsubeq[n-1] \iota_{\start',\addrend'} \\ & \\
+  \writeCond{n,W,\start,\addrend} = & \; \exists r \in \RegionName \ldotp \\
+                                   & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r) \nequal[n-1] \iota_{\start',\addrend'} \\
+  \execCond{n,W,\start,\addrend} = & \; \forall n' < n \ldotp \forall W' \future W \ldotp \\
+                                   & \; \quad \forall \npair[n']{v_1},\dots,\npair[n']{v_k} \in \stdvr(W'),\addr' \in [\start, \addrend] \ldotp \\
+                                   & \; \qquad \npair[n']{[\pcreg \mapsto (\exec,\start,\addrend,\addr'), r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \\
+                                   & \; \qquad \quad \in \stder(W') \\
+  \entryCond{n,W,\start,\addrend,\addr} = & \; \forall n' < n \ldotp \forall W' \future W \ldotp \\
+                                   & \; \quad \forall \npair[n']{v_1},\dots,\npair[n']{v_k} \in \stdvr(W') \ldotp \\
+                                   & \; \qquad \npair[n']{[\pcreg \mapsto (\exec,\start,\addrend,\addr), r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \\
+                                   & \; \qquad \quad \in \stder(W') \\
+\end{align*}
 
 \[
 \stdvr \; : \;  \Worlds \monfun \UPred{\Words}
@@ -540,18 +564,15 @@ The variable $\var{proglen}$ is the length of the above program (which is about 
 \begin{align*}
   \stdvr(W) \defeq & \{ \npair{i} \mid i \in \ints \} 
 \union \\
-                   & \{ \npair{\stdcap[\noperm] } \} 
+                   & \{ \npair{\stdcap[\noperm] }  \} 
 \union \\
-                   & \{ \npair{\stdcap[\readonly] } \mid \\
-                   & \exists r \ldotp \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r) \subseteq_{n-1} \iota_{\start',\addrend'} \}\\
+                   & \{ \npair{\stdcap[\readonly] } \mid \readCond{n,W,\start,\addrend} \} \union \\
 %                   & \quad \exists r \in \RegionName \ldotp \\
 %                   & \qquad  \forall \addr \in \{\start, \dots, \addrend \} \ldotp \\
 %                   & \qquad \quad  \forall \npair{\heapseg} \in W(r)(W)\ldotp \\
 %                   & \qquad \qquad   \addr \in \dom(\heapseg) \land \\
 %                   & \qquad \qquad   \npair[n-1]{\heapseg(\addr)} \in \stdvr(W)\} 
-\union \\
-                   & \{ \npair{\stdcap[\readwrite] } \mid \\
-                   & \exists r \ldotp \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r) =_{n-1} \iota_{\start',\addrend'} \} \\
+                   & \{ \npair{\stdcap[\readwrite] } \mid \writeCond{n,W,\start,\addrend} \} \union \\
 %                   & \quad \exists r \in \RegionName \ldotp \\
 %                   & \qquad  \forall \addr \in \{\start, \dots, \addrend \} \ldotp \\
 %                   & \qquad \quad  \forall \npair{\heapseg} \in W(r)(W)\ldotp \\
@@ -561,43 +582,39 @@ The variable $\var{proglen}$ is the length of the above program (which is about 
 %                   & \qquad \qquad \quad \heapSat{n'}{W'} \land \\
 %                   & \qquad \qquad \quad \npair[n']{v} \in \stdvr(W') \\
 %                   & \qquad \qquad \qquad  \Rightarrow \exists W'' \future W' \ldotp \heapSat[\memheap\update{a}{v}]{n''}{W''} \}
-\union \\
-                   & \dots\text{Continues on next page.}
-\end{align*}
-
-\begin{align*}
-                   & \{ \npair{\stdcap[\exec] = c} \mid \\
-                   & \quad (\exists r \in \RegionName \ldotp \\
-                   & \qquad  \forall \addr \in \{\start, \dots, \addrend \} \ldotp \\
-                   & \qquad \quad  \forall \npair{\heapseg} \in W(r)(W)\ldotp \\
-                   & \qquad \qquad   \addr \in \dom(\heapseg) \land \\
-                   & \qquad \qquad   \npair[n-1]{\heapseg(\addr)} \in \stdvr(W)) \\
-                   & \quad \land \\
-                   & \quad (\forall n' < n \ldotp \forall W' \future W \ldotp \\
-                   & \qquad \forall \npair[n']{v_1,\dots,v_k} \in \stdvr(W'),\addr' \in \{\start, \dots, \addrend \} \ldotp \\
-                   & \qquad \quad \npair[n']{[\pcreg \mapsto (\exec,\start,\addrend,\addr'), r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \in \stder(W')) \}
+                   & \{ \npair{\stdcap[\exec]} \mid \\
+                   & \quad\readCond{n,W,\start,\addrend} \land \\
+%                   & \quad (\exists r \in \RegionName \ldotp \\
+%                   & \qquad  \forall \addr \in \{\start, \dots, \addrend \} \ldotp \\
+%                   & \qquad \quad  \forall \npair{\heapseg} \in W(r)(W)\ldotp \\
+%                   & \qquad \qquad   \addr \in \dom(\heapseg) \land \\
+%                   & \qquad \qquad   \npair[n-1]{\heapseg(\addr)} \in \stdvr(W)) \\
+                   & \quad \execCond{n,W,\start,\addrend} \}
+%                   & \quad (\forall n' < n \ldotp \forall W' \future W \ldotp \\
+%                   & \qquad \forall \npair[n']{v_1,\dots,v_k} \in \stdvr(W'),\addr' \in \{\start, \dots, \addrend \} \ldotp \\
+%                   & \qquad \quad \npair[n']{[\pcreg \mapsto (\exec,\start,\addrend,\addr'), r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \in \stder(W')) \}
 \union \\
 % For the entry case a capability is acceptable, if we can change it to an execute permission and put it as the pc and we otherwise have valid words in the registers, then the register file should be valid.
-                   & \{ \npair{\stdcap[\entry]} \mid \\
-                   & \quad \forall n' < n \ldotp \forall W' \future W \ldotp \\
-                   & \qquad \forall \npair[n']{v_1,\dots,v_k} \in \stdvr(W') \ldotp \\
-                   & \qquad \quad \npair[n']{[\pcreg \mapsto \stdcap[\exec], r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \in \stder(W') \}
-\union \\
+                   & \{ \npair{\stdcap[\entry]} \mid \entryCond{n,W,\start,\addrend} \} \union \\
+%                   & \quad \forall n' < n \ldotp \forall W' \future W \ldotp \\
+%                   & \qquad \forall \npair[n']{v_1,\dots,v_k} \in \stdvr(W') \ldotp \\
+%                   & \qquad \quad \npair[n']{[\pcreg \mapsto \stdcap[\exec], r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \in \stder(W') \}
                    & \{ \npair{\stdcap[\rwx] = c} \mid \\
-                   & \quad \exists r \in \RegionName \ldotp \\
-                   & \qquad  \forall \addr \in \{\start, \dots, \addrend \} \ldotp \\
-                   & \qquad \quad  \forall \npair{\heapseg} \in W(r)(W)\ldotp \\
-                   & \qquad \qquad   \addr \in \dom(\heapseg) \land \\
-                   & \qquad \qquad   \npair[n-1]{\heapseg(\addr)} \in \stdvr(W) \land \\
-                   & \qquad \qquad   \forall n' < n, W' \future W, v \ldotp \\
-                   & \qquad \qquad \quad \heapSat{n'}{W'} \land \\
-                   & \qquad \qquad \quad \npair[n']{v} \in \stdvr(W') \\
-                   & \qquad \qquad \qquad  \Rightarrow \exists W'' \future W' \ldotp \heapSat[\memheap\update{a}{v}]{n''}{W''} \\
-                   & \quad \land \\
-                   & \quad \forall n' < n \ldotp \forall W' \future W \ldotp \\
-                   & \qquad \forall \npair[n']{v_1,\dots,v_k} \in \stdvr(W'),\addr' \in \{\start, \dots, \addrend \} \ldotp \\
-                   & \qquad \quad \npair[n']{[\pcreg \mapsto (\exec,\start,\addrend,\addr'), r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \in \stder(W') \}
-\}
+                   & \quad \writeCond{n,W,\start,\addrend} \land \\
+                   & \quad \execCond{n,W,\start,\addrend} \}
+%                   & \quad \exists r \in \RegionName \ldotp \\
+%                   & \qquad  \forall \addr \in \{\start, \dots, \addrend \} \ldotp \\
+%                   & \qquad \quad  \forall \npair{\heapseg} \in W(r)(W)\ldotp \\
+%                   & \qquad \qquad   \addr \in \dom(\heapseg) \land \\
+%                   & \qquad \qquad   \npair[n-1]{\heapseg(\addr)} \in \stdvr(W) \land \\
+%                   & \qquad \qquad   \forall n' < n, W' \future W, v \ldotp \\
+%                   & \qquad \qquad \quad \heapSat{n'}{W'} \land \\
+%                   & \qquad \qquad \quad \npair[n']{v} \in \stdvr(W') \\
+%                   & \qquad \qquad \qquad  \Rightarrow \exists W'' \future W' \ldotp \heapSat[\memheap\update{a}{v}]{n''}{W''} \\
+%                   & \quad \land \\
+%                   & \quad \forall n' < n \ldotp \forall W' \future W \ldotp \\
+%                   & \qquad \forall \npair[n']{v_1,\dots,v_k} \in \stdvr(W'),\addr' \in \{\start, \dots, \addrend \} \ldotp \\
+%                   & \qquad \quad \npair[n']{[\pcreg \mapsto (\exec,\start,\addrend,\addr'), r_1 \mapsto v_1, \dots , r_k \mapsto v_k]} \in \stder(W') \}
 \end{align*}
 
 Consider what the ``good observations'' should be? Before we do that - what should the end result of a computation be?
