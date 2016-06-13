@@ -127,6 +127,7 @@
 
 \newcommand{\RegionName}{\plaindom{RegionName}}
 \newcommand{\Worlds}{\plaindom{World}}
+\newcommand{\StorePred}{\plaindom{StorePred}}
 \newcommand{\UPred}[1]{\plaindom{UPred}(#1)}
 
 %LR
@@ -525,7 +526,7 @@ The heap layout for the above program can be seen in Figure~\ref{tab:tick-disp-h
 \end{figure}
 In the JS paper, the ticket dispenser program dereferences the counter and returns the value. It does not seem like a similar thing would work here as the adversary can do even more. In particular, the adversary can execute a $\halt$ instruction that will cause the machine to halt (successfully). The adversary could also choose never to return to the return address, which we set up for him.
 \begin{lemma}
- Given $\Phi$, if $\memheap$ contains the ticket dispenser program starting at the address labelled $\init$, $\memreg(\pcreg) = (\rwx,\init,\init+\var{proglen}-1,\init)$, $\memreg(\rio) = (\readwrite,0,0,0)$, and $\Phi \rightarrow^* (\halted,\Phi')$, then the I/O address (that is $\memheap[\Phi'](0)$) contains either $-1$ or a number that is $\geq 0$ and even.
+ Given $\Phi$, if $\memheap$ contains the ticket dispenser program starting at the address labelled $\init$, $\memreg(\pcreg) = (\rwx,\init,\init+\var{proglen}-1,\init)$, $\memreg(\rio) = (\readwrite,0,0,0)$, the remaining registers of $\memreg$ contains 0, and $\Phi \rightarrow^* (\halted,\Phi')$, then the I/O address (that is $\memheap[\Phi'](0)$) contains either $-1$ or a number that is $\geq 0$ and even.
 \end{lemma}
 The variable $\var{proglen}$ is the length of the above program (which is about 57), so the in the initial configuration the $\pcreg$ register is assumed to have an execute and write permission for the area of the heap where the program resides.
 
@@ -533,11 +534,14 @@ The variable $\var{proglen}$ is the length of the above program (which is about 
 \label{sec:logical-relation}
 \subsection{Worlds}
 \[
-\Worlds \cong \frac{1}{2} (\RegionName \parfun (\Worlds \monnefun \UPred{\Addrs \parfun \Words}))
+  \StorePred = \Worlds \monnefun \UPred{\Addrs \parfun \Words}
+\]
+\[
+\Worlds \cong \frac{1}{2} (\RegionName \parfun \StorePred)
 \]
 
 \[
-  \iota_{\var{start},\var{end}} \; : \; \Worlds \monfun \UPred{\Addrs \parfun \Heaps}
+  \iota_{\var{start},\var{end}} \; : \; \StorePred
 \]
 \begin{align*}
   \iota_{\var{start},\var{end}}(W) \defeq & \{ \npair{\heapseg} \mid \dom(\heapseg) = [\var{start},\var{end}] \land \\
@@ -551,7 +555,7 @@ The variable $\var{proglen}$ is the length of the above program (which is about 
                                           & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r) \nequal[n-1] \iota_{\start',\addrend'} \\ & \\
   \execCond{n,W,\start,\addrend,\perm} =  & \; \forall n' < n \ldotp \forall W' \future W \ldotp \\
                                           & \; \quad \forall \addr \in [\start,\addrend] \ldotp \\
-                                          & \; \qquad \npair{(\perm,\start,\addrend,\addr)} \in \stder(W') \\ & \\
+                                          & \; \qquad \npair[n']{(\perm,\start,\addrend,\addr)} \in \stder(W') \\ & \\
   \entryCond{n,W,\start,\addrend,\addr} = & \; \forall n' < n \ldotp \forall W' \future W \ldotp \\
                                           & \; \quad \npair[n']{(\exec,\start,\addrend,\addr)} \in \stder(W') \\
 \end{align*}
@@ -572,7 +576,7 @@ The variable $\var{proglen}$ is the length of the above program (which is about 
 \union \\
 % For the entry case a capability is acceptable, if we can change it to an execute permission and put it as the pc and we otherwise have valid words in the registers, then the register file should be valid.
                    & \{ \npair{\stdcap[\entry]} \mid \entryCond{n,W,\start,\addrend} \} \union \\
-                   & \{ \npair{\stdcap[\rwx] = c} \mid \\
+                   & \{ \npair{\stdcap[\rwx]} \mid \\
                    & \quad \writeCond{n,W,\start,\addrend} \land \\
                    & \quad \execCond{n,W,\start,\addrend,\exec} \land \\
                    & \quad \execCond{n,W,\start,\addrend,\rwx} \}
@@ -584,9 +588,9 @@ Consider what the ``good observations'' should be? Before we do that - what shou
   \observations (W) \defeq & \{ \npair{(\reg,\heap)} \mid \\
                            & \quad (\exists \reg', \heap' \ldotp (\reg,\heap) \step[n] (\reg',\heap')) \lor \\ %Define the step stuff 
                            & \quad (\exists \reg', \heap', i \leq n \ldotp (\reg,\heap) \step[i] \failed) \lor \\
-                           & \quad (\forall \heap', i \leq n \ldotp (\reg,\heap) \step[i] (\halted,\heap)  \\
-                           & \qquad \Rightarrow \npair[n-i]{\heap(0)} \in \stdvr(W) \land \\
-                           & \qquad \qquad \forall r \ldotp 0 \in \dom(W(r)) \ldotp \npair[n-i]{\heap \restrictfun{\{0\}}} \in W(r)(W) )\}
+                           & \quad (\forall \heap', i \leq n \ldotp (\reg,\heap) \step[i] (\halted,\heap')  \\
+                           & \qquad \Rightarrow \npair[n-i]{\heap'(0)} \in \stdvr(W) \land \\
+                           & \qquad \qquad \forall r \ldotp 0 \in \dom(W(r)) \ldotp \npair[n-i]{\heap' \restrictfun{\{0\}}} \in W(r)(W) )\}
 \end{align*}
 The ``good observations'' are as follows
 \begin{itemize}
