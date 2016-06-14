@@ -18,6 +18,7 @@
 
 \declaretheorem[numbered=yes,name=Lemma]{lemma}
 \declaretheorem[numbered=yes,name=Definition]{definition}
+\declaretheorem[numbered=yes,name=Specification]{specification}
 
 \newcommand{\forcenewline}{$\phantom{v}$\\}
 
@@ -40,6 +41,10 @@
 
 \newcommand{\false}{\mathit{false}}
 \newcommand{\true}{\mathit{true}}
+
+%Comments
+\newcommand\lau[1]{{\color{purple} \sf \footnotesize {LS: #1}}}
+\newcommand\dominique[1]{{\color{purple} \sf \footnotesize {DD: #1}}}
 
 %Variables
 \newcommand{\var}[1]{\mathit{#1}}
@@ -135,10 +140,10 @@
 \newcommand{\valueintr}[1]{\intr{V}{#1}}
 \newcommand{\exprintr}[1]{\intr{E}{#1}}
 \newcommand{\contintr}[1]{\intr{K}{#1}}
-\newcommand{\envintr}[1]{\intr{G}{#1}}
+\newcommand{\regintr}[1]{\intr{R}{#1}}
 \newcommand{\stdvr}{\valueintr{\asmType}}
 \newcommand{\stder}{\exprintr{\asmType}}
-\newcommand{\stdgr}{\envintr{\asmType}}
+\newcommand{\stdrr}{\regintr{\asmType}}
 \newcommand{\stdkr}{\contintr{\asmType}}
 \newcommand{\observations}{\mathcal{O}}
 \newcommand{\npair}[2][n]{\left(#1,#2 \right)}
@@ -431,11 +436,19 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
   \end{array}} \right \}}}
 }
 \newcommand{\annotate}[2]{\multirow{#1}{\mrlen}{\scriptsize #2}}
-Assume the instructions of some adversary resides in the memory starting at the memory location marked with $\codelabel{adv}$. Assume that the register $\rio$ initially contains a capability for the address in memory where I/O is written to (we assume this address is 0).
+Assume the instructions of some adversary resides in the memory starting at the memory location marked with $\codelabel{adv}$. Assume that the register $\rio$ initially contains a capability for the address in memory where I/O is written to (we assume this address is 0). The following is a test program for a ticket dispenser:
 \[
   \begin{array}{r l l p{\mrlen}}
+% Set io to -1
+\init:     & \store{\refheap{\rio}}{-1} & \bracket{1} & \annotate{1}{Initialize io to $-1$} \\
+% Store io capability just after jump to adv
+           & \move{\refreg{r_0}}{\refreg{\pcreg}} & \bracket{3} & \annotate{3}{Store the io capability on the stack} \\
+           & \lea{\refreg{r_0}}{\iocap} & & \\
+           & \store{\refheap{r_0}}{\refreg{\rio}} & & \\
+% Overwrite io register
+           & \move{\refreg{\rio}}{0} & \bracket{1} & \annotate{1}{Overwrite io register} \\
 % Allocate memory for ticket dispenser program
-    \init: & \move{\refreg{r_1}}{\size} &  \bracket{4} & \annotate{4}{Allocate memory for the ticket dispenser program (including memory for counter and capability for counter)}\\
+     & \move{\refreg{r_1}}{\size} &  \bracket{4} & \annotate{4}{Allocate memory for the ticket dispenser program (including memory for counter and capability for counter)}\\
            & \move{\refreg{r_0}}{\refreg{\pcreg}} & & \\
            & \lea{\refreg{r_0}}{3} & & \\
            & \jmp{\malloc} & & \\
@@ -461,14 +474,6 @@ Assume the instructions of some adversary resides in the memory starting at the 
            & \store{\refheap{r_1}}{0} & \bracket{1} & \annotate{1}{Initialize counter to 0} \\
 % Change pointer to point to start of ticket dispenser code
            & \lea{\refreg{r_1}}{-8} & \bracket{1} & \annotate{1}{Capability points to start of td code \footnote{This is also the argument for the adversary}} \\
-% Set io to -1
-           & \store{\refheap{\rio}}{-1} & \bracket{1} & \annotate{1}{Initialize io to $-1$} \\
-% Store io capability just after jump to adv
-           & \move{\refreg{r_0}}{\refreg{\pcreg}} & \bracket{3} & \annotate{3}{Store the io capability on the stack} \\
-           & \lea{\refreg{r_0}}{\iocap} & & \\
-           & \store{\refheap{r_0}}{\refreg{\rio}} & & \\
-% Overwrite io register
-           & \move{\refreg{\rio}}{0} & \bracket{1} & \annotate{1}{Overwrite io register} \\
 % Set up entry pointer to ticketDispenser for adv.
            & \restrict{\refreg{r_1}}{\refreg{r_1}}{(\encodePerm{(\entry)})} &\bracket{1} & \annotate{1}{Restrict cap. to td} \\
 % Set up return pointer
@@ -493,7 +498,7 @@ Assume the instructions of some adversary resides in the memory starting at the 
            & \halt
   \end{array}
 \]
-Here $\size$ is 9. The variables $\counter$ and $\iocap$ are resepctively the offsets to the addresses reserved for the counter and io capabilities. $i_1 \dots i_7$ refers to the instructions in the following program:
+Here $\size$ is 9. The variables $\counter$ and $\iocap$ are resepctively the offsets to the addresses reserved for the counter and io capabilities. $i_1 \dots i_7$ refers to the instructions in the following ticket dispenser:
 \[
   \begin{array}{r l}
     i_1 :& \move{\refreg{r_2}}{\refreg{\pcreg}} \\
@@ -525,10 +530,37 @@ The heap layout for the above program can be seen in Figure~\ref{tab:tick-disp-h
   \label{tab:tick-disp-heap}
 \end{figure}
 In the JS paper, the ticket dispenser program dereferences the counter and returns the value. It does not seem like a similar thing would work here as the adversary can do even more. In particular, the adversary can execute a $\halt$ instruction that will cause the machine to halt (successfully). The adversary could also choose never to return to the return address, which we set up for him.
-\begin{lemma}
- Given $\Phi$, if $\memheap$ contains the ticket dispenser program starting at the address labelled $\init$, $\memreg(\pcreg) = (\rwx,\init,\init+\var{proglen}-1,\init)$, $\memreg(\rio) = (\readwrite,0,0,0)$, the remaining registers of $\memreg$ contains 0, and $\Phi \rightarrow^* (\halted,\Phi')$, then the I/O address (that is $\memheap[\Phi'](0)$) contains either $-1$ or a number that is $\geq 0$ and even.
+\begin{lemma}[Ticket dispenser test]
+\label{lem:tckt-disp}
+ Given $\Phi$, if $\memheap$ contains the ticket dispenser test program starting at the address labelled $\init$, $\memreg(\pcreg) = (\rwx,\init,\init+\var{proglen}-1,\init)$, $\memreg(\rio) = (\readwrite,0,0,0)$, the remaining registers of $\memreg$ contains 0, and $\Phi \rightarrow^* (\halted,\Phi')$, then the I/O address (that is $\memheap[\Phi'](0)$) contains either $-1$ or a number that is $\geq 0$ and even.
 \end{lemma}
 The variable $\var{proglen}$ is the length of the above program (which is about 57), so the in the initial configuration the $\pcreg$ register is assumed to have an execute and write permission for the area of the heap where the program resides.
+
+The ticket dispenser test program uses $\malloc$. To be able to reason about programs that use $\malloc$, we assume that it obeys the following specification. If you provide it with one argument, namely the size of the allocation you wish and a return capability, then at some point $\pcreg$ will contain an executable capability based on this return capability and the return register will contain a $\rwx$ capability for the freshly allocated memory. 
+\begin{specification}[Malloc]
+  For all worlds, $W$, configurations, $\Phi$, natural numbers, $n$, and addresses $b$, $e$, and $return$ where $\heapSat[\memheap]{n}{W}$ if
+  \begin{itemize}
+  \item $\memreg(r_0) = (\entry,b,e,\var{return})$,
+  \item $\memreg(r_1) = m$ where $m$ is some positive natural number\footnote{We do not include 0 as malloc in C returns a null pointer when malloc(0) is called.}, and
+  \item the remaining registers contain 0,
+  \end{itemize}
+then there exists a configuration $\Phi'$, a future world $W' \future W$, a natural number $i$ such that $\heapSat[{\memheap[\Phi']}]{n-i}{W'}$ and $\dom(\memheap[\Phi']) \supseteq \dom(\memheap) \uplus [b',e']$\footnote{notice that $\malloc$ is allowed to allocated memory for its own purposes} for some addresses $b'$ and $e'$. Further the register file contains the following
+\begin{itemize}
+\item $\memreg(\pcreg) = (\rwx,b,e,\var{return})$,
+\item $\memreg(r_0) = (\entry,b,e,\var{return})$,
+\item $\memreg(r_1) = (\rwx,b',e',b')$, and
+\item $\memreg(r) = 0$ for all other registers $r$.
+\end{itemize}
+\end{specification}
+\begin{proof}[Proof (Lemma~\ref{lem:tckt-disp})]
+Let configuration $\Phi$ be given. Assume that the ticket dispenser test code resides in memory starting at address $\init$. Further assume that the register file contains the following:
+\begin{enumerate}
+\item $\memreg(\rio) = (\readwrite,0,0,0)$ 
+\item $\memreg(\pcreg) = (\rwx,\init, \init + \var{proglen} - 1, \init)$
+\item $\memreg(r) = 0$ for the remaining registers $r$ in the register file.
+\end{enumerate}
+Further assume $\Phi \rightarrow^* (\halted,\Phi')$.
+\end{proof}
 
 \section{Logical Relation}
 \label{sec:logical-relation}
@@ -602,8 +634,8 @@ Address 0 is the designated I/O address.
 
 Register-file relation:
 \begin{align*}
-  \stdgr \quad : & \quad \Worlds \monfun \UPred{\Regs} \\
-  \stdgr(W) \defeq & \{ \npair{\reg} \mid \\
+  \stdrr \quad : & \quad \Worlds \monfun \UPred{\Regs} \\
+  \stdrr(W) \defeq & \{ \npair{\reg} \mid \\
                     & \quad \forall r \in \RegName \setminus \{\pcreg\} \ldotp \\
                     & \qquad  \npair{\reg(r)} \in \stdvr(W) \}
 \end{align*}
@@ -614,14 +646,14 @@ Register-file relation:
   \stdkr(W) \defeq & \{ \npair{c} \mid \\
                    & \quad \forall v \in \stdvr(W)\ldotp \\
                    & \qquad  \forall W' \future W\ldotp %on the whiteboard, we had public future world.
-                     \forall \heapSat[\heap]{n'}{W'} \ldotp \forall \reg \in \stdgr(W') \\
+                     \forall \heapSat[\heap]{n'}{W'} \ldotp \forall \reg \in \stdrr(W') \\
                    & \qquad \quad (n,reg\update{r_0}{v}\update{\pcreg}{\updatePcPerm{c}}, \heap) \in \observations(W) \}
 \end{align*}
 ``Expression'' relation:
 \begin{align*}
   \stder \quad : & \quad \Worlds \monfun \UPred{\Words} \\%TODO: Check whether this needs to be monotone
   \stder(W) \defeq & \{ \npair{\pc} \mid \\
-                   & \quad \forall \reg \in \stdgr(W) \ldotp \\
+                   & \quad \forall \reg \in \stdrr(W) \ldotp \\
                    & \qquad \forall \npair{c} \in \stdkr(W) \ldotp \\
                    & \qquad \quad  \forall \heapSat[\heap]{n}{W}, \heap_f \ldotp \\
                    & \qquad \qquad (n,\reg\update{r_0}{c}\update{\pcreg}{\pc},\heap \uplus \heap_f) \in \observations(W) \}
