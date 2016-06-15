@@ -48,6 +48,7 @@
 
 %Variables
 \newcommand{\var}[1]{\mathit{#1}}
+\newcommand{\hs}{\var{hs}}
 \newcommand{\hv}{\var{hv}}
 \newcommand{\rv}{\var{rv}}
 \newcommand{\lv}{\var{lv}}
@@ -124,6 +125,7 @@
 \newcommand{\RegName}{\plaindom{RegisterName}}
 \newcommand{\Regs}{\plaindom{Reg}}
 \newcommand{\Heaps}{\plaindom{Heap}}
+\newcommand{\HeapSegments}{\plaindom{HeapSegment}}
 \newcommand{\Confs}{\plaindom{Conf}}
 \newcommand{\Instrs}{\plaindom{Instructions}}
 \newcommand{\nats}{\mathbb{N}}
@@ -198,7 +200,8 @@ $\RegName$ contains $\pcreg$, but is otherwise some undefined, finite set.
 \Perms &::= \{ \noperm, \readonly, \readwrite, \exec, \entry, \rwx\} & & &
 \Mems  &::= \Regs \times \Heaps \\
 \Caps  &::= \Perms \times \Addrs \times \Addrs \times \Addrs & & &
-\Confs &::= \Mems + \{\failed, \halted \times \Mems\}
+\Confs &::= \Mems + \{\failed, \halted \times \Mems\} \\
+\HeapSegments &::= \Addrs \parfun \Words & & & &
 \end{align*}
 
 \begin{figure}[!h]
@@ -436,7 +439,7 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
   \end{array}} \right \}}}
 }
 \newcommand{\annotate}[2]{\multirow{#1}{\mrlen}{\scriptsize #2}}
-Assume the instructions of some adversary resides in the memory starting at the memory location marked with $\codelabel{adv}$. Assume that the register $\rio$ initially contains a capability for the address in memory where I/O is written to (we assume this address is 0). The following is a test program for a ticket dispenser:
+Assume the instructions of some adversary resides in the memory starting at the memory location marked with $\codelabel{adv}$. Assume that the register $\rio$ initially contains a capability for the address in memory where I/O is written to (we assume this address is 0). We assume that entry capabilities for $\codelabel{adv}$ and $\malloc$ is ambiently available. The following is a test program for a ticket dispenser:
 \[
   \begin{array}{r l l p{\mrlen}}
 % Set io to -1
@@ -532,7 +535,16 @@ The heap layout for the above program can be seen in Figure~\ref{tab:tick-disp-h
 In the JS paper, the ticket dispenser program dereferences the counter and returns the value. It does not seem like a similar thing would work here as the adversary can do even more. In particular, the adversary can execute a $\halt$ instruction that will cause the machine to halt (successfully). The adversary could also choose never to return to the return address, which we set up for him.
 \begin{lemma}[Ticket dispenser test]
 \label{lem:tckt-disp}
- Given $\Phi$, if $\memheap$ contains the ticket dispenser test program starting at the address labelled $\init$, $\memreg(\pcreg) = (\rwx,\init,\init+\var{proglen}-1,\init)$, $\memreg(\rio) = (\readwrite,0,0,0)$, the remaining registers of $\memreg$ contains 0, and $\Phi \rightarrow^* (\halted,\Phi')$, then the I/O address (that is $\memheap[\Phi'](0)$) contains either $-1$ or a number that is $\geq 0$ and even.
+ Given a configuration $\Phi$, if
+ \begin{description}
+ \item[$\boldsymbol \memheap$] contains the ticket dispenser test program starting at the address labelled $\init$, 
+ \item[$\boldsymbol \memheap$] contains the adversary code starting at label $\codelabel{adv}$. The adversary is assumed to have no capabilities on the heap, but it has access to the ambient $\malloc$ capability! \lau{maybe mention that malloc is also on the heap}
+ \item[the heap segment $\boldsymbol{ \hs}$] contains all allocated addresses in the sense that any capability in $\Phi$ is a capability for a piece of memory in $\hs$,
+ \item[$\boldsymbol{ \memreg(\pcreg)}$] is $(\rwx,\init,\init+\var{proglen}-1,\init)$, which is the only capability that grants any access to this part of the heap,
+ \item[$\boldsymbol{ \memreg(\rio)}$] is $(\readwrite,0,0,0)$, which also is the only capability that grants access to this part of the heap, 
+ \item[the remaining registers] all contains 0,
+ \end{description}
+ and $\Phi \rightarrow^* (\halted,\Phi')$, then the I/O address (that is $\memheap[\Phi'](0)$) contains either $-1$ or a number that is $\geq 0$ and even.
 \end{lemma}
 The variable $\var{proglen}$ is the length of the above program (which is about 57), so the in the initial configuration the $\pcreg$ register is assumed to have an execute and write permission for the area of the heap where the program resides.
 
@@ -544,7 +556,7 @@ The ticket dispenser test program uses $\malloc$. To be able to reason about pro
   \item $\memreg(r_1) = m$ where $m$ is some positive natural number\footnote{We do not include 0 as malloc in C returns a null pointer when malloc(0) is called.}, and
   \item the remaining registers contain 0,
   \end{itemize}
-then there exists a configuration $\Phi'$, a future world $W' \future W$, a natural number $i$ such that $\heapSat[{\memheap[\Phi']}]{n-i}{W'}$ and $\dom(\memheap[\Phi']) \supseteq \dom(\memheap) \uplus [b',e']$\footnote{notice that $\malloc$ is allowed to allocated memory for its own purposes} for some addresses $b'$ and $e'$. Further the register file contains the following
+then there exists a configuration $\Phi'$, a future world $W[r \mapsto \iota_{b',e'}] \future W$ for some addresses $b'$ and $e'$\lau{I had this to be exists future world $W'$, but it seemed useless as I couldn't argue that I could change the heap}, a natural number $i$ such that $\heapSat[{\memheap[\Phi']}]{n-i}{W'}$, $\dom(\memheap[\Phi']) = \dom(\memheap) \uplus [b',e']$  and for all $a \in \dom(\memheap)$ the heap is unchanged, i.e., $\memheap(a) = \memheap[\Phi'](a)$\footnote{This is probably not the best assumption, as $\malloc$ probably need to keep track of the allocated memory, but this is a simple way to make $\malloc$ trustworthy in the sense that it cannot give the same capability to the adversary code.}. Further the register file contains the following
 \begin{itemize}
 \item $\memreg(\pcreg) = (\rwx,b,e,\var{return})$,
 \item $\memreg(r_0) = (\entry,b,e,\var{return})$,
@@ -553,13 +565,28 @@ then there exists a configuration $\Phi'$, a future world $W' \future W$, a natu
 \end{itemize}
 \end{specification}
 \begin{proof}[Proof (Lemma~\ref{lem:tckt-disp})]
-Let configuration $\Phi$ be given. Assume that the ticket dispenser test code resides in memory starting at address $\init$. Further assume that the register file contains the following:
+Let configuration $\Phi$ be given. Assume that the ticket dispenser test code resides in memory starting at address $\init$ along with the adversary code at address $\codelabel{adv}$. Also assume that capabilities for $\codelabel{adv}$ and $\malloc$ are ambiently available. Further assume that the register file contains the following:
 \begin{enumerate}
 \item $\memreg(\rio) = (\readwrite,0,0,0)$ 
 \item $\memreg(\pcreg) = (\rwx,\init, \init + \var{proglen} - 1, \init)$
 \item $\memreg(r) = 0$ for the remaining registers $r$ in the register file.
 \end{enumerate}
-Further assume $\Phi \rightarrow^* (\halted,\Phi')$.
+Further assume $\Phi \rightarrow^* (\halted,\Phi')$. As the evaluation terminates, this must happen in a finite number of steps, say this number is $n$. We also assume that there is a heap segment $\hs$ as described in the lemma. If we execute $\Phi$ until just before the jump to $\malloc$, then a number of steps has occured, say $0<i<n$, further location 0 on the heap has been overwritten with $-1$, the io capability has been saved to the designated address on the heap, and the $\rio$ register has been overwritten with 0.
+
+Now we need to jump to $\malloc$, so we need to make sure that the precondition in the specification is satisfied. To do this, we first need a world that models the part of the heap that is currently in use which is $\hs$. We pick the world $W$ to be:
+\begin{align*}
+  W(\codelabel{adv}) & = \iota_{\var{adv},\var{advend}} \\
+  W(\init)           & = \iota_{\init,\init+\var{proglen} - 1} \\
+  W(\rio)            & = \lambda W\ldotp \{(n,\hs) \mid \hs(0) = -1 \text{ or } \\
+                     &   \hphantom{ = \lambda W\ldotp \{(n,\hs) \mid }\:\; \hs(0) \text{ even and positive} \}
+\end{align*}
+for all other addresses $a$ that are not captured in the above but are part of $hs$, we define a new region $r$ in $W$ where
+\begin{align*}
+  W(r) & = \iota_{a,a}
+\end{align*}
+Then we need to argue that $\heapSat{\hs}{n-i}{W}$. Given any address, in $\hs$ there is a region that covers that address, and the regions cover only the addresses in $\hs$. Now each of the heap segments have to be accepted by the respective regions. For the adversary, we assumed that it had no capabilities, so all the addresses contain intergers which i trivially in the value relation. The same goes for the heap segment with the ticket dispenser test program and the remaining addresses of the heap but addresses 0 \lau{need assumption about this.} The io address contains $-1$ at this point of the execution which mean that the heapsegment only consisting of address 0 is accepted in this world.
+
+The remaining conditions in the specification are also satisfied, so there exists a configuration $\Phi'$
 \end{proof}
 
 \section{Logical Relation}
@@ -646,7 +673,7 @@ Register-file relation:
   \stdkr(W) \defeq & \{ \npair{c} \mid \\
                    & \quad \forall v \in \stdvr(W)\ldotp \\
                    & \qquad  \forall W' \future W\ldotp %on the whiteboard, we had public future world.
-                     \forall \heapSat[\heap]{n'}{W'} \ldotp \forall \reg \in \stdrr(W') \\
+                     \forall \heapSat{n'}{W'} \ldotp \forall \reg \in \stdrr(W') \\
                    & \qquad \quad (n,reg\update{r_0}{v}\update{\pcreg}{\updatePcPerm{c}}, \heap) \in \observations(W) \}
 \end{align*}
 ``Expression'' relation:
@@ -655,7 +682,7 @@ Register-file relation:
   \stder(W) \defeq & \{ \npair{\pc} \mid \\
                    & \quad \forall \reg \in \stdrr(W) \ldotp \\
                    & \qquad \forall \npair{c} \in \stdkr(W) \ldotp \\
-                   & \qquad \quad  \forall \heapSat[\heap]{n}{W}, \heap_f \ldotp \\
+                   & \qquad \quad  \forall \heapSat{n}{W}, \heap_f \ldotp \\
                    & \qquad \qquad (n,\reg\update{r_0}{c}\update{\pcreg}{\pc},\heap \uplus \heap_f) \in \observations(W) \}
 \end{align*}
 
@@ -664,8 +691,8 @@ Register-file relation:
   \heapSat{n}{W} & & \text{iff} & &
                                       \arraycolsep=0pt
                                       \begin{array}{l}
-                                      \exists r: \dom(W) \rightarrow \Heaps \ldotp \\
-                                      \qquad\memheap = \biguplus_{\iota\in \dom(W)} r(\iota)\\
+                                      \exists r: \dom(W) \rightarrow \HeapSegments \ldotp \\
+                                      \qquad\heap = \biguplus_{\iota\in \dom(W)} r(\iota)\\
                                       \quad\text{and}\\
                                       \qquad\forall \iota \in \dom(W) \ldotp \npair{r(\iota)} \in W(\iota)(W)
                                       \end{array}\\
