@@ -550,18 +550,18 @@ The variable $\var{proglen}$ is the length of the above program (which is about 
 
 The ticket dispenser test program uses $\malloc$. To be able to reason about programs that use $\malloc$, we assume that it obeys the following specification. If you provide it with one argument, namely the size of the allocation you wish and a return capability, then at some point $\pcreg$ will contain an executable capability based on this return capability and the return register will contain a $\rwx$ capability for the freshly allocated memory. 
 \begin{specification}[Malloc]
-  For all worlds, $W$, configurations, $\Phi$, natural numbers, $n$, and addresses $b$, $e$, and $return$ where $\heapSat[\memheap]{n}{W}$ if
+  For all worlds, $W$, heap segments, $\hs$, register files ,$\reg$, natural numbers, $n>j$ ($j$ is the number of steps the allocation runs for), and addresses $b$, $e$, and $return$ where $\heapSat[\hs]{n}{W}$ if
   \begin{itemize}
   \item $\memreg(r_0) = (\entry,b,e,\var{return})$,
-  \item $\memreg(r_1) = m$ where $m$ is some positive natural number\footnote{We do not include 0 as malloc in C returns a null pointer when malloc(0) is called.}, and
+  \item $\memreg(r_1) = m$ where $m>0$\footnote{We do not include 0 as malloc in C returns a null pointer when malloc(0) is called.}, and
   \item the remaining registers contain 0,
   \end{itemize}
-then there exists a configuration $\Phi'$, a future world $W[r \mapsto \iota_{b',e'}] \future W$ for some addresses $b'$ and $e'$\lau{I had this to be exists future world $W'$, but it seemed useless as I couldn't argue that I could change the heap}, a natural number $i$ such that $\heapSat[{\memheap[\Phi']}]{n-i}{W'}$, $\dom(\memheap[\Phi']) = \dom(\memheap) \uplus [b',e']$  and for all $a \in \dom(\memheap)$ the heap is unchanged, i.e., $\memheap(a) = \memheap[\Phi'](a)$\footnote{This is probably not the best assumption, as $\malloc$ probably need to keep track of the allocated memory, but this is a simple way to make $\malloc$ trustworthy in the sense that it cannot give the same capability to the adversary code.}. Further the register file contains the following
+then there exists addresses $b'$ and $e'$ where $b'-e' = m$ such that for all future worlds $W' \future W$ where $\heapSat{\hs'}{n-j}{W'}$ for $\hs' = hs[b' \mapsto 0, \dots, e' \mapsto 0]$ we have $(\reg,\hs) \step[j] (\reg',\hs')$ for some register file $\reg'$ that has the following constraints:
 \begin{itemize}
-\item $\memreg(\pcreg) = (\rwx,b,e,\var{return})$,
-\item $\memreg(r_0) = (\entry,b,e,\var{return})$,
-\item $\memreg(r_1) = (\rwx,b',e',b')$, and
-\item $\memreg(r) = 0$ for all other registers $r$.
+\item $\reg'(\pcreg) = (\rwx,b,e,\var{return})$,
+\item $\reg'(r_0) = (\entry,b,e,\var{return})$,
+\item $\reg'(r_1) = (\rwx,b',e',b')$, and
+\item $\reg'(r) = 0$ for all other registers $r$.
 \end{itemize}
 \end{specification}
 \begin{proof}[Proof (Lemma~\ref{lem:tckt-disp})]
