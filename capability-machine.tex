@@ -549,14 +549,17 @@ In the JS paper, the ticket dispenser program dereferences the counter and retur
 The variable $\var{proglen}$ is the length of the above program (which is about 57), so the in the initial configuration the $\pcreg$ register is assumed to have an execute and write permission for the area of the heap where the program resides.
 
 The ticket dispenser test program uses $\malloc$. To be able to reason about programs that use $\malloc$, we assume that it obeys the following specification. If you provide it with one argument, namely the size of the allocation you wish and a return capability, then at some point $\pcreg$ will contain an executable capability based on this return capability and the return register will contain a $\rwx$ capability for the freshly allocated memory. 
-\begin{specification}[Malloc]
+\begin{specification}[Malloc (D)]
+Take $W_{\malloc}$ the world with exactly one island, namely the unspecified island $\iota_{\malloc}$ that governs the internal state of $\malloc$.  If we invoke $\malloc$ in a memory $h = \hs_{\var{frame}} \uplus \hs_{\var{footprint}}$ that is the disjoint sum of a frame part and a footprint part and the latter satisfies this world up to steps $n$, i.e., $\heapSat[\hs_{\var{footprint}}]{n}{W_{\malloc}}$. Then $\malloc$ will succesfully terminate and return a result in a heap $h' = \hs_{\var{frame}} \uplus \hs_{\var{footprint}}'$ that is the disjoint sum of the same unmodified frame part and a potentially new footprint part, such that there is a future world $W'$ of $W_{\malloc}$ consisting of exactly two islands, where the first is an instance of $\iota_{\malloc}$ and the second is the region $\iota_{\var{base},\var{end}}$ for an appropriately-sized interval $\var{base},\var{end}$ and the new footprint part satisfies this new world $\heapSat[\hs_{\var{footprint}}']{?}{W'}$. \lau{at what step should this hold? Also it should probably be more precise what it means to ``invoke'' $\malloc$ and for $\malloc$ to ``return'' something.}
+\end{specification}
+\begin{specification}[Malloc (L)]
   For all worlds, $W$, heap segments, $\hs$, register files ,$\reg$, natural numbers, $n>j$ ($j$ is the number of steps the allocation runs for), and addresses $b$, $e$, and $return$ where $\heapSat[\hs]{n}{W}$ if
   \begin{itemize}
   \item $\memreg(r_0) = (\entry,b,e,\var{return})$,
   \item $\memreg(r_1) = m$ where $m>0$\footnote{We do not include 0 as malloc in C returns a null pointer when malloc(0) is called.}, and
   \item the remaining registers contain 0,
   \end{itemize}
-then there exists addresses $b'$ and $e'$ where $b'-e' = m$ such that for all future worlds $W' \future W$ where $\heapSat[\hs']{n-j}{W'}$ for $\hs' = hs[b' \mapsto 0, \dots, e' \mapsto 0]$ we have $(\reg,\hs) \step[j] (\reg',\hs')$ for some register file $\reg'$ that has the following constraints:
+then there exists addresses $b'$ and $e'$ where $b'-e' = m$ such that for all future worlds $W' \future W$ where $\heapSat[\hs']{n-j}{W'}$ for $\hs' = hs[b' \mapsto 0, \dots, e' \mapsto 0]$ we have $(\reg,\hs) \step[j] (\reg',\hs')$ \lau{need to extend $\hs$ to entire heap} for some register file $\reg'$ that has the following constraints:
 \begin{itemize}
 \item $\reg'(\pcreg) = (\rwx,b,e,\var{return})$,
 \item $\reg'(r_0) = (\entry,b,e,\var{return})$,
@@ -564,6 +567,7 @@ then there exists addresses $b'$ and $e'$ where $b'-e' = m$ such that for all fu
 \item $\reg'(r) = 0$ for all other registers $r$.
 \end{itemize}
 \end{specification}
+
 \begin{proof}[Proof (Lemma~\ref{lem:tckt-disp})]
 Let configuration $\Phi$ be given. Assume that the ticket dispenser test code resides in memory starting at address $\init$ along with the adversary code at address $\codelabel{adv}$. Also assume that capabilities for $\codelabel{adv}$ and $\malloc$ are ambiently available. Further assume that the register file contains the following:
 \begin{enumerate}
@@ -616,7 +620,7 @@ The remaining conditions in the specification are also satisfied, so there exist
                                           & \; \quad \forall \addr \in [\start,\addrend] \ldotp \\
                                           & \; \qquad \npair[n']{(\perm,\start,\addrend,\addr)} \in \stder(W') \\ & \\
   \entryCond{n,W,\start,\addrend,\addr} = & \; \forall n' < n \ldotp \forall W' \future W \ldotp \\
-                                          & \; \quad \npair[n']{(\exec,\start,\addrend,\addr)} \in \stder(W') \\
+                                          & \; \quad \npair[n']{(\rwx,\start,\addrend,\addr)} \in \stder(W') \\
 \end{align*}
 
 \[
