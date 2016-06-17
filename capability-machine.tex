@@ -425,6 +425,8 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
 \label{sec:tick-disp}
 \newcommand{\size}{\var{size}}
 \newcommand{\rio}{r_{io}}
+\newcommand{\proglen}{\var{pl}}
+\newcommand{\adv}{\var{adv}}
 \newcommand{\mrlen}{5cm}
 \newcommand{\bracket}[1]{\multirow{#1}{*}{\ensuremath{
  \left . \vphantom{\begin{array}{l}
@@ -539,15 +541,17 @@ In the JS paper, the ticket dispenser program dereferences the counter and retur
  \begin{description}
  \item[$\boldsymbol \memheap$] contains the ticket dispenser test program starting at the address labelled $\init$, 
  \item[$\boldsymbol \memheap$] contains the adversary code starting at label $\codelabel{adv}$. The adversary is assumed to have no capabilities on the heap, but it has access to the ambient $\malloc$ capability! \lau{maybe mention that malloc is also on the heap}
- \item[the heap segment $\boldsymbol{ \hs}$] contains all allocated addresses in the sense that any capability in $\Phi$ is a capability for a piece of memory in $\hs$,
- \item[$\boldsymbol{ \memreg(\pcreg)}$] is $(\rwx,\init,\init+\var{proglen}-1,\init)$, which is the only capability that grants any access to this part of the heap,
+ \item[$\boldsymbol \memheap$] contains the malloc code starting at label $\malloc$.
+ \item[Nothing else is allocated in $\boldsymbol \memheap$] and all the above are disjoint.
+ \item[$\boldsymbol{\codelabel{adv}}$ and $\boldsymbol{ \codelabel{malloc}}$] capabilities are ambiently available at all times.
+ \item[$\boldsymbol{ \memreg(\pcreg)}$] is $(\rwx,\init,\init+\proglen-1,\init)$, which is the only capability that grants any access to this part of the heap,
  \item[$\boldsymbol{ \memreg(\rio)}$] is $(\readwrite,0,0,0)$, which also is the only capability that grants access to this part of the heap, 
  \item[the remaining registers] all contains 0,
  \end{description}
  and $\Phi \rightarrow^* (\halted,\Phi')$, then the I/O address (that is $\memheap[\Phi'](0)$) contains either $-1$ or a number that is $\geq 0$ and even.
 \end{lemma}
 \lau{in the above lemma, what assumptions should we make on the adversary? In the JS paper, we assume syntactically well-formed, do we here assume that the capability for the adversary is in the value relation? If so in what world should this be true? The one with just $\iota_{\var{adv},\var{adv end}}$?}
-The variable $\var{proglen}$ is the length of the above program (which is about 57), so the in the initial configuration the $\pcreg$ register is assumed to have an execute and write permission for the area of the heap where the program resides.
+The variable $\proglen$ is the length of the above program (which is about 57), so the in the initial configuration the $\pcreg$ register is assumed to have an execute and write permission for the area of the heap where the program resides.
 
 The ticket dispenser test program uses $\malloc$. To be able to reason about programs that use $\malloc$, we assume that it obeys the following specification. If you provide it with one argument, namely the size of the allocation you wish and a return capability, then at some point $\pcreg$ will contain an executable capability based on this return capability and the return register will contain a $\rwx$ capability for the freshly allocated memory. 
 \begin{specification}[Malloc]
@@ -570,7 +574,7 @@ To \emph{return} from $\malloc$ means that the register $\pcreg$ contains the ca
 Let configuration $\Phi$ be given. Assume that the ticket dispenser test code resides in memory starting at address $\init$ along with the adversary code at address $\codelabel{adv}$. Also assume that capabilities for $\codelabel{adv}$ and $\malloc$ are ambiently available. Further assume that the register file contains the following:
 \begin{enumerate}
 \item $\memreg(\rio) = (\readwrite,0,0,0)$ 
-\item $\memreg(\pcreg) = (\rwx,\init, \init + \var{proglen} - 1, \init)$
+\item $\memreg(\pcreg) = (\rwx,\init, \init + \proglen - 1, \init)$
 \item $\memreg(r) = 0$ for the remaining registers $r$ in the register file.
 \end{enumerate}
 Further assume $\Phi \rightarrow^* (\halted,\Phi')$. As the evaluation terminates, this must happen in a finite number of steps, say this number is $n$. We also assume that there is a heap segment $\hs$ as described in the lemma. If we execute $\Phi$ until just before the jump to $\malloc$, then a number of steps has occurred, say $0<i<n$, further location 0 on the heap has been overwritten with $-1$, the io capability has been saved to the designated address on the heap, and the $\rio$ register has been overwritten with 0.
@@ -578,7 +582,7 @@ Further assume $\Phi \rightarrow^* (\halted,\Phi')$. As the evaluation terminate
 Now we need to jump to $\malloc$, so we need to make sure that the precondition in the specification is satisfied. To do this, we first need a world that models the part of the heap that is currently in use which is $\hs$. We pick the world $W$ to be:
 \begin{align*}
   W(\codelabel{adv}) & = \iota_{\var{adv},\var{advend}} \\
-  W(\init)           & = \iota_{\init,\init+\var{proglen} - 1} \\
+  W(\init)           & = \iota_{\init,\init+\proglen - 1} \\
   W(\rio)            & = \lambda W\ldotp \{(n,\hs) \mid \hs(0) = -1 \text{ or } \\
                      &   \hphantom{ = \lambda W\ldotp \{(n,\hs) \mid }\:\; \hs(0) \text{ even and positive} \}
 \end{align*}
@@ -716,9 +720,10 @@ Normally, it would just be required for the return value to be in the value rela
 
 \end{definition}
 \begin{lemma}[Fundamental theorem of logical relations (FTLR)] \forcenewline
-  For any $n \in \nats$, $W \in \Worlds$, and a word $\pc$, if  $\npair{\pc} \in \stdvr(W)$, then $\npair{\pc} \in \stder(W)$
+  For any $n \in \nats$, $W \in \Worlds$, $\perm in \{\rwx, \exec, \entry\}$, and addresse $\var{base}$ and $\var{end}$, if $\writeCond(n,W,var{base},\var{end})$, then $\npair{(\perm, \var{base}, \var{end}, \var{base})} \in \stder(W)$.
 \end{lemma} %TODO: Change the condition here to be writeCondition (and readCondition)
 \lau{With the current definition of the expression relation, an entry pointer will never be in the expression relation, but I guess we do not want that restriction. Say the adv capability in the ticket dispenser lemma, we want that to be an entry capability.}
+\lau{In the ticket dispenser lemma, we need to make some assumptions about the adversary to be able to use the FTLR. What should these assumptions be? So far I have the assumption that it is all code (no capabilities), but I do not see how I conclude the write condition fromt his.}
 
 \section{Related reading}
 \label{sec:related-reading}
