@@ -271,7 +271,7 @@ Assume an $\encodePerm$ function that encodes a permission as an integer:
                                                               \end{array}\\
 \Phi & \rightarrow \failed                                 & & \text{otherwise}
 \end{align*}
-It is assumed that address 0 is used for I/O, so whatever resides in location 0 after an execution can be seen as a result. As we will see in the semantics, it is assumed that the inital process starts with a readwrite capability for this location.
+It is assumed that address 0 is used for I/O, so whatever resides in location 0 after an execution can be seen as a result. As we will see in the semantics, it is assumed that the initial process starts with a read-write capability for this location.
 \begin{align*}
   \executeAllowed{\perm} &=
                            \begin{cases}
@@ -443,7 +443,7 @@ Assume the instructions of some adversary resides in the memory starting at the 
 \[
   \begin{array}{r l l p{\mrlen}}
 % Set io to -1
-\init:     & \store{\refheap{\rio}}{-1} & \bracket{1} & \annotate{1}{Initialize io to $-1$} \\
+\init:     & \store{\refheap{\rio}}{-1} & \bracket{1} & \annotate{1}{Initialise io to $-1$} \\
 % Store io capability just after jump to adv
            & \move{\refreg{r_0}}{\refreg{\pcreg}} & \bracket{3} & \annotate{3}{Store the io capability on the stack} \\
            & \lea{\refreg{r_0}}{\iocap} & & \\
@@ -474,7 +474,7 @@ Assume the instructions of some adversary resides in the memory starting at the 
            & \store{\refheap{r_2}}{r_0} & & \\
            & \move{\refreg{r_2}}{0} & \bracket{1} & \annotate{1}{Overwrite capability for counter} \\
 % Save counter
-           & \store{\refheap{r_1}}{0} & \bracket{1} & \annotate{1}{Initialize counter to 0} \\
+           & \store{\refheap{r_1}}{0} & \bracket{1} & \annotate{1}{Initialise counter to 0} \\
 % Change pointer to point to start of ticket dispenser code
            & \lea{\refreg{r_1}}{-8} & \bracket{1} & \annotate{1}{Capability points to start of td code \footnote{This is also the argument for the adversary}} \\
 % Set up entry pointer to ticketDispenser for adv.
@@ -488,7 +488,7 @@ Assume the instructions of some adversary resides in the memory starting at the 
            & 0 & \bracket{1} & \annotate{1}{Address reserved for io cap.} \\
            & 0 & \bracket{1} & \annotate{1}{Address reserved for counter cap.} \\
 % retrieve io capability
-           & \move{\refreg{r_0}}{\refreg{\pcreg}} & \bracket{3} & \annotate{3}{Retrieve the io capabiltiy} \\
+           & \move{\refreg{r_0}}{\refreg{\pcreg}} & \bracket{3} & \annotate{3}{Retrieve the io capability} \\
            & \lea{r_0}{-2} & & \\
            & \load{\refreg{\rio}}{\refheap{r_0}} & & \\
 % retieve counter capability
@@ -501,7 +501,7 @@ Assume the instructions of some adversary resides in the memory starting at the 
            & \halt
   \end{array}
 \]
-Here $\size$ is 9. The variables $\counter$ and $\iocap$ are resepctively the offsets to the addresses reserved for the counter and io capabilities. $i_1 \dots i_7$ refers to the instructions in the following ticket dispenser:
+Here $\size$ is 9. The variables $\counter$ and $\iocap$ are respectively the offsets to the addresses reserved for the counter and io capabilities. $i_1 \dots i_7$ refers to the instructions in the following ticket dispenser:
 \[
   \begin{array}{r l}
     i_1 :& \move{\refreg{r_2}}{\refreg{\pcreg}} \\
@@ -546,19 +546,24 @@ In the JS paper, the ticket dispenser program dereferences the counter and retur
  \end{description}
  and $\Phi \rightarrow^* (\halted,\Phi')$, then the I/O address (that is $\memheap[\Phi'](0)$) contains either $-1$ or a number that is $\geq 0$ and even.
 \end{lemma}
-\lau{in the above lemma, what assumptions should we make on the adversary? In the js paper, we assume syntactically well-formed, do we here assume that the capability for the adversary is in the value relation? If so in what world should this be true? The one with just $\iota_{\var{adv},\var{adv end}}$?}
+\lau{in the above lemma, what assumptions should we make on the adversary? In the JS paper, we assume syntactically well-formed, do we here assume that the capability for the adversary is in the value relation? If so in what world should this be true? The one with just $\iota_{\var{adv},\var{adv end}}$?}
 The variable $\var{proglen}$ is the length of the above program (which is about 57), so the in the initial configuration the $\pcreg$ register is assumed to have an execute and write permission for the area of the heap where the program resides.
 
 The ticket dispenser test program uses $\malloc$. To be able to reason about programs that use $\malloc$, we assume that it obeys the following specification. If you provide it with one argument, namely the size of the allocation you wish and a return capability, then at some point $\pcreg$ will contain an executable capability based on this return capability and the return register will contain a $\rwx$ capability for the freshly allocated memory. 
 \begin{specification}[Malloc]
-Take $W_{\malloc}$ the world with exactly one island, namely the unspecified island $\iota_{\malloc}$ that governs the internal state of $\malloc$.  If we invoke $\malloc$ in a memory $h = \hs_{\var{frame}} \uplus \hs_{\var{footprint}}$ \\
-\lau{Is $hs_{\var{frame}}$ supposed to be the rest of memory, so $h$ is something we can execute in? Is $\malloc$ allowed to allocate more memory, i.e., how does $\hs_{\var{footprint}}$ relate to $\hs_{\var{footprint}}'$?}\\
-that is the disjoint sum of a frame part and a footprint part and the latter satisfies this world up to steps $n$, i.e., $\heapSat[\hs_{\var{footprint}}]{n}{W_{\malloc}}$. Then $\malloc$ will succesfully terminate and return a result in a heap $h' = \hs_{\var{frame}} \uplus \hs_{\var{footprint}}'$ that is the disjoint sum of the same unmodified frame part and a potentially new footprint part, such that there is a future world $W'$ of $W_{\malloc}$ consisting of exactly two islands, where the first is an instance of $\iota_{\malloc}$ and the second is the region $\iota_{\var{base},\var{end}}$\\
-\lau{doesn't this invariant allow the newly allocated memory to contain capabilities?}\\
- for an appropriately-sized interval $\var{base},\var{end}$ and the new footprint part satisfies this new world $\heapSat[\hs_{\var{footprint}}']{?}{W'}$. 
-\lau{at what step should this hold? Just some step $n'<n$?}\\
-\lau{It should probably be more precise what it means to ``invoke'' $\malloc$ and for $\malloc$ to ``return'' something.}\\
-\lau{How do we express that $\malloc$ can be ``trusted'' in the sense that it won't save the capab}
+Take $W_{\malloc}$ the world with exactly one island, namely the unspecified island $\iota_{\malloc}$ that governs the internal state of $\malloc$.  If we invoke $\malloc$ in a memory $h = \hs_{\var{frame}} \uplus \hs_{\var{footprint}}$
+%\lau{Is $hs_{\var{frame}}$ supposed to be the rest of memory, so $h$ is something we can execute in? Is $\malloc$ allowed to allocate more memory, i.e., how does $\hs_{\var{footprint}}$ relate to $\hs_{\var{footprint}}'$?} A: The frame contains anything that has been allocated and the footprint contains the rest. That is the footprint contains mallocs internal state as well as the free memory.
+% Notice: the current worlds do not support malloc allocating memory as the invariants cannot evolve.
+that is the disjoint sum of a frame part and a footprint part and the latter satisfies this world up to steps $n$, i.e., $\heapSat[\hs_{\var{footprint}}]{n}{W_{\malloc}}$. Then $\malloc$ will successfully terminate and return a result in a heap $h' = \hs_{\var{frame}} \uplus \hs_{\var{footprint}}'$ that is the disjoint sum of the same unmodified frame part and a potentially new footprint part, such that there is a future world $W'$ of $W_{\malloc}$ consisting of exactly two islands, where the first is an instance of $\iota_{\malloc}$ and the second is the region $\iota_{\var{base},\var{end}}^0$
+%\lau{doesn't this invariant allow the newly allocated memory to contain capabilities?} A: It does not capture this. One possiblity is to make new standard all zero invariant.
+ for an appropriately-sized interval $\var{base},\var{end}$ and the new footprint part satisfies this new world $\heapSat[\hs_{\var{footprint}}']{n}{W'}$. 
+%\lau{at what step should this hold? Just some step $n'<n$?} A: try with n, if that does not work, then say something like: there exists j such that malloc terminates in j steps and use n-j.
+%\lau{It should probably be more precise what it means to ``invoke'' $\malloc$ and for $\malloc$ to ``return'' something.} A: yes. If we won't abstract notion of this, the standard way to formulate it would be with Hoare triples.
+%\lau{How do we express that $\malloc$ can be ``trusted'' in the sense that it won't save any capabilities like one to the newly allocated memory or the return capability.} A:  it allows for read capabilities! To capture this, we need either non-interference or some kind of trace semantics!
+
+To \emph{invoke} $\malloc$ means that the capability in $\pcreg$ points to a $\jmp{\malloc}$ instruction (and that this address is within its capabilities). Further in the register $r_0$ there has to be a return capability, i.e., a capability of the form $(\perm,\var{returnStart},\var{returnEnd},\var{returnAddr})$ where $\perm$ is either, $\rwx$, $\exec$, or $\entry$. Lastly, the register $r_1$ has to the argument for $\malloc$ which is the desired length of the piece of memory to be allocated.
+
+To \emph{return} from $\malloc$ means that the register $\pcreg$ contains the capability $(\perm',\var{returnStart},\var{returnEnd},\var{returnAddr})$ where $\perm'$ is $exec$ if $\perm$ was $\exec$ and $\rwx$ otherwise. Further, register $r_1$ contains $(\rwx,\var{base},\var{end},\var{base})$ which is a capability for the allocated memory. 
 \end{specification}
 
 \begin{proof}[Proof (Lemma~\ref{lem:tckt-disp})]
@@ -568,7 +573,7 @@ Let configuration $\Phi$ be given. Assume that the ticket dispenser test code re
 \item $\memreg(\pcreg) = (\rwx,\init, \init + \var{proglen} - 1, \init)$
 \item $\memreg(r) = 0$ for the remaining registers $r$ in the register file.
 \end{enumerate}
-Further assume $\Phi \rightarrow^* (\halted,\Phi')$. As the evaluation terminates, this must happen in a finite number of steps, say this number is $n$. We also assume that there is a heap segment $\hs$ as described in the lemma. If we execute $\Phi$ until just before the jump to $\malloc$, then a number of steps has occured, say $0<i<n$, further location 0 on the heap has been overwritten with $-1$, the io capability has been saved to the designated address on the heap, and the $\rio$ register has been overwritten with 0.
+Further assume $\Phi \rightarrow^* (\halted,\Phi')$. As the evaluation terminates, this must happen in a finite number of steps, say this number is $n$. We also assume that there is a heap segment $\hs$ as described in the lemma. If we execute $\Phi$ until just before the jump to $\malloc$, then a number of steps has occurred, say $0<i<n$, further location 0 on the heap has been overwritten with $-1$, the io capability has been saved to the designated address on the heap, and the $\rio$ register has been overwritten with 0.
 
 Now we need to jump to $\malloc$, so we need to make sure that the precondition in the specification is satisfied. To do this, we first need a world that models the part of the heap that is currently in use which is $\hs$. We pick the world $W$ to be:
 \begin{align*}
@@ -581,7 +586,7 @@ for all other addresses $a$ that are not captured in the above but are part of $
 \begin{align*}
   W(r) & = \iota_{a,a}
 \end{align*}
-Then we need to argue that $\heapSat[\hs]{n-i}{W}$. Given any address, in $\hs$ there is a region that covers that address, and the regions cover only the addresses in $\hs$. Now each of the heap segments have to be accepted by the respective regions. For the adversary, we assumed that it had no capabilities, so all the addresses contain intergers which i trivially in the value relation. The same goes for the heap segment with the ticket dispenser test program and the remaining addresses of the heap but addresses 0 \lau{need assumption about this.} The io address contains $-1$ at this point of the execution which mean that the heapsegment only consisting of address 0 is accepted in this world.
+Then we need to argue that $\heapSat[\hs]{n-i}{W}$. Given any address, in $\hs$ there is a region that covers that address, and the regions cover only the addresses in $\hs$. Now each of the heap segments have to be accepted by the respective regions. For the adversary, we assumed that it had no capabilities, so all the addresses contain integers which i trivially in the value relation. The same goes for the heap segment with the ticket dispenser test program and the remaining addresses of the heap but addresses 0 \lau{need assumption about this.} The io address contains $-1$ at this point of the execution which mean that the heap segment only consisting of address 0 is accepted in this world.
 
 The remaining conditions in the specification are also satisfied, so there exists a configuration $\Phi'$
 \end{proof}
@@ -596,6 +601,7 @@ The remaining conditions in the specification are also satisfied, so there exist
 \Worlds \cong \frac{1}{2} (\RegionName \parfun \StorePred)
 \]
 
+A standard heap invariant that insures all values in the region are in the value  relation:
 \[
   \iota_{\var{start},\var{end}} \; : \; \StorePred
 \]
@@ -603,6 +609,15 @@ The remaining conditions in the specification are also satisfied, so there exist
   \iota_{\var{start},\var{end}}(W) \defeq & \{ \npair{\heapseg} \mid \dom(\heapseg) = [\var{start},\var{end}] \land \\
                                      & \quad \forall \addr \in \dom(\heapseg) \ldotp \npair{\heapseg(\addr)} \in \stdvr(W) \}
 \end{align*}
+Another standard heap invariant that ensures all the words in the region are 0.
+\[
+  \iota_{\var{start},\var{end}}^0 \; : \; \StorePred
+\]
+\begin{align*}
+  \iota_{\var{start},\var{end}}^0(W) \defeq & \{ \npair{\heapseg} \mid \dom(\heapseg) = [\var{start},\var{end}] \land \\
+                                     & \quad \forall \addr \in \dom(\heapseg) \ldotp \heapseg(\addr) = 0  \}
+\end{align*}
+
 
 \begin{align*}
   \readCond{n,W,\start,\addrend} =        & \;\exists r \in \RegionName \ldotp \\
@@ -666,15 +681,16 @@ Register-file relation:
 
 ``Continuation'' relation:
 \begin{align*}
-  \stdkr \quad : & \quad  \Worlds \monfun \UPred{\Words} \\%TODO: What should this be?
-  \stdkr(W) \defeq & \{ \npair{c} \mid \\
-                   & \quad \forall v \in \stdvr(W)\ldotp \\
-                   & \qquad  \forall W' \future W\ldotp %on the whiteboard, we had public future world.
-                     \forall \heapSat{n'}{W'} \ldotp \forall \reg \in \stdrr(W') \\
-                   & \qquad \quad (n,reg\update{r_0}{v}\update{\pcreg}{\updatePcPerm{c}}, \heap) \in \observations(W) \}
+  \stdkr \quad : & \quad  \Worlds \monfun \UPred{\Words} \\%TODO: Check if this is still monotone
+  \stdkr(W) \defeq & \{ \npair{c} \mid c \in \stdvr(W) \land \\
+                   & \quad  \forall W' \future W\ldotp %on the whiteboard, we had public future world.
+                     \forall \heapSat{n}{W'} \ldotp \forall \reg \in \stdrr(W') \\
+                   & \qquad (n,reg\update{r_0}{v}\update{\pcreg}{\updatePcPerm{c}}, \heap) \in \observations(W) \}
 \end{align*}
-\lau{$r_1$ contains the ``return value'', shouldn't that be the one we quantify over?} \\
-\lau{When continuation is invoked, it has to be in registers, but here we do not require it to be in the value relation, so it seems impossible to show some of the required conditions.}
+We require the continuation to be in the value relation, because it will have to be in the registers when it is invoked, so to argue that the register file is in the register-file relation, we need to know that the continuation is in the value relation.
+
+Normally, it would just be required for the return value to be in the value relation, so the continuation is invoked with this value. Here everything that is in the register file is available when the continuation is invoked, so we do not special case on $r_1$ (which is the register that in the calling convention we use should contain the return value). 
+
 ``Expression'' relation:
 \begin{align*}
   \stder \quad : & \quad \Worlds \monfun \UPred{\Words} \\%TODO: Check whether this needs to be monotone
@@ -701,7 +717,8 @@ Register-file relation:
 \end{definition}
 \begin{lemma}[Fundamental theorem of logical relations (FTLR)] \forcenewline
   For any $n \in \nats$, $W \in \Worlds$, and a word $\pc$, if  $\npair{\pc} \in \stdvr(W)$, then $\npair{\pc} \in \stder(W)$
-\end{lemma}
+\end{lemma} %TODO: Change the condition here to be writeCondition (and readCondition)
+\lau{With the current definition of the expression relation, an entry pointer will never be in the expression relation, but I guess we do not want that restriction. Say the adv capability in the ticket dispenser lemma, we want that to be an entry capability.}
 
 \section{Related reading}
 \label{sec:related-reading}
