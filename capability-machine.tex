@@ -290,8 +290,9 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                            \end{cases} \\
   \updatePcPerm{(\perm,\start,\addrend,\addr)} &=
                                      \begin{cases}
-                                       (\perm,\start,\addrend,\addr) & \text{if $\perm\in\{ \rwx, \exec \}$} \\
                                        (\exec,\start,\addrend,\addr) & \text{if $\perm = \entry$}
+                                       (\perm,\start,\addrend,\addr) & \text{otherwise} \\
+   
                                      \end{cases} \\
   \nonZero{w} &=
                 \begin{cases}
@@ -721,9 +722,15 @@ Another standard heap invariant that ensures all the words in the region are 0.
                                           & \; \quad \forall \addr \in [\start,\addrend] \ldotp \\
                                           & \; \qquad \npair[n']{(\perm,\start,\addrend,\addr)} \in \stder(W') \\ & \\
   \entryCond{n,W,\start,\addrend,\addr} = & \; \forall n' < n \ldotp \forall W' \future W \ldotp \\
-                                          & \; \quad \npair[n']{(\exec,\start,\addrend,\addr)} \in \stder(W') \\
+                                          & \; \quad \npair[n']{(\exec,\start,\addrend,\addr)} \in \stder(W') \land \\
+                                          & \; \quad \readCond{n',W',\addrend,\addr}
 \end{align*}
 
+\begin{lemma}[Write condition implies read condition]
+\[
+\forall n, W, \start, \addrend \ldotp \writeCond{n,W,\start,\addrend} \Rightarrow \readCond{n,W,\start,\addrend}
+\]
+\end{lemma}
 \[
 \stdvr \; : \;  \Worlds \monfun \UPred{\Words}
 \]
@@ -779,7 +786,7 @@ Register-file relation:
   \stdkr(W) \defeq & \{ \npair{c} \mid c \in \stdvr(W) \land \\
                    & \quad  \forall W' \future W\ldotp %on the whiteboard, we had public future world.
                      \forall \heapSat{n}{W'}, \heap_f \ldotp \forall \reg \in \stdrr(W') \\
-                   & \qquad \npair{(reg\update{\pcreg}{\updatePcPerm{\var{c}}}, \heap \uplus \heap_f} \in \observations(W') \}
+                   & \qquad \npair{(reg\update{\pcreg}{\updatePcPerm{\var{c}}}, \heap \uplus \heap_f)} \in \observations(W') \}
 \end{align*}
 We require the continuation to be in the value relation, because it will have to be in the registers when it is invoked, so to argue that the register file is in the register-file relation, we need to know that the continuation is in the value relation.
 
@@ -807,12 +814,6 @@ Normally, it would just be required for the return value to be in the value rela
                                       \end{array}\\
 \end{align*}
 
-\begin{lemma}[Heap satisfaction monotonicity]
-\[
-  \forall n,n',\heap, W \ldotp \heapSat{n}{W} \land n' < n \Rightarrow \heapSat{n'}{W}
-\]
-\end{lemma}
-
 \end{definition}
 \begin{lemma}[Fundamental theorem of logical relations (FTLR)] \forcenewline
   For any $n \in \nats$, $W \in \Worlds$, and addresses $\var{base}$, $\var{end}$, and $a$, if $\perm = \rwx$ and $\writeCond{n,W,\var{base},\var{end}}$ or $\perm = \exec$ and $\readCond{n,W,\var{base},\var{end}}$, then $\npair{(\perm, \var{base}, \var{end}, a)} \in \stder(W)$.
@@ -820,6 +821,24 @@ Normally, it would just be required for the return value to be in the value rela
 \lau{With the current definition of the expression relation, an entry pointer will never be in the expression relation, but I guess we do not want that restriction. Say the adv capability in the ticket dispenser lemma, we want that to be an entry capability.}
 \lau{In the ticket dispenser lemma, we need to make some assumptions about the adversary to be able to use the FTLR. What should these assumptions be? So far I have the assumption that it is all code (no capabilities), but I do not see how I conclude the write condition from this.}
 \dominique{Something I find interesting here, is that the FTLR can be interpreted to say that x permissions have no real security value: if you have an arbitrary r or rw capability that is valid, then the FTLR says that it remains valid if we change it to rx or rwx (respectively).}
+
+\begin{lemma}[Heap satisfaction downwards closure]
+\[
+  \forall n,n',\heap, W \ldotp \heapSat{n}{W} \land n' < n \Rightarrow \heapSat{n'}{W}
+\]
+\end{lemma}
+
+\begin{lemma}[Read condition downwards closure]
+\[
+\forall n,n',W,\start, \addrend \ldotp \readCond{n,W,\start,\addrend} \land n' \leq n \Rightarrow \readCond{n',W,\start,\addrend}
+\]
+\end{lemma}
+\begin{lemma}[Write condition downwards closure]
+\[
+\forall n,n',W,\start, \addrend \ldotp \writeCond{n,W,\start,\addrend} \land n' \leq n \Rightarrow \writeCond{n',W,\start,\addrend}
+\]
+\end{lemma}
+
 
 \section{Related reading}
 \label{sec:related-reading}
