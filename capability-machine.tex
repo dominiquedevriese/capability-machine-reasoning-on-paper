@@ -318,28 +318,14 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
 \begin{align*}
   \sem{\fail}(\Phi)                        & = \failed \\
   \sem{\halt}(\Phi)                        & = (\halted,\Phi) \\
-  \sem{\jmp{\lv}}(\Phi)                    & = 
-                                             \begin{cases}
-                                               \updateReg{\pcreg}{\updatePcPerm{\var{c}}} &
-                                               \arraycolsep=0pt
-                                               \begin{array}{l}
-                                                 \text{if }\memreg(lv) = c \\
-                                                 \quad\text{and }c=(\perm,\start,\addrend,\addr)\\
-                                                 \quad\text{and }\executeAllowed{\perm}
-                                               \end{array} \\
-                                               \failed                              & \text{otherwise }
-                                             \end{cases} \\
+  \sem{\jmp{\lv}}(\Phi)                    & = \updateReg{\pcreg}{\updatePcPerm{\var{c}}} \\
   \sem{\jnz{\lv}{\rv}}(\Phi)               & = 
                                              \begin{cases}
                                                \updateReg{\pcreg}{\updatePcPerm{\var{c}}} &
                                                \arraycolsep=0pt
                                                \begin{array}{l}
-                                                 \text{if $\nonZero{\memreg(\rv)}$} \\ 
-                                                 \quad\text{and $\memreg(lv) = c$} \\
-                                                 \quad\text{and $c=(\perm,\start,\addrend,\addr)$}\\
-                                                 \quad\text{and $\executeAllowed{\perm}$}
-                                               \end{array}
-                                               \\ %TODO Maybe combine with jump. (failed + this)
+                                                 \text{if $\nonZero{\memreg(\rv)}$} 
+                                               \end{array}\\
                                                \stdUpdatePc{\Phi} & \text{if not $\nonZero{\memreg(\rv)}$}\\
                                                \failed & \text{otherwise }
                                              \end{cases} \\
@@ -348,8 +334,7 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                                                \stdUpdatePc{\updateReg{r_1}{\var{w}}} &
                                                \arraycolsep=0pt
                                                \begin{array}{l}
-                                                 \text{if } r_1 \neq \pcreg \\
-                                                 \quad\text{and }\memreg(r_2) = (\perm,\start,\addrend,\addr) = \var{c} \\
+                                                 \text{if }\memreg(r_2) = (\perm,\start,\addrend,\addr) = \var{c} \\
                                                  \quad\text{and }\readAllowed{\perm} \text{ and } \withinBounds{\var{c}} \\
                                                  \quad\text{and }\var{w} = \memheap(\addr)
                                                \end{array}\\
@@ -367,11 +352,10 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                                                \failed & \text{otherwise }
                                              \end{cases}\\
  \sem{\move{\refreg{r_1}}{\rv}}            & = \begin{cases}
-                                                 \stdUpdatePc{\updateReg{r_1}{\memreg(\rv)}} & \text{if $r_1 \neq \pcreg$} \\ % For now we do this, so you need to use a jump to move stuff into pc.
+                                                 \stdUpdatePc{\updateReg{r_1}{\memreg(\rv)}} & \\ % For now we do this, so you need to use a jump to move stuff into pc.
                                                  \failed   & \text{otherwise }
                                  \end{cases}
-\end{align*}
-\begin{align*}
+\\
   \sem{\lea{\refreg{r_1}}{\rv}}            & =
                                              \begin{cases}
                                                \stdUpdatePc{\updateReg{r_1}{\var{c}}} &
@@ -384,14 +368,14 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                                                  \end{array}\\
                                                \failed               & \text{otherwise}
                                              \end{cases} 
-\\ % In the M-Machine, lea checks whether the pointer stay within the allowed range in the pointer.
+\\
+ % In the M-Machine, lea checks whether the pointer stay within the allowed range in the pointer.
   \sem{\restrict{\refreg{r_1}}{\rv_1}{\rv_2}}           & =
                                              \begin{cases}
                                                \stdUpdatePc{\updateReg{r_1}{\var{c}}}  &
                                                  \arraycolsep=0pt
                                                  \begin{array}{l}
-                                                   \text{if $r_1 \neq \pcreg$}\\
-                                                   \quad\text{and $\memreg(\rv_1) = c'$}\\
+                                                   \text{if $\memreg(\rv_1) = c'$}\\
                                                    \quad\text{and $c' = \stdcap$}\\
                                                    \quad\text{and either $\rv_2 = n$ or $\memreg(\rv_2) = n$}\\
                                                    \quad\text{and in either case $n \in \ints$}\\
@@ -400,16 +384,17 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                                                    \quad\text{and $c = (\var{newPerm},\start,\addrend,\addr)$}
                                                  \end{array}\\
                                                \failed                   & \text{otherwise}
-                                             \end{cases} \\ 
+                                             \end{cases} 
+\end{align*}
+\begin{align*}
   \sem{\plus{\refreg{r_1}}{\rv_1}{\rv_2}}               & =
                                                           \begin{cases}
                                                             \stdUpdatePc{\updateReg{r_1}{n_1+n_2}} &
                                                             \arraycolsep=0pt
                                                             \begin{array}{l}
-                                                              \text{if $r_1 \neq \pcreg$}\\
-                                                              \quad\text{and for $i \in \{1,2\}$}\\
-                                                              \qquad\text{$n_i = \rv_i$ or $n_i = \memreg{\rv_i}$}\\
-                                                              \qquad\text{and in either case $n_i \in \ints$}
+                                                              \text{if for $i \in \{1,2\}$}\\
+                                                              \quad\text{$n_i = \rv_i$ or $n_i = \memreg{\rv_i}$}\\
+                                                              \quad\text{and in either case $n_i \in \ints$}
                                                             \end{array}\\
                                                             \failed & \text{otherwise}
                                                           \end{cases}\\
