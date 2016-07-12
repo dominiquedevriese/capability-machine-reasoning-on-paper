@@ -138,7 +138,7 @@
 \newcommand{\UPred}[1]{\plaindom{UPred}(#1)}
 
 %LR
-\newcommand{\intr}[2]{\mathcal{#1}\sem{#2}}
+\newcommand{\intr}[2]{\mathcal{#1}}
 \newcommand{\valueintr}[1]{\intr{V}{#1}}
 \newcommand{\exprintr}[1]{\intr{E}{#1}}
 \newcommand{\contintr}[1]{\intr{K}{#1}}
@@ -764,9 +764,9 @@ Another standard heap invariant that ensures all the words in the region are 0.
 Consider what the ``good observations'' should be? Before we do that - what should the end result of a computation be?
 \begin{align*}
   \observations \quad : & \quad  \Worlds \monfun \UPred{\Confs} \\
-  \observations (W) \defeq & \{ \npair{(\reg,\heap)} \mid \\
-                           & \quad (\forall \heap', i \leq n \ldotp (\reg,\heap) \step[i] (\halted,\heap')  \\
-                           & \qquad \Rightarrow \exists \heap'', \heap_f \ldotp \heap' = \heap'' \uplus \heap_f \land \heapSat[heap'']{n-i}{W}
+  \observations (W) \defeq & \{ \npair{(\reg,\hs)} \mid \\
+                           & \quad (\forall \heap_f, \heap', i \leq n \ldotp (\reg,\hs \uplus \heap_f) \step[i] (\halted,\heap')  \\
+                           & \qquad \Rightarrow \exists \hs' \ldotp \heap' = \hs' \uplus \heap_f \land \heapSat[\hs']{n-i}{W}
 \end{align*}
 Removed the condition $\npair[n-i]{\heap'(0)} \in \stdvr(W)$.\\
 
@@ -790,9 +790,9 @@ Register-file relation:
 \begin{align*}
   \stdkr \quad : & \quad  \Worlds \monfun \UPred{\Words} \\%TODO: Check if this is still monotone
   \stdkr(W) \defeq & \{ \npair{c} \mid c \in \stdvr(W) \land \\
-                   & \quad  \forall W' \future W\ldotp %on the whiteboard, we had public future world.
-                     \forall \heapSat{n}{W'}, \heap_f \ldotp \forall \reg \in \stdrr(W') \\
-                   & \qquad \npair{(reg\update{\pcreg}{\updatePcPerm{\var{c}}}, \heap \uplus \heap_f)} \in \observations(W') \}
+                   & \quad \forall W' \future W, n' < n\ldotp %on the whiteboard, we had public future world.
+                     \forall \heapSat[\hs]{n'}{W'} \ldotp \forall \reg \in \stdrr(W') \\
+                   & \qquad \npair[n']{(reg\update{\pcreg}{\updatePcPerm{\var{c}}},hs)} \in \observations(W') \}
 \end{align*}
 We require the continuation to be in the value relation, because it will have to be in the registers when it is invoked, so to argue that the register file is in the register-file relation, we need to know that the continuation is in the value relation.
 
@@ -802,10 +802,10 @@ Normally, it would just be required for the return value to be in the value rela
 \begin{align*}
   \stder \quad : & \quad \Worlds \monfun \UPred{\Words} \\%TODO: Check whether this needs to be monotone
   \stder(W) \defeq & \{ \npair{\pc} \mid \\
-                   & \quad \forall \reg \in \stdrr(W) \ldotp \\
+                   & \quad \forall \npair{\reg} \in \stdrr(W) \ldotp \\
                    & \qquad \forall \npair{c} \in \stdkr(W) \ldotp \\
-                   & \qquad \quad  \forall \heapSat{n}{W}, \heap_f \ldotp \\
-                   & \qquad \qquad \npair{(\reg\update{r_0}{c}\update{\pcreg}{\pc},\heap \uplus \heap_f)} \in \observations(W) \}
+                   & \qquad \quad  \forall \heapSat[\hs]{n}{W} \ldotp \\
+                   & \qquad \qquad \npair{(\reg\update{r_0}{c}\update{\pcreg}{\pc},\hs)} \in \observations(W) \}
 \end{align*}
 
 \begin{definition}[Heap satisfaction/erasure]
@@ -822,7 +822,7 @@ Normally, it would just be required for the return value to be in the value rela
 
 \end{definition}
 \begin{lemma}[Fundamental theorem of logical relations (FTLR)] \forcenewline
-  For any $n \in \nats$, $W \in \Worlds$, and addresses $\var{base}$, $\var{end}$, and $a$, if $\perm = \rwx$ and $\writeCond{n,W,\var{base},\var{end}}$ or $\perm = \exec$ and $\readCond{n,W,\var{base},\var{end}}$, then $\npair{(\perm, \var{base}, \var{end}, a)} \in \stder(W)$.
+  For any $n \in \nats$, $W \in \Worlds$, $p\in \Perms$, and addresses $\var{base}$, $\var{end}$, and $a$, if $\perm = \rwx$ and $\writeCond{n,W,\var{base},\var{end}}$ or $\perm = \exec$ and $\readCond{n,W,\var{base},\var{end}}$, then $\npair{(\perm, \var{base}, \var{end}, a)} \in \stder(W)$.
 \end{lemma} %TODO: Change the condition here to be writeCondition (and readCondition)
 \lau{With the current definition of the expression relation, an entry pointer will never be in the expression relation, but I guess we do not want that restriction. Say the adv capability in the ticket dispenser lemma, we want that to be an entry capability.}
 \lau{In the ticket dispenser lemma, we need to make some assumptions about the adversary to be able to use the FTLR. What should these assumptions be? So far I have the assumption that it is all code (no capabilities), but I do not see how I conclude the write condition from this.}
