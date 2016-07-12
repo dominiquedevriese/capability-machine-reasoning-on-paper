@@ -533,11 +533,11 @@ In the JS paper, the ticket dispenser program dereferences the counter and retur
  \begin{description}
  \item[$\boldsymbol \memheap$] contains the ticket dispenser test program starting at the address labelled $\initb$, 
  \item[$\boldsymbol \memheap$] contains the adversary code starting at label $\advb$. The adversary is assumed to have no capabilities on the heap, but it has access to the ambient $\malloc$ capability! \lau{maybe mention that malloc is also on the heap}
- \item[$\boldsymbol \memheap$] contains the malloc code.
- \item[Nothing else is allocated in $\boldsymbol \memheap$] and all the above programs are disjoint.
+ \item[$\boldsymbol \memheap$] contains the malloc code, and the malloc code satisfy $\iota_{\malloc}$, i.e., $\forall n \ldotp \heapSat[{\heap\restrictfun{\{\malloc_{\var{base}}, \dots ,\malloc_{\var{end}}\}}}]{n}{W_{\malloc}}$.
+ \item[All the above programs are disjoint.]
  \item[$\boldsymbol{\adv}$ and $\boldsymbol{ \codelabel{malloc}}$] capabilities are ambiently available at all times.
- \item[$\boldsymbol{ \memreg(\pcreg)}$] is $(\rwx,\initb,\inite,\initb)$, which is the only capability that grants any access to this part of the heap,
- \item[$\boldsymbol{ \memreg(\rio)}$] is $(\readwrite,0,0,0)$, which also is the only capability that grants access to this part of the heap, 
+ \item[$\boldsymbol{ \memreg(\pcreg)}$] is $(\rwx,\initb,\inite,\initb)$.
+ \item[$\boldsymbol{ \memreg(\rio)}$] is $(\readwrite,0,0,0)$.
  \item[the remaining registers] all contains 0,
  \end{description}
  and $\Phi \rightarrow^* (\halted,\Phi')$, then the I/O address (that is $\memheap[\Phi'](0)$) contains either $-1$ or a number that is $\geq 0$ and even.
@@ -545,6 +545,32 @@ In the JS paper, the ticket dispenser program dereferences the counter and retur
 In the initial configuration the $\pcreg$ register is assumed to have an execute and write permission for the area of the heap where the program resides.
 
 The ticket dispenser test program uses $\malloc$. To be able to reason about programs that use $\malloc$, we assume that it follows the following specification. If you provide it with one argument, namely the size of the allocation you wish and a return capability, then at some point $\pcreg$ will contain an executable capability based on this return capability and the return register will contain a $\rwx$ capability for the freshly allocated memory. 
+\begin{specification}[Malloc v.2]
+  \begin{align*}
+    &\forall \Phi \in \Mems \ldotp \forall \hsfoot, \hsframe \in \HeapSegments\ldotp\\
+    &\quad \forall n, i, \size \in \nats\ldotp\forall b,e,a,m_b,m_e\in \Addrs\ldotp\forall p \in \Perms \ldotp\\
+    &\qquad W_{\malloc} = [i \mapsto \iota_{\malloc}] \land \\
+    &\qquad \dom(\hsfoot) = [m_b,m_e] \land \\
+    &\qquad \memheap = \hsfoot \uplus \hsframe \land\\
+    &\qquad \heapSat[\hsfoot]{n}{W_{\malloc}} \land \\
+    &\qquad \memreg(r_1) = \size \land \\
+    &\qquad \size \geq 0 \land \\
+    &\qquad \memreg(r_0) = (p,b,e,a) \land \\
+    &\qquad \memreg(\pcreg) = (\entry,m_b,m_e,m_b) \\
+    &\qquad\Rightarrow \\
+    &\qquad \quad\exists \Phi' \in \Mems \ldotp \exists \hsfoot', \hsframe' \in \HeapSegments\ldotp\\
+    &\qquad \qquad \exists j,k \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \\
+    &\qquad \qquad \quad \Phi \step[j]\Phi' \land \\
+    &\qquad \qquad \quad \memheap[\Phi']=\hsfoot' \uplus \hsframe' \land\\
+    &\qquad \qquad \quad W' = [i \mapsto \iota_{\malloc}, k \mapsto \iota^0_{b',e'}] \land \\
+    &\qquad \qquad \quad \heapSat[\hsfoot']{n-j}{W'} \land \\
+    &\qquad \qquad \quad \memreg[\Phi'](\pcreg) = (\updatePcPerm{p},b,e,a) \land \\
+    &\qquad \qquad \quad \memreg[\Phi'](r_1) = (\rwx,b',e',b') \land \\
+    &\qquad \qquad \quad \forall r \in \RegName \setminus \{\pcreg,r_1\} \ldotp \memreg[\Phi'](r) = 0
+\end{align*}
+\end{specification}
+\lau{I am not satisfied with the pc in the premise.}
+
 \begin{specification}[Malloc]\dominique{can you state this more systematically, with less prose, more explicit assumptions and conclusion?}
 Take $W_{\malloc}$ the world with exactly one island, namely the unspecified island $\iota_{\malloc}$ that governs the internal state of $\malloc$.  If we invoke $\malloc$ in a memory $h = \hsframe \uplus \hsfoot$
 %\lau{Is $\hsframe$ supposed to be the rest of memory, so $h$ is something we can execute in? Is $\malloc$ allowed to allocate more memory, i.e., how does $\hsfoot$ relate to $\hsfoot'$?} A: The frame contains anything that has been allocated and the footprint contains the rest. That is the footprint contains mallocs internal state as well as the free memory.
@@ -611,7 +637,7 @@ We now want to use the FTLR. To do so, we need to define a world that represents
 \item $\iota_{\advb,\adve}$
 \item $\iota_{\malloc}$
 \end{itemize}
-To use the FTLR, we have to argue that the read condition is satisfied for the region, the adversary is in. This is easily shown, as we have chosen the region for the adversary to be the standard one, so with $\advb$ and $\adve$ as witnesses, we need to show $\iota{\advb,\adve} \subseteq \iota{\advb,\adve}$.
+To use the FTLR, we have to argue that the read condition is satisfied for the region, the adversary is in. This is easily shown, as we have chosen the region for the adversary to be the standard one, so with $\advb$ and $\adve$ as witnesses, we need to show $\iota_{\advb,\adve} \subseteq \iota_{\advb,\adve}$.
 
 So we can conclude that $\npair{(\exec,\advb,\adve,\advb}) \in \stder(W'')$ where $W''$ is the world with the following regions:
 Assuming we can show the following three things:
