@@ -321,7 +321,7 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
   \sem{\jmp{\lv}}(\Phi)                    & = \updateReg{\pcreg}{\updatePcPerm{\memreg(\lv)}} \\
   \sem{\jnz{\lv}{\rv}}(\Phi)               & = 
                                              \begin{cases}
-                                               \updateReg{\pcreg}{\updatePcPerm{\var{c}}} &
+                                               \updateReg{\pcreg}{\updatePcPerm{\memreg(\lv)}} &
                                                \arraycolsep=0pt
                                                \begin{array}{l}
                                                  \text{if $\nonZero{\memreg(\rv)}$} 
@@ -558,13 +558,14 @@ The ticket dispenser test program uses $\malloc$. To be able to reason about pro
     &\qquad \memreg(r_0) = (p,b,e,a) \land \\
     &\qquad \memreg(\pcreg) = (\entry,m_b,m_e,m_b) \\
     &\qquad\Rightarrow \\
-    &\qquad \quad\exists \Phi' \in \Mems \ldotp \exists \hsfoot', \hsframe' \in \HeapSegments\ldotp\\
+    &\qquad \quad\exists \Phi' \in \Mems \ldotp \exists \hsfoot' \in \HeapSegments\ldotp\\
     &\qquad \qquad \exists j,k \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \\
     &\qquad \qquad \quad \Phi \step[j]\Phi' \land \\
-    &\qquad \qquad \quad \memheap[\Phi']=\hsfoot' \uplus \hsframe' \land\\
+    &\qquad \qquad \quad \memheap[\Phi']=\hsfoot' \uplus \hsframe \land\\
     &\qquad \qquad \quad W' = [i \mapsto \iota_{\malloc}, k \mapsto \iota^0_{b',e'}] \land \\
     &\qquad \qquad \quad \heapSat[\hsfoot']{n-j}{W'} \land \\
     &\qquad \qquad \quad \memreg[\Phi'](\pcreg) = (\updatePcPerm{p},b,e,a) \land \\
+    &\qquad \qquad \quad \size = e'-b'
     &\qquad \qquad \quad \memreg[\Phi'](r_1) = (\rwx,b',e',b') \land \\
     &\qquad \qquad \quad \forall r \in \RegName \setminus \{\pcreg,r_1\} \ldotp \memreg[\Phi'](r) = 0
 \end{align*}
@@ -768,7 +769,7 @@ Another standard heap invariant that ensures all the words in the region are 0.
 
 Consider what the ``good observations'' should be? Before we do that - what should the end result of a computation be?
 \begin{align*}
-  \observations \quad : & \quad  \Worlds \monfun \UPred{\Confs} \\
+  \observations \quad : & \quad  \Worlds \monfun \UPred{\Regs \times \HeapSegments} \\
   \observations (W) \defeq & \{ \npair{(\reg,\hs)} \mid \\
                            & \quad (\forall \heap_f, \heap', i \leq n \ldotp (\reg,\hs \uplus \heap_f) \step[i] (\halted,\heap')  \\
                            & \qquad \Rightarrow \exists \hs' \ldotp \heap' = \hs' \uplus \heap_f \land \heapSat[\hs']{n-i}{W}
