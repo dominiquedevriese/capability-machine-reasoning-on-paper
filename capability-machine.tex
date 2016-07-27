@@ -547,27 +547,30 @@ In the initial configuration the $\pcreg$ register is assumed to have an execute
 The ticket dispenser test program uses $\malloc$. To be able to reason about programs that use $\malloc$, we assume that it follows the following specification. If you provide it with one argument, namely the size of the allocation you wish and a return capability, then at some point $\pcreg$ will contain an executable capability based on this return capability and the return register will contain a $\rwx$ capability for the freshly allocated memory. 
 \begin{specification}[Malloc v.2]
   \begin{align*}
-    &\forall \Phi \in \Mems \ldotp \forall \hsfoot, \hsframe \in \HeapSegments\ldotp\\
-    &\quad \forall n, i, \size \in \nats\ldotp\forall b,e,a,m_b,m_e\in \Addrs\ldotp\forall p \in \Perms \ldotp\\
-    &\qquad W_{\malloc} = [i \mapsto \iota_{\malloc}] \land \\
-    &\qquad \dom(\hsfoot) = [m_b,m_e] \land \\
-    &\qquad \memheap = \hsfoot \uplus \hsframe \land\\
-    &\qquad \heapSat[\hsfoot]{n}{W_{\malloc}} \land \\
-    &\qquad \memreg(r_1) = \size \land \\
-    &\qquad \size \geq 0 \land \\
-    &\qquad \memreg(r_0) = (p,b,e,a) \land \\
-    &\qquad \memreg(\pcreg) = (\entry,m_b,m_e,m_b) \\
-    &\qquad\Rightarrow \\
-    &\qquad \quad\exists \Phi' \in \Mems \ldotp \exists \hsfoot' \in \HeapSegments\ldotp\\
-    &\qquad \qquad \exists j,k \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \\
-    &\qquad \qquad \quad \Phi \step[j]\Phi' \land \\
-    &\qquad \qquad \quad \memheap[\Phi']=\hsfoot' \uplus \hsframe \land\\
-    &\qquad \qquad \quad W' = [i \mapsto \iota_{\malloc}, k \mapsto \iota^0_{b',e'}] \land \\
-    &\qquad \qquad \quad \heapSat[\hsfoot']{n-j}{W'} \land \\
-    &\qquad \qquad \quad \memreg[\Phi'](\pcreg) = (\updatePcPerm{p},b,e,a) \land \\
-    &\qquad \qquad \quad \size = e'-b'
-    &\qquad \qquad \quad \memreg[\Phi'](r_1) = (\rwx,b',e',b') \land \\
-    &\qquad \qquad \quad \forall r \in \RegName \setminus \{\pcreg,r_1\} \ldotp \memreg[\Phi'](r) = 0
+    &\forall \Phi \in \Mems \ldotp \forall \hsfoot, \hsframe \in \HeapSegments \ldotp \\
+    &\quad \forall n, \size \in \nats \ldotp \forall b,e,a,m_b,m_e \in \Addrs\ldotp\forall p \in \Perms \ldotp \forall W \in \Worlds \ldotp\\
+    &\qquad \exists i, \var{FS} \ldotp \\
+    &\qquad \quad W (i) = \iota_{\malloc}^{\var{FS}} \land \\
+    &\qquad \quad \dom(\hsfoot) = [m_b,m_e] \land \\
+    &\qquad \quad \memheap = \hsfoot \uplus \hsframe \land\\
+    &\qquad \quad \heapSat[\hsfoot]{n}{W} \land \\
+    &\qquad \quad \memreg(r_1) = \size \land \\
+    &\qquad \quad \size \geq 0 \land \\
+    &\qquad \quad \memreg(r_0) = (p,b,e,a) \land \\
+    &\qquad \quad \memreg(\pcreg) = (\entry,m_b,m_e,m_b) \\
+    &\qquad \quad \Rightarrow \\
+    &\qquad \qquad\exists \Phi' \in \Mems \ldotp \exists \hsfoot' \in \HeapSegments\ldotp\\
+    &\qquad \qquad \quad \exists j,k \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \exists W' \in \Worlds \ldotp \\
+    &\qquad \qquad \qquad \Phi \step[j]\Phi' \land \\
+    &\qquad \qquad \qquad \memheap[\Phi']=\hsfoot' \uplus \hsframe \land\\
+    &\qquad \qquad \qquad W' \future W \land \\
+    &\qquad \qquad \qquad W(i) = \iota_{\malloc}^{\var{FS} \setminus [b',e']} \land \\
+    &\qquad \qquad \qquad [b',e'] \subseteq \var{FS}  \land \\
+    &\qquad \qquad \qquad \heapSat[\hsfoot']{n-j}{W'} \land \\
+    &\qquad \qquad \qquad \memreg[\Phi'](\pcreg) = (\updatePcPerm{p},b,e,a) \land \\
+    &\qquad \qquad \qquad \size = e'-b' \\
+    &\qquad \qquad \qquad \memreg[\Phi'](r_1) = (\rwx,b',e',b') \land \\
+    &\qquad \qquad \qquad \forall r \in \RegName \setminus \{\pcreg,r_1\} \ldotp \memreg[\Phi'](r) = 0
 \end{align*}
 \end{specification}
 \lau{I am not satisfied with the pc in the premise. The exact capability necessary very much depent on the implementation (this is mostly a note to myself.)}
@@ -733,31 +736,34 @@ Future regions:
   (s_2,\phi_2,H_2) \future (s_1,\phi_1,H_1) \text{ iff } 
     (\phi_2,H_2) = (\phi_1,H_1) \land (s_1,s_2 \in \phi_1)
 \]
-Heap segment satisfaction:
+\begin{definition}[Heap satisfaction/erasure]
 \[
 \heapSat[\hs]{n}{W} \text{ iff }
-\begin{aligned}
+\begin{gathered}
   \exists R \dom(W) \rightarrow \HeapSegments \ldotp hs = \biguplus_{r \in \dom(W)} R(r) \\
-  \text{and}
+  \text{and}\\
   \forall r \in \dom(W) \ldotp \forall n' < n \ldotp \npair[n']{R(r)} \in W(r).H(W(r).s)(\roll\; W)
-\end{aligned}
+\end{gathered}
 \]
 Where $\iota.s$ and $\iota.H$ project out the state and the predicate of the region respectively.
+\end{definition}
 
 A standard heap invariant that insures all values in the region are in the value  relation:
 \[
   \iota_{\var{start},\var{end}} \; : \; \Regions
 \]
 \begin{align*}
-  \iota_{\var{start},\var{end}}(W) & \defeq (s,=,H_{\var{std}}) \\
-  H_{\var{std}}\; s\; W & \defeq \{\npair{\hs} \mid \forall \addr \in [\var{base},\var{end}] \ldotp \hs(a) \in \stdvr(\roll \; W)\}
+  \iota_{\var{base},\var{end}}(W) & \defeq (s,=,H_{\var{base},\var{end}}) \\
+  H_{\var{base},\var{end}}\; s\; W         & \defeq \{\npair{\hs} \mid \forall \addr \in [\var{base},\var{end}] \ldotp \hs(\addr) \in \stdvr(\roll \; W) \\
+                             & \qquad \qquad \qquad \land \dom(\hs) = [\var{base},\var{end}]\}
 \end{align*}
 Another standard heap invariant that ensures all the words in the region are 0.
 \[
-  \iota_{\var{start},\var{end}}^0 \; : \; \StorePred
+  \iota_{\var{start},\var{end}}^0 \; : \; \Regions
 \]
 \begin{align*}
-  \iota_{\var{start},\var{end}}^0(W) \defeq \{ \npair{\heapseg} \mid & \dom(\heapseg) = [\var{start},\var{end}] \land \\
+  \iota_{\var{start},\var{end}}^0\; s\; W & \defeq (s,=,H_{\var{base},\var{end}}^0) \\
+  H_{\var{base},\var{end}}^0\; s\; W     & \defeq\{ \npair{\heapseg} \mid \dom(\heapseg) = [\var{start},\var{end}] \land \\
                                                                 & \qquad \forall \addr \in \dom(\heapseg) \ldotp \heapseg(\addr) = 0  \}
 \end{align*}
 
@@ -848,19 +854,6 @@ Normally, it would just be required for the return value to be in the value rela
                    & \qquad \qquad \npair{(\reg\update{r_0}{c}\update{\pcreg}{\pc},\hs)} \in \observations(W) \}
 \end{align*}
 
-\begin{definition}[Heap satisfaction/erasure]
-\begin{align*}
-  \heapSat{n}{W} & & \text{iff} & &
-                                      \arraycolsep=0pt
-                                      \begin{array}{l}
-                                      \exists r: \dom(W) \rightarrow \HeapSegments \ldotp \\
-                                      \qquad\heap = \biguplus_{\iota\in \dom(W)} r(\iota)\\
-                                      \quad\text{and}\\
-                                      \qquad\forall \iota \in \dom(W) \ldotp \npair{r(\iota)} \in W(\iota)(W)
-                                      \end{array}\\
-\end{align*}
-
-\end{definition}
 \begin{lemma}[Fundamental theorem of logical relations (FTLR)] \forcenewline
   For any $n \in \nats$, $W \in \Worlds$, $p\in \Perms$, and addresses $\var{base}$, $\var{end}$, and $a$, if $\perm = \rwx$ and $\writeCond{n,W,\var{base},\var{end}}$ or $\perm = \exec$ and $\readCond{n,W,\var{base},\var{end}}$, then $\npair{(\perm, \var{base}, \var{end}, a)} \in \stder(W)$.
 \end{lemma} %TODO: Change the condition here to be writeCondition (and readCondition)
