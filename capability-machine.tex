@@ -141,7 +141,7 @@
 \newcommand{\UPred}[1]{\plaindom{UPred}(#1)}
 
 %LR
-\newcommand{\intr}[2]{\mathcal{#1}\sem{#2}}
+\newcommand{\intr}[2]{\mathcal{#1}}
 \newcommand{\valueintr}[1]{\intr{V}{#1}}
 \newcommand{\exprintr}[1]{\intr{E}{#1}}
 \newcommand{\contintr}[1]{\intr{K}{#1}}
@@ -419,6 +419,7 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
 \newcommand{\mrlen}{5cm}
 \newcommand{\retm}{\var{ret}_{\malloc}}
 \newcommand{\reta}{\var{ret}_{\adv}}
+\newcommand{\FS}{\var{FS}}
 \newcommand{\bracket}[1]{\multirow{#1}{*}{\ensuremath{
  \left . \vphantom{\begin{array}{l}
  \ifthenelse{\equal{#1}{1}}{3\\}{
@@ -549,8 +550,8 @@ The ticket dispenser test program uses $\malloc$. To be able to reason about pro
   \begin{align*}
     &\forall \Phi \in \Mems \ldotp \forall \hsfoot, \hsframe \in \HeapSegments \ldotp \\
     &\quad \forall n, \size \in \nats \ldotp \forall b,e,a,m_b,m_e \in \Addrs\ldotp\forall p \in \Perms \ldotp \forall W \in \Worlds \ldotp\\
-    &\qquad \exists i, \var{FS} \ldotp \\
-    &\qquad \quad W (i) = \iota_{\malloc}^{\var{FS}} \land \\
+    &\qquad \exists i, \FS \ldotp \\
+    &\qquad \quad W (i) = \iota_{\malloc}^{\FS} \land \\
     &\qquad \quad \dom(\hsfoot) = [m_b,m_e] \land \\
     &\qquad \quad \memheap = \hsfoot \uplus \hsframe \land\\
     &\qquad \quad \heapSat[\hsfoot]{n}{W} \land \\
@@ -564,8 +565,8 @@ The ticket dispenser test program uses $\malloc$. To be able to reason about pro
     &\qquad \qquad \qquad \Phi \step[j]\Phi' \land \\
     &\qquad \qquad \qquad \memheap[\Phi']=\hsfoot' \uplus \hsframe \land\\
     &\qquad \qquad \qquad W' \future W \land \\
-    &\qquad \qquad \qquad W(i) = \iota_{\malloc}^{\var{FS} \setminus [b',e']} \land \\
-    &\qquad \qquad \qquad [b',e'] \subseteq \var{FS}  \land \\
+    &\qquad \qquad \qquad W(i) = \iota_{\malloc}^{\FS \setminus [b',e']} \land \\
+    &\qquad \qquad \qquad [b',e'] \subseteq \FS  \land \\
     &\qquad \qquad \qquad \heapSat[\hsfoot']{n-j}{W'} \land \\
     &\qquad \qquad \qquad \memreg[\Phi'](\pcreg) = (\updatePcPerm{p},b,e,a) \land \\
     &\qquad \qquad \qquad \size = e'-b' \\
@@ -573,6 +574,15 @@ The ticket dispenser test program uses $\malloc$. To be able to reason about pro
     &\qquad \qquad \qquad \forall r \in \RegName \setminus \{\pcreg,r_1\} \ldotp \memreg[\Phi'](r) = 0
 \end{align*}
 \end{specification}
+The specification uses the mallog island defined as
+\[
+\begin{gathered}
+  \iota_{\malloc}^{\FS} \defeq (\FS, \phi_{\malloc}, H_{\malloc}) \\
+  \FS \subseteq \Addrs \\
+  \forall \FS_1, \FS_2 \ldotp (\FS_1,\FS_2) \in \phi_{\malloc} \text{ iff } \FS_1 \supseteq \FS_2 \\
+  H \; W \; \FS = {\npair{\hs} \mid \dom(\hs) = \FS}
+\end{gathered}
+\]
 \lau{I am not satisfied with the pc in the premise. The exact capability necessary very much depent on the implementation (this is mostly a note to myself.)}
 \dominique{I agree with the remark about the pc.  Perhaps leave the form of the
   pc unspecified as it is not important for malloc users?}
@@ -710,12 +720,13 @@ We have now shown the three conditions and thus proven Lemma~\ref{lem:tckt-disp}
   \Worlds = \{ W \in RegionNames \parfun \Regions \mid \dom(W) \text{ finite } \}
 \]
 $\States$ is a fixed set with the necessary states.
-l
+
 \begin{align*}
   \Regions = \{ r = (s, \phi, H) \mid &  s \in \States \land \phi \subseteq States^2 \land \\ 
                                       &  H : \States \rightarrow \StorePred \land \\ 
                                       &  \phi \text{ reflexive and transitive} \}
 \end{align*}
+For convenience, we write $r.s$, $s.\phi$, and $s.H$ for a the projection of a regions state, transition system, and store predicate, respectively
 \[
   \StorePred = \widehat{\Worlds} \monnefun \UPred{\HeapSegments}
 \]
@@ -734,19 +745,25 @@ Future Worlds:
 Future regions:
 \[
   (s_2,\phi_2,H_2) \future (s_1,\phi_1,H_1) \text{ iff } 
-    (\phi_2,H_2) = (\phi_1,H_1) \land (s_1,s_2 \in \phi_1)
+    (\phi_2,H_2) = (\phi_1,H_1) \land (s_1,s_2) \in \phi_1
 \]
 \begin{definition}[Heap satisfaction/erasure]
 \[
 \heapSat[\hs]{n}{W} \text{ iff }
+\exists R \ldotp 
 \begin{gathered}
-  \exists R \dom(W) \rightarrow \HeapSegments \ldotp hs = \biguplus_{r \in \dom(W)} R(r) \\
+  \dom(W) \rightarrow \HeapSegments \ldotp hs = \biguplus_{r \in \dom(W)} R(r) \\
   \text{and}\\
   \forall r \in \dom(W) \ldotp \forall n' < n \ldotp \npair[n']{R(r)} \in W(r).H(W(r).s)(\roll\; W)
 \end{gathered}
 \]
-Where $\iota.s$ and $\iota.H$ project out the state and the predicate of the region respectively.
 \end{definition}
+
+\begin{lemma}[Heap satisfaction uniformity]
+\[
+  \forall n,n',\heap, W \ldotp \heapSat{n}{W} \land n' < n \Rightarrow \heapSat{n'}{W}
+\]
+\end{lemma}
 
 A standard heap invariant that insures all values in the region are in the value  relation:
 \[
@@ -807,12 +824,24 @@ Another standard heap invariant that ensures all the words in the region are 0.
                    & \quad \execCond{n,W,\start,\addrend,\rwx} \}
 \end{align*}
 
+\begin{lemma}
+  \[
+    \forall n' < n \ldotp \forall W \ldotp \forall w \ldotp \npair{w} \in \stdvr(W) \Rightarrow \npair[n']{w} \in \stdvr(W)
+  \]
+\end{lemma}
+
+\begin{lemma}
+  \[
+    \forall n \ldotp \forall W' \future W \ldotp \forall w \ldotp \npair{w} \in \stdvr(W) \Rightarrow \npair{w} \in \stdvr(W')
+  \]
+\end{lemma}
+
 Consider what the ``good observations'' should be? Before we do that - what should the end result of a computation be?
 \begin{align*}
   \observations \quad : & \quad  \Worlds \monfun \UPred{\Regs \times \HeapSegments} \\
   \observations (W) \defeq & \{ \npair{(\reg,\hs)} \mid \\
                            & \quad (\forall \heap_f, \heap', i \leq n \ldotp (\reg,\hs \uplus \heap_f) \step[i] (\halted,\heap')  \\
-                           & \qquad \Rightarrow \exists \hs' \ldotp \heap' = \hs' \uplus \heap_f \land \heapSat[\hs']{n-i}{W}
+                           & \qquad \Rightarrow \exists W' \future W \ldotp\exists \hs' \ldotp \heap' = \hs' \uplus \heap_f \land \heapSat[\hs']{n-i}{W'}
 \end{align*}
 Removed the condition $\npair[n-i]{\heap'(0)} \in \stdvr(W)$.\\
 
@@ -823,6 +852,19 @@ The ``good observations'' are as follows
 \item The execution halts in at most $n$ steps with a heap where the island that governs address 0 is satisfied by some heap segment.
 \end{itemize}
 Address 0 is the designated I/O address.
+\\ \lau{The two first conditions where implied by the last one, so they were removed. It turned out to cause troubles to special case on address 0, so now the entire heap has to satisfy a future world (which is a bit worrying as only the i/o address is observable).}
+
+\begin{lemma}
+  \[
+    \forall n' < n \ldotp \forall W \ldotp \forall \reg \ldotp \forall \hs \ldotp \npair{(\reg,\hs)} \in \observations(W) \Rightarrow \npair[n']{(\reg,\hs)} \in \observations(W)
+  \]
+\end{lemma}
+
+\begin{lemma}
+  \[
+    \forall n \ldotp \forall W \future W' \ldotp \forall \reg \ldotp \forall \hs \ldotp \npair{(\reg,\hs)} \in \observations(W) \Rightarrow \npair{(\reg,\hs)}(W')
+  \]
+\end{lemma}
 
 Register-file relation:
 \begin{align*}
@@ -831,6 +873,18 @@ Register-file relation:
                     & \quad \forall r \in \RegName \setminus \{\pcreg\} \ldotp \\
                     & \qquad  \npair{\reg(r)} \in \stdvr(W) \}
 \end{align*}
+
+\begin{lemma}
+  \[
+    \forall n' < n \ldotp \forall W \ldotp \forall \reg \ldotp \npair{\reg} \in \stdrr(W) \Rightarrow \npair[n']{\reg} \in \stdrr(W)
+  \]
+\end{lemma}
+
+\begin{lemma}
+  \[
+    \forall n \ldotp \forall W' \future W \ldotp \forall \reg \ldotp \npair{\reg} \in \stdrr(W) \Rightarrow \npair{\reg} \in \stdrr(W')
+  \]
+\end{lemma}
 
 ``Continuation'' relation:
 \begin{align*}
@@ -844,6 +898,18 @@ We require the continuation to be in the value relation, because it will have to
 
 Normally, it would just be required for the return value to be in the value relation, so the continuation is invoked with this value. Here everything that is in the register file is available when the continuation is invoked, so we do not special case on $r_1$ (which is the register that in the calling convention we use should contain the return value). 
 
+\begin{lemma}
+  \[
+    \forall n' < n \ldotp \forall W \ldotp \forall c \ldotp \npair{c} \in \stdkr(W) \Rightarrow \npair[n']{c} \in \stdkr(W)
+  \]
+\end{lemma}
+
+\begin{lemma}
+  \[
+    \forall n \ldotp \forall W' \future W \ldotp \forall c \ldotp \npair{c} \in \stdkr(W) \Rightarrow \npair{c} \in \stdkr(W')
+  \]
+\end{lemma}
+
 ``Expression'' relation:
 \begin{align*}
   \stder \quad : & \quad \Worlds \monfun \UPred{\Words} \\%TODO: Check whether this needs to be monotone
@@ -854,6 +920,18 @@ Normally, it would just be required for the return value to be in the value rela
                    & \qquad \qquad \npair{(\reg\update{r_0}{c}\update{\pcreg}{\pc},\hs)} \in \observations(W) \}
 \end{align*}
 
+\begin{lemma}
+  \[
+    \forall n' < n \ldotp \forall W \ldotp \forall \pc \ldotp \npair{\pc} \in \stder(W) \Rightarrow \npair[n']{\pc} \in \stder(W)
+  \]
+\end{lemma}
+
+\begin{lemma}
+  \[
+    \forall n \ldotp \forall W' \future W \ldotp \forall \pc \ldotp \npair{c} \in \stder(W) \Rightarrow \npair{c} \in \stder(W')
+  \]
+\end{lemma}
+
 \begin{lemma}[Fundamental theorem of logical relations (FTLR)] \forcenewline
   For any $n \in \nats$, $W \in \Worlds$, $p\in \Perms$, and addresses $\var{base}$, $\var{end}$, and $a$, if $\perm = \rwx$ and $\writeCond{n,W,\var{base},\var{end}}$ or $\perm = \exec$ and $\readCond{n,W,\var{base},\var{end}}$, then $\npair{(\perm, \var{base}, \var{end}, a)} \in \stder(W)$.
 \end{lemma} %TODO: Change the condition here to be writeCondition (and readCondition)
@@ -861,18 +939,15 @@ Normally, it would just be required for the return value to be in the value rela
 \lau{In the ticket dispenser lemma, we need to make some assumptions about the adversary to be able to use the FTLR. What should these assumptions be? So far I have the assumption that it is all code (no capabilities), but I do not see how I conclude the write condition from this.}
 \dominique{Something I find interesting here, is that the FTLR can be interpreted to say that x permissions have no real security value: if you have an arbitrary r or rw capability that is valid, then the FTLR says that it remains valid if we change it to rx or rwx (respectively).}
 
-\begin{lemma}[Heap satisfaction downwards closure]
-\[
-  \forall n,n',\heap, W \ldotp \heapSat{n}{W} \land n' < n \Rightarrow \heapSat{n'}{W}
-\]
-\end{lemma}
 
-\begin{lemma}[Read condition downwards closure]
+
+\begin{lemma}[Read condition uniformity]
 \[
 \forall n,n',W,\start, \addrend \ldotp \readCond{n,W,\start,\addrend} \land n' \leq n \Rightarrow \readCond{n',W,\start,\addrend}
 \]
 \end{lemma}
-\begin{lemma}[Write condition downwards closure]
+
+\begin{lemma}[Write condition uniformity]
 \[
 \forall n,n',W,\start, \addrend \ldotp \writeCond{n,W,\start,\addrend} \land n' \leq n \Rightarrow \writeCond{n',W,\start,\addrend}
 \]
