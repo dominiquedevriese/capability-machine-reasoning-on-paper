@@ -82,23 +82,27 @@
 \newcommand{\halted}{\textsl{halted}}
 
 %Functions
-\newcommand{\plainfun}[1]{\mathit{#1}}
-\newcommand{\decode}{\plainfun{decode}}
-\newcommand{\encode}{\plainfun{encode}}
-\newcommand{\encodePerm}{\plainfun{encodePerm}}
-\newcommand{\updatePcPerm}[1]{\plainfun{updatePcPerm}(#1)}
+\newcommand{\plainfun}[2]{
+  \ifthenelse{\equal{#2}{}}
+             {\mathit{#1}}
+             {\mathit{#1}(#2)}
+}
+\newcommand{\decode}{\plainfun{decode}{}}
+\newcommand{\encode}{\plainfun{encode}{}}
+\newcommand{\encodePerm}{\plainfun{encodePerm}{}}
+\newcommand{\updatePcPerm}[1]{\plainfun{updatePcPerm}{#1}}
 
-\newcommand{\executeAllowed}[1]{\plainfun{executeAllowed}(#1)}
-\newcommand{\nonZero}[1]{\plainfun{nonZero}(#1)}
-\newcommand{\readAllowed}[1]{\plainfun{readAllowed}(#1)}
-\newcommand{\writeAllowed}[1]{\plainfun{writeAllowed}(#1)}
-\newcommand{\withinBounds}[1]{\plainfun{withinBounds}(#1)}
-\newcommand{\stdUpdatePc}[1]{\plainfun{updatePc(#1)}}
+\newcommand{\executeAllowed}[1]{\plainfun{executeAllowed}{#1}}
+\newcommand{\nonZero}[1]{\plainfun{nonZero}{#1}}
+\newcommand{\readAllowed}[1]{\plainfun{readAllowed}{#1}}
+\newcommand{\writeAllowed}[1]{\plainfun{writeAllowed}{#1}}
+\newcommand{\withinBounds}[1]{\plainfun{withinBounds}{#1}}
+\newcommand{\stdUpdatePc}[1]{\plainfun{updatePc}{#1}}
 
-\newcommand{\readCond}[1]{\plainfun{readCondition}(#1)}
-\newcommand{\writeCond}[1]{\plainfun{readWriteCondition}(#1)}
-\newcommand{\execCond}[1]{\plainfun{executeCondition}(#1)}
-\newcommand{\entryCond}[1]{\plainfun{entryCondition}(#1)}
+\newcommand{\readCond}[1]{\plainfun{readCondition}{#1}}
+\newcommand{\writeCond}[1]{\plainfun{readWriteCondition}{#1}}
+\newcommand{\execCond}[1]{\plainfun{executeCondition}{#1}}
+\newcommand{\entryCond}[1]{\plainfun{entryCondition}{#1}}
 
 
 %World operations
@@ -550,22 +554,22 @@ The ticket dispenser test program uses $\malloc$. To be able to reason about pro
   \begin{align*}
     &\forall \Phi \in \Mems \ldotp \forall \hsfoot, \hsframe \in \HeapSegments \ldotp \\
     &\quad \forall n, \size \in \nats \ldotp \forall b,e,a,m_b,m_e \in \Addrs\ldotp\forall p \in \Perms \ldotp \forall W \in \Worlds \ldotp\\
-    &\qquad \exists i, \FS \ldotp \\
-    &\qquad \quad W (i) = \iota_{\malloc}^{\FS} \land \\
-    &\qquad \quad \dom(\hsfoot) = [m_b,m_e] \land \\
+    &\qquad \exists i, \iota_{\malloc} \ldotp \\
+    &\qquad \quad W = [i \mapsto \iota_{\malloc}] \land \\
+    &\qquad \quad \dom(\hsfoot) = [m_b,m_e] \land \\ % This
     &\qquad \quad \memheap = \hsfoot \uplus \hsframe \land\\
     &\qquad \quad \heapSat[\hsfoot]{n}{W} \land \\
     &\qquad \quad \memreg(r_1) = \size \land \\
     &\qquad \quad \size \geq 0 \land \\
     &\qquad \quad \memreg(r_0) = (p,b,e,a) \land \\
-    &\qquad \quad \memreg(\pcreg) = (\entry,m_b,m_e,m_b) \\
+    &\qquad \quad \memreg(\pcreg) = (\entry,m_b,m_e,m_b) \\ %and this needs to change with ABI.
     &\qquad \quad \Rightarrow \\
     &\qquad \qquad\exists \Phi' \in \Mems \ldotp \exists \hsfoot' \in \HeapSegments\ldotp\\
     &\qquad \qquad \quad \exists j,k \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \exists W' \in \Worlds \ldotp \\
     &\qquad \qquad \qquad \Phi \step[j]\Phi' \land \\
     &\qquad \qquad \qquad \memheap[\Phi']=\hsfoot' \uplus \hsframe \land\\
+    &\qquad \qquad \qquad W' = [k \mapsto \iota_{b',e'}^0, i \mapsto \iota_{\malloc}]\\
     &\qquad \qquad \qquad W' \future W \land \\
-    &\qquad \qquad \qquad W(i) = \iota_{\malloc}^{\FS \setminus [b',e']} \land \\
     &\qquad \qquad \qquad [b',e'] \subseteq \FS  \land \\
     &\qquad \qquad \qquad \heapSat[\hsfoot']{n-j}{W'} \land \\
     &\qquad \qquad \qquad \memreg[\Phi'](\pcreg) = (\updatePcPerm{p},b,e,a) \land \\
@@ -575,20 +579,11 @@ The ticket dispenser test program uses $\malloc$. To be able to reason about pro
 \end{align*}
 \end{specification}
 The specification uses the mallog island defined as
-\[
-\begin{gathered}
-  \iota_{\malloc}^{\FS} \defeq (\FS, \phi_{\malloc}, H_{\malloc}) \\
-  \FS \subseteq \Addrs \\
-  \forall \FS_1, \FS_2 \ldotp (\FS_1,\FS_2) \in \phi_{\malloc} \text{ iff } \FS_1 \supseteq \FS_2 \\
-  H \; W \; \FS = {\npair{\hs} \mid \dom(\hs) = \FS}
-\end{gathered}
-\]
 \lau{I am not satisfied with the pc in the premise. The exact capability necessary very much depent on the implementation (this is mostly a note to myself.)}
 \dominique{I agree with the remark about the pc.  Perhaps leave the form of the
   pc unspecified as it is not important for malloc users?}
 \dominique{Resulting frame should be equal to original.}
-\dominique{Allocated pointer should have the right size.}
-\dominique{Other registers unmodified could be an alternative. (Caller-save/Callee-save etc.)}
+\lau{Rewrite the specification when we have settled on a reasonable way to handle ABI.}
 
 \begin{specification}[Malloc]\dominique{can you state this more systematically, with less prose, more explicit assumptions and conclusion?}
 Take $W_{\malloc}$ the world with exactly one island, namely the unspecified island $\iota_{\malloc}$ that governs the internal state of $\malloc$.  If we invoke $\malloc$ in a memory $h = \hsframe \uplus \hsfoot$
@@ -879,10 +874,25 @@ Normally, it would just be required for the return value to be in the value rela
 \forall n,n',W,\start, \addrend \ldotp \readCond{n,W,\start,\addrend} \land n' \leq n \Rightarrow \readCond{n',W,\start,\addrend}
 \]
 \end{lemma}
+\begin{proof}
+  
+\end{proof}
 
-\begin{lemma}[Write condition uniformity]
+\begin{lemma}[Read-write condition uniformity]
 \[
 \forall n,n',W,\start, \addrend \ldotp \writeCond{n,W,\start,\addrend} \land n' \leq n \Rightarrow \writeCond{n',W,\start,\addrend}
+\]
+\end{lemma}
+
+\begin{lemma}[Execute condition uniformity]
+\[
+\forall n,n',W,\start, \addrend, \perm \ldotp \execCond{n,W,\start,\addrend,\perm} \land n' \leq n \Rightarrow \execCond{n',W,\start,\addrend,\perm}
+\]
+\end{lemma}
+
+\begin{lemma}[Entry condition uniformity]
+\[
+\forall n,n',W,\start, \addrend, \addr \ldotp \entryCond{n,W,\start,\addrend} \land n' \leq n \Rightarrow \entryCond{n',W,\start,\addrend,\addr}
 \]
 \end{lemma}
 
@@ -897,6 +907,9 @@ Normally, it would just be required for the return value to be in the value rela
     \forall n' < n \ldotp \forall W \ldotp \forall w \ldotp \npair{w} \in \stdvr(W) \Rightarrow \npair[n']{w} \in \stdvr(W)
   \]
 \end{lemma}
+\begin{proof}
+  Follows from the uniformity of $\readCond{}$, $\writeCond{}$, $\execCond{}$, and $\entryCond{}$.
+\end{proof}
 
 \begin{lemma}
   \[
