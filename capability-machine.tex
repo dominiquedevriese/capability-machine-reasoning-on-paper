@@ -423,7 +423,8 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
 \newcommand{\mrlen}{5cm}
 \newcommand{\retm}{\var{ret}_{\malloc}}
 \newcommand{\reta}{\var{ret}_{\adv}}
-\newcommand{\FS}{\var{FS}}
+\newcommand{\base}{\var{base}}
+\newcommand{\eend}{\var{end}}
 \newcommand{\bracket}[1]{\multirow{#1}{*}{\ensuremath{
  \left . \vphantom{\begin{array}{l}
  \ifthenelse{\equal{#1}{1}}{3\\}{
@@ -570,13 +571,12 @@ The ticket dispenser test program uses $\malloc$. To be able to reason about pro
     &\qquad \qquad \qquad \memheap[\Phi']=\hsfoot' \uplus \hsframe \land\\
     &\qquad \qquad \qquad W' = [k \mapsto \iota_{b',e'}^0, i \mapsto \iota_{\malloc}]\\
     &\qquad \qquad \qquad W' \future W \land \\
-    &\qquad \qquad \qquad [b',e'] \subseteq \FS  \land \\
     &\qquad \qquad \qquad \heapSat[\hsfoot']{n-j}{W'} \land \\
     &\qquad \qquad \qquad \memreg[\Phi'](\pcreg) = (\updatePcPerm{p},b,e,a) \land \\
     &\qquad \qquad \qquad \size = e'-b' \\
     &\qquad \qquad \qquad \memreg[\Phi'](r_1) = (\rwx,b',e',b') \land \\
     &\qquad \qquad \qquad \forall r \in \RegName \setminus \{\pcreg,r_1\} \ldotp \memreg[\Phi'](r) = 0
-\end{align*}
+  \end{align*}
 \end{specification}
 The specification uses the mallog island defined as
 \lau{I am not satisfied with the pc in the premise. The exact capability necessary very much depent on the implementation (this is mostly a note to myself.)}
@@ -717,7 +717,7 @@ We have now shown the three conditions and thus proven Lemma~\ref{lem:tckt-disp}
 $\States$ is a fixed set with the necessary states.
 
 \begin{align*}
-  \Regions = \{ r = (s, \phi, H) \mid &  s \in \States \land \phi \subseteq States^2 \land \\ 
+  \Regions = \{ r = (s, \phi, H) \mid &  s \in \States \land \phi \subseteq \States^2 \land \\ 
                                       &  H : \States \rightarrow \StorePred \land \\ 
                                       &  \phi \text{ reflexive and transitive} \}
 \end{align*}
@@ -745,12 +745,14 @@ Future regions:
 \begin{definition}[Heap satisfaction/erasure]
 \[
 \heapSat[\hs]{n}{W} \text{ iff }
-\exists R \ldotp 
-\begin{gathered}
-  \dom(W) \rightarrow \HeapSegments \ldotp hs = \biguplus_{r \in \dom(W)} R(r) \\
+\begin{aligned}
+&\exists R : \dom(W) \rightarrow \HeapSegments \ldotp \\
+&\quad\begin{gathered}
+   hs = \biguplus_{r \in \dom(W)} R(r) \\
   \text{and}\\
   \forall r \in \dom(W) \ldotp \forall n' < n \ldotp \npair[n']{R(r)} \in W(r).H(W(r).s)(\roll\; W)
 \end{gathered}
+\end{aligned}
 \]
 \end{definition}
 
@@ -810,7 +812,7 @@ Another standard heap invariant that ensures all the words in the region are 0.
 
 Consider what the ``good observations'' should be? Before we do that - what should the end result of a computation be?
 \begin{align*}
-  \observations \quad : & \quad  \Worlds \monfun \UPred{\Regs \times \HeapSegments} \\
+  \observations \quad : & \quad  \Worlds \rightarrow \UPred{\Regs \times \HeapSegments} \\
   \observations (W) \defeq & \{ \npair{(\reg,\hs)} \mid \\
                            & \quad (\forall \heap_f, \heap', i \leq n \ldotp (\reg,\hs \uplus \heap_f) \step[i] (\halted,\heap')  \\
                            & \qquad \Rightarrow \exists W' \future W \ldotp\exists \hs' \ldotp \heap' = \hs' \uplus \heap_f \land \heapSat[\hs']{n-i}{W'}
@@ -848,7 +850,7 @@ Normally, it would just be required for the return value to be in the value rela
 
 ``Expression'' relation:
 \begin{align*}
-  \stder \quad : & \quad \Worlds \monfun \UPred{\Words} \\%TODO: Check whether this needs to be monotone
+  \stder \quad : & \quad \Worlds \rightarrow \UPred{\Words} \\%TODO: Check whether this needs to be monotone
   \stder(W) \defeq & \{ \npair{\pc} \mid \\
                    & \quad \forall \npair{\reg} \in \stdrr(W) \ldotp \\
                    & \qquad \forall \npair{c} \in \stdkr(W) \ldotp \\
@@ -864,105 +866,127 @@ Normally, it would just be required for the return value to be in the value rela
 \dominique{Something I find interesting here, is that the FTLR can be interpreted to say that x permissions have no real security value: if you have an arbitrary r or rw capability that is valid, then the FTLR says that it remains valid if we change it to rx or rwx (respectively).}
 
 \begin{lemma}[Heap satisfaction uniformity]
-\[
-  \forall n,n',\heap, W \ldotp \heapSat{n}{W} \land n' < n \Rightarrow \heapSat{n'}{W}
-\]
+  \begin{align*}
+    & \forall n,n',\heap, W \ldotp\\
+    & \quad \heapSat{n}{W} \land n' < n \Rightarrow \heapSat{n'}{W}
+  \end{align*}
 \end{lemma}
 
 \begin{lemma}[Read condition uniformity]
-\[
-\forall n,n',W,\start, \addrend \ldotp \readCond{n,W,\start,\addrend} \land n' \leq n \Rightarrow \readCond{n',W,\start,\addrend}
-\]
+  \begin{align*}
+    &\forall n,n',W,\start, \addrend \ldotp \\
+    &\quad  \readCond{n,W,\start,\addrend} \land \\
+    &\quad  n' \leq n \\
+    &\qquad \Rightarrow \readCond{n',W,\start,\addrend}
+  \end{align*}
 \end{lemma}
 \begin{proof}
-  
+  Follows directly from definition: Let $n$, $n'$, $\start$, and  $\addrend$ be given. Assume $\readCond{n,W,\start,\addrend}$ and $n' \leq n$. If $n=n'$, then the result follows trivially, as it is exactly our assumption. If $n' < n$, then by assumption we have a region name $r$, interval $[\start',\addrend'] \supseteq [\start,\addrend]$, and the assumption $W(r) \nsubeq[n-1] \iota_{\start',\addrend'}$  given by the read condition assumption. Picking $r$ and $[\start',\addrend']$, we need to show  $W(r) \nsubeq[n'-1] \iota_{\start',\addrend'}$ which follows from downwards closure of $\nsubeq$.
 \end{proof}
 
 \begin{lemma}[Read-write condition uniformity]
-\[
-\forall n,n',W,\start, \addrend \ldotp \writeCond{n,W,\start,\addrend} \land n' \leq n \Rightarrow \writeCond{n',W,\start,\addrend}
-\]
+  \begin{align*}
+    & \forall n,n',W,\start, \addrend \ldotp\\
+    &\quad \writeCond{n,W,\start,\addrend} \land\\
+    &\quad  n' \leq n\\
+    &\qquad \Rightarrow \writeCond{n',W,\start,\addrend}
+  \end{align*}
 \end{lemma}
+\begin{proof}
+  Follows directly from the definition.
+\end{proof}
 
 \begin{lemma}[Execute condition uniformity]
-\[
-\forall n,n',W,\start, \addrend, \perm \ldotp \execCond{n,W,\start,\addrend,\perm} \land n' \leq n \Rightarrow \execCond{n',W,\start,\addrend,\perm}
-\]
+  \begin{align*}
+    &\forall n,n',W,\start, \addrend, \perm \ldotp \\
+    &\quad  \execCond{n,W,\start,\addrend,\perm} \land \\
+    &\quad  n' \leq n \\
+    &\qquad \Rightarrow \execCond{n',W,\start,\addrend,\perm}
+  \end{align*}
 \end{lemma}
+\begin{proof}
+  Follows directly from definition: Let $n$, $n'$, $W$, $\start$, and $\addrend$ be given. Assume $\execCond{n,W,\start,\addrend,\perm}$ and $n' \leq n$. If $n' = n$, then the result follows directly from assumption. If $n' < n$, then let $n'' < n'$, $W' \future W$, and $a \in [\start,\addrend]$ be given. Using that we by transitivity have $n'' < n$, we get the desired result from assumption.
+\end{proof}
 
 \begin{lemma}[Entry condition uniformity]
-\[
-\forall n,n',W,\start, \addrend, \addr \ldotp \entryCond{n,W,\start,\addrend} \land n' \leq n \Rightarrow \entryCond{n',W,\start,\addrend,\addr}
-\]
+  \begin{align*}
+    & \forall n,n',W,\start, \addrend, \addr \ldotp\\
+    &\quad  \entryCond{n,W,\start,\addrend,\addr} \land \\
+    &\quad  n' \leq n \\
+    &\qquad \Rightarrow \entryCond{n',W,\start,\addrend,\addr}
+  \end{align*}
 \end{lemma}
+\begin{proof}
+  Like the $\execCond{}$ uniformity proof.
+\end{proof}
 
 \begin{lemma}[Write condition implies read condition]
-\[
-\forall n, W, \start, \addrend \ldotp \writeCond{n,W,\start,\addrend} \Rightarrow \readCond{n,W,\start,\addrend}
-\]
+  \begin{align*}
+    &\forall n, W, \start, \addrend \ldotp\\ 
+    &\quad \writeCond{n,W,\start,\addrend} \Rightarrow \readCond{n,W,\start,\addrend}
+  \end{align*}
 \end{lemma}
+\begin{proof}
+  Follows directly from the definition.
+\end{proof}
 
 \begin{lemma}
-  \[
-    \forall n' < n \ldotp \forall W \ldotp \forall w \ldotp \npair{w} \in \stdvr(W) \Rightarrow \npair[n']{w} \in \stdvr(W)
-  \]
+  \begin{align*}
+    &\forall n' < n \ldotp \forall W \ldotp \forall w \ldotp\\
+    &\quad \npair{w} \in \stdvr(W) \Rightarrow \npair[n']{w} \in \stdvr(W)
+  \end{align*}
 \end{lemma}
 \begin{proof}
   Follows from the uniformity of $\readCond{}$, $\writeCond{}$, $\execCond{}$, and $\entryCond{}$.
 \end{proof}
 
 \begin{lemma}
-  \[
-    \forall n \ldotp \forall W' \future W \ldotp \forall w \ldotp \npair{w} \in \stdvr(W) \Rightarrow \npair{w} \in \stdvr(W')
-  \]
+  \begin{align*}
+    &\forall n \ldotp \forall W' \future W \ldotp \forall w \ldotp\\ 
+    &\quad \npair{w} \in \stdvr(W) \Rightarrow \npair{w} \in \stdvr(W')
+  \end{align*}
 \end{lemma}
 
 \begin{lemma}
-  \[
-    \forall n' < n \ldotp \forall W \ldotp \forall \reg \ldotp \forall \hs \ldotp \npair{(\reg,\hs)} \in \observations(W) \Rightarrow \npair[n']{(\reg,\hs)} \in \observations(W)
-  \]
+  \begin{align*}
+    &\forall n' < n \ldotp \forall W \ldotp \forall \reg \ldotp \forall \hs \ldotp\\
+    &\quad \npair{(\reg,\hs)} \in \observations(W) \Rightarrow \npair[n']{(\reg,\hs)} \in \observations(W)
+  \end{align*}
 \end{lemma}
 
 \begin{lemma}
-  \[
-    \forall n \ldotp \forall W \future W' \ldotp \forall \reg \ldotp \forall \hs \ldotp \npair{(\reg,\hs)} \in \observations(W) \Rightarrow \npair{(\reg,\hs)}(W')
-  \]
+  \begin{align*}
+    &\forall n' < n \ldotp \forall W \ldotp \forall \reg \ldotp\\
+    &\quad \npair{\reg} \in \stdrr(W) \Rightarrow \npair[n']{\reg} \in \stdrr(W)
+  \end{align*}
 \end{lemma}
 
 \begin{lemma}
-  \[
-    \forall n' < n \ldotp \forall W \ldotp \forall \reg \ldotp \npair{\reg} \in \stdrr(W) \Rightarrow \npair[n']{\reg} \in \stdrr(W)
-  \]
+  \begin{align*}
+    &\forall n \ldotp \forall W' \future W \ldotp \forall \reg \ldotp\\
+    &\quad \npair{\reg} \in \stdrr(W) \Rightarrow \npair{\reg} \in \stdrr(W')
+  \end{align*}
 \end{lemma}
 
 \begin{lemma}
-  \[
-    \forall n \ldotp \forall W' \future W \ldotp \forall \reg \ldotp \npair{\reg} \in \stdrr(W) \Rightarrow \npair{\reg} \in \stdrr(W')
-  \]
+  \begin{align*}
+    &\forall n' < n \ldotp \forall W \ldotp \forall c \ldotp\\
+    &\quad \npair{c} \in \stdkr(W) \Rightarrow \npair[n']{c} \in \stdkr(W)
+  \end{align*}
 \end{lemma}
 
 \begin{lemma}
-  \[
-    \forall n' < n \ldotp \forall W \ldotp \forall c \ldotp \npair{c} \in \stdkr(W) \Rightarrow \npair[n']{c} \in \stdkr(W)
-  \]
+  \begin{align*}
+    &\forall n \ldotp \forall W' \future W \ldotp \forall c \ldotp\\
+    &\quad \npair{c} \in \stdkr(W) \Rightarrow \npair{c} \in \stdkr(W')
+  \end{align*}
 \end{lemma}
 
 \begin{lemma}
-  \[
-    \forall n \ldotp \forall W' \future W \ldotp \forall c \ldotp \npair{c} \in \stdkr(W) \Rightarrow \npair{c} \in \stdkr(W')
-  \]
-\end{lemma}
-
-\begin{lemma}
-  \[
-    \forall n' < n \ldotp \forall W \ldotp \forall \pc \ldotp \npair{\pc} \in \stder(W) \Rightarrow \npair[n']{\pc} \in \stder(W)
-  \]
-\end{lemma}
-
-\begin{lemma}
-  \[
-    \forall n \ldotp \forall W' \future W \ldotp \forall \pc \ldotp \npair{c} \in \stder(W) \Rightarrow \npair{c} \in \stder(W')
-  \]
+  \begin{align*}
+    & \forall n' < n \ldotp \forall W \ldotp \forall \pc \ldotp\\
+    & \quad \npair{\pc} \in \stder(W) \Rightarrow \npair[n']{\pc} \in \stder(W)
+  \end{align*}
 \end{lemma}
 
 \section{Related reading}
