@@ -742,6 +742,16 @@ Future regions:
   (s_2,\phi_2,H_2) \future (s_1,\phi_1,H_1) \text{ iff } 
     (\phi_2,H_2) = (\phi_1,H_1) \land (s_1,s_2) \in \phi_1
 \]
+
+n-subset for regions
+\[
+(s_1,\phi_1,H_1) \nsubeq (s_2,\phi_2,H_2) \text{ iff } 
+\begin{gathered}
+(s_1,\phi_1) = (s_2,\phi_2)\\
+ \text{ and }\\
+ \forall \hat{W} \ldotp H_1 \; s_1 \; \hat{W} \nsubeq H_2 \; s_2 \; \hat{W}
+\end{gathered}
+\]
 \begin{definition}[Heap satisfaction/erasure]
 \[
 \heapSat[\hs]{n}{W} \text{ iff }
@@ -761,24 +771,27 @@ A standard heap invariant that insures all values in the region are in the value
   \iota_{\var{start},\var{end}} \; : \; \Regions
 \]
 \begin{align*}
-  \iota_{\var{base},\var{end}}(W) & \defeq (s,=,H_{\var{base},\var{end}}) \\
-  H_{\var{base},\var{end}}\; s\; W         & \defeq \{\npair{\hs} \mid \forall \addr \in [\var{base},\var{end}] \ldotp \hs(\addr) \in \stdvr(\roll \; W) \\
+  \iota_{\var{base},\var{end}}(W) & \defeq ((\var{base},\var{end}),=,H_{\var{std}}) \\
+  H_{\var{std}}\; (\var{base},\var{end})\; W         & \defeq \{\npair{\hs} \mid \forall \addr \in [\var{base},\var{end}] \ldotp \hs(\addr) \in \stdvr(\roll \; W) \\
                              & \qquad \qquad \qquad \land \dom(\hs) = [\var{base},\var{end}]\}
 \end{align*}
+where $s$ is some state. It does not matter which one because the predicate does not use. 
+% This is unlike the \lambda_JS paper where the state in the standard island is a location, namely the location that the standard island governs.
+
 Another standard heap invariant that ensures all the words in the region are 0.
 \[
   \iota_{\var{start},\var{end}}^0 \; : \; \Regions
 \]
 \begin{align*}
-  \iota_{\var{start},\var{end}}^0\; s\; W & \defeq (s,=,H_{\var{base},\var{end}}^0) \\
-  H_{\var{base},\var{end}}^0\; s\; W     & \defeq\{ \npair{\heapseg} \mid \dom(\heapseg) = [\var{start},\var{end}] \land \\
+  \iota_{\var{start},\var{end}}^0\; s\; W & \defeq ((\var{base},\var{end}),=,H_{\var{std}}^0) \\
+  H_{\var{std}}^0\; (\var{base},\var{end})\; W     & \defeq\{ \npair{\heapseg} \mid \dom(\heapseg) = [\var{start},\var{end}] \land \\
                                                                 & \qquad \forall \addr \in \dom(\heapseg) \ldotp \heapseg(\addr) = 0  \}
 \end{align*}
 
-
 \begin{align*}
   \readCond{n,W,\start,\addrend} =        & \;\exists r \in \RegionNames \ldotp \\
-                                          & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r) \nsubeq[n-1] \iota_{\start',\addrend'} \\ & \\
+                                          & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp\\
+                                          & \;\qquad W(r)\nsubeq[n-1] \iota_{\start',\addrend'}(r) \\ & \\
   \writeCond{n,W,\start,\addrend} =       & \; \exists r \in \RegionNames \ldotp \\
                                           & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r) \nequal[n-1] \iota_{\start',\addrend'} \\ & \\
   \execCond{n,W,\start,\addrend,\perm} =  & \; \forall n' < n \ldotp \forall W' \future W \ldotp \\
@@ -865,6 +878,7 @@ Normally, it would just be required for the return value to be in the value rela
 \lau{In the ticket dispenser lemma, we need to make some assumptions about the adversary to be able to use the FTLR. What should these assumptions be? So far I have the assumption that it is all code (no capabilities), but I do not see how I conclude the write condition from this.}
 \dominique{Something I find interesting here, is that the FTLR can be interpreted to say that x permissions have no real security value: if you have an arbitrary r or rw capability that is valid, then the FTLR says that it remains valid if we change it to rx or rwx (respectively).}
 
+\subsection{Well-foundedness lemmas}
 \begin{lemma}[Heap satisfaction uniformity]
   \begin{align*}
     & \forall n,n',\heap, W \ldotp\\
@@ -884,6 +898,36 @@ Normally, it would just be required for the return value to be in the value rela
   Follows directly from definition: Let $n$, $n'$, $\start$, and  $\addrend$ be given. Assume $\readCond{n,W,\start,\addrend}$ and $n' \leq n$. If $n=n'$, then the result follows trivially, as it is exactly our assumption. If $n' < n$, then by assumption we have a region name $r$, interval $[\start',\addrend'] \supseteq [\start,\addrend]$, and the assumption $W(r) \nsubeq[n-1] \iota_{\start',\addrend'}$  given by the read condition assumption. Picking $r$ and $[\start',\addrend']$, we need to show  $W(r) \nsubeq[n'-1] \iota_{\start',\addrend'}$ which follows from downwards closure of $\nsubeq$.
 \end{proof}
 
+\begin{lemma}[Read condition monotone in world]
+  \begin{align*}
+    &\forall n,W,W',\start, \addrend \ldotp \\
+    &\quad  \readCond{n,W,\start,\addrend} \land \\
+    &\quad  W' \future W \\
+    &\qquad \Rightarrow \readCond{n,W',\start,\addrend}
+  \end{align*}
+\end{lemma}
+\begin{proof}
+Let $n$,$W$, $W'$, $b$, and $e$ be given where $W' \future W$. Assume $\readCond{n,W,\start,\addrend}$, this give a $r$ and $[b',e'] \supseteq [b,e]$ such that $W(r) \nsubeq \iota_{b',e'} (r) = ((b',e'),=,H_{\var{std}})$. This gives
+\begin{align*}
+  &W(r).\phi = = \\
+  &W(r).s    = (b',e') \\
+  &\forall \hat{W} \ldotp W(r).H\; (b',e') \; \hat{W} \nsubeq[n-1] H_{\var{std}}\; (b',e') \; \hat{W}
+\end{align*}
+$W' \future W$ gives
+\begin{align*}
+  &W'(r).\phi = W(r).phi \\
+  &(W'(r).s,W(r).s) \in W(r).\phi \\
+  &W'(r).H = W(r).H \\
+ \end{align*}
+Combining these two sets of properties line for line, we get the following for $W'$:
+\begin{align*}
+  & W'(r).\phi = = \\
+  & W'(r) = (b',e') \\
+  &\forall \hat{W} \ldotp W'(r).H\; (b',e') \; \hat{W} \nsubeq[n-1] H_{\var{std}}\; (b',e') \; \hat{W}
+\end{align*}
+These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ which is exactly the result we want.
+\end{proof}
+
 \begin{lemma}[Read-write condition uniformity]
   \begin{align*}
     & \forall n,n',W,\start, \addrend \ldotp\\
@@ -894,6 +938,18 @@ Normally, it would just be required for the return value to be in the value rela
 \end{lemma}
 \begin{proof}
   Follows directly from the definition.
+\end{proof}
+
+\begin{lemma}[Read-write condition monotone in world]
+  \begin{align*}
+    & \forall n,W, W',\start, \addrend \ldotp\\
+    &\quad \writeCond{n,W,\start,\addrend} \land\\
+    &\quad  W' \leq W\\
+    &\qquad \Rightarrow \writeCond{n,W',\start,\addrend}
+  \end{align*}
+\end{lemma}
+\begin{proof}
+  Similar to the proof of the monotonicity of the read condition.
 \end{proof}
 
 \begin{lemma}[Execute condition uniformity]
@@ -908,6 +964,18 @@ Normally, it would just be required for the return value to be in the value rela
   Follows directly from definition: Let $n$, $n'$, $W$, $\start$, and $\addrend$ be given. Assume $\execCond{n,W,\start,\addrend,\perm}$ and $n' \leq n$. If $n' = n$, then the result follows directly from assumption. If $n' < n$, then let $n'' < n'$, $W' \future W$, and $a \in [\start,\addrend]$ be given. Using that we by transitivity have $n'' < n$, we get the desired result from assumption.
 \end{proof}
 
+\begin{lemma}[Execute condition uniformity]
+  \begin{align*}
+    &\forall n,W, W',\start, \addrend, \perm \ldotp \\
+    &\quad  \execCond{n,W,\start,\addrend,\perm} \land \\
+    &\quad  W' \leq W \\
+    &\qquad \Rightarrow \execCond{n,W',\start,\addrend,\perm}
+  \end{align*}
+\end{lemma}
+\begin{proof}
+  Follows directly from definition.
+\end{proof}
+
 \begin{lemma}[Entry condition uniformity]
   \begin{align*}
     & \forall n,n',W,\start, \addrend, \addr \ldotp\\
@@ -918,6 +986,18 @@ Normally, it would just be required for the return value to be in the value rela
 \end{lemma}
 \begin{proof}
   Like the $\execCond{}$ uniformity proof.
+\end{proof}
+
+\begin{lemma}[Entry condition uniformity]
+  \begin{align*}
+    & \forall n,W,W',\start, \addrend, \addr \ldotp\\
+    &\quad  \entryCond{n,W,\start,\addrend,\addr} \land \\
+    &\quad  W' \leq W \\
+    &\qquad \Rightarrow \entryCond{n,W',\start,\addrend,\addr}
+  \end{align*}
+\end{lemma}
+\begin{proof}
+  Follows directly from definition
 \end{proof}
 
 \begin{lemma}[Write condition implies read condition]
