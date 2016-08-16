@@ -721,7 +721,7 @@ $\States$ is a fixed set with the necessary states.
                                       &  H : \States \rightarrow \StorePred \land \\ 
                                       &  \phi \text{ reflexive and transitive} \}
 \end{align*}
-For convenience, we write $r.s$, $s.\phi$, and $s.H$ for a the projection of a regions state, transition system, and store predicate, respectively
+For convenience, we write $r.s$, $s.\phi$, and $s.H$ for a the projection of a regions state, transition system, and store predicate, respectively.
 \[
   \StorePred = \widehat{\Worlds} \monnefun \UPred{\HeapSegments}
 \]
@@ -733,7 +733,8 @@ Future Worlds:
 \[
  W' \future W \text{ iff }  
  \begin{gathered}
-   \dom(W') \supseteq \dom(W) \land \\
+   \dom(W') \supseteq \dom(W)\\ 
+   \text{ and } \\
    \forall r \in dom(W) \ldotp W'(r) \future W(r)
  \end{gathered}
 \]
@@ -742,8 +743,7 @@ Future regions:
   (s_2,\phi_2,H_2) \future (s_1,\phi_1,H_1) \text{ iff } 
     (\phi_2,H_2) = (\phi_1,H_1) \land (s_1,s_2) \in \phi_1
 \]
-
-n-subset for regions
+n-subset for regions:
 \[
 (s_1,\phi_1,H_1) \nsubeq (s_2,\phi_2,H_2) \text{ iff } 
 \begin{gathered}
@@ -771,20 +771,18 @@ A standard heap invariant that insures all values in the region are in the value
   \iota_{\var{start},\var{end}} \; : \; \Regions
 \]
 \begin{align*}
-  \iota_{\var{base},\var{end}}(W) & \defeq ((\var{base},\var{end}),=,H_{\var{std}}) \\
+  \iota_{\var{base},\var{end}} & \defeq ((\var{base},\var{end}),=,H_{\var{std}}) \\
   H_{\var{std}}\; (\var{base},\var{end})\; W         & \defeq \{\npair{\hs} \mid \forall \addr \in [\var{base},\var{end}] \ldotp \hs(\addr) \in \stdvr(\roll \; W) \\
                              & \qquad \qquad \qquad \land \dom(\hs) = [\var{base},\var{end}]\}
 \end{align*}
-where $s$ is some state. It does not matter which one because the predicate does not use. 
-% This is unlike the \lambda_JS paper where the state in the standard island is a location, namely the location that the standard island governs.
 
 Another standard heap invariant that ensures all the words in the region are 0.
 \[
   \iota_{\var{start},\var{end}}^0 \; : \; \Regions
 \]
 \begin{align*}
-  \iota_{\var{start},\var{end}}^0\; s\; W & \defeq ((\var{base},\var{end}),=,H_{\var{std}}^0) \\
-  H_{\var{std}}^0\; (\var{base},\var{end})\; W     & \defeq\{ \npair{\heapseg} \mid \dom(\heapseg) = [\var{start},\var{end}] \land \\
+  \iota_{\var{base},\var{end}}^0 & \defeq ((\var{base},\var{end}),=,H_{\var{std}}^0) \\
+  H_{\var{std}}^0\; (\var{base},\var{end})\; W     & \defeq\{ \npair{\heapseg} \mid \dom(\heapseg) = [\var{base},\var{end}] \land \\
                                                                 & \qquad \forall \addr \in \dom(\heapseg) \ldotp \heapseg(\addr) = 0  \}
 \end{align*}
 
@@ -823,7 +821,6 @@ Another standard heap invariant that ensures all the words in the region are 0.
                    & \quad \execCond{n,W,\start,\addrend,\rwx} \}
 \end{align*}
 
-Consider what the ``good observations'' should be? Before we do that - what should the end result of a computation be?
 \begin{align*}
   \observations \quad : & \quad  \Worlds \rightarrow \UPred{\Regs \times \HeapSegments} \\
   \observations (W) \defeq & \{ \npair{(\reg,\hs)} \mid \\
@@ -865,7 +862,7 @@ Normally, it would just be required for the return value to be in the value rela
 \begin{align*}
   \stder \quad : & \quad \Worlds \rightarrow \UPred{\Words} \\%TODO: Check whether this needs to be monotone
   \stder(W) \defeq & \{ \npair{\pc} \mid \\
-                   & \quad \forall n' \leq n\\
+                   & \quad \forall n' \leq n \ldotp\\
                    & \qquad \forall \npair[n']{\reg} \in \stdrr(W) \ldotp \\
                    & \qquad \quad \forall \npair[n']{c} \in \stdkr(W) \ldotp \\
                    & \qquad \qquad  \forall \heapSat[\hs]{n'}{W} \ldotp \\
@@ -881,6 +878,12 @@ Normally, it would just be required for the return value to be in the value rela
 \dominique{Something I find interesting here, is that the FTLR can be interpreted to say that x permissions have no real security value: if you have an arbitrary r or rw capability that is valid, then the FTLR says that it remains valid if we change it to rx or rwx (respectively).}
 
 \subsection{Well-foundedness lemmas}
+\begin{lemma}
+  \begin{align*}
+    & \forall W, W', W'' \ldotp W'' \future W' \land W' \future W \Rightarrow W'' \future W
+  \end{align*}
+\end{lemma}
+
 \begin{lemma}[Heap satisfaction uniformity]
   \begin{align*}
     & \forall n,n',\heap, W \ldotp\\
@@ -901,6 +904,7 @@ Normally, it would just be required for the return value to be in the value rela
 \end{proof}
 
 \begin{lemma}[Read condition monotone in world]
+\label{lem:readCond-mono-world}
   \begin{align*}
     &\forall n,W,W',\start, \addrend \ldotp \\
     &\quad  \readCond{n,W,\start,\addrend} \land \\
@@ -943,6 +947,7 @@ These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ 
 \end{proof}
 
 \begin{lemma}[Read-write condition monotone in world]
+\label{lem:writeCond-mono-world}
   \begin{align*}
     & \forall n,W, W',\start, \addrend \ldotp\\
     &\quad \writeCond{n,W,\start,\addrend} \land\\
@@ -966,7 +971,8 @@ These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ 
   Follows directly from definition: Let $n$, $n'$, $W$, $\start$, and $\addrend$ be given. Assume $\execCond{n,W,\start,\addrend,\perm}$ and $n' \leq n$. If $n' = n$, then the result follows directly from assumption. If $n' < n$, then let $n'' < n'$, $W' \future W$, and $a \in [\start,\addrend]$ be given. Using that we by transitivity have $n'' < n$, we get the desired result from assumption.
 \end{proof}
 
-\begin{lemma}[Execute condition uniformity]
+\begin{lemma}[Execute condition monotone in world]
+\label{lem:execCond-mono-world}
   \begin{align*}
     &\forall n,W, W',\start, \addrend, \perm \ldotp \\
     &\quad  \execCond{n,W,\start,\addrend,\perm} \land \\
@@ -990,7 +996,8 @@ These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ 
   Like the $\execCond{}$ uniformity proof.
 \end{proof}
 
-\begin{lemma}[Entry condition uniformity]
+\begin{lemma}[Entry condition monotone in world]
+  \label{lem:entryCond-mono-world}
   \begin{align*}
     & \forall n,W,W',\start, \addrend, \addr \ldotp\\
     &\quad  \entryCond{n,W,\start,\addrend,\addr} \land \\
@@ -999,7 +1006,7 @@ These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ 
   \end{align*}
 \end{lemma}
 \begin{proof}
-  Follows directly from definition
+  Follows directly from definition.
 \end{proof}
 
 \begin{lemma}[Write condition implies read condition]
@@ -1013,6 +1020,7 @@ These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ 
 \end{proof}
 
 \begin{lemma}
+\label{lem:stdvr-uniform-step}
   \begin{align*}
     &\forall n' < n \ldotp \forall W \ldotp \forall w \ldotp\\
     &\quad \npair{w} \in \stdvr(W) \Rightarrow \npair[n']{w} \in \stdvr(W)
@@ -1028,6 +1036,9 @@ These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ 
     &\quad \npair{w} \in \stdvr(W) \Rightarrow \npair{w} \in \stdvr(W')
   \end{align*}
 \end{lemma}
+\begin{proof}
+  Follows from uniformity of $\readCond{}$, $\writeCond{}$, $\execCond{}$, and $\entryCond$ in the worlds. That is Lemma~\ref{lem:readCond-mono-world},~\ref{lem:writeCond-mono-world},~\ref{lem:execCond-mono-world}, and~\ref{lem:entryCond-mono-world}.
+\end{proof}
 
 \begin{lemma}
   \begin{align*}
@@ -1035,6 +1046,14 @@ These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ 
     &\quad \npair{(\reg,\hs)} \in \observations(W) \Rightarrow \npair[n']{(\reg,\hs)} \in \observations(W)
   \end{align*}
 \end{lemma}
+\begin{proof}
+  Let $n' < n$, $W$, $\reg$, and $\hs$ be given. Assume $\npair{(\reg,\hs)} \in \observations(W)$. Let $\heap_f$, $heap'$, $i \leq n'$ be given and assume $(\reg, \hs \uplus \heap_f) \step[i] (\halted, \heap')$. By assumption, we have a $W' \future W$ and $hs'$ such that
+  \begin{align}
+&heap' = hs' \uplus \heap_f \label{lem:eq:stdvr1}\\
+&\heapSat[hs']{n-i}{W'}\label{lem:eq:stdvr2}
+  \end{align}. 
+Using $W'$ and $hs'$ as existential witnesses, we already have Equation~\ref{lem:eq:stdvr1} as the first necessary condition and from the above heap satisfaction along with heap satisfaction being uniform in $n$, we get $\heapSat[\hs']{n'-i}{W'}$. These are the two conditions necessary to get $\npair[n']{(\reg,\hs)} \in \observations(W)$.
+\end{proof}
 
 \begin{lemma}
   \begin{align*}
@@ -1042,6 +1061,9 @@ These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ 
     &\quad \npair{\reg} \in \stdrr(W) \Rightarrow \npair[n']{\reg} \in \stdrr(W)
   \end{align*}
 \end{lemma}
+\begin{proof}
+  Follows by uniformity of the value relation, Lemma~\ref{lem:stdvr-uniform-step}.
+\end{proof}
 
 \begin{lemma}
   \begin{align*}
@@ -1049,6 +1071,9 @@ These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ 
     &\quad \npair{\reg} \in \stdrr(W) \Rightarrow \npair{\reg} \in \stdrr(W')
   \end{align*}
 \end{lemma}
+\begin{proof}
+  This follows by monotonicity of $\stdvr$ in the worlds.
+\end{proof}
 
 \begin{lemma}
   \begin{align*}
@@ -1056,6 +1081,9 @@ These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ 
     &\quad \npair{c} \in \stdkr(W) \Rightarrow \npair[n']{c} \in \stdkr(W)
   \end{align*}
 \end{lemma}
+\begin{proof}
+Follows by using the assumption and transitivity of inequality.
+\end{proof}
 
 \begin{lemma}
   \begin{align*}
@@ -1063,6 +1091,13 @@ These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ 
     &\quad \npair{c} \in \stdkr(W) \Rightarrow \npair{c} \in \stdkr(W')
   \end{align*}
 \end{lemma}
+\begin{proof}
+We need to show two things: The continuation is in the value predicate in the future world and that continuing execution using the continuation is in the observation predicate.
+
+The first follows from the value predicate being monotone in the world.
+
+The second property follows by assumption and transitivity of future worlds.
+\end{proof}
 
 \begin{lemma}
 \label{lem:stder-mon-step}
@@ -1071,6 +1106,10 @@ These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ 
     & \quad \npair{\pc} \in \stder(W) \Rightarrow \npair[n']{\pc} \in \stder(W)
   \end{align*}
 \end{lemma}
+\begin{proof}
+  Follows from the assumption.
+\end{proof}
+
 
 \section{Related reading}
 \label{sec:related-reading}
