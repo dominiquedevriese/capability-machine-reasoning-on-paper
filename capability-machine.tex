@@ -66,6 +66,7 @@
 \newcommand{\mode}{\var{mode}}
 \newcommand{\perm}{\var{perm}}
 \newcommand{\roll}{\var{roll}}
+\newcommand{\instr}{\var{instr}}
 
 \newcommand{\stdcap}[1][\perm]{\left(#1,\start,\addrend,\addr \right)}
 
@@ -163,14 +164,14 @@
 
 %Instructions
 %No arguments
-\newcommand{\fail}{\instr{fail}}
-\newcommand{\halt}{\instr{halt}}
+\newcommand{\zinstr}[1]{\mathtt{#1}}
+\newcommand{\fail}{\zinstr{fail}}
+\newcommand{\halt}{\zinstr{halt}}
 %One argument
-\newcommand{\instr}[1]{\mathtt{#1}}
-\newcommand{\oneinstr}[2]{\instr{#1} \; #2}
+\newcommand{\oneinstr}[2]{\zinstr{#1} \; #2}
 \newcommand{\jmp}[1]{\oneinstr{jmp}{#1}}
 %Two arguments
-\newcommand{\twoinstr}[3]{\instr{#1} \; #2 \; #3}
+\newcommand{\twoinstr}[3]{\zinstr{#1} \; #2 \; #3}
 \newcommand{\jnz}[2]{\twoinstr{jnz}{#1}{#2}}
 \newcommand{\isptr}[2]{\twoinstr{isptr}{#1}{#2}}
 \newcommand{\setptr}[2]{\twoinstr{setptr}{#1}{#2}}
@@ -179,7 +180,7 @@
 \newcommand{\load}[2]{\twoinstr{load}{#1}{#2}}
 \newcommand{\lea}[2]{\twoinstr{lea}{#1}{#2}}
 %Three arguments
-\newcommand{\threeinstr}[4]{\instr{#1} \; #2 \; #3 \; #4}
+\newcommand{\threeinstr}[4]{\zinstr{#1} \; #2 \; #3 \; #4}
 \newcommand{\restrict}[3]{\threeinstr{restrict}{#1}{#2}{#3}}
 \newcommand{\subseg}[3]{\threeinstr{subseg}{#1}{#2}{#3}}
 \newcommand{\plus}[3]{\threeinstr{plus}{#1}{#2}{#3}}
@@ -262,14 +263,14 @@ i      &::=& \fail \mid \halt \mid
 \subsection*{Semantics}
 Assume a $\decode$ function that decodes integer to instructions:
 \begin{align*}
-\decode &:\ints \rightarrow \Instrs
+\decode &:\Words \rightarrow \Instrs
 \end{align*}
 Assume an $\encodePerm$ function that encodes a permission as an integer:
 \begin{align*}
 \encodePerm &: \Perms \rightarrow \ints
 \end{align*}
 \begin{align*}
-  \Phi & \rightarrow \sem{\decode(\memreg(\pcreg))}(\Phi) & &                                   
+  \Phi & \rightarrow \sem{\decode(\memheap(\addr))}(\Phi) & &                                   
                                                               \arraycolsep=0pt
                                                               \begin{array}{l}
                                                                 \text{if $\memreg(\pcreg) = \stdcap$}\\
@@ -487,7 +488,7 @@ Assume the instructions of some adversary resides in the memory starting at the 
            & 0 & \bracket{1} & \annotate{1}{Address reserved for io cap.} \\
            & 0 & \bracket{1} & \annotate{1}{Address reserved for counter cap.} \\
 % retrieve io capability
-\reta:     & \move{\refreg{r_0}}{\refreg{\pcreg}} & \bracket{3} & \annotate{3}{Retrieve the io capabiltiy} \\
+\reta:     & \move{\refreg{r_0}}{\refreg{\pcreg}} & \bracket{3} & \annotate{3}{Retrieve the io capability} \\
            & \lea{r_0}{-2} & & \\
            & \load{\refreg{\rio}}{\refheap{r_0}} & & \\
 % retieve counter capability
@@ -578,8 +579,8 @@ The ticket dispenser test program uses $\malloc$. To be able to reason about pro
     &\qquad \qquad \qquad \forall r \in \RegName \setminus \{\pcreg,r_1\} \ldotp \memreg[\Phi'](r) = 0
   \end{align*}
 \end{specification}
-The specification uses the mallog island defined as
-\lau{I am not satisfied with the pc in the premise. The exact capability necessary very much depent on the implementation (this is mostly a note to myself.)}
+The specification uses the malloc island defined as
+\lau{I am not satisfied with the pc in the premise. The exact capability necessary very much depend on the implementation (this is mostly a note to myself.)}
 \dominique{I agree with the remark about the pc.  Perhaps leave the form of the
   pc unspecified as it is not important for malloc users?}
 \dominique{Resulting frame should be equal to original.}
@@ -693,7 +694,7 @@ To this end, let $W^{(3)} \future W''$, $\reg \in \stdrr(W^{(3)})$, $\heapSat[\h
 \[
 \npair{(\reg\update{\pcreg}{\updatePcPerm{c}},\heap \uplus \heap_f)} \in \observations(W^{(3)}).
 \]
-As part of the heap satisfies a future world of $W''$, we know that the ticket dispenser test program remains unaltered. If we run it (and do not run out of steps), then it loads the couner, stores it to address $0$, and halts. From the heap satisfaction, we get that the counter is positive and even, so the value we store to address 0 is positive and even. The value is trivially in the value relation as it is an integer. Further the region that governs address 0 is $\iota_{\var{io}}$ which requires the value there to be positive and even which it is. So in this case the configuration is in the observation predicate. If we run out of steps, then it is also in the observation relation.
+As part of the heap satisfies a future world of $W''$, we know that the ticket dispenser test program remains unaltered. If we run it (and do not run out of steps), then it loads the counter, stores it to address $0$, and halts. From the heap satisfaction, we get that the counter is positive and even, so the value we store to address 0 is positive and even. The value is trivially in the value relation as it is an integer. Further the region that governs address 0 is $\iota_{\var{io}}$ which requires the value there to be positive and even which it is. So in this case the configuration is in the observation predicate. If we run out of steps, then it is also in the observation relation.
 
 %condition 3
 Finally, we need to show $\heapSat[{\memheap[\Phi'']}|]{n}{W''}$. The domains of the heap segments are assumed to be disjoint, and we have limited the heap to only be the parts considered in the regions, so the first condition of heap satisfaction is okay. Let us take the regions one at a time and briefly argue that the corresponding heap segment satisfies the region:
@@ -702,7 +703,7 @@ Finally, we need to show $\heapSat[{\memheap[\Phi'']}|]{n}{W''}$. The domains of
 \item $\iota_{\var{tdtp}}$, this region was constructed so the part of the heap it governs remains unaltered.
 \item $\iota_{\var{td}}$, apart from the address with the counter, this region is also constructed so this heap segment does not change. With respect to the counter, it requires it to be $\geq 0$ and even. The counter starts as 0, so also this cell satisfies the region.
 \item $\iota_{\advb,\adve}$ the adversary code is assumed to be instructions only which are trivially satisfied by the standard island.
-\item $\iota_{\malloc}$, from the specification of $\malloc$ we got that the resulting heap after the allocation satisfied a world with $\iota_{\malloc}$. We use the same region and we have not changed that part of the heap, so it still satifies this region.
+\item $\iota_{\malloc}$, from the specification of $\malloc$ we got that the resulting heap after the allocation satisfied a world with $\iota_{\malloc}$. We use the same region and we have not changed that part of the heap, so it still satisfies this region.
 \end{itemize}
 
 We have now shown the three conditions and thus proven Lemma~\ref{lem:tckt-disp}.
@@ -735,7 +736,7 @@ Future Worlds:
  \begin{gathered}
    \dom(W') \supseteq \dom(W)\\ 
    \text{ and } \\
-   \forall r \in dom(W) \ldotp W'(r) \future W(r)
+   \forall r \in \dom(W) \ldotp W'(r) \future W(r)
  \end{gathered}
 \]
 Future regions:
@@ -758,7 +759,7 @@ n-subset for regions:
 \begin{aligned}
 &\exists R : \dom(W) \rightarrow \HeapSegments \ldotp \\
 &\quad\begin{gathered}
-   hs = \biguplus_{r \in \dom(W)} R(r) \\
+  \hs = \biguplus_{r \in \dom(W)} R(r) \\
   \text{and}\\
   \forall r \in \dom(W) \ldotp \forall n' < n \ldotp \npair[n']{R(r)} \in W(r).H(W(r).s)(\roll\; W)
 \end{gathered}
@@ -772,7 +773,7 @@ A standard heap invariant that insures all values in the region are in the value
 \]
 \begin{align*}
   \iota_{\var{base},\var{end}} & \defeq ((\var{base},\var{end}),=,H_{\var{std}}) \\
-  H_{\var{std}}\; (\var{base},\var{end})\; W         & \defeq \{\npair{\hs} \mid \forall \addr \in [\var{base},\var{end}] \ldotp \hs(\addr) \in \stdvr(\roll \; W) \\
+  H_{\var{std}}\; (\var{base},\var{end})\; W         & \defeq \{\npair{\hs} \mid \forall \addr \in [\var{base},\var{end}] \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\roll \; W) \\
                              & \qquad \qquad \qquad \land \dom(\hs) = [\var{base},\var{end}]\}
 \end{align*}
 
@@ -852,7 +853,7 @@ Register-file relation:
   \stdkr(W) \defeq & \{ \npair{c} \mid \npair{c} \in \stdvr(W) \land \\
                    & \quad \forall W' \future W, n' < n\ldotp %on the whiteboard, we had public future world.
                      \forall \heapSat[\hs]{n'}{W'} \ldotp \forall \reg, \npair[n']{reg} \in \stdrr(W') \ldotp \\
-                   & \qquad \npair[n']{(reg\update{\pcreg}{\updatePcPerm{\var{c}}},hs)} \in \observations(W') \}
+                   & \qquad \npair[n']{(reg\update{\pcreg}{\updatePcPerm{\var{c}}},\hs)} \in \observations(W') \}
 \end{align*}
 We require the continuation to be in the value relation, because it will have to be in the registers when it is invoked, so to argue that the register file is in the register-file relation, we need to know that the continuation is in the value relation.
 
@@ -876,11 +877,153 @@ Normally, it would just be required for the return value to be in the value rela
 \lau{With the current definition of the expression relation, an entry pointer will never be in the expression relation, but I guess we do not want that restriction. Say the adv capability in the ticket dispenser lemma, we want that to be an entry capability.}
 \lau{In the ticket dispenser lemma, we need to make some assumptions about the adversary to be able to use the FTLR. What should these assumptions be? So far I have the assumption that it is all code (no capabilities), but I do not see how I conclude the write condition from this.}
 \dominique{Something I find interesting here, is that the FTLR can be interpreted to say that x permissions have no real security value: if you have an arbitrary r or rw capability that is valid, then the FTLR says that it remains valid if we change it to rx or rwx (respectively).}
+\begin{proof}
+  The proof is by induction on $n$.
+
+If $n=0$, then it all boils down to an assumption where $(\reg, \hs \uplus \heap_f) \step[0] (\halted, \heap')$ for some $\reg$, $\hs$, $\heap_f$, and $\heap'$ which is not possible in our operational semantics.
+
+If $n > 0$, then we need to consider a lot of cases, but first we make a lot of preliminary assumptions:\\
+Let the world $W$, permission $p$, and addresses $b$, $e$, and $a$ be given. Assume
+\begin{align}
+  & p = \rwx \text{ and } \writeCond{n,W,b,e} \text{ or } \label{eq:ftlr:rwx-assump}\\
+  & p = \readonly \text{ and } \readCond{n,W,b,e} \label{eq:ftlr:rx-assump}
+\end{align}
+We need to show 
+\[
+  \npair{(p,b,e,a)} \in \stder(W)
+\]
+Let $n'$, $\reg$, $c$, $\hs$ be given where
+\begin{align}
+  & n' \leq n \label{eq:ftlr:n-leq} \\
+  & \npair[n']{\reg} \in \stdrr(W) \label{eq:ftlr:reg-in-stdrr}\\
+  & \npair[n']{c} \in \stdkr(W) \label{eq:ftlr:cont-in-stdkr}\\
+  & \heapSat[\hs]{n'}{W} \label{eq:ftlr:hs-heapsat}
+\end{align}
+For $\pc = (p,b,e,a)$ we need to show
+\[
+\npair[n']{(\reg[r_0 \mapsto c, \pcreg \mapsto \pc],\hs)} \in \observations(W)
+\]
+For convenience, we will define $\reg' = \reg[r_0 \mapsto c, \pcreg \mapsto \pc]$. To show the above, let $h_f$, $h'$, and $i$ be given where $i \leq n'$ and assume
+\begin{equation}
+  \label{eq:ftlr:conf-steps}
+  \Phi \step[i] (\halted, h')
+\end{equation}
+for $\Phi = (\reg',\hs \uplus h_f)$ then we need to show
+\begin{align}
+  & \exists W' \future W \ldotp \exists \hs' \ldotp \nonumber \\
+  & \quad h' =  \hs' \uplus h_f \text{ and } \label{eq:ftlr:final-heap-cond} \\
+  & \quad \heapSat[\hs']{n'-i}{W'} \label{eq:ftlr:heap-sat-cond}
+\end{align}
+
+If $i=0$, then we are trivially done as execution~\ref{eq:ftlr:conf-steps} is not possible. If $i>0$, then execution~\ref{eq:ftlr:conf-steps} takes at least one step, consider the first step of this execution. By the operational semantics, the first step is:
+\begin{equation*}
+  \Phi \step \sem{\decode(h(a))}(\Phi)
+\end{equation*}
+
+where $h = \hs \uplus h_f$. We may further assume
+\begin{align}
+  &\reg'(\pcreg) = (\perm,\start,\addrend,\addr) \nonumber \\
+  &\start \leq a \leq  \addrend \nonumber \\
+  &\perm \in \{\exec,\rwx\} \nonumber
+\end{align}
+For convenience define $\instr = \decode(h(a))$. We proceed by case on $\instr$.
+\newcommand{\case}[1]{{\bf Case } $\instr=#1$:\\}
+
+\case{\fail} This case is trivially true as it is not possible to step to a halting state from a failed step in any number of steps. By assumption~\ref{eq:ftlr:conf-steps}, the execution ends in a halting state.
+
+\case{\halt} 
+Here we have:
+\[
+  \Phi \step (\halted, (\reg',h))
+\]
+Pick $\hs' = \hs$ and $W' = W$. $h' = \hs \uplus h_f$, so condition~\ref{eq:ftlr:final-heap-cond} is satisfied. Using $\heapSat[\hs]{n'}{W}$ and the uniformity of heap satisfaction, we get $\heapSat[\hs]{n'-i}{W'}$ as $n' > n'-i$.
+
+\case{\jmp{r}}
+Here the first execution step is:
+\[
+  \Phi \step (\reg[r_0 \mapsto c, \pcreg \mapsto \updatePcPerm{\reg'(r)}],h)
+\]
+We now consider four cases 
+\begin{description}
+\item[Case $\reg'(r) = (\rwx,b',e',a')$:] In this case, we want to appeal to the induction hypothesis. To do so, we need to argue that we have $\writeCond{n'-1,b',e',a'}$. If $r=\pcreg$, then we have this by assumption \ref{eq:ftlr:rwx-assump} and uniformity. If $r \neq \pcreg$, then if $r= r_0$, then by assumption \ref{eq:ftlr:cont-in-stdkr}, we have $\npair[n']{c} \in \stdkr(W)$ which entails $\npair[n']{c} \in \stdvr(W)$ which together with uniformity gives the $\writeCond{}$ due to the permission. Otherwise, the same folloes from assumption \ref{eq:ftlr:reg-in-stdrr} and uniformity.
+
+By IH we get 
+\begin{equation}
+  \npair[n'-1]{(\rwx,b',e',a')} \in \stder(W) \nonumber
+\end{equation}
+using $n'-1$, $\reg$, $c$, and $\hs$ and assumptions \ref{eq:ftlr:n-leq} - \ref{eq:ftlr:hs-heapsat} and the appropriate uniformity lemmas, we can use the above to get
+\begin{equation}
+  \npair[n'-1]{reg[r_0 \mapsto c, \pcreg \mapsto (\rwx,b',e',a')]} \in \observations(W) \nonumber
+\end{equation}
+This is the register file of the configuration after the first step of execution \ref{eq:ftlr:conf-steps}, so we know:
+\begin{equation}
+  (reg[r_0 \mapsto c, \pcreg \mapsto (\rwx,b',e',a')],h) \step[i-1] (\halted, h') \nonumber
+\end{equation}
+using this and that the register file is in the observation relation, we get a $W' \future W$ and $\hs'$ such that 
+\begin{align*}
+  &h' = \hs' \uplus h_f \\
+  &\heapSat[\hs']{n'-1-(i-1)}{W'}
+\end{align*}
+$W'$ and $\hs'$ satisfy exactly the properties, we need, so we are done.
+
+\item[Case $\reg'(r) = (\exec,b',e',a')$:] This case goes just like the one above with the exception that we need $\readCond{n'-1,b',e',a'}$ which we get in a similar fashion.
+
+\item[Case $\reg'(r) = (\entry,b',e',a')$:] In this case, we do not appeal to the induction hypothesis, but rather to the $\entryCond{}$. If $r=\pcreg$, then we have a contradiction with either \ref{eq:ftlr:rwx-assump} or \ref{eq:ftlr:rx-assump}, so it is safe to assume $r \neq \pcreg$. If $r=r_0$, then we rely on assumption~\ref{eq:ftlr:cont-in-stdkr} to get $\npair[n']{\entry,b',e',a'} \in \stdvr(W)$. In the case where $r \neq r_0$, we rely on assumption~\ref{eq:ftlr:reg-in-stdrr} to get $\npair[n']{\entry,b',e',a'} \in \stdvr(W)$, so we will have $\entryCond{n',W,b',e',a'}$. Using the $\entryCond{}$, we get $\npair[n'-1]{(\exec,b',e',a')}\in \stder(W)$. From here on, the argument follows like the cases, we have seen. One notable thing is that in this case is that $\updatePcPerm{\reg[r_0 \mapsto c, \pcreg \mapsto \pc](r)}$ updates the permission to an execute permission $\exec$ which makes everything align up nicely as in the previous cases.
+
+\item[Otherwise] in this case, we consider the next execution step which goes to $\failed$ as the $\pcreg$ is not a well-formed execution. We have, however, assumed that a halting configuration is reached eventually, so a contradiction is reached.
+
+\end{description}
+
+\case{\jnz{}{}}
+\lau{TODO, I have not checked the details as I expect it to be like the $\jmp{}$ case.}
+
+\case{\load{r_1}{r_2}}
+Assume for some $p'$, $b'$, $e'$, $a'$, and $w$ that
+\begin{align}
+  &\reg'(r_1) = (p',b',e',a') \nonumber\\
+  &\readAllowed{p'} \label{eq:ftlr:load-read-allowed} \\
+  &\withinBounds{(p',b',e',a')} \nonumber \\
+  &w = h(a) \nonumber 
+\end{align}
+if the above where not the case, then by the semantics, we would step to a fail configuration which by assumption is not possible. We consider two cases for $r_1$.
+\begin{description}
+\item[$r_1 = \pcreg$] The first step of the execution is
+\[
+  \Phi \step \stdUpdatePc{\updateReg{\pcreg}{w}}
+\]
+If $w$ is not a capability, then
+\[
+\stdUpdatePc{\updateReg{\pcreg}{w}} = \failed
+\]
+and we are done. Assume $w = (p',b',e',a')$, then
+\[
+\stdUpdatePc{\updateReg{\pcreg}{w}} = \updateReg{\pcreg}{(p',b',e',a'+1)}
+\]
+Using execution~\ref{eq:ftlr:conf-steps}, we can conclude that $p' \in \{\rwx,\exec\}$ as the above configuration otherwise would step to $\failed$. From \ref{eq:ftlr:load-read-allowed}
+
+
+
+\item[$r_1 \neq \pcreg$]
+\end{description}
+
+
+\case{\store{}{}}
+
+\case{\move{}{}}
+
+\case{\lea{}{}}
+
+\case{\restrict{}{}{}}
+
+\case{\plus{}{}{}}
+
+\end{proof}
 
 \subsection{Well-foundedness lemmas}
 \begin{lemma}
   \begin{align*}
-    & \forall W, W', W'' \ldotp W'' \future W' \land W' \future W \Rightarrow W'' \future W
+    & \forall W, W', W'' \ldotp \\
+    & \quad  W'' \future W' \land W' \future W \Rightarrow W'' \future W
   \end{align*}
 \end{lemma}
 
@@ -931,7 +1074,7 @@ Combining these two sets of properties line for line, we get the following for $
   & W'(r) = (b',e') \\
   &\forall \hat{W} \ldotp W'(r).H\; (b',e') \; \hat{W} \nsubeq[n-1] H_{\var{std}}\; (b',e') \; \hat{W}
 \end{align*}
-These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ which is exactly the result we want.
+These are exactly the properties needed to get $W'(r) \nsubeq \iota_{b',e'} (r)$ which is exactly the result we want.
 \end{proof}
 
 \begin{lemma}[Read-write condition uniformity]
@@ -1037,7 +1180,7 @@ These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ 
   \end{align*}
 \end{lemma}
 \begin{proof}
-  Follows from uniformity of $\readCond{}$, $\writeCond{}$, $\execCond{}$, and $\entryCond$ in the worlds. That is Lemma~\ref{lem:readCond-mono-world},~\ref{lem:writeCond-mono-world},~\ref{lem:execCond-mono-world}, and~\ref{lem:entryCond-mono-world}.
+  Follows from uniformity of $\readCond{}$, $\writeCond{}$, $\execCond{}$, and $\entryCond{}$ in the worlds. That is Lemma~\ref{lem:readCond-mono-world},~\ref{lem:writeCond-mono-world},~\ref{lem:execCond-mono-world}, and~\ref{lem:entryCond-mono-world}.
 \end{proof}
 
 \begin{lemma}
@@ -1047,12 +1190,12 @@ These are exactly the properties neede to get $W'(r) \nsubeq \iota_{b',e'} (r)$ 
   \end{align*}
 \end{lemma}
 \begin{proof}
-  Let $n' < n$, $W$, $\reg$, and $\hs$ be given. Assume $\npair{(\reg,\hs)} \in \observations(W)$. Let $\heap_f$, $heap'$, $i \leq n'$ be given and assume $(\reg, \hs \uplus \heap_f) \step[i] (\halted, \heap')$. By assumption, we have a $W' \future W$ and $hs'$ such that
+  Let $n' < n$, $W$, $\reg$, and $\hs$ be given. Assume $\npair{(\reg,\hs)} \in \observations(W)$. Let $\heap_f$, $heap'$, $i \leq n'$ be given and assume $(\reg, \hs \uplus \heap_f) \step[i] (\halted, \heap')$. By assumption, we have a $W' \future W$ and $\hs'$ such that
   \begin{align}
-&heap' = hs' \uplus \heap_f \label{lem:eq:stdvr1}\\
-&\heapSat[hs']{n-i}{W'}\label{lem:eq:stdvr2}
+&\heap' = \hs' \uplus \heap_f \label{lem:eq:stdvr1}\\
+&\heapSat[\hs']{n-i}{W'}\label{lem:eq:stdvr2}
   \end{align}. 
-Using $W'$ and $hs'$ as existential witnesses, we already have Equation~\ref{lem:eq:stdvr1} as the first necessary condition and from the above heap satisfaction along with heap satisfaction being uniform in $n$, we get $\heapSat[\hs']{n'-i}{W'}$. These are the two conditions necessary to get $\npair[n']{(\reg,\hs)} \in \observations(W)$.
+Using $W'$ and $\hs'$ as existential witnesses, we already have Equation~\ref{lem:eq:stdvr1} as the first necessary condition and from the above heap satisfaction along with heap satisfaction being uniform in $n$, we get $\heapSat[\hs']{n'-i}{W'}$. These are the two conditions necessary to get $\npair[n']{(\reg,\hs)} \in \observations(W)$.
 \end{proof}
 
 \begin{lemma}
