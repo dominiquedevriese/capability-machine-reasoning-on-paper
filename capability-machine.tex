@@ -1254,6 +1254,124 @@ The second property follows by assumption and transitivity of future worlds.
 \end{proof}
 
 
+\section{Other examples and applications}
+\label{sec:other_apps}
+This section contains some ideas about other examples and applications than the
+ticket dispenser example.
+
+\subsection{Stack and return pointer handling without OS involvement using local
+  capabilities}
+The idea of this example would be to work out and prove a calling convention
+that enforces well-bracketed control flow and encapsulation of local variables
+using CHERI's local capabilities.
+
+When one function invokes another function, the essential idea is that:
+\begin{itemize}
+\item Stack pointer is passed as a local and store-local capability.
+\item Return pointer is passed as a local capability.
+\end{itemize}
+
+Since local pointers cannot leave the registers except into regions for which a
+store-local capability is available, this basic idea seems to enforce a number
+of useful properties: well-bracketedness of control flow and encapsulation of
+private state stored on the stack. On the other hand, it also seems to validate
+the standard C treatment of the stack: the stack can be reused after a function
+returns, even between distrusting parties. However, safety/security of this
+design is very non-trivial and seems to rely on some non-trivial reasoning:
+
+\paragraph{Only stack is store-local?}
+A critical assumption is that adversary code has no way to \emph{store} local
+capabilities except on the stack. The reason that it is fine to store local
+capabilities on the stack is that the adversary only has a \emph{local}
+capability to the stack and cannot usefully store that capability anywhere.
+However, this means that we need to rely on the runtime system of our
+programming language to be careful when handing out store-local capabilities:
+only the libc startup code should initialize the stack as store-local and malloc
+should \emph{not} produce them. This basically means that the libc
+initialization code (or whatever component produces the initial stack pointer)
+is part of our TCB.
+
+\paragraph{Requirement for clearing the stack}
+Imagine the following trusted C function:
+
+\begin{verbatim}
+void myfunction(){
+  advfunction1();
+  advfunction2();
+}
+\end{verbatim}
+
+where advfunction1() and advfunction2() are adversary functions. In the standard
+C treatment of the stack, advfunction2() would get the same stack pointer as
+advfunction1(). This is supposed to be safe since advfunction1() must have
+released all capabilities to the stack after its execution. But what if we
+require that the two functions have no way of communicating with each other?
+Concretely, advfunction1() has access to some secrets that must not be leaked to
+advfunction2(). How can we prevent advfunction1() from storing the secret
+somewhere on the stack and relying on advfunction2() from receiving the same
+stack pointer where it can read the secret? The most obvious solution seems to
+be that we should fully clear the stack (overwrite it with zeros) after the
+return of any adversary function, but this could cause an important overhead.
+Perhaps the processor should accomodate this with a special instruction that can
+zero the entire array that a capability points to?
+
+\paragraph{What do return pointers look like?}
+An important question is what return pointers look like? Since we want to
+protect the caller from the callee, it's important that the return pointer is
+opaque, i.e. an entry pointer. The entry pointer will point to a closure that
+contains the next instruction to execute, as well as the previous stack pointer.
+But since stack pointers are local, this means that the return pointer closure
+should be stored in a region of memory for which we have store-local permission,
+i.e. on the stack. This means we need the following in our calling convention:
+before invoking a function, we push the stack pointer and the instruction
+pointer after invocation on the stack, we construct a return pointer by
+copying the stack pointer, limiting it to these two entries and making it an
+entry pointer.  Then we shrink the stack pointer to the unused part of the stack
+and jump. 
+
+\paragraph{Only one-way protection in higher-order settings?}
+Another important point is that, in a sense, local capabilities provide only
+one-way protection: the caller is protected from the callee but not vice-versa.
+Concretely: when invoking a function with some arguments marked as local, the
+caller is guaranteed that the callee will not have been able to store the
+capabilities anywhere (except perhaps on the stack, see above). However, the
+callee seems to have more limited guarantees: Particularly, the caller may have
+kept its own stack capability and this stack capability may (and typically will)
+also cover the part of the stack that is ``owned'' by the callee.  In this
+sense, the guarantees are more limited than in a linear language.
+
+So what does this mean? In a first-order language, this is all fine, but what if
+we are in a higher-order language. Imagine the following (in some ML-like language):
+
+\begin{verbatim}
+let f = fun callback =>
+          let ... in 
+          let ret = callback() in
+          ...
+//adversary top function
+let advtop = f( (fun y => ...) )
+\end{verbatim}
+
+Our trusted function f is invoked by the adversary (from function advtop()) and
+wants to be able to invoke an untrusted callback received from the adversary.
+When invoking the closure, we don't want it to be able to access f's local
+variables which it has stored on the stack. To achieve this, we only give it a
+stack pointer that covers the part of the stack that is unused by f. However,
+the callback may be implemented as an entry pointer that carries capabilities,
+particularly the capability to advtop's stack pointer, which includes the part
+of the stack that is now used by f and contains f's local variables.
+
+So how do we deal with this? Perhaps we should use the fact that this is only
+possible when f's callback argument is allocated to some part of the memory to
+which advtop has store-local permissions (since the callback contains a
+reference to the stack to which advtop only has a local capability). One way to
+exclude the scenario is to require that callbacks are provided as non-local
+capabilities. The downside of this is that local callbacks can be useful for the
+caller to prevent the callee from storing them. Another way to exclude the
+scenario is to require that the stack is allocated in a fixed part of the
+address space and to check that callbacks point outside of this region before
+invoking them.
+
 \section{Related reading}
 \label{sec:related-reading}
 
