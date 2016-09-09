@@ -1064,7 +1064,7 @@ Let $n$,$W$, $W'$, $b$, and $e$ be given where $W' \future W$. Assume $\readCond
 \end{align*}
 $W' \future W$ gives
 \begin{align*}
-  &W'(r).\phi = W(r).phi \\
+  &W'(r).\phi = W(r).\phi \\
   &(W'(r).s,W(r).s) \in W(r).\phi \\
   &W'(r).H = W(r).H \\
  \end{align*}
@@ -1353,24 +1353,34 @@ let advtop = f( (fun y => ...) )
 \end{verbatim}
 
 Our trusted function f is invoked by the adversary (from function advtop()) and
-wants to be able to invoke an untrusted callback received from the adversary.
-When invoking the closure, we don't want it to be able to access f's local
-variables which it has stored on the stack. To achieve this, we only give it a
-stack pointer that covers the part of the stack that is unused by f. However,
-the callback may be implemented as an entry pointer that carries capabilities,
-particularly the capability to advtop's stack pointer, which includes the part
-of the stack that is now used by f and contains f's local variables.
+wants to invoke an untrusted callback received from the adversary. When invoking
+the closure, we don't want it to be able to access f's local variables which it
+has stored on the stack. To achieve this, we only give it a stack pointer that
+covers the part of the stack that is unused by f. However, the callback may be
+implemented as an entry pointer that carries capabilities, particularly the
+capability to advtop's stack pointer, which includes the part of the stack that
+is now used by f and contains f's local variables.
 
 So how do we deal with this? Perhaps we should use the fact that this is only
 possible when f's callback argument is allocated to some part of the memory to
 which advtop has store-local permissions (since the callback contains a
-reference to the stack to which advtop only has a local capability). One way to
-exclude the scenario is to require that callbacks are provided as non-local
-capabilities. The downside of this is that local callbacks can be useful for the
-caller to prevent the callee from storing them. Another way to exclude the
-scenario is to require that the stack is allocated in a fixed part of the
-address space and to check that callbacks point outside of this region before
-invoking them.
+reference to the stack to which advtop only has a local capability). I see
+basically three ways to do this, all based on the idea of enforcing that the
+callback should be constructed in a part of memory for which no store-local
+permissions are available:
+\begin{itemize}
+\item One way to exclude the scenario is to require that callbacks are provided
+  as non-local capabilities. The downside of this is that local callbacks can be
+  useful for the caller to prevent the callee from storing them.
+\item Another way to exclude the scenario is to require that the stack is
+  allocated in a fixed part of the address space and to check that callbacks
+  point outside of this region before invoking them.
+\item Perhaps we should require that store-local permissions cannot be removed
+  from a capability and simply require that callback pointers do not have
+  store-local set. Perhaps we can allow store-local permissions to be given up,
+  but only if the corresponding part of memory is fully zeroed in the process
+  (or at least all local capabilities stored in the region).
+\end{itemize}
 
 \section{Related reading}
 \label{sec:related-reading}
