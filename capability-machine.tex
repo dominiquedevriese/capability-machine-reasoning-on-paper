@@ -1,8 +1,6 @@
 \documentclass{article}
 
-\usepackage{amsmath}
-\usepackage{amsthm}
-\usepackage{amsfonts}
+\usepackage{amsmath,amsfonts,amssymb,amsthm}
 \usepackage{thmtools}
 \usepackage{stmaryrd}
 \usepackage{natbib}
@@ -11,7 +9,13 @@
 \usepackage{arydshln}
 \usepackage{ifthen}
 \usepackage{ifpdf}
+\usepackage{verbatim}
 
+\usepackage{mathtools}
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+
+\usepackage{appendix}
 
 \usepackage{tikz}
 \usepackage{multirow}
@@ -28,19 +32,31 @@
 %Math notation
 \newcommand{\restrictfun}[1]{|_{#1}}
 \newcommand{\parfun}{\rightharpoonup}
+\newcommand{\finparfun}{\stackrel{\textit{\tiny{fin}}}{\rightharpoonup}}
 \newcommand{\monnefun}{\stackrel{\textit{\tiny{mon, ne}}}{\longrightarrow}}
 \newcommand{\monfun}{\stackrel{\textit{\tiny{mon}}}{\longrightarrow}}
+\newcommand{\nefun}{\stackrel{\textit{\tiny{ne}}}{\longrightarrow}}
+\newcommand{\fun}{\longrightarrow}
 \newcommand{\defeq}{\stackrel{\textit{\tiny{def}}}{=}}
 \newcommand{\nequal}[1][n]{\stackrel{\tiny{#1}}{=}}
 \newcommand{\nsubeq}[1][n]{\stackrel{\tiny{#1}}{\subseteq}}
 \newcommand{\nsupeq}[1][n]{\stackrel{\tiny{#1}}{\supseteq}}
 \newcommand{\union}{\mathbin{\cup}}
 \DeclareMathOperator{\dom}{dom}
-
+\newcommand{\blater}{\mathop{\blacktriangleright}}
+\newcommand{\id}{\var{id}}
 \newcommand{\undefined}{\mathit{undefined}}
+
+\newcommand{\powerset}[1]{\mathcal{P}(#1)}
 
 \newcommand{\false}{\mathit{false}}
 \newcommand{\true}{\mathit{true}}
+
+%cofes
+\newcommand{\cofe}{c.o.f.e.}
+\newcommand{\cofes}{\cofe{}'s}
+\newcommand{\CatC}{\mathbb{C}}
+\newcommand{\CatP}{\mathbb{P}}
 
 %Comments
 \newcommand\lau[1]{{\color{purple} \sf \footnotesize {LS: #1}}\\}
@@ -138,6 +154,7 @@
 \newcommand{\ints}{\mathbb{Z}}
 \newcommand{\Perms}{\plaindom{Perm}}
 
+\newcommand{\Rel}{\plaindom{Rel}}
 \newcommand{\States}{\plaindom{State}}
 \newcommand{\RegionNames}{\plaindom{RegionName}}
 \newcommand{\Regions}{\plaindom{Region}}
@@ -711,71 +728,277 @@ We have now shown the three conditions and thus proven Lemma~\ref{lem:tckt-disp}
 
 \section{Logical Relation}
 \label{sec:logical-relation}
-\subsection{Worlds}
+\subsection{Recursive Domain Equation}
+\label{subsec:recursive-dom-eq}
+The goal is to solve the following domain equation:
 \[
-  \Worlds = \{ W \in RegionNames \parfun \Regions \mid \dom(W) \text{ finite } \}
+W = \nats \finparfun (\States \times \Rel \times (\States \fun (W \monnefun \UPred{\HeapSegments})))
 \]
-$\States$ is a fixed set with the necessary states.
-
-\begin{align*}
-  \Regions = \{ r = (s, \phi, H) \mid &  s \in \States \land \phi \subseteq \States^2 \land \\ 
-                                      &  H : \States \rightarrow \StorePred \land \\ 
-                                      &  \phi \text{ reflexive and transitive} \}
-\end{align*}
-For convenience, we write $r.s$, $s.\phi$, and $s.H$ for a the projection of a regions state, transition system, and store predicate, respectively.
+Where $\States$ is a set of states with all the ones we use in this paper.
 \[
-  \StorePred = \widehat{\Worlds} \monnefun \UPred{\HeapSegments}
+\Rel= \{R \in \powerset{\States^2} \mid R \text{ is reflexive and transitive} \}
 \]
 
+This cannot be solved with sets, so we use preordered complete ordered families of equivalences where it is possible to solve such an equation that ressembles the above one, namely it is possible to find an isomorphism $\xi$ and preordered \cofe{} $W$ such that
 \[
-\roll : \frac{1}{2} \cdot \Worlds \cong \widehat{\Worlds}
+  \xi : W \cong \blater (\nats \finparfun (\States \times \Rel \times (\States \fun (W \monnefun \UPred{\HeapSegments}))))
 \]
-Future Worlds:
+
+\begin{definition}[o.f.e's]
+  An ordered family of equivalences (o.f.e.) is a set and a family of equivalences, $\left(X, \left(\nequal\right)_{n=0}^{\infty} \right)$. The familly of equivalences have to satisfy the following properties
+  \begin{itemize}
+  \item $\nequal[0]$ is a total relation on $X$
+  \item $\forall n \ldotp \forall x,y \in S \ldotp x \nequal[n+1] y \Rightarrow x \nequal y$
+  \item $\forall x,y \ldotp(\forall n \ldotp x \nequal y) \Rightarrow x=y$
+  \end{itemize}
+\end{definition}
+
+\begin{definition}[\cofes]
+  A complete orderede family of equivalences is an o.f.e.\ $\left(X, \left(\nequal\right)_{n=0}^{\infty} \right)$ where all Cauchy sequences in $X$ have a limit in $X$.
+\end{definition}
+
+\begin{definition}[Preordered \cofes]
+  A preordered \cofe{}\ is a \cofe{}\ equiped with a preorder on $X$, $\left(X, \left(\nequal\right)_{n=0}^{\infty}, \future \right)$. That is the ordering must satisfy the following
+  \begin{itemize}
+  \item $\forall x \in X \ldotp x \future x$
+  \item $\forall x,y,z \in X \ldotp x \future y \land y \future z \Rightarrow x \future z$
+  \end{itemize}
+\end{definition}
+
+The category of \cofes{} is the category whith \cofes{} as objects and non-expansive functions as morphisms. We denote this category $\CatC$. The category of preordered \cofes{} has preordered \cofes as objects and monotone and non-expansive functions as morphisms. We denote this category $\CatP$.
+
+\begin{definition}[Preordered \cofe{}\ construction: Finite-partial function]
+  Given a set $S$ and preordered \cofe{}\ $X$, $S \finparfun X$ is a preordered \cofe{}\ with the ordering
+  \[
+    \begin{gathered}
+      f \future g  \\
+      \text{ iff } \\
+      \dom(f) \supseteq \dom(g) \; \text{ and } \; \forall n \in S \ldotp f(n) \future g(n)
+    \end{gathered}
+  \]
+\end{definition}
+
+We need the following constructions to create the preordered \cofe{}, we want to work use
+\begin{definition}[Preordered \cofe{}\ construction: Function]
+  Given a set $S$ and \cofe{}\ $\var{HP}$, $S \fun \var{HP}$ is a preordered \cofe{}\ with the ordering
 \[
- W' \future W \text{ iff }  
- \begin{gathered}
-   \dom(W') \supseteq \dom(W)\\ 
-   \text{ and } \\
-   \forall r \in \dom(W) \ldotp W'(r) \future W(r)
- \end{gathered}
-\]
-Future regions:
-\[
-  (s_2,\phi_2,H_2) \future (s_1,\phi_1,H_1) \text{ iff } 
-    (\phi_2,H_2) = (\phi_1,H_1) \land (s_1,s_2) \in \phi_1
-\]
-n-subset for regions:
-\[
-(s_1,\phi_1,H_1) \nsubeq (s_2,\phi_2,H_2) \text{ iff } 
-\begin{gathered}
-(s_1,\phi_1) = (s_2,\phi_2)\\
- \text{ and }\\
- \forall \hat{W} \ldotp H_1 \; s_1 \; \hat{W} \nsubeq H_2 \; s_2 \; \hat{W}
-\end{gathered}
-\]
-\begin{definition}[Heap satisfaction/erasure]
-\[
-\heapSat[\hs]{n}{W} \text{ iff }
-\begin{aligned}
-&\exists R : \dom(W) \rightarrow \HeapSegments \ldotp \\
-&\quad\begin{gathered}
-  \hs = \biguplus_{r \in \dom(W)} R(r) \\
-  \text{and}\\
-  \forall r \in \dom(W) \ldotp \forall n' < n \ldotp \npair[n']{R(r)} \in W(r).H(W(r).s)(\roll\; W)
-\end{gathered}
-\end{aligned}
+  \begin{gathered}
+    f \future g \\
+    \text{ iff } \\
+    \forall s \in \dom(f) \ldotp f(s) \future g(s)
+  \end{gathered}
 \]
 \end{definition}
 
+\begin{definition}[Preordered \cofe{}\ construction: Monotone, non-expansive function]
+  Given a preordered \cofe{}\ $W$ and preordered \cofe{}\ $U$, $W \monnefun U$ is a preordered \cofe{} with the ordering
+\[
+  \begin{gathered}
+    f \future g \\
+    \text{ iff } \\
+    \forall s \in \dom(f) \ldotp f(s) \future g(s)
+  \end{gathered}
+\]
+\end{definition}
+
+The above are standard constructions, so they are used here without showing they infact are well-defined.
+
+\begin{definition}[Preordered \cofe{}\ construction: Region]
+  \label{def:pcofe-region}
+  Given a \cofe{}\ $H$, the tuple 
+\[
+  (\States \times \Rel \times H)
+\]
+ is a preordered \cofe{}\ with the ordering
+\[
+  \begin{gathered}
+    (s_2,\phi_2,H_2) \future (s_1,\phi_1,H_2)\\
+    \text{ iff }\\
+    H_2 = H_1 \text{ and } \phi_2 = \phi_1 \text{ and } (s_1,s_2) \in \phi_2\\
+  \end{gathered}
+\]
+\end{definition}
+\begin{lemma}[Region definition well-defined]
+\label{lem:reg-def-wd}
+  The construction in Definition~\ref{def:pcofe-region} is a preordered \cofe{}. That is
+  \begin{itemize}
+  \item It is a \cofe{} (this is a standard construction)
+  \item $\future$ is a transitive and reflexive relation.
+  \item $\future$ preserves limits. \\That is for Cauchy chains $\{a_n\}_n$ and $\{b_n\}_n$ if 
+    \[
+      \{a_n\}_n \geq \{b_n\}_n,
+    \]
+    then 
+    \[
+      \lim \{a_n\}_n \future \lim \{b_n\}_n
+    \]
+  \end{itemize}
+\end{lemma}
+
+Define functors $K$, $R$, and $G$ as follows:
+\begin{align*}
+  & K : \CatP \rightarrow \CatP \\
+  & K(R) = \nats \finparfun R \\
+  & K(f) = \lambda \phi \ldotp \lambda n \ldotp f(\phi(n)) \\
+  & \\
+  & R : \CatC \rightarrow \CatP \\
+  & R(H) = \States \times \Rel \times H\\
+  & R(h) = \lambda (s,\Phi,H) \ldotp (s,\Phi,h(H))\\
+  & \\
+  & G : \CatP^{\var{op}} \rightarrow \CatC \\
+  & G(W) = \UPred{HS}^{W^{\States}} \\
+  & G(g) = \lambda H \ldotp \lambda \var{st} \ldotp \lambda x \ldotp H (\var{st})(g(x))
+\end{align*}
+We first show that $K$, $R$, and $G$ are well-defined mappings.
+\begin{lemma}[World finite partial mapping]
+  \label{lem:world-finpar}
+  For all $f$ and $\phi$, $K(f)(\phi)$ is a finite partial mapping.
+\end{lemma}
+\begin{lemma}[Heap segment predicate monotone]
+\label{lem:HSP-mon}
+For all $g$, $H$, and $\var{st}$
+\[
+G(g) (H) (\var{st})
+\]
+is non-expansive.
+\end{lemma}
+\begin{lemma}[Heap segment predicate non-expansive]
+\label{lem:HSP-ne}
+For all $g$, $H$, and $\var{st}$
+\[
+G(g) (H) (\var{st})
+\]
+is monotone.
+\end{lemma}
+Next we show that $K$, $R$, and $G$ are in fact functors:
+\begin{lemma}[$K$ functorial]\forcenewline
+\label{lem:K-func}
+  \begin{enumerate}
+  \item $K(f) : K(X) \rightarrow K(Y)$ is monotone and non-expansive for $f : X \monnefun Y$
+  \item $K(f \circ g) = K(f) \circ K(g)$ for $f : Z \nefun Y$ and $g : X \nefun Z$
+  \item $K(\id) = \id$
+  \end{enumerate}
+\end{lemma}
+
+\begin{lemma}[$R$ functorial]\forcenewline
+\label{lem:R-func}
+  \begin{enumerate}
+  \item $R(f) : R(X) \rightarrow R(Y)$ is non-expansive and monotone for $f : X \nefun Y$
+  \item $R(f \circ g) = R(f) \circ R(g)$ for $f : Z \nefun Y$ and $g : X \nefun Z$
+  \item $R(\id) = \id$
+  \end{enumerate}
+\end{lemma}
+
+\begin{lemma}[$G$ functorial]\forcenewline
+\label{lem:G-func}
+  \begin{enumerate}
+  \item $G(f) : G(Y) \rightarrow G(X)$ is non-expansive for $f : X \monnefun Y$
+  \item $G(f \circ g) = G(g) \circ G(f)$ for $f : Z \nefun Y$ and $g : Y \nefun Z$
+  \item $G(\id) = \id$
+  \end{enumerate}
+\end{lemma}
+We now compose the above functors into the functor we actually want to use: $F = K \circ R \circ G$, $F : \CatP^{\var{op}} \rightarrow \CatP$.
+\begin{lemma}[$F$ functorial]\forcenewline
+\label{lem:F-func}
+  \begin{enumerate}
+  \item $F(f) : F(Y) \rightarrow F(X)$ is monotone and non-expansive for $f : X \monnefun Y$
+  \item $F(f \circ g) = F(g) \circ F(f)$ for $f : Z \nefun Y$ and $g : Y \nefun Z$\
+  \item $F(\id) = \id$
+  \end{enumerate}
+\end{lemma}
+
+\begin{lemma}[$F$ locally non-expansive]
+\label{lem:F-loc-ne}
+For all $f, g : X \fun Y$, if $f \nequal g$, then $F(f) \nequal F(g)$.
+\end{lemma}
+With $F$ being locally-non-expansive, we can pre- or post-compose with later ($\blater$) to get a locally contractive function. In this case we construct $F'$ by post-copmosition of $blater$:
+\[
+  F'(W) = \blater (F(W))
+\]
+We have a theorem that gives us a solution to the recurisve domain equation
+\[
+  W \cong F'(W) = \blater (\nats \finparfun (\States \times \Rel \times (\States \fun W \monnefun \UPred{\HeapSegments} )))
+\]
+The solution to the recursice domain equations is presented \cite{Birkedal:2010:TCS:411:4102-4122}. They solve it in pre-ordered, non-empty, complete, 1-bounded ultrametric spaces, but they have a simple correspondence to pre-ordered \cofes{}.
+
+\subsection{Worlds}
+Assume preordered \cofe{}\ $W$ and isomorphism $\xi$ such that:
+\[
+  \xi : W \cong \blater (\nats \finparfun (\States \times \Rel \times (\States \fun (W \monnefun \UPred{\HeapSegments}))))
+\]
+We now define regions as
+\[
+\Regions \defeq (\States \times \Rel \times (\States \fun (W \monnefun \UPred{\HeapSegments})))
+\]
+and we define worlds as
+\[
+\Worlds \defeq \RegionNames \finparfun \Regions
+\]
+To define future worlds and regions, We use the ordering inherited from the preordered \cofes{}.
+\begin{definition}[Future worlds]
+  For $W, W' \in \Worlds$
+ \begin{align*}
+ W' \future W & & \text{ iff } & &
+   \begin{gathered}
+     \dom(W') \supseteq \dom(W)\\ 
+     \text{ and } \\
+     \forall r \in \dom(W) \ldotp W'(r) \future W(r)
+   \end{gathered}
+ \end{align*}
+\end{definition}
+
+\begin{definition}[Future regions]
+For regions $(s_2,\phi_2,H_2), (s_1,\phi_1,H_1) \in \Regions$
+  \begin{align*}
+ (s_2,\phi_2,H_2) \future (s_1,\phi_1,H_1) &&\text{ iff } & &
+(s_1,\phi_1) = (s_2,\phi_2) \text{ and } (s_1,s_2) \in \phi_2
+  \end{align*}
+\end{definition}
+
+\begin{definition}[$n$-subset for regions]
+For regions $(s_1,\phi_1,H_1), (s_2,\phi_2,H_2) \in \Regions$
+\begin{align*}
+  (s_1,\phi_1,H_1) \nsubeq (s_2,\phi_2,H_2) & & \text{ iff } & &
+  \begin{gathered}
+    (s_1,\phi_1) = (s_2,\phi_2)\\
+    \text{ and }\\
+    \forall \hat{W} \in \blater \Worlds \ldotp H_1 \; s_1 \; \hat{W} \nsubeq H_2 \; s_2 \; \hat{W}
+  \end{gathered}
+\end{align*}
+\end{definition}
+
+\begin{definition}[Heap satisfaction/erasure]
+\begin{align*}
+&\heapSat[\hs]{n}{W} \\
+&\qquad\text{ iff }\\
+&\exists R : \dom(W) \rightarrow \HeapSegments \ldotp & &\\
+&\quad\begin{aligned}
+  &\hs = \biguplus_{r \in \dom(W)} R(r) \\
+  &\qquad\text{and}\\
+  &\forall r \in \dom(W) \ldotp \forall n' < n \ldotp \npair[n']{R(r)} \in W(r).H(W(r).s)(\xi^{-1}(W))
+\end{aligned} 
+\end{align*}
+
+\end{definition}
+
+\subsection{Standard Regions}
+\label{subsec:standard-regions}
 A standard heap invariant that insures all values in the region are in the value  relation:
 \[
   \iota_{\var{start},\var{end}} \; : \; \Regions
 \]
 \begin{align*}
   \iota_{\var{base},\var{end}} & \defeq ((\var{base},\var{end}),=,H_{\var{std}}) \\
-  H_{\var{std}}\; (\var{base},\var{end})\; W         & \defeq \{\npair{\hs} \mid \forall \addr \in [\var{base},\var{end}] \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\roll \; W) \\
-                             & \qquad \qquad \qquad \land \dom(\hs) = [\var{base},\var{end}]\}
+  H_{\var{std}}\; (\var{base},\var{end})\; W &  \defeq \left\{ \npair{\hs} \middle|
+                                               \begin{aligned}
+                                                 & \dom(\hs) = [\var{base},\var{end}] \land \\
+                                                 & \forall \addr \in [\var{base},\var{end}] \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\xi \; W)
+                                               \end{aligned} \right\}
 \end{align*}
+\begin{lemma}[$\iota_{\var{start},\var{end}}$ is well-defined]
+\label{lem:std-region-wd}
+  For all $\var{base}$ and $\var{end}$, $H_{\var{std}}\; (\var{base}, \var{end})$ is monotone and non-expansive. $=$ is a reflexive and transitive relation.
+\end{lemma}
 
 Another standard heap invariant that ensures all the words in the region are 0.
 \[
@@ -783,14 +1006,24 @@ Another standard heap invariant that ensures all the words in the region are 0.
 \]
 \begin{align*}
   \iota_{\var{base},\var{end}}^0 & \defeq ((\var{base},\var{end}),=,H_{\var{std}}^0) \\
-  H_{\var{std}}^0\; (\var{base},\var{end})\; W     & \defeq\{ \npair{\heapseg} \mid \dom(\heapseg) = [\var{base},\var{end}] \land \\
-                                                                & \qquad \forall \addr \in \dom(\heapseg) \ldotp \heapseg(\addr) = 0  \}
+  H_{\var{std}}^0\; (\var{base},\var{end})\; W     & \defeq\left\{ \npair{\heapseg} \middle| 
+                                                     \begin{aligned}
+                                                       & \dom(\heapseg) = [\var{base},\var{end}] \land \\
+                                                       & \forall \addr \in \dom(\heapseg) \ldotp \heapseg(\addr) = 0  
+                                                     \end{aligned} \right\}
 \end{align*}
 
+\begin{lemma}[$\iota_{\var{base},\var{end}}^0$ is well-defined]
+\label{lem:std-z-region-wd}
+    For all $\var{base}$ and $\var{end}$, $H_{\var{std}}^0 \; (\var{base},\var{end})$ is monotone and non-expansive. $=$ is a reflexive and transitive relation.
+\end{lemma}
+
+\subsection{Value Relation}
+In order to define the value relation consiely using the standard regions from the Subsection~\ref{subsec:standard-regions}, we define the following conditions:
 \begin{align*}
   \readCond{n,W,\start,\addrend} =        & \;\exists r \in \RegionNames \ldotp \\
                                           & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp\\
-                                          & \;\qquad W(r)\nsubeq[n-1] \iota_{\start',\addrend'}(r) \\ & \\
+                                          & \;\qquad W(r)\nsubeq[n-1] \iota_{\start',\addrend'} \\ & \\
   \writeCond{n,W,\start,\addrend} =       & \; \exists r \in \RegionNames \ldotp \\
                                           & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r) \nequal[n-1] \iota_{\start',\addrend'} \\ & \\
   \execCond{n,W,\start,\addrend,\perm} =  & \; \forall n' < n \ldotp \forall W' \future W \ldotp \\
@@ -1031,6 +1264,13 @@ Using execution~\ref{eq:ftlr:conf-steps}, we can conclude that $p' \in \{\rwx,\e
   \begin{align*}
     & \forall n,n',\heap, W \ldotp\\
     & \quad \heapSat{n}{W} \land n' < n \Rightarrow \heapSat{n'}{W}
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Heap satisfaction non-expansive]
+  \begin{align*}
+    & \forall n,\heap, W, W' \ldotp\\
+    & \quad \heapSat{n}{W} \land W \nequal W' \Rightarrow \heapSat{n}{W'}
   \end{align*}
 \end{lemma}
 
@@ -1425,4 +1665,262 @@ capabilities, albeit in a JavaScript-like lambda calculus.
 \bibliographystyle{plainnat}
 \bibliography{refs}
 
+\begin{appendices}
+\section{Definitoins and Proofs related to Section~\ref{subsec:recursive-dom-eq}}
+\end{appendices}
+
+\begin{definition}[Ordering of Cauchy chains]
+  For Cauchy chains $\{a_n\}_n$ and $\{b_n\}_n$,
+  \begin{align*}
+    \{a_n\}_n \geq \{b_n\}_n & & \text{iff} & & \forall n \ldotp a_n \geq b_n
+  \end{align*}
+\end{definition}
+
+\begin{definition}[Limit of Cauchy chains]
+  For a Cauchy chain $\{a_n\}_n$ in the \cofe{}\ $\left(X, \left(\nequal\right)_{n=0}^{\infty} \right)$, we say that $a$ is a limit  (denoted $\lim\{a_n\}_n$) of this chain iff it satisfies
+  \begin{align*}
+    & \forall n \ldotp \exists N \ldotp \forall m \geq N \ldotp a \nequal a_m
+  \end{align*}
+\end{definition}
+
+\begin{definition}[Set \cofe{}\ Construction]
+  Given a set $X$, then $\left(X, \left(\nequal\right)_{n=0}^{\infty} \right)$ is a \cofe{}\ where all the equivalences are equiality.
+\end{definition}
+
+\begin{definition}[Function \cofe{}\ Construction]
+  Given \cofes{} $\left(X, \left(\nequal_X\right)_{n=0}^{\infty} \right)$ and $\left(Y, \left(\nequal_Y\right)_{n=0}^{\infty} \right)$ define the \cofe{}\ $\left(X, \left(\nequal_X\right)_{n=0}^{\infty} \right) \fun \left(X, \left(\nequal_Y\right)_{n=0}^{\infty} \right)$ as
+\[
+\left(\{f : X \fun Y \mid f \text{ non-expansive}\}, \left(\nequal\right)_{n=0}^{\infty} \right)
+\]
+where the equivalence is defined as
+\begin{align*}
+  f \nequal g & & \text{ iff } & & \forall x \in X \ldotp f(x) \nequal_Y g(x)
+\end{align*}
+
+\end{definition}
+
+\begin{proof}[Proof of Lemma~\ref{lem:reg-def-wd}]
+  The \cofe{}\ is a standard construction for tuples, so we won't show that it in fact is a \cofe{}\ here. That $\future$ is reflexive and transitive follows trivially from $\Phi$ being reflexive and transitive. It remains to show that $\future$ preserves limits.
+
+  Assume $\{a_n\}_n \geq \{b_n\}_n$.From this it follows that for all $m \in \nats$:
+  \begin{align*}
+    \Phi_{b_m} & = \Phi_{a_m} \\
+    H_{b_m} & = H_{a_m} \\
+    (s_{a_m},s_{b_m}) &\in \Phi_{b_m}
+  \end{align*}
+  Say $\lim{a_n}_n = (s_a,\Phi_a,H_a)$ and $\lim{b_n}_n = (s_b,\Phi_b, H_b)$. We need to show
+  \begin{align*}
+    \Phi_{b} & = \Phi_{a} \\
+    H_{b} & = H_{a} \\
+    (s_{a},s_{b}) &\in \Phi_{b}
+  \end{align*}
+  To show $H_{b} = H_{a}$ by one of the \cofe{}\ properties SFTS $\forall n \ldotp H_{b} \nequal H_{a}$. Given $n$ use that $a$ is a limit to get $N$ s.t.
+\[
+  \forall m \geq N \ldotp H_{a_m} \nequal H_a
+\]
+Likewise for $b$ we get a similar $M$. Take some $m \geq \max\{M,N\}$, using $H_{b_m} = H_{a_m}$, we get:
+\[
+  H_a = H_{a_m} = H_{b_m} = H_b
+\]
+
+For $\Phi_{b} = \Phi_{a}$ we do something similar except, we just pick $n=1$ as the $n$-equality in this \cofe{} is equality. 
+Same approach is used for $(s_{a},s_{b}) \in \Phi_{b}$
+\end{proof}
+
+\begin{proof}[Proof of Lemma~\ref{lem:world-finpar}]
+\[
+  K(f)(\phi) = \lambda n \ldotp f(\phi(n))
+\]
+The above is defined exactly on the $n\in \nats$ where $\phi$ is defined. $\phi$ is a finite partial function, so the above is as well.
+\end{proof}
+
+\begin{proof}[Proof of Lemma~\ref{lem:HSP-mon}]
+  Given $g$, $H$, $\var{st}$, $w$ and $w'$. Assume $w' \future w$. Show
+  \begin{gather}
+    (G(g))(\phi)(\var{st})(w') \future (G(g))(\phi)(\var{st})(w) \nonumber\\ 
+    \Uparrow \label{lem:HSP-mon:b1}\\
+    H(\var{st})(g(w')) \future H(\var{st})(g(w)) \nonumber \\
+    \Uparrow \label{lem:HSP-mon:b2}\\
+    g(w') \future g(w) \nonumber\\
+    \Uparrow \label{lem:HSP-mon:b3}\\
+    w' \future w \nonumber
+  \end{gather}
+(\ref{lem:HSP-mon:b1}) expands the definition of $G$. (\ref{lem:HSP-mon:b2}) is due to $H(\var{st})$ being monotone. (\ref{lem:HSP-mon:b3}) is due to $g$ being a morphism in $\CatC^{\var{op}}$ and they are monotone function.
+\end{proof}
+
+\begin{proof}[Proof of Lemma~\ref{lem:HSP-ne}]
+  Given $n$, $g$, $H$, $\var{st}$, $w$ and $w'$. Assume $w' \nequal w$. Show
+  \begin{gather}
+    (G(g))(\phi)(\var{st})(w') \nequal (G(g))(\phi)(\var{st})(w) \nonumber\\ 
+    \Uparrow \nonumber \\
+    H(\var{st})(g(w')) \nequal H(\var{st})(g(w)) \nonumber \\
+  \end{gather}
+  We use that $H=H$ implies $H \nequal H$ which means
+  \[
+    \forall \var{st}, \var{st'} \ldotp \var{st} \nequal \var{st'} \Rightarrow H(\var{st}) \nequal H(\var{st'})
+  \]
+  This in turn implies
+  \[
+    \forall y,y' \ldotp \ldotp y \nequal y' \Rightarrow H(\var{st})(y) \nequal H(\var{st})(y')
+  \]
+  Using our assumption, about the worlds, we are done.
+\end{proof}
+
+\begin{proof}[Proof of Lemma~\ref{lem:K-func}]
+  $K(f) : K(X) \rightarrow K(Y)$ is \emph{monotone} for $f : X \monnefun Y$:
+  Assume $\phi \future \phi'$. Show
+  \[
+    (K(f))(\phi) \future (K(f))(\phi') 
+  \]
+  By def on ordering for functions SFTS
+  \[
+    \forall n \ldotp (K(f))(\phi)(n) \future (K(f))(\phi')(n)
+  \]
+  let $n$ be givenm show
+  \[
+    f(\phi'(n)) \future f(\phi(n))
+  \]
+  $f$ mon, so SFTS
+  \[
+    \phi'(n) \future \phi(n)
+  \]
+  which follows from the assumption $\phi' \future \phi$.\\\\
+  $K(f) : K(X) \rightarrow K(Y)$ is \emph{non-expansive} for $f : X \monnefun Y$:
+  Assume $\phi \nequal \phi'$. Show
+  \[
+    (K(f))(\phi) \nequal (K(f))(\phi') 
+  \]
+  Let $k$ be given, SFTS
+  \[
+    (K(f))(\phi)(k) \nequal (K(f))(\phi')(k)
+  \]
+  which unfolds to
+  \[
+    f(\phi(k)) \nequal f(\phi'(k))
+  \]
+  as $f$ is non-expansive SFTS
+  \[
+    \phi(k) \nequal \phi'(k)
+  \]
+  which follows from assumption.\\\\
+  $K$ preserves composition, show
+  \[
+    K(f \circ g) = K(f) \circ K(g)
+  \]
+  Given $\phi$ and $n$ show
+  \begin{align*}
+    (K(f) \circ K(g))(\phi)(n) & = K(f)(K(g)(\phi))(n) \\
+                               & = f(K(g)(\phi)(n)) \\
+                               & = f(g(\phi(n))) \\
+                               & = (f \circ g)(\phi(n)) \\
+                               & = K(f \circ g)(\phi)(n)
+  \end{align*}\\\\
+  $K$ preserves identity, show
+  \[
+    K(\id) = \id
+  \]
+  Let $\phi$ and $n$ be given.
+  \begin{align*}
+    K(\id) & = \lambda \phi \ldotp \lambda n \ldotp \id(\phi(n)) \\
+           & = \lambda \phi \ldotp \lambda n \ldotp \phi(n) \\
+           & = \lambda \phi \ldotp \phi \\
+           & = \id
+  \end{align*}
+\end{proof}
+
+\begin{proof}[Proof of Lemma~\ref{lem:R-func}]
+   $R(f) : R(X) \rightarrow R(Y)$ is \emph{monotone} for $f : X \nefun Y$. Given aformentioned $f$. Further let $(s_2,\Phi_2,H_2) \future (s_1,\Phi_1,H_1)$ be given. 
+
+    \begin{gather*}
+      R(f)(s_2,\Phi_2,H_2) = (s_2,\Phi_2,H_2(f)) \future (s_1,\Phi_1,H_1(f)) = R(f)(s_1,\Phi_1,H_1) \\
+      \Uparrow\\
+      \Phi_2 = \Phi_1 \text{ and } H_1(f) = H_2(f) \text{ and } (s_1,s_2) \in \Phi_2
+    \end{gather*}
+    From our assumption, we have $H_2 = H_1$ from which it follows $H_1(f) = H_2(f)$. The remaining conditions also follow directly from the assumption.
+
+    $R(f) : R(X) \rightarrow R(Y)$ is \emph{non-expansive} for $f : X \nefun Y$. Let $(s_2,\Phi_2,H_2) \nequal (s_1,\Phi_1,H_1)$ be given
+\[
+  R(f)(s_2,\Phi_2,H_2) = (s_2,\Phi_2,H_2(f)) \nequal (s_1,\Phi_1,H_1(f)) = R(f)(s_1,\Phi_1,H_1)
+\]
+$H_1(f) \nequal H_2(f)$ follows from the definition of $n$-equality on functions as well as the fact that $f=f$ implies $f \nequal f$ for any $n$.
+
+  Composition distributes over $R$, $R(f \circ g) = R(f) \circ R(g)$.
+  \begin{align*}
+    R(f) \circ R(g)(s,\Phi,H) &= R(f)(s,\Phi,g(H)) \\
+                              &= (s,\Phi,f(g(H)))\\
+                              &= R(f \circ g)
+  \end{align*}
+
+  Idenntity distributes over $R$, $R(\id) = \id$.
+  \[
+    R(id) = \lambda (s,\Phi,H) \ldotp  (s,\Phi,\id(H)) = \lambda (s,\Phi,H) \ldotp  (s,\Phi,H) = \id
+  \]
+\end{proof}
+
+\begin{proof}[Proof of Lemma~\ref{lem:G-func}]
+  $G(f) : G(Y) \rightarrow G(X)$ is \emph{non-expansive} for $f : X \monnefun Y$. For $H \nequal H'$ show
+  \[
+    G(f)(H) \nequal G(f)(H')
+  \]
+  which expands to
+  \[
+    \lambda \var{st} \ldotp \lambda w \ldotp H(\var{st})(f(w)) \nequal \lambda \var{st} \ldotp \lambda w \ldotp  H'(\var{st})(f(w))
+  \]
+  Given $\var{st} \nequal \var{st}'$ and $w \nequal n'$ SFTS
+  \[
+  \ldotp H(\var{st})(f(w)) \nequal H'(\var{st}')(f(w'))
+  \]
+  As $f$ is non-expansive, we get $f(w) \nequal f(w')$. As $H \nequal H'$ we get $H(\var{st}) \nequal H(\var{st'})$. Combining the two, we get the desired result.  
+\end{proof}
+
+\begin{proof}[Proof of Lemma~\ref{lem:F-func}]
+Follows from Lemmas~\ref{lem:K-func},~\ref{lem:R-func}, and~\ref{lem:G-func}.
+\end{proof}
+
+\begin{proof}[Proof of Lemma~\ref{lem:F-loc-ne}]
+Let $k$, $f$ and $g$ be given and assume $f \nequal[k] g$. Show
+\[
+F(f) \nequal[k] F(g).
+\]
+SFTS
+\[
+\forall \phi \ldotp (F(f))(\phi) \nequal[k] (F(g))(\phi)
+\]
+Let $\phi$ be given. We need to show $\dom((F(f))(\phi)) = \dom((F(g))(\phi))$. Both sides are defined exactly when $\phi$, so they have the same domain. We also need to show
+\[
+\forall n \in \dom((F(f))(\phi))\ldotp (F(f))(\phi)(n) \nequal[k] (F(g))(\phi)(n)
+\]
+Let $n \in  \dom((F(f))(\phi))$ be given. Define $H = \pi_3 (\phi(n))$. The above unfolds to two triples, so SFTS each component is $k$-equal. That is
+\begin{align*}
+  \pi_1(\phi(n)) \nequal[k] \pi_1(\phi(n))\\
+  \pi_2(\phi(n)) \nequal[k] \pi_2(\phi(n))\\
+  \lambda \var{st}'\ldotp (H(\var{st}') \circ f) \nequal[k]   \lambda \var{st}'\ldotp (H(\var{st}') \circ g)
+\end{align*}
+The two first are trivially satisfied. For the third, we need to show that for all $\var{st}$ if we apply $\var{st}$ to each side, then they are still $k$-equal. That is given $\var{st}$ show
+\[
+  (H(\var{st}) \circ f) \nequal[k]   \ldotp (H(\var{st}) \circ g)
+\]
+SFTS
+\[
+\forall w \ldotp (H(\var{st}) \circ f)(w) \nequal[k]   \ldotp (H(\var{st}) \circ g)(w)
+\]
+Let $w$ be given. From $f \nequal[k] g$, we get $f(w) \nequal[k] g(w)$. From this and $H(st)$ being non-expansive, we get
+\[
+  H(\var{st})(f(w)) \nequal[k]   H(\var{st})(g(w))
+\]
+which is what we neede to show.
+
+\end{proof}
+
+\section{Proof of Lemmas in Section~\ref{subsec:standard-regions}}
+\begin{proof}[Proof of Lemma~\ref{lem:std-region-wd}]
+  %TODO
+\end{proof}
+
+\begin{proof}[Proof of Lemma~\ref{lem:std-z-region-wd}]
+  %TODO
+\end{proof}
+
+
 \end{document}
+\grid
