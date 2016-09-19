@@ -1304,7 +1304,7 @@ Let $n$,$W$, $W'$, $b$, and $e$ be given where $W' \future W$. Assume $\readCond
 \end{align*}
 $W' \future W$ gives
 \begin{align*}
-  &W'(r).\phi = W(r).phi \\
+  &W'(r).\phi = W(r).\phi \\
   &(W'(r).s,W(r).s) \in W(r).\phi \\
   &W'(r).H = W(r).H \\
  \end{align*}
@@ -1543,10 +1543,10 @@ void myfunction(){
 
 where advfunction1() and advfunction2() are adversary functions. In the standard
 C treatment of the stack, advfunction2() would get the same stack pointer as
-advfunction1(). This is supposed to be safe since advfunction1() must have
-released all capabilities to the stack after its execution. But what if we
-require that the two functions have no way of communicating with each other?
-Concretely, advfunction1() has access to some secrets that must not be leaked to
+advfunction1(). This is supposed to be safe since advfunction1() cannot have
+kept capabilities for the stack after its execution. But what if we require that
+the two functions have no way of communicating with each other? Concretely,
+advfunction1() has access to some secrets that must not be leaked to
 advfunction2(). How can we prevent advfunction1() from storing the secret
 somewhere on the stack and relying on advfunction2() from receiving the same
 stack pointer where it can read the secret? The most obvious solution seems to
@@ -1593,24 +1593,52 @@ let advtop = f( (fun y => ...) )
 \end{verbatim}
 
 Our trusted function f is invoked by the adversary (from function advtop()) and
-wants to be able to invoke an untrusted callback received from the adversary.
-When invoking the closure, we don't want it to be able to access f's local
-variables which it has stored on the stack. To achieve this, we only give it a
-stack pointer that covers the part of the stack that is unused by f. However,
-the callback may be implemented as an entry pointer that carries capabilities,
-particularly the capability to advtop's stack pointer, which includes the part
-of the stack that is now used by f and contains f's local variables.
+wants to invoke an untrusted callback received from the adversary. When invoking
+the closure, we don't want it to be able to access f's local variables which it
+has stored on the stack. To achieve this, we only give it a stack pointer that
+covers the part of the stack that is unused by f. However, the callback may be
+implemented as an entry pointer that carries capabilities, particularly the
+capability to advtop's stack pointer, which includes the part of the stack that
+is now used by f and contains f's local variables.
 
 So how do we deal with this? Perhaps we should use the fact that this is only
 possible when f's callback argument is allocated to some part of the memory to
 which advtop has store-local permissions (since the callback contains a
-reference to the stack to which advtop only has a local capability). One way to
-exclude the scenario is to require that callbacks are provided as non-local
-capabilities. The downside of this is that local callbacks can be useful for the
-caller to prevent the callee from storing them. Another way to exclude the
-scenario is to require that the stack is allocated in a fixed part of the
-address space and to check that callbacks point outside of this region before
-invoking them.
+reference to the stack to which advtop only has a local capability). I see
+basically three ways to do this, all based on the idea of enforcing that the
+callback should be constructed in a part of memory for which no store-local
+permissions are available:
+\begin{itemize}
+\item One way to exclude the scenario is to require that callbacks are provided
+  as non-local capabilities. The downside of this is that local callbacks can be
+  useful for the caller to prevent the callee from storing them.
+\item Another way to exclude the scenario is to require that the stack is
+  allocated in a fixed part of the address space and to check that callbacks
+  point outside of this region before invoking them.
+\item Perhaps we should require that store-local permissions cannot be removed
+  from a capability and simply require that callback pointers do not have
+  store-local set. Perhaps we can allow store-local permissions to be given up,
+  but only if the corresponding part of memory is fully zeroed in the process
+  (or at least all local capabilities stored in the region).
+\end{itemize}
+
+\subsection{A result to prove...}
+\label{sec:os-less-stack-property}
+
+The simplest thing that comes to mind as a formal result for all of the above is
+to look at a concrete program that clearly relies on properties like
+well-bracketed control flow and encapsulation of local variables and prove it
+correct. As a concrete example: we might show an assembly program that
+corresponds to the following (a higher-order program that crosses trust
+boundaries and relies on local variable encapsulation and well-bracketed control
+flow):
+\begin{verbatim}
+let trustedCode = fun adversary =>
+                    let x = ref 0 in
+                    let callback = fun adv2 => let y = ref (!x) in assert (!x >= 0); x := -1; c2 unit; x := !y)
+                    let _ = adversary callback
+                    assert (!x >= 0)
+\end{verbatim}
 
 \section{Related reading}
 \label{sec:related-reading}
