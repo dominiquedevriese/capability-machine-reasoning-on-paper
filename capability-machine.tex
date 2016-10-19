@@ -999,8 +999,8 @@ For regions $(s_1,\phi_1,H_1), (s_2,\phi_2,H_2) \in \Regions$
 
 \end{definition}
 
-\subsection{Logical Relation}
-\label{subsec:logical-relation}
+\subsection{Logical Relation Setup}
+\label{subsec:logical-relation-setup}
 Our logical relation is defined using multiple recursive definitions, so the definitions in the following subsections are defined simultaneously. We want to define the value relation as the fixed-point given by Banach's fixed-point theorem, so all our definitions will be parameterized with the value relation.
 \subsubsection{Observation Relation}
 \label{subsubsec:observation-relation}
@@ -1080,6 +1080,10 @@ The continuation relation is used in the definition of the expression relation. 
                        & \quad \npair[n']{(reg\update{\pcreg}{\updatePcPerm{\var{c}}},\hs)} \in \observations(W') \}
                  \end{aligned}
 \end{align*}
+We require the continuation to be in the value relation, because it will have to be in the registers when it is invoked, so to argue that the register file is in the register-file relation, we need to know that the continuation is in the value relation.
+
+Normally, it would just be required for the return value to be in the value relation, so the continuation is invoked with this value. Here everything that is in the register file is available when the continuation is invoked, so we do not special case on $r_1$ (which is the register that in the calling convention we use should contain the return value). 
+
 
 Well-definedness lemmas:
 \begin{lemma}[Continuation relation uniformity]
@@ -1331,7 +1335,7 @@ The following lemmas show that the above conditions are well-defined:
     &\qquad \Rightarrow \execCond{}(\stdvr)(b,e,p,W_1) \nequal \execCond{}(\stdvr)(b,e,p,W_2)
   \end{align*}
 \end{lemma}
-Finally, we need to show that all the conditions are non-expansive, but we later want to use Banach's fixed point theorem to define the value relation. For this we will need that the above conditions are contractive, and if they are contractive, then they are also non-expansive, so we show that each of the conditions are contractive:
+Finally, we need to show that all the conditions are non-expansive, but we later want to use Banach's fixed-point theorem to define the value relation. For this we will need that the above conditions are contractive, and if they are contractive, then they are also non-expansive, so we show that each of the conditions are contractive:
 \begin{lemma}[Read condition contractive]
   \label{lem:rc-con}
   \begin{align*}
@@ -1391,44 +1395,57 @@ The value relation, is defined as follows:
          & \quad n \in \execCond{}(V)(\start,\addrend,\rwx,W) \}
        \end{aligned}
 \end{align*}
+Using the Banach fixed-point theorem, we can find a fixed point for $\stdvr$ We will use this fixed point in the next section to define the logical relation we use in practice.
 
-\subsection{Standard Regions}
-\label{subsec:standard-regions}
-To define the value relation, we use a standard heap invariant that ensures all values in the region are in the value relation. The following region uses pairs of natural numbers, $(\var{base},\var{end})$, as states, so pairs of natural numbers are in the set $\States$.
-\[
-  \iota_{\var{start},\var{end}} \; : \; \Regions
-\]
+\subsection{Logical Relation Definitions}
+\label{subsec:logical-relation-definitions}
+\lau{This section introduces the definitions, we started working with, so it is here so we don't have to rewrite everything.}
+Here we state the definitions, we will use for pratical purposes.  Assume $V$ is the fixed point given by Banach's fixed point theorem as described in Section~\ref{subsubsec:value-relation}. In general the definitions here will be the same as in Section~\ref{subsec:logical-relation-setup}, but but applied to $V$ when applicable. As they are essentially the same, we will reuse the names.
+
 \begin{align*}
-  \iota_{\var{base},\var{end}} & \defeq ((\var{base},\var{end}),=,H_{\var{std}}) \\
-  H_{\var{std}}\; (\var{base},\var{end})\; W &  \defeq \left\{ \npair{\hs} \middle|
-                                               \begin{aligned}
-                                                 & \dom(\hs) = [\var{base},\var{end}] \land \\
-                                                 & \forall \addr \in [\var{base},\var{end}] \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\xi \; W)
-                                               \end{aligned} \right\}
+  \stdrr & \defeq \stdrr \; V \\
+  \stdkr & \defeq \stdkr \; V \\
+  \stder & \defeq \stder \; V \\
+  \stdvr & \defeq \stdvr \; V 
 \end{align*}
-Note that this region is defined in terms of the value relation, and the value relation is defined in terms of this invariant. We define the well-definedness lemma here, but show it in the appendix.
 
-\begin{lemma}[$\iota_{\var{start},\var{end}}$ is well-defined]
-\label{lem:std-region-wd}
-  For all $\var{base}$ and $\var{end}$, $H_{\var{std}}\; (\var{base}, \var{end})$ is monotone and non-expansive. $=$ is a reflexive and transitive relation.
-\end{lemma}
+\begin{align*}
+  \iota_{\start,\addrend} & \defeq \iota_{\start,\addrend} \; V \\
+  H_{\var{std}}          & \defeq H_{\var{std}} \; V
+\end{align*}
 
-Another standard heap invariant that ensures all the words in the region are 0.
+For natural number $n$, adresses $\start$, $\addrend$, and $\addr$, permission $\perm$, and world $W$, we define the capability conditions as follows
+\begin{align*}
+  \readCond{n,W,\start,\addrend}        & \text{ iff } n \in \readCond{}(V)(\start,\addrend,W)\\
+  \writeCond{n,W,\start,\addrend}       & \text{ iff } n \in \writeCond{}(V)(\start,\addrend,W)\\
+  \execCond{n,W,\start,\addrend,\perm}  & \text{ iff } n \in \execCond{}(V)(\start,\addrend,p,W)\\
+  \entryCond{n,W,\start,\addrend,\addr} & \text{ iff } n \in \entryCond{}(V)(\start,\addrend,\addr,W)
+\end{align*}
+The well-formedness lemmas of course still hold for this new presentation.
+
+\subsection{Further Standard Regions}
+\label{subsec:further-standard-regions}
+We have already defined the standard region $\iota_{\start,\addrend}$ which ensures that all the words in the region are in the value relation. See Section~\ref{subsubsec:standard-region}. We here define another usefull region, namely the one that requires all the words in the region to be the constant 0.
 \[
-  \iota_{\var{start},\var{end}}^0 \; : \; \Regions
+  \iota_{\start,\addrend}^0 \; : \; \Regions
 \]
 \begin{align*}
-  \iota_{\var{base},\var{end}}^0 & \defeq ((\var{base},\var{end}),=,H_{\var{std}}^0) \\
-  H_{\var{std}}^0\; (\var{base},\var{end})\; W     & \defeq\left\{ \npair{\heapseg} \middle| 
+  \iota_{\start,\addrend}^0 & \defeq ((\start,\addrend),=,H_{\var{std}}^0) \\
+  H_{\var{std}}^0\; (\start,\addrend)\; W     & \defeq\left\{ \npair{\heapseg} \middle| 
                                                      \begin{aligned}
-                                                       & \dom(\heapseg) = [\var{base},\var{end}] \land \\
+                                                       & \dom(\heapseg) = [\start,\addrend] \land \\
                                                        & \forall \addr \in \dom(\heapseg) \ldotp \heapseg(\addr) = 0  
                                                      \end{aligned} \right\}
 \end{align*}
 
-\begin{lemma}[$\iota_{\var{base},\var{end}}^0$ is well-defined]
+\begin{lemma}[$\iota_{\start,\addrend}^0$ is well-defined]\forcenewline
 \label{lem:std-z-region-wd}
-    For all $\var{base}$ and $\var{end}$, $H_{\var{std}}^0 \; (\var{base},\var{end})$ is monotone and non-expansive. $=$ is a reflexive and transitive relation.
+\begin{itemize}
+  \item $H_{\var{std}}^0$ is non-expansive.
+  \item For all adresses $\start$
+    and $\addrend$, $ H_{\var{std}}^0 \; (\start,\addrend)$ is monotone and non-expansive.
+  \item  $=$ is a reflexive and transitive relation.
+\end{itemize}
 \end{lemma}
 
 \subsection{Value Relation}
@@ -2398,7 +2415,7 @@ which is what we neede to show.
 
 \end{proof}
 
-\section{Proof of Lemmas in Section~\ref{subsec:standard-regions}}
+\section{Proof of Lemmas in Section~\ref{subsec:further-standard-regions}}
 \begin{proof}[Proof of Lemma~\ref{lem:std-reg-mono-world}]
   %TODO
 \end{proof}
