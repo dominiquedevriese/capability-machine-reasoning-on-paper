@@ -1438,8 +1438,7 @@ We have already defined the standard region $\iota_{\start,\addrend}$ which ensu
                                                      \end{aligned} \right\}
 \end{align*}
 
-\begin{lemma}[$\iota_{\start,\addrend}^0$ is well-defined]\forcenewline
-\label{lem:std-z-region-wd}
+\begin{lemma}[$\iota_{\start,\addrend}^0$ is well-defined]\label{lem:std-z-region-wd}\forcenewline
 \begin{itemize}
   \item $H_{\var{std}}^0$ is non-expansive.
   \item For all adresses $\start$
@@ -1448,93 +1447,7 @@ We have already defined the standard region $\iota_{\start,\addrend}$ which ensu
 \end{itemize}
 \end{lemma}
 
-\subsection{Value Relation}
-In order to define the value relation concisely using the standard regions from Subsection~\ref{subsec:standard-regions}, we define the following conditions:
-\begin{align*}
-  \readCond{n,W,\start,\addrend} =        & \;\exists r \in \RegionNames \ldotp \\
-                                          & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp\\
-                                          & \;\qquad W(r)\nsubeq[n-1] \iota_{\start',\addrend'} \\ & \\
-  \writeCond{n,W,\start,\addrend} =       & \; \exists r \in \RegionNames \ldotp \\
-                                          & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r) \nequal[n-1] \iota_{\start',\addrend'} \\ & \\
-  \execCond{n,W,\start,\addrend,\perm} =  & \; \forall n' < n \ldotp \forall W' \future W \ldotp \\
-                                          & \; \quad \forall \addr \in [\start,\addrend] \ldotp \\
-                                          & \; \qquad \npair[n']{(\perm,\start,\addrend,\addr)} \in \stder(W') \\ & \\
-  \entryCond{n,W,\start,\addrend,\addr} = & \; \forall n' < n \ldotp \forall W' \future W \ldotp \\
-                                          & \; \quad \npair[n']{(\exec,\start,\addrend,\addr)} \in \stder(W') \\
-\end{align*}
-
-\begin{align*}
-  \stdvr & :  \Worlds \monfun \UPred{\Words} \\
-  \stdvr &\defeq \lambda \; W. 
-              \begin{aligned}[t]
-  & \{ \npair{i} \mid i \in \ints \} 
-    \union \\
-         & \{ \npair{\stdcap[\noperm] }  \} 
-           \union \\
-         & \{ \npair{\stdcap[\readonly] } \mid \readCond{n,W,\start,\addrend} \} \union \\
-         & \{ \npair{\stdcap[\readwrite] } \mid \writeCond{n,W,\start,\addrend} \} \union \\
-         & \{ \npair{\stdcap[\exec]} \mid \\
-         & \quad\readCond{n,W,\start,\addrend} \land \\
-         & \quad \execCond{n,W,\start,\addrend,\exec} \}
-           \union \\
-           % For the entry case a capability is acceptable, if we can change it to an execute permission and put it as the pc and we otherwise have valid words in the registers, then the register file should be valid.
-         & \{ \npair{\stdcap[\entry]} \mid \entryCond{n,W,\start,\addrend} \} \union \\
-         & \{ \npair{\stdcap[\rwx]} \mid \\
-         & \quad \writeCond{n,W,\start,\addrend} \land \\
-         & \quad \execCond{n,W,\start,\addrend,\exec} \land \\
-         & \quad \execCond{n,W,\start,\addrend,\rwx} \}
-       \end{aligned}
-\end{align*}
-
-\begin{align*}
-  \observations \quad : & \quad  \Worlds \rightarrow \UPred{\Regs \times \HeapSegments} \\
-  \observations (W) \defeq & \{ \npair{(\reg,\hs)} \mid \\
-                           & \quad (\forall \heap_f, \heap', i \leq n \ldotp (\reg,\hs \uplus \heap_f) \step[i] (\halted,\heap')  \\
-                           & \qquad \Rightarrow \exists W' \future W \ldotp\exists \hs' \ldotp \heap' = \hs' \uplus \heap_f \land \heapSat[\hs']{n-i}{W'}
-\end{align*}
-Removed the condition $\npair[n-i]{\heap'(0)} \in \stdvr(W)$.\\
-
-The ``good observations'' are as follows
-\begin{itemize}
-\item The execution does not stop in $n$ steps. 
-\item The execution stops with a $\failed$.
-\item The execution halts in at most $n$ steps with a heap where the island that governs address 0 is satisfied by some heap segment.
-\end{itemize}
-Address 0 is the designated I/O address.
-\\ \lau{The two first conditions where implied by the last one, so they were removed. It turned out to cause troubles to special case on address 0, so now the entire heap has to satisfy a future world (which is a bit worrying as only the i/o address is observable).}
-
-Register-file relation:
-\begin{align*}
-  \stdrr \quad : & \quad \Worlds \monfun \UPred{\Regs} \\
-  \stdrr(W) \defeq & \{ \npair{\reg} \mid \\
-                    & \quad \forall r \in \RegName \setminus \{\pcreg\} \ldotp \\
-                    & \qquad  \npair{\reg(r)} \in \stdvr(W) \}
-\end{align*}
-
-``Continuation'' relation:
-\begin{align*}
-  \stdkr \quad : & \quad  \Worlds \monfun \UPred{\Words} \\%TODO: Check if this is still monotone
-  \stdkr(W) \defeq & \{ \npair{c} \mid \npair{c} \in \stdvr(W) \land \\
-                   & \quad \forall W' \future W, n' < n\ldotp %on the whiteboard, we had public future world.
-                     \forall \heapSat[\hs]{n'}{W'} \ldotp \forall \reg, \npair[n']{reg} \in \stdrr(W') \ldotp \\
-                   & \qquad \npair[n']{(reg\update{\pcreg}{\updatePcPerm{\var{c}}},\hs)} \in \observations(W') \}
-\end{align*}
-We require the continuation to be in the value relation, because it will have to be in the registers when it is invoked, so to argue that the register file is in the register-file relation, we need to know that the continuation is in the value relation.
-
-Normally, it would just be required for the return value to be in the value relation, so the continuation is invoked with this value. Here everything that is in the register file is available when the continuation is invoked, so we do not special case on $r_1$ (which is the register that in the calling convention we use should contain the return value). 
-
-``Expression'' relation:
-\begin{align*}
-  \stder \quad : & \quad \Worlds \rightarrow \UPred{\Words} \\%TODO: Check whether this needs to be monotone
-  \stder(W) \defeq & \{ \npair{\pc} \mid \\
-                   & \quad \forall n' \leq n \ldotp\\
-                   & \qquad \forall \npair[n']{\reg} \in \stdrr(W) \ldotp \\
-                   & \qquad \quad \forall \npair[n']{c} \in \stdkr(W) \ldotp \\
-                   & \qquad \qquad  \forall \heapSat[\hs]{n'}{W} \ldotp \\
-                   & \qquad \qquad \quad \npair[n']{(\reg\update{r_0}{c}\update{\pcreg}{\pc},\hs)} \in \observations(W) \}
-\end{align*}
-\lau{Added $n' \leq n$ to be able to prove Lemma~\ref{lem:stder-dc}}
-
+\subsection{Fundamental Theorem of Logical Relations}
 \begin{lemma}[Fundamental theorem of logical relations (FTLR)] \forcenewline
   For any $n \in \nats$, $W \in \Worlds$, $p\in \Perms$, and addresses $\var{base}$, $\var{end}$, and $a$, if $\perm = \rwx$ and $\writeCond{n,W,\var{base},\var{end}}$ or $\perm = \exec$ and $\readCond{n,W,\var{base},\var{end}}$, then $\npair{(\perm, \var{base}, \var{end}, a)} \in \stder(W)$.
 \end{lemma} %TODO: Change the condition here to be writeCondition (and readCondition)
