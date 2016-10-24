@@ -76,6 +76,7 @@
 \newcommand{\word}{\var{w}}
 \newcommand{\start}{\var{base}}
 \newcommand{\addrend}{\var{end}}
+\newcommand{\pwlv}{\var{pwl}}
 \newcommand{\mem}{\var{mem}}
 \newcommand{\reg}{\var{reg}}
 \newcommand{\heapseg}{\var{hs}}
@@ -155,6 +156,8 @@
 \newcommand{\nats}{\mathbb{N}}
 \newcommand{\ints}{\mathbb{Z}}
 \newcommand{\Perms}{\plaindom{Perm}}
+\newcommand{\Globals}{\plaindom{Global}}
+\newcommand{\PWLs}{\plaindom{PermitWriteLocal}}
 
 \newcommand{\Rel}{\plaindom{Rel}}
 \newcommand{\States}{\plaindom{State}}
@@ -214,6 +217,14 @@
 \newcommand{\exec}{\plainperm{rx}}
 \newcommand{\entry}{\plainperm{e}}
 \newcommand{\rwx}{\plainperm{rwx}}
+
+%Global/local
+\newcommand{\local}{\plainperm{local}}
+\newcommand{\glob}{\plainperm{global}}
+
+%PWLs
+\newcommand{\pwl}{\plaindom{pwl}}
+\newcommand{\nwl}{\plaindom{nwl}}
 
 %OP sem
 \newcommand{\diverge}[1][n]{\not\Downarrow_{#1}}
@@ -287,15 +298,15 @@ i      &::=& \fail \mid \halt \mid
 \subsection*{Semantics}
 Assume a $\decode$ function that decodes integer to instructions:
 \begin{align*}
-\decode &:\Words \rightarrow \Instrs
+\decode &:\Words \fun \Instrs
 \end{align*}
 Assume an $\encodePerm$ function that encodes a permission as an integer:
 \begin{align*}
-\encodePerm &: \Perms \rightarrow \ints
+\encodePerm &: \Perms \fun \ints
 \end{align*}
 Further, assume an inverse function, $\decodePerm$, that decodes permissions
 \[
-  \decodePerm : \ints \rightarrow \Perms
+  \decodePerm : \ints \fun \Perms
 \]
 \begin{align*}
   \Phi & \rightarrow \sem{\decode(\memheap(\addr))}(\Phi) & &                                   
@@ -1733,6 +1744,86 @@ Using execution~\ref{eq:ftlr:conf-steps}, we can conclude that $p' \in \{\rwx,\e
 \case{\plus{}{}{}}
 
 \end{proof}
+
+\section{Adding Local capabilities}
+In this section, we add local capabilities and define a new logical relation for this setting.
+\lau{Should we do this in a new document?}
+The definitions are the same as before apart from the changes below:
+\begin{align*}
+  \PWLs & = 2 \\
+  \Globals & = 2 \\
+  \Caps & = \Perms \times \Globals \times \PWLs \times \Addrs \times \Addrs \times \Addrs
+\end{align*}
+That is the only new domains are the two element domains $\Globals$ which represents whether a capability is global or local and $\PWLs$ which represents whether a capability is permit write local or not. The $\Caps$ domain change to include both of these. The ordering of $\Globals$ is specified in Figure~\ref{fig:glob-hier} and the ordering of $\PWLs$ is specified in Figure~\ref{fig:pwl-hier}.
+\begin{figure}[!h]
+  \centering
+  \begin{tikzpicture}[main node/.style={}]
+  \node[main node] (1) {$\glob$};
+  \node[main node] (2) [below of=1] {$\local$};
+
+  \path[every node/.style={font=\sffamily\small}]
+    (1) edge (2);
+\end{tikzpicture}
+\caption{Permission hierarchy}
+\label{fig:glob-hier}
+\end{figure}
+
+\begin{figure}[!h]
+  \centering
+  \begin{tikzpicture}[main node/.style={}]
+  \node[main node] (1) {$\pwl$};
+  \node[main node] (2) [below of=1] {$\nwl$};
+
+  \path[every node/.style={font=\sffamily\small}]
+    (1) edge (2);
+\end{tikzpicture}
+\caption{Permission hierarchy}
+\label{fig:pwl-hier}
+\end{figure}
+
+In order to define the operationtal semantics, we assume a decode function, $\decodePerm$ from
+
+\[
+  \decodePerm : \ints \fun \perm \times 2 \times 2
+\]
+
+There are two parts of the operational semantics that changes. The first one is $\store$ as it is the only instruction that allows one to write to the heap. It will now have an extra condition that makes sure that local capabilities are only written through capabilities that permit write local. The semantics of $\restrict$ also changes to allow $\glob$ capabilities to become $\local$ and $\pwl$ (permit write local) to become $\nwl$ (no write local).
+
+\renewcommand{\stdcap}[1][\perm]{\left(#1,g,\pwlv,\start,\addrend,\addr \right)}
+
+\begin{align*}
+   \sem{\store{\refheap{r_1}}{\refreg{r_2}}} & = 
+                                             \begin{cases}
+                                               \stdUpdatePc{\updateHeap{\addr}{\var{w}}} &
+                                               \arraycolsep=0pt
+                                               \begin{array}{l}
+                                                 \text{if }\memreg(r_1) = (\perm,\_,\pwlv,\_,\_,\addr) = \var{c} \\
+                                                 \quad\text{and }\writeAllowed{\perm} \text{ and } \withinBounds{\var{c}} \\
+                                                 \quad\text{and } \var{w} = \memreg(r_2) \\
+                                                 \quad\text{and if } \var{w} = (\_, \var{g}, \_, \_, \_, \_)\text{, then } \pwlv = \pwl
+                                               \end{array}\\
+                                               \failed & \text{otherwise }
+                                             \end{cases}\\
+  \sem{\restrict{\refreg{r_1}}{\rv_1}{\rv_2}}           & =
+                                             \begin{cases}
+                                               \stdUpdatePc{\updateReg{r_1}{\var{c}}}  &
+                                                 \arraycolsep=0pt
+                                                 \begin{array}{l}
+                                                   \text{if $\memreg(\rv_1) = c'$}\\
+                                                   \quad\text{and $c' = \stdcap$}\\
+                                                   \quad\text{and either $\rv_2 = n$ or $\memreg(\rv_2) = n$}\\
+                                                   \quad\text{and in either case $n \in \ints$}\\
+                                                   \quad\text{and $(\perm', \var{g}',\pwlv') = \decodePerm(n)$}\\
+                                                   \quad\text{and $\perm' \sqsubseteq \perm$}\\
+                                                   \quad\text{and $\var{g}' \sqsubseteq \var{g}$}\\
+                                                   \quad\text{and $\pwlv'\sqsubseteq \pwlv$}\\
+                                                   \quad\text{and $c = (\perm',
+\var{g}', \pwlv',\start,\addrend,\addr)$}
+                                                 \end{array}\\
+                                               \failed                   & \text{otherwise}
+                                             \end{cases} 
+\end{align*}
+
 
 \section{Other examples and applications}
 \label{sec:other_apps}
