@@ -20,9 +20,9 @@
 \usepackage{tikz}
 \usepackage{multirow}
 
-\declaretheorem[numbered=yes,name=Lemma]{lemma}
-\declaretheorem[numbered=yes,name=Definition]{definition}
-\declaretheorem[numbered=yes,name=Specification]{specification}
+\declaretheorem[numbered=yes,name=Lemma,qed=$\blacksquare$]{lemma}
+\declaretheorem[numbered=yes,name=Definition,qed=$\blacksquare$]{definition}
+\declaretheorem[numbered=yes,name=Specification,qed=$\blacksquare$]{specification}
 
 \newcommand{\forcenewline}{$\phantom{v}$\\}
 
@@ -33,10 +33,10 @@
 \newcommand{\restrictfun}[1]{|_{#1}}
 \newcommand{\parfun}{\rightharpoonup}
 \newcommand{\finparfun}{\stackrel{\textit{\tiny{fin}}}{\rightharpoonup}}
-\newcommand{\monnefun}{\stackrel{\textit{\tiny{mon, ne}}}{\longrightarrow}}
-\newcommand{\monfun}{\stackrel{\textit{\tiny{mon}}}{\longrightarrow}}
-\newcommand{\nefun}{\stackrel{\textit{\tiny{ne}}}{\longrightarrow}}
-\newcommand{\fun}{\longrightarrow}
+\newcommand{\monnefun}{\stackrel{\textit{\tiny{mon, ne}}}{\rightarrow}}
+\newcommand{\monfun}{\stackrel{\textit{\tiny{mon}}}{\rightarrow}}
+\newcommand{\nefun}{\stackrel{\textit{\tiny{ne}}}{\rightarrow}}
+\newcommand{\fun}{\rightarrow}
 \newcommand{\defeq}{\stackrel{\textit{\tiny{def}}}{=}}
 \newcommand{\nequal}[1][n]{\stackrel{\tiny{#1}}{=}}
 \newcommand{\nsubeq}[1][n]{\stackrel{\tiny{#1}}{\subseteq}}
@@ -61,6 +61,7 @@
 %Comments
 \newcommand\lau[1]{{\color{purple} \sf \footnotesize {LS: #1}}\\}
 \newcommand\dominique[1]{{\color{purple} \sf \footnotesize {DD: #1}}\\}
+\newcommand\kars[1]{{\color{purple} \sf \footnotesize {LB: #1}}\\}
 
 %Variables
 \newcommand{\var}[1]{\mathit{#1}}
@@ -75,6 +76,7 @@
 \newcommand{\word}{\var{w}}
 \newcommand{\start}{\var{base}}
 \newcommand{\addrend}{\var{end}}
+\newcommand{\pwlv}{\var{pwl}}
 \newcommand{\mem}{\var{mem}}
 \newcommand{\reg}{\var{reg}}
 \newcommand{\heapseg}{\var{hs}}
@@ -107,6 +109,7 @@
 \newcommand{\decode}{\plainfun{decode}{}}
 \newcommand{\encode}{\plainfun{encode}{}}
 \newcommand{\encodePerm}{\plainfun{encodePerm}{}}
+\newcommand{\decodePerm}{\plainfun{decodePerm}{}}
 \newcommand{\updatePcPerm}[1]{\plainfun{updatePcPerm}{#1}}
 
 \newcommand{\executeAllowed}[1]{\plainfun{executeAllowed}{#1}}
@@ -153,6 +156,8 @@
 \newcommand{\nats}{\mathbb{N}}
 \newcommand{\ints}{\mathbb{Z}}
 \newcommand{\Perms}{\plaindom{Perm}}
+\newcommand{\Globals}{\plaindom{Global}}
+\newcommand{\PWLs}{\plaindom{PermitWriteLocal}}
 
 \newcommand{\Rel}{\plaindom{Rel}}
 \newcommand{\States}{\plaindom{State}}
@@ -162,6 +167,7 @@
 \newcommand{\Wor}{\plaindom{Wor}}
 \newcommand{\StorePred}{\plaindom{HeapSegPred}}
 \newcommand{\UPred}[1]{\plaindom{UPred}(#1)}
+\newcommand{\DCPred}[1]{\plaindom{P}^\downarrow(#1)}
 
 %LR
 \newcommand{\intr}[2]{\mathcal{#1}}
@@ -211,6 +217,14 @@
 \newcommand{\exec}{\plainperm{rx}}
 \newcommand{\entry}{\plainperm{e}}
 \newcommand{\rwx}{\plainperm{rwx}}
+
+%Global/local
+\newcommand{\local}{\plainperm{local}}
+\newcommand{\glob}{\plainperm{global}}
+
+%PWLs
+\newcommand{\pwl}{\plaindom{pwl}}
+\newcommand{\nwl}{\plaindom{nwl}}
 
 %OP sem
 \newcommand{\diverge}[1][n]{\not\Downarrow_{#1}}
@@ -284,12 +298,16 @@ i      &::=& \fail \mid \halt \mid
 \subsection*{Semantics}
 Assume a $\decode$ function that decodes integer to instructions:
 \begin{align*}
-\decode &:\Words \rightarrow \Instrs
+\decode &:\Words \fun \Instrs
 \end{align*}
 Assume an $\encodePerm$ function that encodes a permission as an integer:
 \begin{align*}
-\encodePerm &: \Perms \rightarrow \ints
+\encodePerm &: \Perms \fun \ints
 \end{align*}
+Further, assume an inverse function, $\decodePerm$, that decodes permissions
+\[
+  \decodePerm : \ints \fun \Perms
+\]
 \begin{align*}
   \Phi & \rightarrow \sem{\decode(\memheap(\addr))}(\Phi) & &                                   
                                                               \arraycolsep=0pt
@@ -317,10 +335,10 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                              \true & \text{if } \perm \in \{ \rwx, \readwrite\} \\
                              \false & \text{otherwise}
                            \end{cases} \\
-  \updatePcPerm{(\perm,\start,\addrend,\addr)} &=
+  \updatePcPerm{w} &=
                                      \begin{cases}
-                                       (\exec,\start,\addrend,\addr) & \text{if $\perm = \entry$}\\
-                                       (\perm,\start,\addrend,\addr) & \text{otherwise} 
+                                       (\exec,\start,\addrend,\addr) & \text{if $w = (\entry,\start,\addrend,\addr)$}\\
+                                       w & \text{otherwise} 
                                      \end{cases} \\
   \nonZero{w} &=
                 \begin{cases}
@@ -405,7 +423,7 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                                                    \quad\text{and $c' = \stdcap$}\\
                                                    \quad\text{and either $\rv_2 = n$ or $\memreg(\rv_2) = n$}\\
                                                    \quad\text{and in either case $n \in \ints$}\\
-                                                   \quad\text{and $\var{newPerm} = \encodePerm(n)$}\\
+                                                   \quad\text{and $\var{newPerm} = \decodePerm(n)$}\\
                                                    \quad\text{and $\var{newPerm} \sqsubseteq \perm$}\\
                                                    \quad\text{and $c = (\var{newPerm},\start,\addrend,\addr)$}
                                                  \end{array}\\
@@ -419,7 +437,7 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                                                             \arraycolsep=0pt
                                                             \begin{array}{l}
                                                               \text{if for $i \in \{1,2\}$}\\
-                                                              \quad\text{$n_i = \rv_i$ or $n_i = \memreg{\rv_i}$}\\
+                                                              \quad\text{$n_i = \rv_i$ or $n_i = \memreg(\rv_i)$}\\
                                                               \quad\text{and in either case $n_i \in \ints$}
                                                             \end{array}\\
                                                             \failed & \text{otherwise}
@@ -764,14 +782,16 @@ This cannot be solved with sets, so we use preordered complete ordered families 
 \end{definition}
 
 \begin{definition}[Preordered \cofes]
-  A preordered \cofe{}\ is a \cofe{}\ equiped with a preorder on $X$, $\left(X, \left(\nequal\right)_{n=0}^{\infty}, \future \right)$. That is the ordering must satisfy the following
+  A preordered \cofe{}\ is a \cofe{}\ equiped with a preorder on $X$, $\left(X, \left(\nequal\right)_{n=0}^{\infty}, \future \right)$. 
   \begin{itemize}
-  \item $\forall x \in X \ldotp x \future x$
-  \item $\forall x,y,z \in X \ldotp x \future y \land y \future z \Rightarrow x \future z$
+  \item The ordering preserves limits. That is, for Cauchy chains $\{a_n\}_n$ and $\{b_n\}_n$ in $X$ if $\{a_n\}_n \future\{b_n\}_n$, then $\lim \{a_n\}_n \future \lim \{b_n\}_n$.
   \end{itemize}
+  % Preorder:
+  % \begin{itemize}
+  % \item $\forall x \in X \ldotp x \future x$
+  % \item $\forall x,y,z \in X \ldotp x \future y \land y \future z \Rightarrow x \future z$
+  % \end{itemize}
 \end{definition}
-
-The category of \cofes{} is the category whith \cofes{} as objects and non-expansive functions as morphisms. We denote this category $\CatC$. The category of preordered \cofes{} has preordered \cofes{} as objects and monotone and non-expansive functions as morphisms. We denote this category $\CatP$.
 
 \begin{definition}[Preordered \cofe{}\ construction: Finite-partial function]
   Given a set $S$ and preordered \cofe{}\ $X$, $S \finparfun X$ is a preordered \cofe{}\ with the ordering
@@ -784,8 +804,8 @@ The category of \cofes{} is the category whith \cofes{} as objects and non-expan
   \]
 \end{definition}
 
-We need the following constructions to create the preordered \cofe{}, we want to
-work use \dominique{this sentence doesn't parse :)}
+We need the following constructions to create the preordered \cofe{} needed to solve the recursive domain equation.
+\dominique{this sentence doesn't parse :)}
 \begin{definition}[Preordered \cofe{}\ construction: Function]
   Given a set $S$ and \cofe{}\ $\var{HP}$, $S \fun \var{HP}$ is a preordered \cofe{}\ with the ordering
 \[
@@ -809,7 +829,7 @@ work use \dominique{this sentence doesn't parse :)}
 \end{definition}
 
 The above are standard constructions, so they are used here without showing they
-are in fact well-defined.
+are in fact well-defined as shown in \cite{Birkedal:tutorial-notes}.
 
 \begin{definition}[Preordered \cofe{}\ construction: Region]
   \label{def:pcofe-region}
@@ -843,8 +863,8 @@ are in fact well-defined.
   \end{itemize}
 \end{lemma}
 
-\dominique{What is HS? Do you mean $\HeapSegments$?}
-\dominique{Why the exponential in the definition of $G$, why not $W^{\States} \monnefun \UPred{HS}$?}
+The category of \cofes{} is the category whith \cofes{} as objects and non-expansive functions as morphisms. We denote this category $\CatC$. The category of preordered \cofes{} has preordered \cofes{} as objects and monotone and non-expansive functions as morphisms. We denote this category $\CatP$.
+
 Define functors $K$, $R$, and $G$ as follows:
 \begin{align*}
   & K : \CatP \rightarrow \CatP \\
@@ -856,7 +876,7 @@ Define functors $K$, $R$, and $G$ as follows:
   & R(h) = \lambda (s,\Phi,H) \ldotp (s,\Phi,h(H))\\
   & \\
   & G : \CatP^{\var{op}} \rightarrow \CatC \\
-  & G(W) = \UPred{HS}^{W^{\States}} \\
+  & G(W) = \States \nefun W \monnefun \UPred{HS} \\
   & G(g) = \lambda H \ldotp \lambda \var{st} \ldotp \lambda x \ldotp H (\var{st})(g(x))
 \end{align*}
 We first show that $K$, $R$, and $G$ are well-defined mappings.
@@ -932,19 +952,34 @@ We have a theorem that gives us a solution to the recurisve domain equation
 The solution to the recursice domain equations is presented by \cite{Birkedal:2010:TCS:411:4102-4122}. They solve it in pre-ordered, non-empty, complete, 1-bounded ultrametric spaces, but they have a simple correspondence to pre-ordered \cofes{}.
 
 \subsection{Worlds}
+\label{subsec:worlds}
 Assume preordered \cofe{}\ $\Wor$ and isomorphism $\xi$ such that:
 \[
   \xi : \Wor \cong \blater (\nats \finparfun (\States \times \Rel \times (\States \fun (\Wor \monnefun \UPred{\HeapSegments}))))
 \]
+$\xi$ is a morphism in the category $\CatP$ (the category of preordered \cofes{}), so it is non-expansive and monotone.
+
 We now define regions as
 \[
 \Regions \defeq (\States \times \Rel \times (\States \fun (\Wor \monnefun \UPred{\HeapSegments})))
 \]
-and we define worlds as
+define region names to be natural numbers, i.e.,
+\[
+  \RegionNames \defeq \nats
+\]
+and define worlds as
 \[
 \Worlds \defeq \RegionNames \finparfun \Regions
 \]
 To define future worlds and regions, We use the ordering inherited from the preordered \cofes{}.
+\begin{definition}[Future regions]
+For regions $(s_2,\phi_2,H_2), (s_1,\phi_1,H_1) \in \Regions$
+  \begin{align*}
+ (s_2,\phi_2,H_2) \future (s_1,\phi_1,H_1) &&\text{ iff } & &
+(\phi_1,H_1) = (\phi_2,H_2) \text{ and } (s_1,s_2) \in \phi_2
+  \end{align*}
+\end{definition}
+
 \begin{definition}[Future worlds]
   For $W, W' \in \Worlds$
  \begin{align*}
@@ -957,13 +992,22 @@ To define future worlds and regions, We use the ordering inherited from the preo
  \end{align*}
 \end{definition}
 
-\begin{definition}[Future regions]
-For regions $(s_2,\phi_2,H_2), (s_1,\phi_1,H_1) \in \Regions$
+\begin{lemma}[Future worlds transitive]
+\label{lem:future-worlds-trans}
   \begin{align*}
- (s_2,\phi_2,H_2) \future (s_1,\phi_1,H_1) &&\text{ iff } & &
-(\phi_1,H_1) = (\phi_2,H_2) \text{ and } (s_1,s_2) \in \phi_2
+    & \forall W, W', W'' \ldotp \\
+    & \quad  W'' \future W' \land W' \future W \Rightarrow W'' \future W
   \end{align*}
-\end{definition}
+\end{lemma}
+
+\begin{lemma}
+\label{lem:nequal-and-future-world}
+  \begin{align*}
+    & \forall W_1,W_2,W_1' \ldotp \\
+    & \quad W_1 \nequal W_2 \land W_1' \future W_1 \Rightarrow \\
+    & \qquad \exists W_2' \ldotp W_2' \future W_2 \land W_1' \nequal W_2'
+  \end{align*}
+\end{lemma}
 
 \begin{definition}[$n$-subset for regions]
 For regions $(s_1,\phi_1,H_1), (s_2,\phi_2,H_2) \in \Regions$
@@ -988,132 +1032,569 @@ For regions $(s_1,\phi_1,H_1), (s_2,\phi_2,H_2) \in \Regions$
   &\forall r \in \dom(W) \ldotp \forall n' < n \ldotp \npair[n']{R(r)} \in W(r).H(W(r).s)(\xi^{-1}(W))
 \end{aligned} 
 \end{align*}
-
 \end{definition}
 
-\subsection{Standard Regions}
-\label{subsec:standard-regions}
-A standard heap invariant that insures all values in the region are in the value  relation:
-\[
-  \iota_{\var{start},\var{end}} \; : \; \Regions
-\]
-\begin{align*}
-  \iota_{\var{base},\var{end}} & \defeq ((\var{base},\var{end}),=,H_{\var{std}}) \\
-  H_{\var{std}}\; (\var{base},\var{end})\; W &  \defeq \left\{ \npair{\hs} \middle|
-                                               \begin{aligned}
-                                                 & \dom(\hs) = [\var{base},\var{end}] \land \\
-                                                 & \forall \addr \in [\var{base},\var{end}] \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\xi \; W)
-                                               \end{aligned} \right\}
-\end{align*}
-\begin{lemma}[$\iota_{\var{start},\var{end}}$ is well-defined]
-\label{lem:std-region-wd}
-  For all $\var{base}$ and $\var{end}$, $H_{\var{std}}\; (\var{base}, \var{end})$ is monotone and non-expansive. $=$ is a reflexive and transitive relation.
+\begin{lemma}[Heap satisfaction uniformity]
+\label{lem:heapsat-dc}
+  \begin{align*}
+    & \forall n,n',\hs, W \ldotp\\
+    & \quad \heapSat[\hs]{n}{W} \land n' \leq n \Rightarrow \heapSat[\hs]{n'}{W}
+  \end{align*}
 \end{lemma}
 
-Another standard heap invariant that ensures all the words in the region are 0.
-\[
-  \iota_{\var{start},\var{end}}^0 \; : \; \Regions
-\]
-\begin{align*}
-  \iota_{\var{base},\var{end}}^0 & \defeq ((\var{base},\var{end}),=,H_{\var{std}}^0) \\
-  H_{\var{std}}^0\; (\var{base},\var{end})\; W     & \defeq\left\{ \npair{\heapseg} \middle| 
-                                                     \begin{aligned}
-                                                       & \dom(\heapseg) = [\var{base},\var{end}] \land \\
-                                                       & \forall \addr \in \dom(\heapseg) \ldotp \heapseg(\addr) = 0  
-                                                     \end{aligned} \right\}
-\end{align*}
-
-\begin{lemma}[$\iota_{\var{base},\var{end}}^0$ is well-defined]
-\label{lem:std-z-region-wd}
-    For all $\var{base}$ and $\var{end}$, $H_{\var{std}}^0 \; (\var{base},\var{end})$ is monotone and non-expansive. $=$ is a reflexive and transitive relation.
+\begin{lemma}[Heap satisfaction non-expansive]
+\label{lem:heapsat-ne}
+  \begin{align*}
+    & \forall n,\hs, W, W' \ldotp\\
+    & \quad \heapSat[\hs]{n}{W} \land W \nequal W' \Rightarrow \heapSat[\hs]{n}{W'}
+  \end{align*}
 \end{lemma}
 
-\subsection{Value Relation}
-In order to define the value relation consiely using the standard regions from the Subsection~\ref{subsec:standard-regions}, we define the following conditions:
+\subsection{Logical Relation Setup}
+\label{subsec:logical-relation-setup}
+Our logical relation is defined using multiple recursive definitions, so the definitions in the following subsections are defined simultaneously. We want to define the value relation as the fixed-point given by Banach's fixed-point theorem, so all our definitions will be parameterized with the value relation.
+\subsubsection{Observation Relation}
+\label{subsubsec:observation-relation}
+In order to define the expression relation, we define an observation relation.
 \begin{align*}
-  \readCond{n,W,\start,\addrend} =        & \;\exists r \in \RegionNames \ldotp \\
-                                          & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp\\
-                                          & \;\qquad W(r)\nsubeq[n-1] \iota_{\start',\addrend'} \\ & \\
-  \writeCond{n,W,\start,\addrend} =       & \; \exists r \in \RegionNames \ldotp \\
-                                          & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r) \nequal[n-1] \iota_{\start',\addrend'} \\ & \\
-  \execCond{n,W,\start,\addrend,\perm} =  & \; \forall n' < n \ldotp \forall W' \future W \ldotp \\
-                                          & \; \quad \forall \addr \in [\start,\addrend] \ldotp \\
-                                          & \; \qquad \npair[n']{(\perm,\start,\addrend,\addr)} \in \stder(W') \\ & \\
-  \entryCond{n,W,\start,\addrend,\addr} = & \; \forall n' < n \ldotp \forall W' \future W \ldotp \\
-                                          & \; \quad \npair[n']{(\exec,\start,\addrend,\addr)} \in \stder(W') \\
-\end{align*}
-
-\[
-\stdvr \; : \;  \Worlds \monfun \UPred{\Words}
-\]
-\begin{align*}
-  \stdvr(W) \defeq & \{ \npair{i} \mid i \in \ints \} 
-\union \\
-                   & \{ \npair{\stdcap[\noperm] }  \} 
-\union \\
-                   & \{ \npair{\stdcap[\readonly] } \mid \readCond{n,W,\start,\addrend} \} \union \\
-                   & \{ \npair{\stdcap[\readwrite] } \mid \writeCond{n,W,\start,\addrend} \} \union \\
-                   & \{ \npair{\stdcap[\exec]} \mid \\
-                   & \quad\readCond{n,W,\start,\addrend} \land \\
-                   & \quad \execCond{n,W,\start,\addrend,\exec} \}
-\union \\
-% For the entry case a capability is acceptable, if we can change it to an execute permission and put it as the pc and we otherwise have valid words in the registers, then the register file should be valid.
-                   & \{ \npair{\stdcap[\entry]} \mid \entryCond{n,W,\start,\addrend} \} \union \\
-                   & \{ \npair{\stdcap[\rwx]} \mid \\
-                   & \quad \writeCond{n,W,\start,\addrend} \land \\
-                   & \quad \execCond{n,W,\start,\addrend,\exec} \land \\
-                   & \quad \execCond{n,W,\start,\addrend,\rwx} \}
-\end{align*}
-
-\begin{align*}
-  \observations \quad : & \quad  \Worlds \rightarrow \UPred{\Regs \times \HeapSegments} \\
+  \observations \quad : & \quad  \Worlds \nefun \UPred{\Regs \times \HeapSegments} \\
   \observations (W) \defeq & \{ \npair{(\reg,\hs)} \mid \\
                            & \quad (\forall \heap_f, \heap', i \leq n \ldotp (\reg,\hs \uplus \heap_f) \step[i] (\halted,\heap')  \\
                            & \qquad \Rightarrow \exists W' \future W \ldotp\exists \hs' \ldotp \heap' = \hs' \uplus \heap_f \land \heapSat[\hs']{n-i}{W'}
 \end{align*}
-Removed the condition $\npair[n-i]{\heap'(0)} \in \stdvr(W)$.\\
+A pair of a register and a heap segment is ``good'' if we can put it together with a frame heap, so we can execute it. The execution should then end up in a heap where the frame remains the same and the remaining heap segment satisfies the world.
 
-The ``good observations'' are as follows
-\begin{itemize}
-\item The execution does not stop in $n$ steps. 
-\item The execution stops with a $\failed$.
-\item The execution halts in at most $n$ steps with a heap where the island that governs address 0 is satisfied by some heap segment.
-\end{itemize}
-Address 0 is the designated I/O address.
-\\ \lau{The two first conditions where implied by the last one, so they were removed. It turned out to cause troubles to special case on address 0, so now the entire heap has to satisfy a future world (which is a bit worrying as only the i/o address is observable).}
+Note that the operational semantic is total, so we cannot get stuck. If the execution ends up in a $\failed$ configuration, then we do not care about the heap and the registers. This is why, we only have requirements on the result when we end up in a $\halted$ configuration.
 
-Register-file relation:
+The following lemmas show that the observation relation is well-defined.
+\begin{lemma}[Observation relation uniformity]
+\label{lem:obs-dc}
+  \begin{align*}
+    &\forall n' < n \ldotp \forall W \ldotp \forall \reg \ldotp \forall \hs \ldotp\\
+    &\quad \npair{(\reg,\hs)} \in \observations(W) \Rightarrow \npair[n']{(\reg,\hs)} \in \observations(W)
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Observation relation non-expansive in worlds]
+\label{lem:obs-ne-worlds}
 \begin{align*}
-  \stdrr \quad : & \quad \Worlds \monfun \UPred{\Regs} \\
-  \stdrr(W) \defeq & \{ \npair{\reg} \mid \\
-                    & \quad \forall r \in \RegName \setminus \{\pcreg\} \ldotp \\
-                    & \qquad  \npair{\reg(r)} \in \stdvr(W) \}
+  &\forall W, W', n \ldotp \\
+  &\quad W \nequal W' \Rightarrow \observations(W) \nequal \observations(W')
 \end{align*}
+\end{lemma}
 
-``Continuation'' relation:
+\subsubsection{Regiser-File Relation}
+\label{subsubsec:register-file-relation}
+This relation is used in the definition of the continuation relation as well as the expression relation.
 \begin{align*}
-  \stdkr \quad : & \quad  \Worlds \monfun \UPred{\Words} \\%TODO: Check if this is still monotone
-  \stdkr(W) \defeq & \{ \npair{c} \mid \npair{c} \in \stdvr(W) \land \\
-                   & \quad \forall W' \future W, n' < n\ldotp %on the whiteboard, we had public future world.
-                     \forall \heapSat[\hs]{n'}{W'} \ldotp \forall \reg, \npair[n']{reg} \in \stdrr(W') \ldotp \\
-                   & \qquad \npair[n']{(reg\update{\pcreg}{\updatePcPerm{\var{c}}},\hs)} \in \observations(W') \}
+  \stdrr \quad : & \quad (\Worlds \monnefun \UPred{\Words}) \nefun \Worlds \monnefun \UPred{\Regs} \\
+  \stdrr \defeq & \lambda \stdvr \ldotp \lambda W \ldotp
+                     \begin{aligned}[t]
+                       \{ \npair{\reg} \mid & \;\forall r \in \RegName \setminus \{\pcreg\} \ldotp \\
+                                            & \;\quad  \npair{\reg(r)} \in \stdvr(W) \}
+                     \end{aligned}
+\end{align*}
+Well-formedness lemmas for this definition:
+\begin{lemma}[Register relation uniformity]
+\label{lem:reg-dc}
+  \begin{align*}
+    &\forall \stdvr, n' \leq n \ldotp \forall W \ldotp \forall \reg \ldotp\\
+    &\quad \npair{\reg} \in \stdrr(\stdvr)(W) \Rightarrow \npair[n']{\reg} \in \stdrr(\stdvr)(W)
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Register relation montone in worlds]
+\label{lem:reg-mono-worlds}
+  \begin{align*}
+    &\forall \stdvr, n \ldotp \forall W' \future W \ldotp \forall \reg \ldotp\\
+    &\quad \npair{\reg} \in \stdrr(\stdvr)(W) \Rightarrow \npair{\reg} \in \stdrr(\stdvr)(W')
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Register relation non-expansive in worlds]
+  \label{lem:reg-ne-worlds}
+  \begin{align*}
+    &\forall \stdvr, n \ldotp \forall W, W' \ldotp \\
+    &\quad W \nequal W' \\
+    &\qquad \Rightarrow \stdrr(\stdvr)(W) \nequal \stdrr(\stdvr)(W')
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Register relation non-expansive in value relation]
+\label{lem:reg-ne-vr}
+\begin{align*}
+  &\forall \stdvr, \stdvr', n \ldotp \stdvr \nequal \stdvr' \Rightarrow \stdrr(\stdvr) \nequal \stdrr(\stdvr')
+\end{align*}
+\end{lemma}
+
+\subsubsection{Continuation Relation}
+\label{subsubsec:continuation-relation}
+The continuation relation is used in the definition of the expression relation. The continuation relation ensures that if you continue execution through a continuation, then it will result in a good result according to the world.
+\begin{align*}
+  \stdkr \quad : & \quad (\Worlds \monnefun \UPred{\Words}) \nefun \Worlds \monnefun \UPred{\Words} \\
+  \stdkr \defeq & \lambda \stdvr \ldotp \lambda W \ldotp\{ \npair{c} \mid
+                     \begin{aligned}[t]
+                       & \npair{c} \in \stdvr(W) \land \\
+                       &  \forall W' \future W, n' < n\ldotp %on the whiteboard, we had public future world.
+                       \forall \heapSat[\hs]{n'}{W'} \ldotp \forall \reg, \npair[n']{reg} \in \stdrr(\stdvr)(W') \ldotp \\
+                       & \quad \npair[n']{(reg\update{\pcreg}{\updatePcPerm{\var{c}}},\hs)} \in \observations(W') \}
+                 \end{aligned}
 \end{align*}
 We require the continuation to be in the value relation, because it will have to be in the registers when it is invoked, so to argue that the register file is in the register-file relation, we need to know that the continuation is in the value relation.
 
 Normally, it would just be required for the return value to be in the value relation, so the continuation is invoked with this value. Here everything that is in the register file is available when the continuation is invoked, so we do not special case on $r_1$ (which is the register that in the calling convention we use should contain the return value). 
 
-``Expression'' relation:
-\begin{align*}
-  \stder \quad : & \quad \Worlds \rightarrow \UPred{\Words} \\%TODO: Check whether this needs to be monotone
-  \stder(W) \defeq & \{ \npair{\pc} \mid \\
-                   & \quad \forall n' \leq n \ldotp\\
-                   & \qquad \forall \npair[n']{\reg} \in \stdrr(W) \ldotp \\
-                   & \qquad \quad \forall \npair[n']{c} \in \stdkr(W) \ldotp \\
-                   & \qquad \qquad  \forall \heapSat[\hs]{n'}{W} \ldotp \\
-                   & \qquad \qquad \quad \npair[n']{(\reg\update{r_0}{c}\update{\pcreg}{\pc},\hs)} \in \observations(W) \}
-\end{align*}
-\lau{Added $n' \leq n$ to be able to prove Lemma~\ref{lem:stder-mon-step}}
 
+Well-definedness lemmas:
+\begin{lemma}[Continuation relation uniformity]
+\label{lem:stdkr-dc}
+  \begin{align*}
+    &\forall \stdvr \ldotp \forall n' \leq n \ldotp \forall W \ldotp \forall c \ldotp\\
+    &\quad \npair{c} \in \stdkr(\stdvr)(W) \Rightarrow \npair[n']{c} \in \stdkr(\stdvr)(W)
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Continuation relation monotone in worlds]
+\label{lem:stdkr-mono-worlds}
+  \begin{align*}
+    &\forall \stdvr \ldotp \forall n \ldotp \forall W' \future W \ldotp \forall c \ldotp\\
+    &\quad \npair{c} \in \stdkr(\stdvr)(W) \Rightarrow \npair{c} \in \stdkr(\stdvr)(W')
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Continuation relation non-expansive in worlds]
+  \label{lem:stdkr-ne-worlds}
+  \begin{align*}
+    &\forall \stdvr, n \ldotp \forall W, W' \ldotp\\
+    &\quad W \nequal W' \\
+    &\qquad \Rightarrow \stdkr(\stdvr)(W) \nequal \stdkr(\stdvr)(W')
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Continuation relation non-expansive in value relation]
+\label{lem:stdkr-ne-vr}
+\begin{align*}
+  &\forall \stdvr, \stdvr', n \ldotp \stdvr \nequal \stdvr' \Rightarrow \stdkr(\stdvr) \nequal \stdkr(\stdvr')
+\end{align*}
+\end{lemma}
+
+
+\subsubsection{Expression Relation}
+\label{subsubsec:expression-relation}
+The expression relation is defined as follows:
+\begin{align*}
+  \stder \quad : & \quad  (\Worlds \monnefun \UPred{\Words}) \nefun \Worlds \nefun \UPred{\Words} \\%TODO: Check whether this needs to be monotone
+  \stder \defeq & \lambda \stdvr \ldotp \lambda W \ldotp \{ \npair{\pc} \mid 
+  \begin{aligned}[t]
+    & \forall n' \leq n \ldotp\\
+    & \quad \forall \npair[n']{\reg} \in \stdrr(\stdvr)(W) \ldotp \\
+    & \quad \quad \forall \npair[n']{c} \in \stdkr(\stdvr)(W) \ldotp \\
+    & \quad \qquad  \forall \heapSat[\hs]{n'}{W} \ldotp \\
+    & \quad \qquad \quad \npair[n']{(\reg\update{r_0}{c}\update{\pcreg}{\pc},\hs)} \in \observations(W) \}
+  \end{aligned}
+\end{align*}
+Well-definedness lemmas:
+\begin{lemma}[Expression relation uniformity]
+\label{lem:stder-dc}
+  \begin{align*}
+    & \forall \stdvr \ldotp \forall n' \leq n \ldotp \forall W \ldotp \forall \pc \ldotp\\
+    & \quad \npair{\pc} \in \stder(\stdvr)(W) \Rightarrow \npair[n']{\pc} \in \stder(\stdvr)(W) 
+ \end{align*}
+\end{lemma}
+
+\begin{lemma}[Expression relation non-expansive in world]
+\label{lem:stder-ne-worlds}
+\begin{align*}
+  & \forall \stdvr \ldotp \forall W_1 \nequal W_2 \ldotp \stder(\stdvr)(W_1) \nequal \stder(\stdvr)(W_2)
+\end{align*}
+\end{lemma}
+
+\begin{lemma}[Expression relation non-expansive in value relation]
+\label{lem:stder-ne-vr}
+\begin{align*}
+  &\forall \stdvr, \stdvr', n \ldotp \stdvr \nequal \stdvr' \Rightarrow \stder(\stdvr) \nequal \stder(\stdvr')
+\end{align*}
+\end{lemma}
+
+
+\subsubsection{Standard Region}
+\label{subsubsec:standard-region}
+The following standard region is used in the definition of the value relation. Specifically, it is used in the $\readCond{}$ and the $\writeCond{}$ (to be defined next)
+
+\begin{align*}
+  \iota_{\var{start},\var{end}} & : \; (\Worlds \monnefun \UPred{\Words}) \nefun \Regions\\
+  \iota_{\var{base},\var{end}} & \defeq \lambda \; \stdvr \ldotp ((\var{base},\var{end}),=,H_{\var{std}} (\stdvr)) \\ & \\
+  H_{\var{std}} & : (\Worlds \monnefun \UPred{\Words}) \nefun \States \nefun \Wor \monnefun \UPred{\HeapSegments} \\
+  H_{\var{std}} \; \stdvr \; (\var{base},\var{end})\; \hat{W} &  \defeq \left\{ \npair{\hs} \middle|
+                                               \begin{aligned}
+                                                 & \dom(\hs) = [\var{base},\var{end}] \land \\
+                                                 & \forall \addr \in [\var{base},\var{end}] \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\xi \; \hat{W})
+                                               \end{aligned} \right\}
+\end{align*}
+As mentioned previously, the set of states contains the ``necessary'' states. For the above to make sense, the set of states contains pairs of natural numbers $(\var{base},\var{end})$.
+
+The well-definedness lemmas for the above is:
+\begin{lemma}[$H_{\var{std}}$ is monotone in the worlds]
+\label{lem:std-reg-mono-world}
+\begin{align*}
+  & \forall \stdvr \ldotp \forall \start, \addrend \ldotp \forall W' \future W \ldotp \\
+  & \quad H_{\var{std}}\; \stdvr \; (\var{base}, \var{end}) \; W' \supseteq H_{\var{std}}\; \stdvr \; (\var{base}, \var{end}) \; W
+\end{align*}
+\end{lemma}
+
+\begin{lemma}[$H_{\var{std}}$ is non-expansive in the worlds]
+\label{lem:std-reg-ne-world}
+\begin{align*}
+  & \forall \stdvr \ldotp \forall \start, \addrend \ldotp \forall n \ldotp \forall W_1 \nequal W_2 \ldotp \\
+  & \quad H_{\var{std}}\; \stdvr \; (\var{base}, \var{end}) \; W_1 \nequal H_{\var{std}}\; \stdvr \; (\var{base}, \var{end}) \; W
+\end{align*}
+\end{lemma}
+
+\begin{lemma}[$H_{\var{std}}$ is non-expansive in the value relation]
+\label{lem:std-reg-ne-vr}
+\begin{align*}
+  & \forall \stdvr, \stdvr' \ldotp \forall n \ldotp \stdvr \nequal \stdvr' \Rightarrow\\
+  & \quad H_{\var{std}}\; \stdvr \nequal H_{\var{std}}\; \stdvr'
+\end{align*}
+\end{lemma}
+
+\begin{lemma}[$H_{\var{std}}$ is uniform]
+  \label{lem:std-reg-dc}
+  \begin{align*}
+    & \forall \stdvr, s=(\start,\addrend), \hat{W}, n', n, \hs \ldotp \\
+    & \quad n' \leq n \land \npair{\hs} \in H_{\var{std}} \; \stdvr \; s \; \hat{W} \\
+    & \qquad \Rightarrow \npair[n']{\hs} \in H_{\var{std}} \; \stdvr \; s \; \hat{W}
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[$H_{\var{std}}$ is non-expansive in state]
+  \label{lem:std-reg-ne-state}
+  \begin{align*}
+    & \forall \stdvr, (\start,\addrend), (\start',\addrend'), n \ldotp \\
+    & \quad  (\start,\addrend) \nequal (\start',\addrend') \\
+    & \qquad \Rightarrow H_{\var{std}} \; \stdvr \; (\start,\addrend) \nequal H_{\var{std}} \; \stdvr \; (\start',\addrend')
+  \end{align*}
+\end{lemma}
+
+
+\begin{lemma}[$\iota_{\start,\addrend}$ is non-expansive in the value relation]
+\label{lem:std-reg-i-ne-vr}
+\begin{align*}
+  & \forall \start, \addrend \ldotp \forall \stdvr, \stdvr' \ldotp \forall n \ldotp \stdvr \nequal \stdvr' \Rightarrow\\
+  & \quad \iota_{\start,\addrend}\; \stdvr \nequal \iota_{\start,\addrend}\; \stdvr'
+\end{align*}
+\end{lemma}
+
+\subsubsection{Capability Conditions}
+\label{subsubsec:capability-conditions}
+The definition of the value relation has the same conditions several times, so to define it consisely, we define the following conditions.
+\begin{align*}
+  & \readCond{} : \; (\Worlds \monnefun \UPred{\Words}) \nefun (\Addrs^2 \times \Worlds) \monnefun \DCPred{\nats} \\
+  & \readCond{}(\stdvr)(\start,\addrend,W) =        
+  \begin{aligned}[t]
+    \{ n \mid & \;\exists r \in \RegionNames \ldotp \\
+              & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
+              & \;\qquad W(r)\nsubeq[n-1] \iota_{\start',\addrend'}(\stdvr) \}
+  \end{aligned}\\
+ & \\
+  & \writeCond{} : \; (\Worlds \monnefun \UPred{\Words}) \nefun (\Addrs^2 \times \Worlds) \monnefun \DCPred{\nats} \\
+  & \writeCond{}(\stdvr)(\start,\addrend, W) = 
+  \begin{aligned}[t]
+    \{ n \mid & \; \exists r \in \RegionNames \ldotp \\
+              & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
+              & \; \qquad W(r) \nequal[n-1] \iota_{\start',\addrend'}(\stdvr)  \}
+  \end{aligned}\\
+ & \\
+  & \execCond{} : \; (\Worlds \monnefun \UPred{\Words}) \nefun (\Addrs^2 \times \Perms \times \Worlds) \monnefun \DCPred{\nats} \\
+  & \execCond{}(\stdvr)(\start,\addrend,\perm,W) = 
+  \begin{aligned}[t]
+    \{ n \mid & \; \forall n' < n \ldotp \forall W' \future W \ldotp \\
+              & \; \quad \forall \addr \in [\start,\addrend] \ldotp \\
+              & \; \qquad \npair[n']{(\perm,\start,\addrend,\addr)} \in \stder(\stdvr)(W') \}
+  \end{aligned} \\
+ & \\
+  & \entryCond{} : \;  (\Worlds \monnefun \UPred{\Words}) \nefun (\Addrs^3 \times \Worlds) \monnefun \DCPred{\nats} \\
+  & \entryCond{}(\stdvr)(\start,\addrend,\addr,W) =
+  \begin{aligned}[t]
+    \{ n \mid & \; \forall n' < n \ldotp \forall W' \future W \ldotp \\
+              & \; \quad \npair[n']{(\exec,\start,\addrend,\addr)} \in \stder(\stdvr)(W') \}
+  \end{aligned}
+\end{align*}
+
+The following lemmas show that the above conditions are well-defined:
+\begin{lemma}[Read condition downwards-closed]
+\label{lem:rc-dc}
+  \begin{align*}
+    &\forall \stdvr, n,n',W,\start, \addrend \ldotp \\
+    &\quad  n \in \readCond{}(\stdvr)(\start,\addrend,W) \land \\
+    &\quad  n' \leq n \\
+    &\qquad \Rightarrow n' \in \readCond{}(\stdvr)(\start,\addrend,W)
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Read condition monotone in world]
+\label{lem:rc-mono-world}
+  \begin{align*}
+    &\forall \stdvr, n,W,W',\start, \addrend, \start',\addrend' \ldotp \\
+    &\quad  (\start',\addrend',W') \future (\start,\addrend,W) \\
+    &\qquad \Rightarrow \readCond{}(\stdvr)(\start',\addrend',W') \supseteq \readCond{}(\stdvr)(\start,\addrend,W)
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Read condition non-expansive in worlds]
+\label{lem:rc-ne-world}
+  \begin{align*}
+    & \forall \stdvr, \start, \addrend, \start', \addrend', n, W, W' \ldotp \\
+    & \quad (\start, \addrend,W) \nequal (\start', \addrend',W') \Rightarrow \\
+    & \qquad \readCond{}(\stdvr)(\start, \addrend,W) \nequal \readCond{}(\stdvr)(\start', \addrend',W')\\
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Read-write condition uniformity]
+\label{lem:wc-dc}
+  \begin{align*}
+    &\forall \stdvr, n,n',W,\start, \addrend \ldotp \\
+    &\quad  n \in \writeCond{}(\stdvr)(\start,\addrend,W) \land \\
+    &\quad  n' \leq n \\
+    &\qquad \Rightarrow n' \in \writeCond{}(\stdvr)(\start,\addrend,W)
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Read-write condition monotone in world]
+\label{lem:wc-mono-world}
+  \begin{align*}
+    &\forall \stdvr,W,W',\start, \addrend, \start',\addrend' \ldotp \\
+    &\quad  (\start',\addrend',W') \future (\start,\addrend,W) \\
+    &\qquad \Rightarrow \writeCond{}(\stdvr)(\start',\addrend',W') \supseteq \writeCond{}(\stdvr)(\start,\addrend,W)
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Read-write condition non-expansive in world]
+  \label{lem:wc-ne-world}
+  \begin{align*}
+    &\forall \stdvr, n,W,W',\start, \addrend, \start',\addrend' \ldotp \\
+    &\quad  (\start',\addrend',W') \nequal (\start,\addrend,W) \\
+    &\qquad \Rightarrow \writeCond{}(\stdvr)(\start,\addrend,W) \nequal \writeCond{}(\stdvr)(\start',\addrend',W')
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Execute condition downwards-closed]
+\label{lem:ec-dc}
+  \begin{align*}
+    &\forall \stdvr, n,n',W,\start, \addrend, \perm \ldotp \\
+    &\quad  n \in \execCond{}(\stdvr)(\start,\addrend,\perm,W) \land \\
+    &\quad  n' \leq n \\
+    &\qquad \Rightarrow n' \in \execCond{}(\stdvr)(\start,\addrend,\perm,W)
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Execute condition monotone in world]
+\label{lem:ec-mono-world}
+  \begin{align*}
+    &\forall \stdvr,n,W, W',\start, \addrend, \perm,\start', \addrend', \perm' \ldotp \\
+    &\quad  (\start',\addrend',\perm',W') \future (\start,\addrend,\perm,W) \\
+    &\qquad \Rightarrow \execCond{}(\stdvr)(\start',\addrend',\perm',W') \supseteq \execCond{}(\stdvr)(\start,\addrend,\perm,W)
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Execute condition non-expansive in worlds]
+\label{lem:ec-ne-world}
+  \begin{align*}
+    &\forall \stdvr, W, W',n,\start,\addrend,\perm,\start',\addrend',\perm' \ldotp \\
+    &\quad (\start,\addrend,\perm,W) \nequal (\start',\addrend',\perm',W') \Rightarrow \\
+    &\qquad \Rightarrow \execCond{}(\stdvr)(\start,\addrend,\perm,W) \nequal \execCond{}(\stdvr)(\start',\addrend',\perm',W')
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Entry condition downwards-closed]
+\label{lem:en-dc}
+  \begin{align*}
+    &\forall \stdvr, n,n',W,\start, \addrend, \addr \ldotp \\
+    &\quad  n \in \entryCond{}(\stdvr)(\start,\addrend,\addr,W) \land \\
+    &\quad  n' \leq n \\
+    &\qquad \Rightarrow n' \in \entryCond{}(\stdvr)(\start,\addrend,\addr,W)
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Entry condition monotone in world]
+  \label{lem:en-mono-world}
+  \begin{align*}
+    &\forall \stdvr,W, W',\start, \addrend, \addr, \start', \addrend', \addr' \ldotp \\
+    &\quad  (\start',\addrend',\addr',W') \future (\start,\addrend,\addr,W) \\
+    &\qquad \Rightarrow \entryCond{}(\stdvr)(\start',\addrend',\perm',W') \supseteq \entryCond{}(\stdvr)(\start,\addrend,\perm,W)
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Entry condition non-expansive in worlds]
+\label{lem:en-ne-world}
+  \begin{align*}
+    &\forall \stdvr,n, W, W',\start,\addrend,\addr, \start', \addrend', \addr' \ldotp \\
+    &\quad (\start,\addrend,\perm,W) \nequal (\start',\addrend',\perm',W') \Rightarrow \\
+    &\qquad \Rightarrow \execCond{}(\stdvr)(\start,\addrend,\addr,W) \nequal \execCond{}(\stdvr)(\start',\addrend',\addr',W')
+  \end{align*}
+\end{lemma}
+Finally, we need to show that all the conditions are non-expansive, but we later want to use Banach's fixed-point theorem to define the value relation. For this we will need that the above conditions are contractive, and if they are contractive, then they are also non-expansive, so we show that each of the conditions are contractive:
+\begin{lemma}[Read condition contractive]
+  \label{lem:rc-con}
+  \begin{align*}
+    &\forall \stdvr, \stdvr', n \ldotp \\
+    &\quad \stdvr \nequal \stdvr' \Rightarrow \readCond{}(\stdvr) \nequal[n+1] \readCond{}(\stdvr')
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Write condition contractive]
+  \label{lem:wc-con}
+  \begin{align*}
+    &\forall \stdvr, \stdvr', n \ldotp \\
+    &\quad \stdvr \nequal \stdvr' \Rightarrow \writeCond{}(\stdvr) \nequal[n+1] \writeCond{}(\stdvr')
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Execute condition contractive]
+  \label{lem:ec-con}
+  \begin{align*}
+    &\forall \stdvr, \stdvr', n \ldotp \\
+    &\quad \stdvr \nequal \stdvr' \Rightarrow \execCond{}(\stdvr) \nequal[n+1] \execCond{}(\stdvr')
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Entry condition contractive]
+  \label{lem:en-con}
+  \begin{align*}
+    &\forall \stdvr, \stdvr', n \ldotp \\
+    &\quad \stdvr \nequal \stdvr' \Rightarrow \entryCond{}(\stdvr) \nequal[n+1] \entryCond{}(\stdvr')
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Write condition implies read condition]
+\label{lem:wc-implies-rc}
+  \begin{align*}
+    &\forall n, W, \start, \addrend \ldotp\\ 
+    &\quad \writeCond{n,W,\start,\addrend} \Rightarrow \readCond{n,W,\start,\addrend}
+  \end{align*}
+\end{lemma}
+
+
+\subsubsection{Value Relation}
+\label{subsubsec:value-relation}
+The value relation, is defined as follows:
+\begin{align*}
+  \stdvr & :  (\Worlds \monnefun \UPred{Words}) \nefun \Worlds \monnefun \UPred{\Words} \\
+  \stdvr &\defeq \lambda \; V \ldotp \lambda \; W \ldotp 
+              \begin{aligned}[t]
+  & \{ \npair{i} \mid i \in \ints \} 
+    \union \\
+         & \{ \npair{\stdcap[\noperm] }  \} 
+           \union \\
+         & \{ \npair{\stdcap[\readonly] } \mid n \in \readCond{}(V)(\start,\addrend,W) \} \union \\
+         & \{ \npair{\stdcap[\readwrite] } \mid n \in \writeCond{}(V)(\start,\addrend,W) \} \union \\
+         & \{ \npair{\stdcap[\exec]} \mid \\
+         & \quad n \in \readCond{}(V)(\start,\addrend,W) \land \\
+         & \quad n \in \execCond{}(V)(\start,\addrend,\exec,W) \}
+           \union \\
+           % For the entry case a capability is acceptable, if we can change it to an execute permission and put it as the pc and we otherwise have valid words in the registers, then the register file should be valid.
+         & \{ \npair{\stdcap[\entry]} \mid n \in \entryCond{}(V)(\start,\addrend,\addr,W) \} \union \\
+         & \{ \npair{\stdcap[\rwx]} \mid \\
+         & \quad n \in \writeCond{}(V)(\start,\addrend,W) \land \\
+         & \quad n \in \execCond{}(V)(\start,\addrend,\exec,W) \land \\
+         & \quad n \in \execCond{}(V)(\start,\addrend,\rwx,W) \}
+       \end{aligned}
+\end{align*}
+
+\begin{lemma}[Value relation uniformity]
+\label{lem:stdvr-dc}
+  \begin{align*}
+    & \forall V, W, n, n' \ldotp \\
+    & \quad n' \leq n \land n \in \stdvr(V)(W) \\
+    & \qquad \Rightarrow n' \in \stdvr(V)(W)
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Value relation non-expansive in $V$]
+\label{lem:stdvr-ne-V}
+  \begin{align*}
+    & \forall V, V', n \ldotp \\
+    & \quad V \nequal V' \Rightarrow \stdvr(V) \nequal \stdvr(V')
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Value relation monotone in worlds]
+\label{lem:stdvr-mono-world}
+  \begin{align*}
+    & \forall V, W, W' \ldotp \\
+    & W' \future W \Rightarrow \stdvr(V)(W') \supseteq \stdvr(V)(W)
+  \end{align*} 
+\end{lemma}
+
+\begin{lemma}[Value relation non-expansive in worlds]
+\label{lem:stdvr-ne-worlds}
+  \begin{align*}
+    & \forall V, n, W, W' \ldotp \\
+    & W \nequal W' \Rightarrow \stdvr(V)(W) \nequal \stdvr(V)(W')
+  \end{align*} 
+\end{lemma}
+
+\begin{lemma}[Value relation contractive]
+\label{lem:stdvr-con}
+  \begin{align*}
+    & \forall V, V', n \ldotp \\
+    & \quad V \nequal V' \Rightarrow \stdvr(V) \nequal[n+1] \stdvr(V')
+  \end{align*}
+\end{lemma}
+
+Seeing as Lemma~\ref{lem:stdvr-con} gives us that $\stdvr$ is contractive, the Banach fixed-point theorem gives us a fixed-point for $\stdvr$. We will use this fixed point in the next section to define the logical relation we use in practice.
+
+\subsection{Logical Relation Definitions}
+\label{subsec:logical-relation-definitions}
+\lau{This section introduces the definitions, we started working with, so it is here so we don't have to rewrite everything.}
+Here we state the definitions, we will use for pratical purposes.  Assume $V$ is the fixed point given by Banach's fixed point theorem as described in Section~\ref{subsubsec:value-relation}. In general the definitions here will be the same as in Section~\ref{subsec:logical-relation-setup}, but but applied to $V$ when applicable. As they are essentially the same, we will reuse the names.
+
+\begin{align*}
+  \stdrr & \defeq \stdrr \; V \\
+  \stdkr & \defeq \stdkr \; V \\
+  \stder & \defeq \stder \; V \\
+  \stdvr & \defeq \stdvr \; V 
+\end{align*}
+
+\begin{align*}
+  \iota_{\start,\addrend} & \defeq \iota_{\start,\addrend} \; V \\
+  H_{\var{std}}          & \defeq H_{\var{std}} \; V
+\end{align*}
+
+For natural number $n$, adresses $\start$, $\addrend$, and $\addr$, permission $\perm$, and world $W$, we define the capability conditions as follows
+\begin{align*}
+  \readCond{n,W,\start,\addrend}        & \text{ iff } n \in \readCond{}(V)(\start,\addrend,W)\\
+  \writeCond{n,W,\start,\addrend}       & \text{ iff } n \in \writeCond{}(V)(\start,\addrend,W)\\
+  \execCond{n,W,\start,\addrend,\perm}  & \text{ iff } n \in \execCond{}(V)(\start,\addrend,p,W)\\
+  \entryCond{n,W,\start,\addrend,\addr} & \text{ iff } n \in \entryCond{}(V)(\start,\addrend,\addr,W)
+\end{align*}
+The well-formedness lemmas of course still hold for this new presentation.
+
+\subsection{Further Standard Regions}
+\label{subsec:further-standard-regions}
+We have already defined the standard region $\iota_{\start,\addrend}$ which ensures that all the words in the region are in the value relation. See Section~\ref{subsubsec:standard-region}. We here define another usefull region, namely the one that requires all the words in the region to be the constant 0.
+\[
+  \iota_{\start,\addrend}^0 \; : \; \Regions
+\]
+\begin{align*}
+  \iota_{\start,\addrend}^0 & \defeq ((\start,\addrend),=,H_{\var{std}}^0) \\
+  H_{\var{std}}^0\; (\start,\addrend)\; W     & \defeq\left\{ \npair{\heapseg} \middle| 
+                                                     \begin{aligned}
+                                                       & \dom(\heapseg) = [\start,\addrend] \land \\
+                                                       & \forall \addr \in \dom(\heapseg) \ldotp \heapseg(\addr) = 0  
+                                                     \end{aligned} \right\}
+\end{align*}
+
+\begin{lemma}[$\iota_{\start,\addrend}^0$ is well-defined]\label{lem:std-z-region-wd}\forcenewline
+\begin{itemize}
+  \item $H_{\var{std}}^0$ is non-expansive.
+  \item For all adresses $\start$
+    and $\addrend$, $ H_{\var{std}}^0 \; (\start,\addrend)$ is monotone and non-expansive.
+  \item  $=$ is a reflexive and transitive relation.
+\end{itemize}
+\end{lemma}
+
+\subsection{Fundamental Theorem of Logical Relations}
 \begin{lemma}[Fundamental theorem of logical relations (FTLR)] \forcenewline
   For any $n \in \nats$, $W \in \Worlds$, $p\in \Perms$, and addresses $\var{base}$, $\var{end}$, and $a$, if $\perm = \rwx$ and $\writeCond{n,W,\var{base},\var{end}}$ or $\perm = \exec$ and $\readCond{n,W,\var{base},\var{end}}$, then $\npair{(\perm, \var{base}, \var{end}, a)} \in \stder(W)$.
 \end{lemma} %TODO: Change the condition here to be writeCondition (and readCondition)
@@ -1264,246 +1745,84 @@ Using execution~\ref{eq:ftlr:conf-steps}, we can conclude that $p' \in \{\rwx,\e
 
 \end{proof}
 
-\subsection{Well-foundedness lemmas}
-\begin{lemma}[Future worlds transitive]
-  \begin{align*}
-    & \forall W, W', W'' \ldotp \\
-    & \quad  W'' \future W' \land W' \future W \Rightarrow W'' \future W
-  \end{align*}
-\end{lemma}
-
-\begin{lemma}[Heap satisfaction uniformity]
-  \begin{align*}
-    & \forall n,n',\heap, W \ldotp\\
-    & \quad \heapSat{n}{W} \land n' < n \Rightarrow \heapSat{n'}{W}
-  \end{align*}
-\end{lemma}
-
-\begin{lemma}[Heap satisfaction non-expansive]
-  \begin{align*}
-    & \forall n,\heap, W, W' \ldotp\\
-    & \quad \heapSat{n}{W} \land W \nequal W' \Rightarrow \heapSat{n}{W'}
-  \end{align*}
-\end{lemma}
-
-\begin{lemma}[Read condition uniformity]
-  \begin{align*}
-    &\forall n,n',W,\start, \addrend \ldotp \\
-    &\quad  \readCond{n,W,\start,\addrend} \land \\
-    &\quad  n' \leq n \\
-    &\qquad \Rightarrow \readCond{n',W,\start,\addrend}
-  \end{align*}
-\end{lemma}
-\begin{proof}
-  Follows directly from definition: Let $n$, $n'$, $\start$, and  $\addrend$ be given. Assume $\readCond{n,W,\start,\addrend}$ and $n' \leq n$. If $n=n'$, then the result follows trivially, as it is exactly our assumption. If $n' < n$, then by assumption we have a region name $r$, interval $[\start',\addrend'] \supseteq [\start,\addrend]$, and the assumption $W(r) \nsubeq[n-1] \iota_{\start',\addrend'}$  given by the read condition assumption. Picking $r$ and $[\start',\addrend']$, we need to show  $W(r) \nsubeq[n'-1] \iota_{\start',\addrend'}$ which follows from downwards closure of $\nsubeq$.
-\end{proof}
-
-\begin{lemma}[Read condition monotone in world]
-\label{lem:readCond-mono-world}
-  \begin{align*}
-    &\forall n,W,W',\start, \addrend \ldotp \\
-    &\quad  \readCond{n,W,\start,\addrend} \land \\
-    &\quad  W' \future W \\
-    &\qquad \Rightarrow \readCond{n,W',\start,\addrend}
-  \end{align*}
-\end{lemma}
-\begin{proof}
-Let $n$,$W$, $W'$, $b$, and $e$ be given where $W' \future W$. Assume $\readCond{n,W,\start,\addrend}$, this give a $r$ and $[b',e'] \supseteq [b,e]$ such that $W(r) \nsubeq \iota_{b',e'} (r) = ((b',e'),=,H_{\var{std}})$. This gives
+\section{Adding Local capabilities}
+In this section, we add local capabilities and define a new logical relation for this setting.
+\lau{Should we do this in a new document?}
+The definitions are the same as before apart from the changes below:
 \begin{align*}
-  &W(r).\phi = = \\
-  &W(r).s    = (b',e') \\
-  &\forall \hat{W} \ldotp W(r).H\; (b',e') \; \hat{W} \nsubeq[n-1] H_{\var{std}}\; (b',e') \; \hat{W}
+  \PWLs & = 2 \\
+  \Globals & = 2 \\
+  \Caps & = \Perms \times \Globals \times \PWLs \times \Addrs \times \Addrs \times \Addrs
 \end{align*}
-$W' \future W$ gives
+That is the only new domains are the two element domains $\Globals$ which represents whether a capability is global or local and $\PWLs$ which represents whether a capability is permit write local or not. The $\Caps$ domain change to include both of these. The ordering of $\Globals$ is specified in Figure~\ref{fig:glob-hier} and the ordering of $\PWLs$ is specified in Figure~\ref{fig:pwl-hier}.
+\begin{figure}[!h]
+  \centering
+  \begin{tikzpicture}[main node/.style={}]
+  \node[main node] (1) {$\glob$};
+  \node[main node] (2) [below of=1] {$\local$};
+
+  \path[every node/.style={font=\sffamily\small}]
+    (1) edge (2);
+\end{tikzpicture}
+\caption{Permission hierarchy}
+\label{fig:glob-hier}
+\end{figure}
+
+\begin{figure}[!h]
+  \centering
+  \begin{tikzpicture}[main node/.style={}]
+  \node[main node] (1) {$\pwl$};
+  \node[main node] (2) [below of=1] {$\nwl$};
+
+  \path[every node/.style={font=\sffamily\small}]
+    (1) edge (2);
+\end{tikzpicture}
+\caption{Permission hierarchy}
+\label{fig:pwl-hier}
+\end{figure}
+
+In order to define the operationtal semantics, we assume a decode function, $\decodePerm$ from
+
+\[
+  \decodePerm : \ints \fun \perm \times 2 \times 2
+\]
+
+There are two parts of the operational semantics that changes. The first one is $\store$ as it is the only instruction that allows one to write to the heap. It will now have an extra condition that makes sure that local capabilities are only written through capabilities that permit write local. The semantics of $\restrict$ also changes to allow $\glob$ capabilities to become $\local$ and $\pwl$ (permit write local) to become $\nwl$ (no write local).
+
+\renewcommand{\stdcap}[1][\perm]{\left(#1,g,\pwlv,\start,\addrend,\addr \right)}
+
 \begin{align*}
-  &W'(r).\phi = W(r).\phi \\
-  &(W'(r).s,W(r).s) \in W(r).\phi \\
-  &W'(r).H = W(r).H \\
- \end{align*}
-Combining these two sets of properties line for line, we get the following for $W'$:
-\begin{align*}
-  & W'(r).\phi = = \\
-  & W'(r) = (b',e') \\
-  &\forall \hat{W} \ldotp W'(r).H\; (b',e') \; \hat{W} \nsubeq[n-1] H_{\var{std}}\; (b',e') \; \hat{W}
+   \sem{\store{\refheap{r_1}}{\refreg{r_2}}} & = 
+                                             \begin{cases}
+                                               \stdUpdatePc{\updateHeap{\addr}{\var{w}}} &
+                                               \arraycolsep=0pt
+                                               \begin{array}{l}
+                                                 \text{if }\memreg(r_1) = (\perm,\_,\pwlv,\_,\_,\addr) = \var{c} \\
+                                                 \quad\text{and }\writeAllowed{\perm} \text{ and } \withinBounds{\var{c}} \\
+                                                 \quad\text{and } \var{w} = \memreg(r_2) \\
+                                                 \quad\text{and if } \var{w} = (\_, \var{g}, \_, \_, \_, \_)\text{, then } \pwlv = \pwl
+                                               \end{array}\\
+                                               \failed & \text{otherwise }
+                                             \end{cases}\\
+  \sem{\restrict{\refreg{r_1}}{\rv_1}{\rv_2}}           & =
+                                             \begin{cases}
+                                               \stdUpdatePc{\updateReg{r_1}{\var{c}}}  &
+                                                 \arraycolsep=0pt
+                                                 \begin{array}{l}
+                                                   \text{if $\memreg(\rv_1) = c'$}\\
+                                                   \quad\text{and $c' = \stdcap$}\\
+                                                   \quad\text{and either $\rv_2 = n$ or $\memreg(\rv_2) = n$}\\
+                                                   \quad\text{and in either case $n \in \ints$}\\
+                                                   \quad\text{and $(\perm', \var{g}',\pwlv') = \decodePerm(n)$}\\
+                                                   \quad\text{and $\perm' \sqsubseteq \perm$}\\
+                                                   \quad\text{and $\var{g}' \sqsubseteq \var{g}$}\\
+                                                   \quad\text{and $\pwlv'\sqsubseteq \pwlv$}\\
+                                                   \quad\text{and $c = (\perm',
+\var{g}', \pwlv',\start,\addrend,\addr)$}
+                                                 \end{array}\\
+                                               \failed                   & \text{otherwise}
+                                             \end{cases} 
 \end{align*}
-These are exactly the properties needed to get $W'(r) \nsubeq \iota_{b',e'} (r)$ which is exactly the result we want.
-\end{proof}
-
-\begin{lemma}[Read-write condition uniformity]
-  \begin{align*}
-    & \forall n,n',W,\start, \addrend \ldotp\\
-    &\quad \writeCond{n,W,\start,\addrend} \land\\
-    &\quad  n' \leq n\\
-    &\qquad \Rightarrow \writeCond{n',W,\start,\addrend}
-  \end{align*}
-\end{lemma}
-\begin{proof}
-  Follows directly from the definition.
-\end{proof}
-
-\begin{lemma}[Read-write condition monotone in world]
-\label{lem:writeCond-mono-world}
-  \begin{align*}
-    & \forall n,W, W',\start, \addrend \ldotp\\
-    &\quad \writeCond{n,W,\start,\addrend} \land\\
-    &\quad  W' \leq W\\
-    &\qquad \Rightarrow \writeCond{n,W',\start,\addrend}
-  \end{align*}
-\end{lemma}
-\begin{proof}
-  Similar to the proof of the monotonicity of the read condition.
-\end{proof}
-
-\begin{lemma}[Execute condition uniformity]
-  \begin{align*}
-    &\forall n,n',W,\start, \addrend, \perm \ldotp \\
-    &\quad  \execCond{n,W,\start,\addrend,\perm} \land \\
-    &\quad  n' \leq n \\
-    &\qquad \Rightarrow \execCond{n',W,\start,\addrend,\perm}
-  \end{align*}
-\end{lemma}
-\begin{proof}
-  Follows directly from definition: Let $n$, $n'$, $W$, $\start$, and $\addrend$ be given. Assume $\execCond{n,W,\start,\addrend,\perm}$ and $n' \leq n$. If $n' = n$, then the result follows directly from assumption. If $n' < n$, then let $n'' < n'$, $W' \future W$, and $a \in [\start,\addrend]$ be given. Using that we by transitivity have $n'' < n$, we get the desired result from assumption.
-\end{proof}
-
-\begin{lemma}[Execute condition monotone in world]
-\label{lem:execCond-mono-world}
-  \begin{align*}
-    &\forall n,W, W',\start, \addrend, \perm \ldotp \\
-    &\quad  \execCond{n,W,\start,\addrend,\perm} \land \\
-    &\quad  W' \leq W \\
-    &\qquad \Rightarrow \execCond{n,W',\start,\addrend,\perm}
-  \end{align*}
-\end{lemma}
-\begin{proof}
-  Follows directly from definition.
-\end{proof}
-
-\begin{lemma}[Entry condition uniformity]
-  \begin{align*}
-    & \forall n,n',W,\start, \addrend, \addr \ldotp\\
-    &\quad  \entryCond{n,W,\start,\addrend,\addr} \land \\
-    &\quad  n' \leq n \\
-    &\qquad \Rightarrow \entryCond{n',W,\start,\addrend,\addr}
-  \end{align*}
-\end{lemma}
-\begin{proof}
-  Like the $\execCond{}$ uniformity proof.
-\end{proof}
-
-\begin{lemma}[Entry condition monotone in world]
-  \label{lem:entryCond-mono-world}
-  \begin{align*}
-    & \forall n,W,W',\start, \addrend, \addr \ldotp\\
-    &\quad  \entryCond{n,W,\start,\addrend,\addr} \land \\
-    &\quad  W' \leq W \\
-    &\qquad \Rightarrow \entryCond{n,W',\start,\addrend,\addr}
-  \end{align*}
-\end{lemma}
-\begin{proof}
-  Follows directly from definition.
-\end{proof}
-
-\begin{lemma}[Write condition implies read condition]
-  \begin{align*}
-    &\forall n, W, \start, \addrend \ldotp\\ 
-    &\quad \writeCond{n,W,\start,\addrend} \Rightarrow \readCond{n,W,\start,\addrend}
-  \end{align*}
-\end{lemma}
-\begin{proof}
-  Follows directly from the definition.
-\end{proof}
-
-\begin{lemma}[Value relation uniformity]
-\label{lem:stdvr-uniform-step}
-  \begin{align*}
-    &\forall n' < n \ldotp \forall W \ldotp \forall w \ldotp\\
-    &\quad \npair{w} \in \stdvr(W) \Rightarrow \npair[n']{w} \in \stdvr(W)
-  \end{align*}
-\end{lemma}
-\begin{proof}
-  Follows from the uniformity of $\readCond{}$, $\writeCond{}$, $\execCond{}$, and $\entryCond{}$.
-\end{proof}
-
-\begin{lemma}[Value relation monotone in worlds]
-  \begin{align*}
-    &\forall n \ldotp \forall W' \future W \ldotp \forall w \ldotp\\ 
-    &\quad \npair{w} \in \stdvr(W) \Rightarrow \npair{w} \in \stdvr(W')
-  \end{align*}
-\end{lemma}
-\begin{proof}
-  Follows from uniformity of $\readCond{}$, $\writeCond{}$, $\execCond{}$, and $\entryCond{}$ in the worlds. That is Lemma~\ref{lem:readCond-mono-world},~\ref{lem:writeCond-mono-world},~\ref{lem:execCond-mono-world}, and~\ref{lem:entryCond-mono-world}.
-\end{proof}
-
-\begin{lemma}[Observation relation uniformity]
-  \begin{align*}
-    &\forall n' < n \ldotp \forall W \ldotp \forall \reg \ldotp \forall \hs \ldotp\\
-    &\quad \npair{(\reg,\hs)} \in \observations(W) \Rightarrow \npair[n']{(\reg,\hs)} \in \observations(W)
-  \end{align*}
-\end{lemma}
-\begin{proof}
-  Let $n' < n$, $W$, $\reg$, and $\hs$ be given. Assume $\npair{(\reg,\hs)} \in \observations(W)$. Let $\heap_f$, $heap'$, $i \leq n'$ be given and assume $(\reg, \hs \uplus \heap_f) \step[i] (\halted, \heap')$. By assumption, we have a $W' \future W$ and $\hs'$ such that
-  \begin{align}
-&\heap' = \hs' \uplus \heap_f \label{lem:eq:stdvr1}\\
-&\heapSat[\hs']{n-i}{W'}\label{lem:eq:stdvr2}
-  \end{align}. 
-Using $W'$ and $\hs'$ as existential witnesses, we already have Equation~\ref{lem:eq:stdvr1} as the first necessary condition and from the above heap satisfaction along with heap satisfaction being uniform in $n$, we get $\heapSat[\hs']{n'-i}{W'}$. These are the two conditions necessary to get $\npair[n']{(\reg,\hs)} \in \observations(W)$.
-\end{proof}
-
-\begin{lemma}[Register relation uniformity]
-  \begin{align*}
-    &\forall n' < n \ldotp \forall W \ldotp \forall \reg \ldotp\\
-    &\quad \npair{\reg} \in \stdrr(W) \Rightarrow \npair[n']{\reg} \in \stdrr(W)
-  \end{align*}
-\end{lemma}
-\begin{proof}
-  Follows by uniformity of the value relation, Lemma~\ref{lem:stdvr-uniform-step}.
-\end{proof}
-
-\begin{lemma}[Register relation montone in worlds]
-  \begin{align*}
-    &\forall n \ldotp \forall W' \future W \ldotp \forall \reg \ldotp\\
-    &\quad \npair{\reg} \in \stdrr(W) \Rightarrow \npair{\reg} \in \stdrr(W')
-  \end{align*}
-\end{lemma}
-\begin{proof}
-  This follows by monotonicity of $\stdvr$ in the worlds.
-\end{proof}
-
-\begin{lemma}[Continuation relation uniformity]
-  \begin{align*}
-    &\forall n' < n \ldotp \forall W \ldotp \forall c \ldotp\\
-    &\quad \npair{c} \in \stdkr(W) \Rightarrow \npair[n']{c} \in \stdkr(W)
-  \end{align*}
-\end{lemma}
-\begin{proof}
-Follows by using the assumption and transitivity of inequality.
-\end{proof}
-
-\begin{lemma}[Continuation relation monotone in worlds]
-  \begin{align*}
-    &\forall n \ldotp \forall W' \future W \ldotp \forall c \ldotp\\
-    &\quad \npair{c} \in \stdkr(W) \Rightarrow \npair{c} \in \stdkr(W')
-  \end{align*}
-\end{lemma}
-\begin{proof}
-We need to show two things: The continuation is in the value predicate in the future world and that continuing execution using the continuation is in the observation predicate.
-
-The first follows from the value predicate being monotone in the world.
-
-The second property follows by assumption and transitivity of future worlds.
-\end{proof}
-
-\begin{lemma}[Expression relation uniformity]
-\label{lem:stder-mon-step}
-  \begin{align*}
-    & \forall n' < n \ldotp \forall W \ldotp \forall \pc \ldotp\\
-    & \quad \npair{\pc} \in \stder(W) \Rightarrow \npair[n']{\pc} \in \stder(W)
-  \end{align*}
-\end{lemma}
-\begin{proof}
-  Follows from the assumption.
-\end{proof}
 
 
 \section{Other examples and applications}
@@ -1711,8 +2030,10 @@ capabilities, albeit in a JavaScript-like lambda calculus.
 \bibliography{refs}
 
 \begin{appendices}
-\section{Definitions and Proofs related to Section~\ref{subsec:recursive-dom-eq}}
-\end{appendices}
+
+\section{Proofs of Lemmas in Section~\ref{sec:logical-relation}}
+\subsection{Definitions and Proofs related to Section~\ref{subsec:recursive-dom-eq}}
+
 
 \begin{definition}[Ordering of Cauchy chains]
   For Cauchy chains $\{a_n\}_n$ and $\{b_n\}_n$,
@@ -1956,16 +2277,219 @@ Let $w$ be given. From $f \nequal[k] g$, we get $f(w) \nequal[k] g(w)$. From thi
 which is what we neede to show.
 
 \end{proof}
+\subsection{Proofs of Lemmas in Section~\ref{subsec:worlds}}
+%TODO All proofs written by hand, typeset them.
+\begin{proof}[Proof of lemma~\ref{lem:nequal-and-future-world}]
+  Assume $W_1 \nequal W_2$ and $W_1' \future W_2'$. Define $W_2'$ to have $\dom(W_2')=\dom(W_1')$ where
+\[
+  W_2' \; r = \left\{
+  \begin{aligned}
+    & (s_1',\phi_2,H_2) & &\text{for } j \in \dom(W_2) \text{ and } W_2 \; j = (s_2,\phi_2,H_2) \\
+    &                  & &\quad \text{ and } W_1' \; j = (s_1',\phi',H_1') \\
+    & W_1' \; r        & &\text{otherwise}
+  \end{aligned} 
+  \right.
+\]
 
-\section{Proof of Lemmas in Section~\ref{subsec:standard-regions}}
-\begin{proof}[Proof of Lemma~\ref{lem:std-region-wd}]
+First we show $W_1' \nequal W_2'$. The domains are defined to be equal, so that is satsfied. Let $r \in \dom(W_1')$ and show $W_1' \; r \nequal W_2' \; r$. First consider the case where $r \in \dom(W_2)$. Assume $W_1' \; r = (s_1',\phi_1',H_1')$, $W_1 = (s_1,\phi_1,H_1)$, and $W_2 = (s_2,\phi_2,H_2)$, then $W_2' \; r = (s_1',\phi_2,H_2)$. We need to show
+\begin{align*}
+  s_1' & \nequal s_1' \\
+  \phi_1' & \nequal \phi_2 \\
+  H_1' & \nequal H_2
+\end{align*}
+The first one is trivial. For the second one we use that we know $\phi_1 \nequal \phi_2$ and $\phi_1 = \phi_1'$ respectively from the $n$-equality assumption and future world assumption. Similarly, the second one follows from $H_1 \nequal H_2$ and $H_1 = H_1'$ - again respectively from the $n$-equality assumption and the future world assumption. For the case where $r \not\in \dom(W_2)$, we need to show $W_1' \; r \nequal W_1' \; r$ which follows trivially from reflexivity.
+
+Next we show $W_2' \future W_2$. We know that $\dom(W_2') = \dom(W_1')$, $\dom(W_1') \supseteq \dom(W_1)$ (from future world assumption), and $\dom(W_1) = \dom(W_2)$ (from $n$-equality assumption). All this can easily be put together to get $\dom(W_2') \supseteq \dom(W_2)$. Now let $r\in \dom(W_2)$ and assume Assume $W_1' \; r = (s_1',\phi_1',H_1')$, $W_1 = (s_1,\phi_1,H_1)$, and $W_2 = (s_2,\phi_2,H_2)$, then $W_2' \; r = (s_1',\phi_2,H_2)$, then we need to show the following:
+\begin{align*}
+  &(s_2,s_1') \in \phi_2 \\
+  &\phi_2 = \phi_2 \\
+  &H_2 = H_2
+\end{align*}
+Here the two last are trivial. The first follows from the assumptions $s_1 = s_2$, $\phi_1 = \phi_2$, and $(s_1,s_1') \in \phi_1$, where the first two are from the $n$-equality assumption (notive that $n$-equality between \cofes{} over sets is just equality) and the last one follows from the future world assumption.
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:rc-dc}]
+  Follows directly from definition: Let $\stdvr$, $n$, $n'$, $\start$, and  $\addrend$ be given. Assume $n \in \readCond{}(\stdvr)(\start,\addrend,W)$ and $n' \leq n$. If $n=n'$, then the result follows trivially, as it is exactly our assumption. If $n' < n$, then by assumption we have a region name $r$, interval $[\start',\addrend'] \supseteq [\start,\addrend]$, and the assumption $W(r) \nsubeq[n-1] \iota_{\start',\addrend'}$  given by the read condition assumption. Picking $r$ and $[\start',\addrend']$, we need to show  $W(r) \nsubeq[n'-1] \iota_{\start',\addrend'}$ which follows from downwards closure of $\nsubeq[n-1]$.
+\end{proof}
+
+\subsection{Proofs of Lemmas in Section~\ref{subsec:logical-relation-setup}}
+%All the lemmas are in subsections.
+\subsubsection{Proofs of Lemmas in Section~\ref{subsubsec:observation-relation}}
+%TODO All proofs written by hand (but one), typeset them.
+\begin{proof}[Proof of lemma~\ref{lem:obs-dc}]
+  Let $n' < n$, $W$, $\reg$, and $\hs$ be given. Assume $\npair{(\reg,\hs)} \in \observations(W)$. Let $\heap_f$, $heap'$, $i \leq n'$ be given and assume $(\reg, \hs \uplus \heap_f) \step[i] (\halted, \heap')$. By assumption, we have a $W' \future W$ and $\hs'$ such that
+  \begin{align}
+&\heap' = \hs' \uplus \heap_f \label{lem:eq:stdvr1}\\
+&\heapSat[\hs']{n-i}{W'}\label{lem:eq:stdvr2}
+  \end{align}. 
+Using $W'$ and $\hs'$ as existential witnesses, we already have Equation~\ref{lem:eq:stdvr1} as the first necessary condition and from the above heap satisfaction along with heap satisfaction being uniform in $n$, we get $\heapSat[\hs']{n'-i}{W'}$. These are the two conditions necessary to get $\npair[n']{(\reg,\hs)} \in \observations(W)$.
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:obs-ne-worlds}]
   %TODO
 \end{proof}
+
+\subsubsection{Proofs of Lemmas in Section~\ref{subsubsec:register-file-relation}}
+%TODO All proof but one proof written by hand, typeset them.
+%TODO missing proof register relation ne in worlds.
+\begin{proof}[Proof of lemma~\ref{lem:reg-dc}]
+  %TODO
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:reg-mono-worlds}]
+ %TODO,  This follows by monotonicity of $\stdvr$ in the worlds.
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:reg-ne-vr}]
+  %TODO
+\end{proof}
+
+\subsubsection{Proofs of Lemmas in Section~\ref{subsubsec:continuation-relation}}
+%TODO All proof but one proof written by hand, typeset them.
+%TODO missing proof continuation relation ne in worlds.
+\begin{proof}[Proof of lemma~\ref{lem:stdkr-dc}]
+  % TODO, Follows by using the assumption and transitivity of inequality.
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:stdkr-mono-worlds}]
+  % TODO
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:stdkr-ne-vr}]
+  %TODO
+\end{proof}
+
+\subsubsection{Proofs of Lemmas in Section~\ref{subsubsec:expression-relation}}
+%TODO All proofs written by hand, typeset them.
+\begin{proof}[Proof of lemma~\ref{lem:stder-dc}]
+  %TODO,  Follows from the assumption.
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:stder-ne-worlds}]
+  %TODO
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:stder-ne-vr}]
+  %TODO
+\end{proof}
+
+\subsubsection{Proofs of Lemmas in Section~\ref{subsubsec:standard-region}}
+%TODO All proofs written by hand, typeset them.
+\begin{proof}[Proof of Lemma~\ref{lem:std-reg-mono-world}]
+  %TODO
+\end{proof}
+
+\begin{proof}[Proof of Lemma~\ref{lem:std-reg-ne-world}]
+  %TODO
+\end{proof}
+
+\begin{proof}[Proof of Lemma~\ref{lem:std-reg-ne-vr}]
+  %TODO
+\end{proof}
+
+\begin{proof}[Proof of Lemma~\ref{lem:std-reg-i-ne-vr}]
+  %TODO
+\end{proof}
+
+\subsubsection{Proofs of Lemmas in Section~\ref{subsubsec:capability-conditions}}
+%TODO All proofs written by hand, typeset them.
+
+\begin{proof}[Proof of lemma~\ref{lem:rc-mono-world}]
+%TODO
+\end{proof}
+\begin{proof}[Proof of lemma~\ref{lem:rc-ne-world}]
+%TODO
+\end{proof}
+\begin{proof}[Proof of lemma~\ref{lem:wc-dc}]
+%TODO, Follows directly from the definition.
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:wc-mono-world}]
+%TODO, Similar to the proof of the monotonicity of the read condition.
+\end{proof}
+
+
+\begin{proof}[Proof of lemma~\ref{lem:ec-dc}]
+%TODO
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:ec-mono-world}]
+%TODO, Follows directly from definition.
+\end{proof}
+
+
+\begin{proof}[Proof of lemma~\ref{lem:ec-ne-world}]
+%TODO 
+\end{proof}
+
+
+
+\begin{proof}[Proof of lemma~\ref{lem:en-dc}]
+  Like the $\execCond{}$ uniformity proof.
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:en-mono-world}]
+  Follows directly from definition.
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:en-ne-world}]
+  This proof goes like the proof of $\execCond{}$ being non-expansive in the second argument (lemma~\ref{lem:ec-ne-world}).
+\end{proof}
+ 
+\begin{proof}[Proof of lemma~\ref{lem:rc-con}]
+  %TODO
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:wc-con}]
+  %TODO
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:ec-con}]
+  %TODO
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:en-con}]
+  %TODO
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:wc-implies-rc}]
+  Follows directly from the definition.
+\end{proof}
+
+
+\subsubsection{Proofs of Lemmas in Section~\ref{subsubsec:value-relation}}
+%TODO All proofs written by hand, typeset them.
+\begin{proof}[Proof of lemma~\ref{lem:stdvr-dc}]
+  Follows from the uniformity of $\readCond{}$, $\writeCond{}$, $\execCond{}$, and $\entryCond{}$.
+  %TODO show one case to illustrate the above, refer to the lemmas in question
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:stdvr-ne-V}]
+  %TODO
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:stdvr-mono-world}]
+  Follows from monotonicity of $\readCond{}$, $\writeCond{}$, $\execCond{}$, and $\entryCond{}$ in the worlds. That is Lemma~\ref{lem:rc-mono-world},~\ref{lem:wc-mono-world},~\ref{lem:ec-mono-world}, and~\ref{lem:en-mono-world}.
+  %TODO show one case to illustrate the above
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:stdvr-ne-worlds}]
+  %TODO
+\end{proof}
+
+\begin{proof}[Proof of lemma~\ref{lem:stdvr-con}]
+  %TODO
+\end{proof}
+
+
+\subsection{Proofs of Lemmas in Section~\ref{subsec:further-standard-regions}}
+%TODO all the proofs need to be done.
+
 
 \begin{proof}[Proof of Lemma~\ref{lem:std-z-region-wd}]
   %TODO
 \end{proof}
-
+\end{appendices}
 
 \end{document}
 \grid
