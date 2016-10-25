@@ -69,6 +69,7 @@
 \newcommand{\hv}{\var{hv}}
 \newcommand{\rv}{\var{rv}}
 \newcommand{\lv}{\var{lv}}
+\newcommand{\gl}{g}
 \newcommand{\pc}{\mathit{pc}}
 \newcommand{\pcreg}{\mathrm{pc}}
 \newcommand{\addr}{\var{a}}
@@ -76,16 +77,17 @@
 \newcommand{\word}{\var{w}}
 \newcommand{\start}{\var{base}}
 \newcommand{\addrend}{\var{end}}
+\newcommand{\pwlv}{\var{pwl}}
 \newcommand{\mem}{\var{mem}}
 \newcommand{\reg}{\var{reg}}
 \newcommand{\heapseg}{\var{hs}}
 \newcommand{\heap}{\var{heap}}
 \newcommand{\mode}{\var{mode}}
 \newcommand{\perm}{\var{perm}}
+\newcommand{\permp}{\var{permPair}}
 \newcommand{\roll}{\var{roll}}
 \newcommand{\instr}{\var{instr}}
-
-\newcommand{\stdcap}[1][\perm]{\left(#1,\start,\addrend,\addr \right)}
+\newcommand{\stdcap}[1][(\perm,\gl)]{\left(#1,\start,\addrend,\addr \right)}
 
 %Memory projections
 \newcommand{\plainproj}[1]{\mathrm{#1}}
@@ -155,6 +157,7 @@
 \newcommand{\nats}{\mathbb{N}}
 \newcommand{\ints}{\mathbb{Z}}
 \newcommand{\Perms}{\plaindom{Perm}}
+\newcommand{\Globals}{\plaindom{Global}}
 
 \newcommand{\Rel}{\plaindom{Rel}}
 \newcommand{\States}{\plaindom{State}}
@@ -165,6 +168,8 @@
 \newcommand{\StorePred}{\plaindom{HeapSegPred}}
 \newcommand{\UPred}[1]{\plaindom{UPred}(#1)}
 \newcommand{\DCPred}[1]{\plaindom{P}^\downarrow(#1)}
+
+\newcommand{\Views}{\plaindom{View}}
 
 %LR
 \newcommand{\intr}[2]{\mathcal{#1}}
@@ -214,39 +219,104 @@
 \newcommand{\exec}{\plainperm{rx}}
 \newcommand{\entry}{\plainperm{e}}
 \newcommand{\rwx}{\plainperm{rwx}}
+%PWL permissions
+\newcommand{\readwritel}{\plainperm{rwl}}
+\newcommand{\rwlx}{\plainperm{rwlx}}
+
+%Global/local
+\newcommand{\local}{\plainperm{local}}
+\newcommand{\glob}{\plainperm{global}}
 
 %OP sem
 \newcommand{\diverge}[1][n]{\not\Downarrow_{#1}}
 \newcommand{\step}[1][]{\rightarrow_{#1}}
 
+%View
+\newcommand{\perma}{\mathrm{permanent}}
+\newcommand{\temp}{\mathrm{temporary}}
+
 \begin{document}
 \begin{flushright}
 \today
 \end{flushright}
-$\RegName$ contains $\pcreg$, but is otherwise some undefined, finite set.
+\section{Domains and Notation}
 \begin{align*}
 \Addrs &::= \nats & & &
 \Words &::= \Caps + \ints \\
 \Regs  &::= \RegName \rightarrow \Words & & &
 \Heaps &::= \Addrs \rightarrow \Words \\
-\Perms &::= \{ \noperm, \readonly, \readwrite, \exec, \entry, \rwx\} & & &
+\Perms &::= \{ \noperm, \readonly, \readwrite, \readwritel, \exec, \entry, \rwx, \rwlx\} & & &
 \Mems  &::= \Regs \times \Heaps \\
-\Caps  &::= \Perms \times \Addrs \times \Addrs \times \Addrs & & &
+\Caps  &::= (\Perms \times \Globals) \times \Addrs \times \Addrs \times \Addrs & & &
 \Confs &::= \Mems + \{\failed, \halted \times \Mems\} \\
-\HeapSegments &::= \Addrs \parfun \Words & & & &
+\HeapSegments &::= \Addrs \parfun \Words & & &
+\Globals & ::= \{\glob, \local \}
 \end{align*}
+Local capabilities have been added by adding a new domain $\Globals$ which represents whether a capabaility is local or global. Two new permissions $\readwritel$ and $\rwlx$ that permits writing local capabilities. They are otherwise the same as their non-''permit write local'' counterparts.
 
+The $\glob$ and $\local$ are ordered as shown in Figure~\ref{fig:glob-hier}.
 \begin{figure}[!h]
   \centering
   \begin{tikzpicture}[main node/.style={}]
-  \node[main node] (1) {$\rwx$};
-  \node[main node] (2) [below right of=1] {$\exec$};
-  \node[main node] (3) [below of=2] {$\entry$};
-  \node[main node] (4) [below left of=1] {$\readwrite$};
-  \node[main node] (5) [below of=4] {$\readonly$};
-  \node[main node] (6) [below right of=5] {$\noperm$};
+  \node[main node] (1) {$\glob$};
+  \node[main node] (2) [below of=1] {$\local$};
 
   \path[every node/.style={font=\sffamily\small}]
+    (1) edge (2);
+\end{tikzpicture}
+\caption{Permission hierarchy}
+\label{fig:glob-hier}
+\end{figure}
+
+Things to note:
+\begin{itemize}
+\item $\RegName$ contains $\pcreg$, but is otherwise a sufficiently
+  large finite set.
+\item Table~\ref{tab:permission-list} describes what all the permissions grant acces to.
+\item Figure~\ref{fig:perm-hier} shows the ordering of the permissions, i.e, the elements of $\Perms$.
+\item Figure~\ref{fig:glob-hier} shows the ordering of $\local$ and $\glob$, i.e., the elements of $\Globals$.
+\item The ordering of $\Perms \times \Globals$ is pointwise.
+\end{itemize}
+
+\begin{table}[!h]
+  \centering
+  \begin{tabular}[!h]{r |  p{7cm} }
+  $\noperm$ & No permissions. Grants no permissions\\
+\hline
+  $\readonly$ & Read only. Grants read permission \\
+\hline
+  $\readwrite$ & Read-write. Grants read and write permissions. Storage of local capabilities prohibited. \\
+\hline
+  $\readwritel$ & read-write, permit write local. Grants read and write permissions. Storage of local capabilities granted. \\
+\hline
+  $\exec$ & Execute permission. Grants execute and read permissions.\\
+\hline
+  $\entry$ & Entry permission. This permission grants no access, but when jumped to, it Will turn into an $\exec$ permission.\\
+\hline
+  $\rwx$ & Read, write, execute permission. Grants read, write, and execute permissions. Storage of local capabilities prohibited. \\
+\hline
+  $\rwlx$ & Read, write, execute permission with permit write local. Grants read, write, and execute permissions. Storage of local capabilities possible.
+\end{tabular}
+
+\caption{The permissions in this capability system}
+\label{tab:permission-list}
+\end{table}
+\begin{figure}[!h]
+  \centering
+  \begin{tikzpicture}[main node/.style={}]
+    \node[main node] (7) {$\rwlx$};
+    \node[main node] (8) [below left of=7] {$\readwritel$};
+    \node[main node] (1) [below right of=7] {$\rwx$};
+    \node[main node] (2) [below right of=1] {$\exec$};
+    \node[main node] (3) [below of=2] {$\entry$};
+    \node[main node] (4) [below left of=1] {$\readwrite$};
+    \node[main node] (5) [below of=4] {$\readonly$};
+    \node[main node] (6) [below right of=5] {$\noperm$};
+
+  \path[every node/.style={font=\sffamily\small}]
+    (7) edge (8)
+    (7) edge (1)
+    (8) edge (4)
     (1) edge (2)
     (2) edge (3)
     (3) edge (6)
@@ -254,6 +324,7 @@ $\RegName$ contains $\pcreg$, but is otherwise some undefined, finite set.
     (4) edge (5)
     (5) edge (6);
 \end{tikzpicture}
+
 \caption{Permission hierarchy}
 \label{fig:perm-hier}
 \end{figure}
@@ -287,15 +358,15 @@ i      &::=& \fail \mid \halt \mid
 \subsection*{Semantics}
 Assume a $\decode$ function that decodes integer to instructions:
 \begin{align*}
-\decode &:\Words \rightarrow \Instrs
+\decode &:\Words \fun \Instrs
 \end{align*}
 Assume an $\encodePerm$ function that encodes a permission as an integer:
 \begin{align*}
-\encodePerm &: \Perms \rightarrow \ints
+\encodePerm &: (\Perms \times \Globals) \fun \ints
 \end{align*}
 Further, assume an inverse function, $\decodePerm$, that decodes permissions
 \[
-  \decodePerm : \ints \rightarrow \Perms
+  \decodePerm : \ints \fun (\Perms \times \Globals)
 \]
 \begin{align*}
   \Phi & \rightarrow \sem{\decode(\memheap(\addr))}(\Phi) & &                                   
@@ -303,7 +374,7 @@ Further, assume an inverse function, $\decodePerm$, that decodes permissions
                                                               \begin{array}{l}
                                                                 \text{if $\memreg(\pcreg) = \stdcap$}\\
                                                                 \quad\text{and $\start \leq \addr < \addrend$}\\
-                                                                \quad\text{and $\perm \in \{ \exec,\rwx \}$ }
+                                                                \quad\text{and $\perm \in \{ \exec,\rwx, \rwlx \}$ }
                                                               \end{array}\\
 \Phi & \rightarrow \failed                                 & & \text{otherwise}
 \end{align*}
@@ -311,22 +382,23 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
 \begin{align*}
   \executeAllowed{\perm} &=
                            \begin{cases}
-                             \true & \text{if } \perm \in \{ \rwx, \exec, \entry \} \\
+                             \true & \text{if } \perm \in \{ \rwx, \rwlx, \exec, \entry \} \\
                              \false & \text{otherwise}
                            \end{cases} \\
   \readAllowed{\perm} &=
                            \begin{cases}
-                             \true & \text{if } \perm \in \{ \rwx, \exec, \readwrite, \readonly \} \\
+                             \true & \text{if } \perm \in \{ \rwx, \rwlx, \exec, \readwrite, \readwritel, \readonly \} \\
                              \false & \text{otherwise}
                            \end{cases} \\
   \writeAllowed{\perm} &=
                            \begin{cases}
-                             \true & \text{if } \perm \in \{ \rwx, \readwrite\} \\
+                             \true &
+                               \text{if } \perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\} \\
                              \false & \text{otherwise}
                            \end{cases} \\
   \updatePcPerm{w} &=
                                      \begin{cases}
-                                       (\exec,\start,\addrend,\addr) & \text{if $w = (\entry,\start,\addrend,\addr)$}\\
+                                       ((\exec,\gl),\start,\addrend,\addr) & \text{if $w = ((\entry,\gl),\start,\addrend,\addr)$}\\
                                        w & \text{otherwise} 
                                      \end{cases} \\
   \nonZero{w} &=
@@ -345,7 +417,7 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                            \arraycolsep=0pt
                            \begin{array}{l}
                              \text{if $\memreg(\pcreg) = \stdcap$}\\
-                             \quad\text{and $\var{newPc} = (\perm,\start,\addrend,\addr + 1)$}\\
+                             \quad\text{and $\var{newPc} = ((\perm,\gl),\start,\addrend,\addr + 1)$}\\
                            \end{array} \\
                            \failed & \text{otherwise}
                        \end{cases} \\
@@ -370,7 +442,7 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                                                \stdUpdatePc{\updateReg{r_1}{\var{w}}} &
                                                \arraycolsep=0pt
                                                \begin{array}{l}
-                                                 \text{if }\memreg(r_2) = (\perm,\start,\addrend,\addr) = \var{c} \\
+                                                 \text{if }\memreg(r_2) = \stdcap = \var{c} \\
                                                  \quad\text{and }\readAllowed{\perm} \text{ and } \withinBounds{\var{c}} \\
                                                  \quad\text{and }\var{w} = \memheap(\addr)
                                                \end{array}\\
@@ -381,9 +453,11 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                                                \stdUpdatePc{\updateHeap{\addr}{\var{w}}} &
                                                \arraycolsep=0pt
                                                \begin{array}{l}
-                                                 \text{if }\memreg(r_1) = (\perm,\start,\addrend,\addr) = \var{c} \\
+                                                 \text{if }\memreg(r_1) = \stdcap = \var{c} \\
                                                  \quad\text{and }\writeAllowed{\perm} \text{ and } \withinBounds{\var{c}} \\
-                                                 \quad\text{and }\var{w} = \memreg(r_2)
+                                                 \quad\text{and }\var{w} = \memreg(r_2)\\
+                                                 \quad\text{and if } \var{w} = ((\_,\local),\_,\_,\_) \text{,} \\
+                                                 \quad\text{ then } \perm \in \{\rwlx,\readwritel \}
                                                \end{array}\\
                                                \failed & \text{otherwise }
                                              \end{cases}\\
@@ -397,7 +471,7 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                                                    \text{if either $n = \rv$ or $\rv = \refreg{r_2}$ and $n = \memreg(r_2)$} \\
                                                    \quad\text{and in either case $n \in \ints $} \\
                                                    \quad\text{and $\memreg(r_1) = \stdcap$}\\
-                                                   \quad\text{and $\var{c} = (\perm,\start,\addrend,\addr + n)$}
+                                                   \quad\text{and $\var{c} = ((\perm,\gl),\start,\addrend,\addr + n)$}
                                                  \end{array}\\
                                                \failed               & \text{otherwise}
                                              \end{cases} 
@@ -409,11 +483,11 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                                                  \arraycolsep=0pt
                                                  \begin{array}{l}
                                                    \text{if $\memreg(\rv_1) = c'$}\\
-                                                   \quad\text{and $c' = \stdcap$}\\
+                                                   \quad\text{and $c' = \stdcap[\permp]$}\\
                                                    \quad\text{and either $\rv_2 = n$ or $\memreg(\rv_2) = n$}\\
                                                    \quad\text{and in either case $n \in \ints$}\\
-                                                   \quad\text{and $\var{newPerm} = \decodePerm(n)$}\\
-                                                   \quad\text{and $\var{newPerm} \sqsubseteq \perm$}\\
+                                                   \quad\text{and $\var{newPermPair} = \decodePerm(n)$}\\
+                                                   \quad\text{and $\var{newPermPair} \sqsubseteq \permp$}\\
                                                    \quad\text{and $c = (\var{newPerm},\start,\addrend,\addr)$}
                                                  \end{array}\\
                                                \failed                   & \text{otherwise}
@@ -435,6 +509,13 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
   \sem{\setptr{\lv}{\rv}} & = \undefined \\ 
   \sem{\subseg{\lv}{\rv}{\rv}} & = \undefined 
 \end{align*}
+\lau{Dominique, apparently there was a reason I had not added the new condition in store to $\writeAllowed{}$. The new condition depends on a case distinction on $w$. It is only if $w$ is a capabilty that we look into whether it is local or not. But even if $w$ is just an integer, we still need the capability we write through to have some kind of write permission.}
+
+After adding local capabilities, most of the definitions have changed slightly to take into the account new form the capabilties take. The only two instructions that have undergone enough change to deserve to be mentioned are $\store{}$ and $\restrict{}{}{}$. 
+
+$\store{}$ has the same conditions as before, but if what it tries to write is a capability, then it needs to be a write access that permits write local.
+
+$\restrict{}{}{}$ looks like before, but now it uses a ``permission pair'' which is the access permission and whether it is local or not. Whether a $\restrict{}{}{}$ succeeds depends on the ordering, so the real change lies in the new ordering, which is described further above.
 
 \section{Examples}
 \label{sec:examples}
@@ -467,6 +548,8 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
   \end{array}} \right \}}}
 }
 \newcommand{\annotate}[2]{\multirow{#1}{\mrlen}{\scriptsize #2}}
+\lau{Has not been adjusted since local capabilties were added.}
+
 Assume the instructions of some adversary resides in the memory starting at the memory location marked with $\advb$. Assume that the register $\rio$ initially contains a capability for the address in memory where I/O is written to (we assume this address is 0). We assume that entry capabilities for $\adv$ and $\malloc$ is ambiently available\dominique{what does this mean?}. The following is a test program for a ticket dispenser:
 \[
   \begin{array}{r l l p{\mrlen}}
@@ -1211,7 +1294,7 @@ Well-definedness lemmas:
 The following standard region is used in the definition of the value relation. Specifically, it is used in the $\readCond{}$ and the $\writeCond{}$ (to be defined next)
 
 \begin{align*}
-  \iota_{\var{start},\var{end}} & : \; (\Worlds \monnefun \UPred{\Words}) \nefun \Regions\\
+  \iota_{\var{base},\var{end}} & : \; (\Worlds \monnefun \UPred{\Words}) \nefun \Regions\\
   \iota_{\var{base},\var{end}} & \defeq \lambda \; \stdvr \ldotp ((\var{base},\var{end}),=,H_{\var{std}} (\stdvr)) \\ & \\
   H_{\var{std}} & : (\Worlds \monnefun \UPred{\Words}) \nefun \States \nefun \Wor \monnefun \UPred{\HeapSegments} \\
   H_{\var{std}} \; \stdvr \; (\var{base},\var{end})\; \hat{W} &  \defeq \left\{ \npair{\hs} \middle|
@@ -1733,6 +1816,30 @@ Using execution~\ref{eq:ftlr:conf-steps}, we can conclude that $p' \in \{\rwx,\e
 \case{\plus{}{}{}}
 
 \end{proof}
+
+\subsection{Logical Relation}
+\lau{To be deleted when incorporated in the rest of the text.}
+\subsubsection{Worlds}
+\lau{disclaimer: the following is my current perception of what is going on}
+The worlds here are almost the same as the ones we defined in the case without local capabilities in Section~\ref{subsec:worlds}. The difference is that here our region keeps track of a view, namely whether it belongs to the \emph{permanent} or \emph{temporary} view of the current memory. The permanent part signifies what can be kept after a return to a caller whereas the temporary part will be lost after returning to a caller. 
+
+Define $\Views$ to be
+\[
+  \Views \defeq \{\perma, \temp \}
+\]
+
+Assume a preordered \cofe{} $\Wor$ and an isomorphism $\xi$ such that:
+\[
+  \xi : \Wor \cong \blater (\nats \finparfun (\Views \times \States \times \Rel \times (\States \fun (\Wor \monnefun \UPred{\HeapSegments}))))
+\]
+
+And the worlds are
+\[
+  \Worlds \defeq \nats \finparfun \Regions
+\]
+
+
+
 
 \section{Other examples and applications}
 \label{sec:other_apps}
