@@ -519,6 +519,46 @@ $\restrict{}{}{}$ looks like before, but now it uses a ``permission pair'' which
 
 \section{Examples}
 \label{sec:examples}
+\subsection{Simple Examples Using Local Capabilities}
+\label{subsec:example-loc-cap}
+\subsubsection{Simple use of local capabilities}
+\begin{verbatim}
+let f = fun adv =>
+          let l = 1 in
+          adv(l);
+          l := 1;
+          adv(0);
+          return *l
+\end{verbatim}
+In this example \texttt{let l = 1 in} allocates a new local capability \texttt{l} with read-write permissions. Assuming \texttt{adv} has no access to capabilities with permit write local, they cannot store \texttt{l} and thus change its value in the second call.
+
+\subsection{Simple well-bracketness/local capability example}
+\begin{verbatim}
+let f = fun adv =>
+          let x = 1 in
+          adv();
+          assert(x == 1);
+          x := 2;
+          adv();
+          return 0
+\end{verbatim}
+A sensible calling scheme uses local capabilities for the continuation capability passed to the callee. In the above example, if \texttt{adv} can store the continuation, then 
+\texttt{adv} can invoke it during the second call and thus force the assertion to fail.
+
+\subsection{Another simple well-bracketness/local capability example}
+Here assume that \texttt{let l = ... in} produces a local, read-write permit write local capability.
+\begin{verbatim}
+let f = fun adv =>
+          let l = 0 in
+          let x = 1 in
+          adv(l);
+          assert(x == 1);
+          x := 2;
+          adv(0);
+          return 0
+\end{verbatim}
+In the above example, we give \texttt{adv} a ``mini stack'' to work with in the form of \texttt{l}. \texttt{adv} can thus store local capabilities, but their access will be revoked, when they return from the first call.
+
 \subsection{Ticket Dispenser}
 \label{sec:tick-disp}
 \newcommand{\hsfoot}{\hs_\var{footprint}}
