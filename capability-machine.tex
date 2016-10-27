@@ -69,7 +69,7 @@
 \newcommand{\hv}{\var{hv}}
 \newcommand{\rv}{\var{rv}}
 \newcommand{\lv}{\var{lv}}
-\newcommand{\gl}{g}
+\newcommand{\gl}{\var{g}}
 \newcommand{\pc}{\mathit{pc}}
 \newcommand{\pcreg}{\mathrm{pc}}
 \newcommand{\addr}{\var{a}}
@@ -124,6 +124,9 @@
 \newcommand{\writeCond}[1]{\plainfun{readWriteCondition}{#1}}
 \newcommand{\execCond}[1]{\plainfun{executeCondition}{#1}}
 \newcommand{\entryCond}[1]{\plainfun{entryCondition}{#1}}
+
+\newcommand{\revokeTemp}[1]{\plainfun{revokeTemp}{#1}}
+\newcommand{\erase}[2]{\floor*{#1}_{#2}}
 
 
 %World operations
@@ -227,13 +230,15 @@
 \newcommand{\local}{\plainperm{local}}
 \newcommand{\glob}{\plainperm{global}}
 
+%Views
+\newcommand{\plainview}[1]{\mathrm{#1}}
+\newcommand{\perma}{\plainview{perm}}
+\newcommand{\temp}{\plainview{temp}}
+\newcommand{\revoked}{\plainview{revoked}}
+
 %OP sem
 \newcommand{\diverge}[1][n]{\not\Downarrow_{#1}}
 \newcommand{\step}[1][]{\rightarrow_{#1}}
-
-%View
-\newcommand{\perma}{\mathrm{permanent}}
-\newcommand{\temp}{\mathrm{temporary}}
 
 \begin{document}
 \begin{flushright}
@@ -859,6 +864,132 @@ Finally, we need to show $\heapSat[{\memheap[\Phi'']}|]{n}{W''}$. The domains of
 
 We have now shown the three conditions and thus proven Lemma~\ref{lem:tckt-disp}.
 \end{proof}
+
+\section{Logical Relation'}
+\subsection{Worlds}
+Define the domain $\Views$ as follows
+\[
+  \Views = \{\perma,\temp,\revoked\}
+\]
+Using the ordering where $\revoked \future \temp$ and $\future$ is otherwise reflexive, and a family of equivalences where everything is equal at 0 and othervise the equivalences are ``normal'' equality. We claim this is a preordered \cofe{}. %TODO prove this claim! And show the new "region" is a preordered cofe with the claimed ordering.
+
+Assume $\Wor$ is a preordered \cofe{} and $\xi$ is an isomorphism such that
+\[
+  \xi : \Wor \cong \blater (\nats \finparfun (\Views \times \States \times \Rel \times (\States \fun (\Wor \monnefun \UPred{\HeapSegments}))))
+\]
+The regions are here
+\[
+  \Regions = (\Views \times \States \times \Rel \times (\States \fun (\Wor \monnefun \UPred{\HeapSegments})))
+\]
+And the worlds are
+\[
+  \Worlds = \RegionNames \finparfun \Regions
+\]
+The ordering of worlds is
+
+ \begin{align*}
+ W' \future W & & \text{ iff } & &
+   \begin{gathered}
+     \dom(W') \supseteq \dom(W)\\ 
+     \text{ and } \\
+     \forall r \in \dom(W) \ldotp W'(r) \future W(r)
+   \end{gathered}
+ \end{align*}
+and the ordering of regions is
+\begin{gather*}
+  (v_2,s_2,\phi_2,H_2) \future (v_1,s_1,\phi_1,H_1) \\
+  \text{ iff } \\ 
+    \begin{gathered}
+      (v_2,v_1) = (\revoked,\revoked) \text{ and } (s_1,\phi_1,H_1) = (s_2,\phi_2,H_2) \\
+      \text{or} \\
+      (v_2,v_1) \in \{(\revoked,\temp), (\temp,\temp), (\perma,\perma) \} \text{ and } \\
+      (s_1,s_2) \in \phi_2 \text{ and } (\phi_1,H_1) = (\phi_2,H_2)
+    \end{gathered} 
+\end{gather*}
+The idea here is that the region is ``frozen'' after it has been revoked.
+
+Erase all but one view in a world:
+
+\begin{align*}
+  \erase{W}{v} \defeq \lambda r \ldotp 
+  \begin{cases}
+    W(r) & W(r).v = v\\
+    \undefined & \text{otherwise}
+  \end{cases}
+\end{align*}
+
+Standard region for when writing locally is permitted:
+\begin{align*}
+  &\iota_{\start,\addrend}^{\var{pwl}} \defeq \lambda v \ldotp (v,(\start,\addrend),=,H^{\var{pwl}}) \\ 
+  &H^{\var{pwl}} \; (\start,\addrend) \; \hat{W} \defeq \left\{\npair{\hs} \mid
+    \begin{aligned}
+      &\dom(\hs) = [\start,\addrend] \land \\
+      &\forall \addr \in [\start,\addrend] \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W}))
+    \end{aligned}
+  \right\}
+\end{align*}
+
+Rewoking all temporary regions:
+
+\begin{align*}
+  \revokeTemp{} & : \Worlds \fun \Worlds \\
+  \revokeTemp{W} & \defeq \lambda r \ldotp 
+                   \begin{cases}
+                     (\revoked,s,\phi,H) & W(r) = (\temp,s,\phi,H) \\
+                     W(r)                & \text{otherwise}
+                   \end{cases}
+\end{align*}
+
+A standard region for when write local is not allowed:
+
+\begin{align*}
+  &\iota_{\start,\addrend}^{\var{nwl}} \defeq \lambda v \ldotp (v,(\start,\addrend),=,H^{\var{nwl}}) \\ 
+  &H^{\var{nwl}} \; (\start,\addrend) \; \hat{W} \defeq \left\{\npair{\hs} \mid
+    \begin{aligned}
+      &\dom(\hs) = [\start,\addrend] \land \\
+      &\forall \addr \in [\start,\addrend] \ldotp \\
+      &\quad \npair[n-1]{\hs(\addr)} \in \stdvr(\revokeTemp{\xi(\hat{W})})
+    \end{aligned}
+  \right\}
+\end{align*}
+
+\begin{align*}
+    & \writeCond{}(\iota,\var{regions})(\start,\addrend,W) =  \\
+    & \quad \begin{aligned}[t]
+              \{ n \mid & \;\exists r \in \var{regions} \ldotp \\
+              & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
+              & \;\qquad W(r)\nequal[n-1] \iota_{\start',\addrend'}(W(r).v) \}
+            \end{aligned}
+\end{align*}
+
+Now define the value relation as follows:
+\begin{align*}
+  \stdvr &\defeq \lambda \; V \ldotp 
+           \begin{aligned}[t]
+             & \{ \npair{i} \mid i \in \ints \} 
+             \union \\
+             & \{ \npair{\stdcap[(\noperm,\gl)] }  \} 
+             \union \\
+             & \{ \npair{\stdcap[(\readonly,\gl)] } \mid \} 
+             \union \\
+             & \{ \npair{\stdcap[(\readwrite,\local)] } \mid \\
+             & \quad n \in \writeCond{}(\iota^{\var{nwl}},\dom(W))(\start,\addrend,W) \}
+             \union \\
+             & \{ \npair{\stdcap[(\readwrite,\glob)] } \mid  \\            
+             & \quad n \in \writeCond{}(\iota^{\var{pwl}},\dom(\erase{W}{\perma}))(\start,\addrend,W) \}
+             \union \\
+             & \{ \npair{\stdcap[(\readwritel,\local)] } \mid \\
+             & \quad n \in \writeCond{}(\iota^{\var{pwl}},\var{regions})(\start,\addrend,W) \\
+             & \quad \text{for }\var{regions} = \dom(\erase{W}{\temp}) \union \dom(\erase{W}{\revoked})\}
+             \union \\
+             & \{ \npair{\stdcap[(\exec,\gl)]} \mid \}
+             \union \\
+             & \{ \npair{\stdcap[(\entry,\gl)]} \mid \} \union \\
+             & \{ \npair{\stdcap[(\rwx,\gl)]} \mid \} \union \\
+             & \{ \npair{\stdcap[(\rwlx,\local)]} \mid \}
+           \end{aligned}
+\end{align*}
+
 
 \section{Logical Relation}
 \label{sec:logical-relation}
@@ -1591,7 +1722,7 @@ Finally, we need to show that all the conditions are non-expansive, but we later
 \label{subsubsec:value-relation}
 The value relation, is defined as follows:
 \begin{align*}
-  \stdvr & :  (\Worlds \monnefun \UPred{Words}) \nefun \Worlds \monnefun \UPred{\Words} \\
+  \stdvr & :  (\Worlds \monnefun \UPred{\Words}) \nefun \Worlds \monnefun \UPred{\Words} \\
   \stdvr &\defeq \lambda \; V \ldotp \lambda \; W \ldotp 
               \begin{aligned}[t]
   & \{ \npair{i} \mid i \in \ints \} 
@@ -1856,30 +1987,6 @@ Using execution~\ref{eq:ftlr:conf-steps}, we can conclude that $p' \in \{\rwx,\e
 \case{\plus{}{}{}}
 
 \end{proof}
-
-\subsection{Logical Relation}
-\lau{To be deleted when incorporated in the rest of the text.}
-\subsubsection{Worlds}
-\lau{disclaimer: the following is my current perception of what is going on}
-The worlds here are almost the same as the ones we defined in the case without local capabilities in Section~\ref{subsec:worlds}. The difference is that here our region keeps track of a view, namely whether it belongs to the \emph{permanent} or \emph{temporary} view of the current memory. The permanent part signifies what can be kept after a return to a caller whereas the temporary part will be lost after returning to a caller. 
-
-Define $\Views$ to be
-\[
-  \Views \defeq \{\perma, \temp \}
-\]
-
-Assume a preordered \cofe{} $\Wor$ and an isomorphism $\xi$ such that:
-\[
-  \xi : \Wor \cong \blater (\nats \finparfun (\Views \times \States \times \Rel \times (\States \fun (\Wor \monnefun \UPred{\HeapSegments}))))
-\]
-
-And the worlds are
-\[
-  \Worlds \defeq \nats \finparfun \Regions
-\]
-
-
-
 
 \section{Other examples and applications}
 \label{sec:other_apps}
