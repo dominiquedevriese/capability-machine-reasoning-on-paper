@@ -33,10 +33,10 @@
 %Math notation
 \newcommand{\restrictfun}[1]{|_{#1}}
 \newcommand{\parfun}{\rightharpoonup}
-\newcommand{\finparfun}{\stackrel{\textit{\tiny{fin}}}{\rightharpoonup}}
-\newcommand{\monnefun}{\stackrel{\textit{\tiny{mon, ne}}}{\rightarrow}}
-\newcommand{\monfun}{\stackrel{\textit{\tiny{mon}}}{\rightarrow}}
-\newcommand{\nefun}{\stackrel{\textit{\tiny{ne}}}{\rightarrow}}
+\newcommand{\finparfun}{\xrightharpoonup{\textit{\tiny{fin}}}}
+\newcommand{\monnefun}{\xrightarrow{\textit{\tiny{mon, ne}}}}
+\newcommand{\monfun}{\xrightarrow{\textit{\tiny{mon}}}}
+\newcommand{\nefun}{\xrightarrow{\textit{\tiny{ne}}}}
 \newcommand{\fun}{\rightarrow}
 \newcommand{\defeq}{\stackrel{\textit{\tiny{def}}}{=}}
 \newcommand{\nequal}[1][n]{\stackrel{\tiny{#1}}{=}}
@@ -127,12 +127,18 @@
 \newcommand{\entryCond}[1]{\plainfun{entryCondition}{#1}}
 
 \newcommand{\revokeTemp}[1]{\plainfun{revokeTemp}{#1}}
-\newcommand{\erase}[2]{\floor*{#1}_{#2}}
+\newcommand{\erase}[2]{\floor*{#1}_{\{#2\}}}
 
 
 %World operations
 \newcommand{\future}{\mathbin{\sqsupseteq}}
+\newcommand{\futurewk}{\mathbin{\sqsupseteq}_{\var{wk}}}
+\newcommand{\futurestr}{\mathbin{\sqsupseteq}_{\var{str}}}
 \newcommand{\heapSat}[3][\heap]{#1 :_{#2} #3}
+
+\newcommand{\monwknefun}{\xrightarrow[\text{\tiny{$\futurewk$}}]{\textit{\tiny{mon, ne}}}}
+\newcommand{\monstrnefun}{\xrightarrow[\text{\tiny{$\futurestr$}}]{\textit{\tiny{mon, ne}}}}
+
 
 %Assembly labels
 \newcommand{\codelabel}[1]{\mathit{#1}}
@@ -167,6 +173,9 @@
 \newcommand{\States}{\plaindom{State}}
 \newcommand{\RegionNames}{\plaindom{RegionName}}
 \newcommand{\Regions}{\plaindom{Region}}
+\newcommand{\Reg}{\plaindom{Reg}}
+\newcommand{\Regwk}{\Reg_{\futurewk}}
+\newcommand{\Regstr}{\Reg_{\futurestr}}
 \newcommand{\Worlds}{\plaindom{World}}
 \newcommand{\Wor}{\plaindom{Wor}}
 \newcommand{\StorePred}{\plaindom{HeapSegPred}}
@@ -230,6 +239,9 @@
 %Global/local
 \newcommand{\local}{\plainperm{local}}
 \newcommand{\glob}{\plainperm{global}}
+
+\newcommand{\localReg}{\var{localReg}}
+\newcommand{\globalReg}{\var{globalReg}}
 
 %Views
 \newcommand{\plainview}[1]{\mathrm{#1}}
@@ -527,6 +539,7 @@ $\restrict{}{}{}$ looks like before, but now it uses a ``permission pair'' which
 \label{sec:examples}
 \subsection{Simple Examples Using Local Capabilities}
 \label{subsec:example-loc-cap}
+In the below, let \texttt{assert(e)} do the following: evaluate \texttt{e} if it evaluates to true, then continue execution, otherwise terminate with the return value 1. Notice that an assertion will never terminate in a $\failed$ state.
 \subsubsection{Simple use of local capabilities}
 \begin{verbatim}
 let f = fun adv =>
@@ -561,10 +574,10 @@ let f = fun adv =>
           return 0
 \end{verbatim}
 A sensible calling scheme uses local capabilities for the continuation capability passed to the callee. In the above example, if \texttt{adv} can store the continuation, then 
-\texttt{adv} can invoke it during the second call and thus force the assertion to fail.
+\texttt{adv} can invoke it during the second call and thus force the assertion to fail. We expect this program to either not terminate or terminate in a failed state (not caused by the assertion) or terminate with the result 0.
 \lars{don't you want to allocate the location \texttt{x} first and then
   return a function taking \texttt{adv} as an argument ??}
-\lau{I am not sure I get what you have in mind, could you perhaps write it?}
+\lau{I am not sure I get what you have in mind, could you perhaps write the program you had in mind?}
 
 \subsection{Another simple well-bracketedness/local capability example}
 Here assume that \texttt{let l = ... in} produces a local, read-write permit write local capability.
@@ -883,129 +896,249 @@ We have now shown the three conditions and thus proven Lemma~\ref{lem:tckt-disp}
 
 \section{Logical Relation'}
 \subsection{Worlds}
-Define the domain $\Views$ as follows
-\[
-  \Views = \{\perma,\temp,\revoked\}
-\]
-Using the ordering where $\revoked \future \temp$ and $\future$ is otherwise reflexive, and a family of equivalences where everything is equal at 0 and otherwise the equivalences are ``normal'' equality. We claim this is a preordered \cofe{}. %TODO prove this claim! And show the new "region" is a preordered cofe with the claimed ordering.
-
-Assume $\Wor$ is a preordered \cofe{} and $\xi$ is an isomorphism such that
-\[
-  \xi : \Wor \cong \blater (\nats \finparfun (\Views \times \States \times \Rel \times (\States \fun (\Wor \monnefun \UPred{\HeapSegments}))))
-\]
-The regions are here
-\[
-  \Regions = (\Views \times \States \times \Rel \times (\States \fun (\Wor \monnefun \UPred{\HeapSegments})))
-\]
+Assume $\Regstr$ and $\Regwk$ are preordered \cofes{} and $\xi_{\var{wk}}$ and $\xi_{\var{str}}$ are isomorphisms such that
+\begin{align*}
+  \xi_{\var{wk}} :   \Regwk \cong \blater (&\{\revoked\} \union \\
+                                           & \{\temp\} \times \States \times \Rel \times (\States \fun ((\nats \finparfun \Regwk) \monnefun \UPred{\HeapSegments})) \union \\
+                                           & \{\perma\} \times \States \times \Rel \times (\States \fun ((\nats \finparfun \Regstr) \monnefun \UPred{\HeapSegments})))_{\future_{\var{wk}}} \\ \\
+  \xi_{\var{str}} :   \Regstr \cong \blater (&\{\revoked\} \union \\
+                                           & \{\temp\} \times \States \times \Rel \times (\States \fun ((\nats \finparfun \Regwk) \monnefun \UPred{\HeapSegments})) \union \\
+                                           & \{\perma\} \times \States \times \Rel \times (\States \fun ((\nats \finparfun \Regstr) \monnefun \UPred{\HeapSegments})))_{\future_{\var{str}}}
+\end{align*}
+We now define the regions to be
+\begin{align*}
+  \Regions = & \{\revoked\} \union \\
+             & \{\temp\} \times \States \times \Rel \times (\States \fun ((\nats \finparfun \Regwk) \monnefun \UPred{\HeapSegments})) \union \\
+             & \{\perma\} \times \States \times \Rel \times (\States \fun ((\nats \finparfun \Regstr) \monnefun \UPred{\HeapSegments}))
+\end{align*}
 And the worlds are
 \[
   \Worlds = \RegionNames \finparfun \Regions
 \]
-The ordering of worlds is
+Where $\RegionNames = \nats$.
 
+Ignoring the view part of a region, a future region is a region where the interpretation and state transitions remain the same, but the state may have changed in accordance with the state transition system: 
+\begin{gather*}
+  (s_2,\phi_2,H_2) \future (s_1,\phi_1,H_1) \\
+  \text{ iff } \\ 
+  (s_1,s_2) \in \phi_2 \text{ and } (\phi_1,H_1) = (\phi_2,H_2)
+\end{gather*}
+our two future region relations both have this in common, but they also take the view into account. For the weak future world relation, the view has to stay the same:
+\begin{align*}
+  &\quad r_2 \futurewk r_1 \\
+  &\text{ iff } \\ 
+  &\quad\exists v_2,s_2,\phi_2,H_2,v_1,s_1,\phi_1,H_1\ldotp\\
+  &\qquad      r_2 = (v_2,s_2,\phi_2,H_2) \text{ and } \\
+  &\qquad r_1=(v_1,s_1,\phi_1,H_1) \text{ and }\\
+  &\qquad v_1 = v_2 \text{ and } (s_2,\phi_2,H_2) \future (s_1,\phi_1,H_1)\\
+  &\quad \text{or} \\ 
+  &\qquad r_1 = r_2 = \revoked
+\end{align*}
+For the strong future world relation, the $\temp$ regions are allowed to become $revoked$. Otherwise the relation is the same as the weak future world relation.
+\begin{align*}
+  &\quad r_2 \futurestr r_1 \\
+  &\text{ iff } \\ 
+  &\quad r_2 \futurewk r_1 \\
+  &\quad\text{or} \\ 
+  &\quad\exists s_1,\phi_1,H_1\ldotp\\
+  &\qquad r_2 = \revoked \text{ and } r_1 = (\temp,s_1,\phi_1,H_1)
+\end{align*}
+
+We now get to future world relations $\futurewk$ and $\futurestr$ are defined as one would expect. That is by function extensionality, but where the regions already defined are allowed to evolve according to the appropriate future region relation:
  \begin{align*}
- W' \future W & & \text{ iff } & &
+ W' \future_{\var{wk}/\var{str}} W & & \text{ iff } & &
    \begin{gathered}
      \dom(W') \supseteq \dom(W)\\ 
      \text{ and } \\
-     \forall r \in \dom(W) \ldotp W'(r) \future W(r)
+     \forall r \in \dom(W) \ldotp W'(r) \future_{\var{wk}/\var{str}} W(r)
    \end{gathered}
  \end{align*}
-and the ordering of regions is
-\begin{gather*}
-  (v_2,s_2,\phi_2,H_2) \future (v_1,s_1,\phi_1,H_1) \\
-  \text{ iff } \\ 
-    \begin{gathered}
-      (v_2,v_1) = (\revoked,\revoked) \text{ and } (s_1,\phi_1,H_1) = (s_2,\phi_2,H_2) \\
-      \text{or} \\
-      (v_2,v_1) \in \{(\revoked,\temp), (\temp,\temp), (\perma,\perma) \} \text{ and } \\
-      (s_1,s_2) \in \phi_2 \text{ and } (\phi_1,H_1) = (\phi_2,H_2)
-    \end{gathered} 
-\end{gather*}
-The idea here is that the region is ``frozen'' after it has been revoked.
 
-Erase all but one view in a world:
+Erase all but a set of views.
 
 \begin{align*}
-  \erase{W}{v} \defeq \lambda r \ldotp 
+  \erase{W}{S} \defeq \lambda r \ldotp 
   \begin{cases}
-    W(r) & W(r).v = v\\
+    W(r) & W(r).v \in S\\
     \undefined & \text{otherwise}
   \end{cases}
 \end{align*}
 
-Standard region for when writing locally is permitted:
+Standard regions for when writing locally is permitted:
 \begin{align*}
-  &\iota_{\start,\addrend}^{\var{pwl}} \defeq \lambda v \ldotp (v,(\start,\addrend),=,H^{\var{pwl}}) \\ 
-  &H^{\var{pwl}} \; (\start,\addrend) \; \hat{W} \defeq \left\{\npair{\hs} \middle|
+  &\iota_{\start,\addrend}^{\var{pwl}} : \Regions\\
+  &\iota_{\start,\addrend}^{\var{pwl}} \defeq (\temp,(\start,\addrend),=,H^{\var{pwl}}) \\ \\
+  &H^{\var{pwl}} : \States \fun ((\nats \finparfun \Regwk) \monnefun \UPred{\HeapSegments})\\
+  &H^{\var{pwl}} \; s \; \hat{W} \defeq \left\{\npair{\hs} \middle|
     \begin{aligned}
-      &\dom(\hs) = [\start,\addrend] \land \\
-      &\forall \addr \in [\start,\addrend] \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W}))
+      &\exists \start,\addrend \ldotp s = (\start,\addrend) \land \\
+      &\quad \dom(\hs) = [\start,\addrend] \land \\
+      &\quad \forall \addr \in [\start,\addrend] \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\hat{W})
     \end{aligned}
   \right\}
 \end{align*}
-
 Revoking all temporary regions:
-
 \begin{align*}
   \revokeTemp{} & : \Worlds \fun \Worlds \\
   \revokeTemp{W} & \defeq \lambda r \ldotp 
                    \begin{cases}
-                     (\revoked,s,\phi,H) & W(r) = (\temp,s,\phi,H) \\
+                     \revoked            & \text{if }W(r) = (\temp,s,\phi,H) \\
                      W(r)                & \text{otherwise}
                    \end{cases}
 \end{align*}
-
-A standard region for when write local is not allowed:
-
+Standard regions for when write local is not allowed:
 \begin{align*}
-  &\iota_{\start,\addrend}^{\var{nwl}} \defeq \lambda v \ldotp (v,(\start,\addrend),=,H^{\var{nwl}}) \\ 
-  &H^{\var{nwl}} \; (\start,\addrend) \; \hat{W} \defeq \left\{\npair{\hs} \middle|
+  &\iota_{\start,\addrend}^{\var{nwl}} : \Views \parfun \Regions \\
+  &\iota_{\start,\addrend}^{\var{nwl}} \defeq \lambda v \ldotp
+    \begin{cases}
+      (v,(\start,\addrend),=,H^{\var{nwl}}) & v \neq \revoked \\
+      \bot & \text{otherwise}
+\end{cases}
+\\ \\
+  &H^{\var{nwl}} : \States \fun ((\nats \finparfun \Regstr) \monnefun \UPred{\HeapSegments})\\
+  &H^{\var{nwl}} \; s \;\hat{W} \defeq \left\{\npair{\hs} \middle|
     \begin{aligned}
+      &\exists \start,\addrend \ldotp s = (\start,\addrend) \land \\
       &\dom(\hs) = [\start,\addrend] \land \\
       &\forall \addr \in [\start,\addrend] \ldotp \\
-      &\quad \npair[n-1]{\hs(\addr)} \in \stdvr(\revokeTemp{\xi(\hat{W})})
+      &\quad \npair[n-1]{\hs(\addr)} \in \stdvr(\revokeTemp{\hat{W}}) %Does it make sense to use revokeTemp here when it does not "match up" with the world?
     \end{aligned}
   \right\}
 \end{align*}
 
+For convenience define
 \begin{align*}
-    & \writeCond{}(\iota,\var{regions})(\start,\addrend,W) =  \\
+  \localReg & \defeq \dom(\erase{W}{\perm,\temp}) \\
+  \globalReg & \defeq \dom(\erase{W}{\perm})
+\end{align*}
+$\localReg$ are the regions that local capabilities may govern. $\globalReg$ are the regions that global capabilities may govern. Now define the following function
+\[
+  \var{localityReg}(\gl) \defeq 
+  \begin{cases}
+    \localReg & \gl = \local \\
+    \globalReg & \gl = \glob
+  \end{cases}
+\]
+
+\begin{align*}
+    & \writeCond{}(\iota,\gl)(\start,\addrend,W) =  \\
     & \quad \begin{aligned}[t]
-              \{ n \mid & \;\exists r \in \var{regions} \ldotp \\
+              \{ n \mid & \;\exists r \in \var{localityReg}(g) \ldotp \\
               & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
               & \;\qquad W(r)\nequal[n-1] \iota_{\start',\addrend'}(W(r).v) \}
             \end{aligned}
 \end{align*}
 
+\begin{align*}
+    & \readCond{}(\gl)(\start,\addrend,W) =  \\
+    & \quad \begin{aligned}[t]
+              \{ n \mid & \;\exists r \in \var{localityReg}(g) \ldotp \\
+              & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
+              & \;\qquad W(r)\nsubeq[n-1] \iota^{\var{pwl}}_{\start',\addrend'}(W(r).v) \}
+            \end{aligned}
+\end{align*}
+\lau{I am in doubt whether it should be $\iota^{\var{pwl}}$ in the read condition.}
+
+\begin{align*}
+  & \execCond{}(\gl)(\perm,\start,\addrend,W) = \\
+  & \quad
+    \begin{aligned}[t]
+      \{ n \mid &  \forall n' < n \ldotp\\
+      & \quad \forall W' \future W \ldotp\\
+      & \qquad\forall a \in [\start,\addrend] \ldotp\\
+      & \qquad \quad \npair[n']{((\perm,\gl),\start,\addrend,\addr)} \in \stder(W')\}
+    \end{aligned} \\
+  & \quad \text{where } \gl = \local \Rightarrow \future = \futurewk \\
+  & \quad \text{and } \gl = \glob \Rightarrow \future = \futurestr
+\end{align*}
+
+\begin{align*}
+  & \entryCond{}(\gl)(\start,\addrend,\addr,W) = \\
+  & \quad
+    \begin{aligned}[t]
+      \{ n \mid &  \forall n' < n \ldotp\\
+      & \quad \forall W' \future W \ldotp\\
+      & \qquad \npair[n']{((\exec,\gl),\start,\addrend,\addr)} \in \stder(W')\}
+    \end{aligned} \\
+  & \quad \text{where } \gl = \local \Rightarrow \future = \futurewk \\
+  & \quad \text{and } \gl = \glob \Rightarrow \future = \futurestr
+\end{align*}
+
 Now define the value relation as follows:
 \begin{align*}
-  \stdvr &\defeq \lambda \; W \ldotp 
+  &\stdvr : \Worlds \monwknefun \UPred{\Words} \\
+  &\stdvr\defeq \lambda \; W \ldotp 
            \begin{aligned}[t]
              & \{ \npair{i} \mid i \in \ints \} 
              \union \\
              & \{ \npair{\stdcap[(\noperm,\gl)] }  \} 
              \union \\
-             & \{ \npair{\stdcap[(\readonly,\gl)] } \mid \} 
+             & \{ \npair{\stdcap[(\readonly,\gl)] } \mid \\
+             & \quad n \in \readCond{}(\gl)(\start,\addrend,W)\} 
              \union \\
-             & \{ \npair{\stdcap[(\readwrite,\local)] } \mid \\
-             & \quad n \in \writeCond{}(\iota^{\var{nwl}},\dom(W))(\start,\addrend,W) \}
+             & \{ \npair{\stdcap[(\readwrite,\gl)] } \mid \\
+             & \quad n \in \writeCond{}(\iota^{\var{nwl}},\gl)(\start,\addrend,W) \}
              \union \\
-             & \{ \npair{\stdcap[(\readwrite,\glob)] } \mid  \\            
-             & \quad n \in \writeCond{}(\iota^{\var{nwl}},\dom(\erase{W}{\perma}))(\start,\addrend,W) \}
+             & \{ \npair{\stdcap[(\readwritel,\gl)] } \mid \\
+             & \quad n \in \writeCond{}(\iota^{\var{pwl}},\gl)(\start,\addrend,W) \} \union \\
+             & \{ \npair{\stdcap[(\exec,\gl)]} \mid \\
+             & \quad n \in \readCond{}(\gl)(\start,\addrend,W) \land \\
+             & \quad n \in \execCond{}(\gl)(\exec,\start,\addrend,W) \}
              \union \\
-             & \{ \npair{\stdcap[(\readwritel,\local)] } \mid \\
-             & \quad n \in \writeCond{}(\iota^{\var{pwl}},\var{regions})(\start,\addrend,W) \\
-             & \quad \text{for }\var{regions} = \dom(\erase{W}{\temp}) \union \dom(\erase{W}{\revoked})\}
+             & \{ \npair{\stdcap[(\entry,\gl)]} \mid \\
+             & \quad n \in \entryCond{}(\gl)(\start,\addrend,\addr,W)\} 
              \union \\
-             & \{ \npair{\stdcap[(\exec,\gl)]} \mid \}
+             & \{ \npair{\stdcap[(\rwx,\gl)]} \mid \\
+             & \quad n \in \writeCond{}(\iota^{\var{nwl}},\gl)(\start,\addrend,W) \land\\
+             & \quad n \in \execCond{}(\gl)(\rwx,\start,\addrend,W)  \land \\
+             & \quad n \in \execCond{}(\gl)(\exec,\start,\addrend,W) \}
              \union \\
-             & \{ \npair{\stdcap[(\entry,\gl)]} \mid \} \union \\
-             & \{ \npair{\stdcap[(\rwx,\gl)]} \mid \} \union \\
-             & \{ \npair{\stdcap[(\rwlx,\local)]} \mid \}
+             & \{ \npair{\stdcap[(\rwlx,\gl)]} \mid \\
+             & \quad n \in \writeCond{}(\iota^{\var{pwl}},\gl)(\start,\addrend,W) \land\\
+             & \quad n \in \execCond{}(\gl)(\rwlx,\start,\addrend,W) \land \\
+             & \quad n \in \execCond{}(\gl)(\rwx,\start,\addrend,W) \land \\
+             & \quad n \in \execCond{}(\gl)(\exec,\start,\addrend,W) \}
            \end{aligned}
 \end{align*}
 
+\begin{align*}
+  \observations : &  \Worlds \nefun \UPred{\Regs \times \HeapSegments} \\
+  \observations (W) \defeq & \{ \npair{(\reg,\hs)} \mid \\
+                           & \quad (\forall \heap_f, \heap', i \leq n \ldotp (\reg,\hs \uplus \heap_f) \step[i] (\halted,\heap')  \\
+                           & \qquad \Rightarrow \exists W' \futurestr W \ldotp\exists \hs' \ldotp \heap' = \hs' \uplus \heap_f \land \heapSat[\hs']{n-i}{W'}
+\end{align*}
+
+\begin{align*}
+  \stdrr : & \Worlds \monwknefun \UPred{\Regs} \\
+  \stdrr \defeq & \lambda W \ldotp
+                     \begin{aligned}[t]
+                       \{ \npair{\reg} \mid & \;\forall r \in \RegName \setminus \{\pcreg\} \ldotp \\
+                                            & \;\quad  \npair{\reg(r)} \in \stdvr(W) \}
+                     \end{aligned}
+\end{align*}
+
+\begin{align*}
+  \stdkr : &  \Worlds \monwknefun \UPred{\Words} \\
+  \stdkr \defeq & \lambda \stdvr \ldotp \lambda W \ldotp\{ \npair{c} \mid
+                     \begin{aligned}[t]
+                       & \npair{c} \in \stdvr(W) \land \\
+                       &  \forall W' \futurewk W, n' < n\ldotp
+                       \forall \heapSat[\hs]{n'}{W'} \ldotp \forall \reg, \npair[n']{\reg} \in \stdrr(\stdvr)(W') \ldotp \\
+                       & \quad \npair[n']{(\reg\update{\pcreg}{\updatePcPerm{\var{c}}},\hs)} \in \observations(W') \}
+                 \end{aligned}
+\end{align*}
+
+\begin{align*}
+  \stder : & \Worlds \nefun \UPred{\Words} \\
+  \stder \defeq & \lambda W \ldotp \{ \npair{\pc} \mid 
+  \begin{aligned}[t]
+    & \forall n' \leq n \ldotp\\
+    & \quad \forall \npair[n']{\reg} \in \stdrr(\stdvr)(W) \ldotp \\
+    & \quad \quad \forall \npair[n']{c} \in \stdkr(\stdvr)(W) \ldotp \\
+    & \quad \qquad  \forall \heapSat[\hs]{n'}{W} \ldotp \\
+    & \quad \qquad \quad \npair[n']{(\reg\update{r_0}{c}\update{\pcreg}{\pc},\hs)} \in \observations(W) \}
+  \end{aligned}
+\end{align*}
 
 \section{Logical Relation}
 \label{sec:logical-relation}
@@ -1071,7 +1204,7 @@ We need the following constructions to create the preordered \cofe{} needed to s
   \begin{gathered}
     f \future g \\
     \text{ iff } \\
-    \forall s \in \dom(f) \ldotp f(s) \future g(s)
+    \forall s \in \dom(g) \ldotp f(s) \future g(s)
   \end{gathered}
 \]
 \end{definition}
@@ -1082,7 +1215,7 @@ We need the following constructions to create the preordered \cofe{} needed to s
   \begin{gathered}
     f \future g \\
     \text{ iff } \\
-    \forall s \in \dom(f) \ldotp f(s) \future g(s)
+    \forall s \in \dom(g) \ldotp f(s) \future g(s) 
   \end{gathered}
 \]
 \end{definition}
@@ -1224,7 +1357,7 @@ We now define regions as
 \]
 define region names to be natural numbers, i.e.,
 \[
-  \RegionNames \defeq \nats
+  \RegionNames \defeq \nats 
 \]
 and define worlds as
 \[
