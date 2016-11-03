@@ -12,6 +12,7 @@
 \usepackage{ifthen}
 \usepackage{ifpdf}
 \usepackage{verbatim}
+\usepackage{mathpartir}
 
 \usepackage{mathtools}
 \DeclarePairedDelimiter\ceil{\lceil}{\rceil}
@@ -923,41 +924,39 @@ And the worlds are
 Where $\RegionNames = \nats$.
 
 Ignoring the view part of a region, a future region is a region where the interpretation and state transitions remain the same, but the state may have changed in accordance with the state transition system: 
-\begin{gather*}
-  (s_2,\phi_2,H_2) \future (s_1,\phi_1,H_1) \\
-  \text{ iff } \\ 
-  (s_1,s_2) \in \phi_2 \text{ and } (\phi_1,H_1) = (\phi_2,H_2)
-\end{gather*}
+\begin{mathpar}
+  \inferrule{  (s_1,s_2) \in \phi_2 \\
+               (\phi_1,H_1) = (\phi_2,H_2)}
+            {  (s_2,\phi_2,H_2) \future (s_1,\phi_1,H_1) }
+\end{mathpar}
 our two future region relations both have this in common, but they also take the view into account. For the weak future world relation, the view has to stay the same:
-\begin{align*}
-  &\quad r_2 \futurewk r_1 \\
-  &\text{ iff } \\ 
-  &\quad\exists v_2,s_2,\phi_2,H_2,v_1,s_1,\phi_1,H_1\ldotp\\
-  &\qquad      r_2 = (v_2,s_2,\phi_2,H_2) \text{ and } \\
-  &\qquad r_1=(v_1,s_1,\phi_1,H_1) \text{ and }\\
-  &\qquad v_1 = v_2 \text{ and } (s_2,\phi_2,H_2) \future (s_1,\phi_1,H_1)\\
-  &\quad \text{or} \\ 
-  &\qquad r_1 = r_2 = \revoked
-\end{align*}
+\begin{mathpar}
+  \inferrule{ (s_2,\phi_2,H_2) \future (s_1,\phi_1,H_1) \\
+               v_1 = v_2 }
+            { (v_2,s_2,\phi_2,H_2) \futurewk (v_1,s_1,\phi_1,H_1) }
+\and
+  \inferrule{ }
+            { \revoked \futurewk \revoked }
+\end{mathpar}
 For the strong future world relation, the $\temp$ regions are allowed to become $revoked$. Otherwise the relation is the same as the weak future world relation.
-\begin{align*}
-  &\quad r_2 \futurestr r_1 \\
-  &\text{ iff } \\ 
-  &\quad r_2 \futurewk r_1 \\
-  &\quad\text{or} \\ 
-  &\quad\exists s_1,\phi_1,H_1\ldotp\\
-  &\qquad r_2 = \revoked \text{ and } r_1 = (\temp,s_1,\phi_1,H_1)
-\end{align*}
+\begin{mathpar}
+  \inferrule{ r_2 \futurewk  r_1 }
+            { r_2 \futurestr r_1 }
+\and
+  \inferrule{ }
+            { \revoked \futurestr (\temp,s,\phi,H)}
+\end{mathpar}
 
 We now get two future world relations $\futurewk$ and $\futurestr$ are defined as one would expect. That is by function extensionality, but where the regions already defined are allowed to evolve according to the appropriate future region relation:
- \begin{align*}
- W' \future_{\var{wk}/\var{str}} W & & \text{ iff } & &
-   \begin{gathered}
-     \dom(W') \supseteq \dom(W)\\ 
-     \text{ and } \\
-     \forall r \in \dom(W) \ldotp W'(r) \future_{\var{wk}/\var{str}} W(r)
-   \end{gathered}
- \end{align*}
+\begin{mathpar}
+  \inferrule{ \dom(W') \supseteq \dom(W)\\ 
+              \forall r \in \dom(W) \ldotp W'(r) \futurewk W(r) }
+            { W' \futurestr W }
+\and
+  \inferrule{ \dom(W') \supseteq \dom(W)\\ 
+              \forall r \in \dom(W) \ldotp W'(r) \futurestr W(r) }
+            { W' \futurestr W }
+\end{mathpar}
 
 Erase all but a set of views:
 \begin{align*}
@@ -1024,19 +1023,19 @@ $\localReg$ are the regions that local capabilities may govern - that is permane
 \]
 
 \begin{align*}
-    & \writeCond{} : ((\Views \rightharpoonup \Regions) \times \Globals) \fun (\Addrs^2 \times \Worlds) \monnefun \DCPred{\nats}  \\
-    & \writeCond{}(\iota,\gl)(\start,\addrend,W) =  \\
+    & \writeCond{} : ((\Views \rightharpoonup \Regions) \times \Globals) \fun \Worlds \monnefun \UPred{\Addrs^2}  \\
+    & \writeCond{}(\iota,\gl)(W) =  \\
     & \quad \begin{aligned}[t]
-              \{ n \mid & \;\exists r \in \var{localityReg}(g,W) \ldotp \\
+              \{ \npair{(\start,\addrend)} \mid & \;\exists r \in \var{localityReg}(g,W) \ldotp \\
               & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
               & \;\qquad W(r)\nsupeq[n-1] \iota_{\start',\addrend'}(W(r).v) \}
             \end{aligned}
 \end{align*}
 
 \begin{align*}
-    & \readCond{}(\gl)(\start,\addrend,W) =  \\
+    & \readCond{}(\gl)(W) =  \\
     & \quad \begin{aligned}[t]
-              \{ n \mid & \;\exists r \in \var{localityReg}(g,W) \ldotp \\
+              \{ \npair{(\start,\addrend)} \mid & \;\exists r \in \var{localityReg}(g,W) \ldotp \\
                         & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
                         & \;\qquad W(r)\nsubeq[n-1] \iota^{\var{pwl}}_{\start',\addrend'}(W(r).v) \}
             \end{aligned}
@@ -1044,10 +1043,10 @@ $\localReg$ are the regions that local capabilities may govern - that is permane
 \lau{I am in doubt whether it should be $\iota^{\var{pwl}}$ in the read condition.}
 
 \begin{align*}
-  & \execCond{}(\gl)(\perm,\start,\addrend,W) = \\
+  & \execCond{}(\gl)(W) = \\
   & \quad
     \begin{aligned}[t]
-      \{ n \mid &  \forall n' < n \ldotp\\
+      \{ \npair{(\perm,\start,\addrend)} \mid &  \forall n' < n \ldotp\\
       & \quad \forall W' \future W \ldotp\\
       & \qquad\forall a \in [\start,\addrend] \ldotp\\
       & \qquad \quad \npair[n']{((\perm,\gl),\start,\addrend,\addr)} \in \stder(W')\}
@@ -1057,10 +1056,10 @@ $\localReg$ are the regions that local capabilities may govern - that is permane
 \end{align*}
 
 \begin{align*}
-  & \entryCond{}(\gl)(\start,\addrend,\addr,W) = \\
+  & \entryCond{}(\gl)(W) = \\
   & \quad
     \begin{aligned}[t]
-      \{ n \mid &  \forall n' < n \ldotp\\
+      \{ \npair{(\start,\addrend,\addr)} \mid &  \forall n' < n \ldotp\\
       & \quad \forall W' \future W \ldotp\\
       & \qquad \npair[n']{((\exec,\gl),\start,\addrend,\addr)} \in \stder(W')\}
     \end{aligned} \\
@@ -1078,35 +1077,35 @@ Now define the value relation as follows:
              & \{ \npair{\stdcap[(\noperm,\gl)] }  \} 
              \union \\
              & \{ \npair{\stdcap[(\readonly,\gl)] } \mid \\
-             & \quad n \in \readCond{}(\gl)(\start,\addrend,W)\} 
+             & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)\} 
              \union \\
              & \{ \npair{\stdcap[(\readwrite,\gl)] } \mid \\
-             & \quad n \in \readCond{}(\gl)(\start,\addrend,W) \land \\
-             & \quad n \in \writeCond{}(\iota^{\var{nwl}},\gl)(\start,\addrend,W) \}
+             & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
+             & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^{\var{nwl}},\gl)(W) \}
              \union \\
              & \{ \npair{\stdcap[(\readwritel,\gl)] } \mid \\
-             & \quad n \in \readCond{}(\gl)(\start,\addrend,W) \land \\
-             & \quad n \in \writeCond{}(\iota^{\var{pwl}},\gl)(\start,\addrend,W) \}
+             & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
+             & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^{\var{pwl}},\gl)(W) \}
              \union \\
              & \{ \npair{\stdcap[(\exec,\gl)]} \mid \\
-             & \quad n \in \readCond{}(\gl)(\start,\addrend,W) \land \\
-             & \quad n \in \execCond{}(\gl)(\exec,\start,\addrend,W) \} 
+             & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
+             & \quad \npair{(\exec,\start,\addrend)} \in \execCond{}(\gl)(W) \} 
              \union \\
              & \{ \npair{\stdcap[(\entry,\gl)]} \mid \\
-             & \quad n \in \entryCond{}(\gl)(\start,\addrend,\addr,W)\} 
+             & \quad \npair{(\start,\addrend,\addr)} \in \entryCond{}(\gl)(W)\} 
              \union \\
              & \{ \npair{\stdcap[(\rwx,\gl)]} \mid \\
-             & \quad n \in \readCond{}(\gl)(\start,\addrend,W) \land \\
-             & \quad n \in \writeCond{}(\iota^{\var{nwl}},\gl)(\start,\addrend,W) \land\\
-             & \quad n \in \execCond{}(\gl)(\rwx,\start,\addrend,W)  \land \\
-             & \quad n \in \execCond{}(\gl)(\exec,\start,\addrend,W) \}
+             & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
+             & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^{\var{nwl}},\gl)(W) \land\\
+             & \quad \npair{(\rwx,\start,\addrend)} \in \execCond{}(\gl)(W)  \land \\
+             & \quad \npair{(\exec,\start,\addrend)} \in \execCond{}(\gl)(W) \}
              \union \\
              & \{ \npair{\stdcap[(\rwlx,\gl)]} \mid \\
-             & \quad n \in \readCond{}(\gl)(\start,\addrend,W) \land \\
-             & \quad n \in \writeCond{}(\iota^{\var{pwl}},\gl)(\start,\addrend,W) \land\\
-             & \quad n \in \execCond{}(\gl)(\rwlx,\start,\addrend,W) \land \\
-             & \quad n \in \execCond{}(\gl)(\rwx,\start,\addrend,W) \land \\
-             & \quad n \in \execCond{}(\gl)(\exec,\start,\addrend,W) \}
+             & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
+             & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^{\var{pwl}},\gl)(W) \land\\
+             & \quad \npair{(\rwlx,\start,\addrend)} \in \execCond{}(\gl)(W) \land \\
+             & \quad \npair{(\rwx,\start,\addrend)} \in \execCond{}(\gl)(W) \land \\
+             & \quad \npair{(\exec,\start,\addrend)} \in \execCond{}(\gl)(W) \}
            \end{aligned}
 \end{align*}
 
