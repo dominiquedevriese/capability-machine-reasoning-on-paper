@@ -1,4 +1,5 @@
-\documentclass{article}
+\documentclass[a4paper]{article}
+%\usepackage[a4paper]{geometry}
 \usepackage[utf8]{inputenc}
 
 \usepackage{amsmath,amsfonts,amssymb,amsthm}
@@ -26,6 +27,7 @@
 \declaretheorem[numbered=yes,name=Specification,qed=$\blacksquare$]{specification}
 
 \newcommand{\forcenewline}{$\phantom{v}$\\}
+\newcommand{\judgment}[2]{\paragraph{#1}\hspace{\stretch{1}}\fbox{$#2$}}
 
 \newcommand{\update}[2]{[#1 \mapsto #2]}
 \newcommand{\sem}[1]{\left\llbracket #1 \right\rrbracket}
@@ -328,9 +330,9 @@ Things to note:
     \node[main node] (8) [below left of=7] {$\readwritel$};
     \node[main node] (1) [below right of=7] {$\rwx$};
     \node[main node] (2) [below right of=1] {$\exec$};
-    \node[main node] (3) [below of=2] {$\entry$};
+    \node[main node] (3) [below right of=2] {$\entry$};
     \node[main node] (4) [below left of=1] {$\readwrite$};
-    \node[main node] (5) [below of=4] {$\readonly$};
+    \node[main node] (5) [below right of=4] {$\readonly$};
     \node[main node] (6) [below right of=5] {$\noperm$};
 
   \path[every node/.style={font=\sffamily\small}]
@@ -339,6 +341,7 @@ Things to note:
     (8) edge (4)
     (1) edge (2)
     (2) edge (3)
+    (2) edge (5)
     (3) edge (6)
     (1) edge (4)
     (4) edge (5)
@@ -900,17 +903,17 @@ We have now shown the three conditions and thus proven Lemma~\ref{lem:tckt-disp}
 \subsection{Worlds}
 Assume $\Worstr$ and $\Worwk$ are preordered \cofes{} and $\xi_{\var{wk}}$ and $\xi_{\var{str}}$ are isomorphisms such that
 \begin{align*}
-  \xi_{\var{wk}} :   \Worwk \cong \blater (\nats \finparfun (&\{\revoked\} \union \\
-                                           & \{\temp\} \times \States \times \Rel \times (\States \fun (\Worwk \monnefun \UPred{\HeapSegments})) \union \\
-                                           & \{\perma\} \times \States \times \Rel \times (\States \fun (\Worstr \monnefun \UPred{\HeapSegments})))_{\future_{\var{wk}}}) \\ \\
-  \xi_{\var{str}} :   \Worstr \cong (\nats \finparfun \blater (&\{\revoked\} \union \\
-                                           & \{\temp\} \times \States \times \Rel \times (\States \fun (\Worwk \monnefun \UPred{\HeapSegments})) \union \\
-                                           & \{\perma\} \times \States \times \Rel \times (\States \fun (\Worstr \monnefun \UPred{\HeapSegments})))_{\future_{\var{str}}})
+  \xi_{\var{wk}} :   \Worwk \cong \blater (\nats \finparfun (   & \{\revoked\} + \\
+                                                                & \{\temp\} \times \States \times \Rel \times (\States \fun (\Worwk \monnefun \UPred{\HeapSegments})) + \\
+                                                                & \{\perma\} \times \States \times \Rel \times (\States \fun (\Worstr \monnefun \UPred{\HeapSegments})))_{\future_{\var{wk}}}) \\ \\
+  \xi_{\var{str}} :   \Worstr \cong \blater (\nats \finparfun ( & \{\revoked\} + \\
+                                                                & \{\temp\} \times \States \times \Rel \times (\States \fun (\Worwk \monnefun \UPred{\HeapSegments})) + \\
+                                                                & \{\perma\} \times \States \times \Rel \times (\States \fun (\Worstr \monnefun \UPred{\HeapSegments})))_{\future_{\var{str}}})
 \end{align*}
 We now define the regions to be
 \begin{align*}
-  \Regions = & \{\revoked\} \union \\
-             & \{\temp\} \times \States \times \Rel \times (\States \fun (\Worwk \monnefun \UPred{\HeapSegments})) \union \\
+  \Regions = & \{\revoked\} \uplus \\
+             & \{\temp\} \times \States \times \Rel \times (\States \fun (\Worwk \monnefun \UPred{\HeapSegments})) \uplus \\
              & \{\perma\} \times \States \times \Rel \times (\States \fun (\Worstr \monnefun \UPred{\HeapSegments}))
 \end{align*}
 And the worlds are
@@ -996,7 +999,7 @@ Standard regions for when write local is not allowed:
 \end{cases}
 \\ \\
   &H^{\var{nwl}} : \States \fun (\Worstr \monnefun \UPred{\HeapSegments})\\
-  &H^{\var{nwl}} \; s \;\hat{W} \defeq \left\{\npair{\hs} \middle|
+  &H^{\var{nwl}} \; (\start,\addrend) \;\hat{W} \defeq \left\{\npair{\hs} \middle|
     \begin{aligned}
       &\dom(\hs) = [\start,\addrend] \land \\
       &\forall \addr \in [\start,\addrend] \ldotp \\
@@ -1008,15 +1011,15 @@ Standard regions for when write local is not allowed:
 
 For convenience define
 \begin{align*}
-  \localReg & \defeq \dom(\erase{W}{\perm,\temp}) \\
-  \globalReg & \defeq \dom(\erase{W}{\perm})
+  \localReg(W) & \defeq \dom(\erase{W}{\perm,\temp}) \\
+  \globalReg(W) & \defeq \dom(\erase{W}{\perm})
 \end{align*}
-$\localReg$ are the regions that local capabilities may govern. $\globalReg$ are the regions that global capabilities may govern. Now define the following function
+$\localReg$ are the regions that local capabilities may govern - that is permanent and global regions. $\globalReg$ are the regions that global capabilities may govern - that is permanent regions. Now define the following function
 \[
-  \var{localityReg}(\gl) \defeq 
+  \var{localityReg}(\gl,W) \defeq 
   \begin{cases}
-    \localReg & \gl = \local \\
-    \globalReg & \gl = \glob
+    \localReg(W) & \text{if } \gl = \local \\
+    \globalReg(W) & \text{if } \gl = \glob
   \end{cases}
 \]
 
@@ -1024,7 +1027,7 @@ $\localReg$ are the regions that local capabilities may govern. $\globalReg$ are
     & \writeCond{} : ((\Views \rightharpoonup \Regions) \times \Globals) \fun (\Addrs^2 \times \Worlds) \monnefun \DCPred{\nats}  \\
     & \writeCond{}(\iota,\gl)(\start,\addrend,W) =  \\
     & \quad \begin{aligned}[t]
-              \{ n \mid & \;\exists r \in \var{localityReg}(g) \ldotp \\
+              \{ n \mid & \;\exists r \in \var{localityReg}(g,W) \ldotp \\
               & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
               & \;\qquad W(r)\nequal[n-1] \iota_{\start',\addrend'}(W(r).v) \}
             \end{aligned}
@@ -1033,7 +1036,7 @@ $\localReg$ are the regions that local capabilities may govern. $\globalReg$ are
 \begin{align*}
     & \readCond{}(\gl)(\start,\addrend,W) =  \\
     & \quad \begin{aligned}[t]
-              \{ n \mid & \;\exists r \in \var{localityReg}(g) \ldotp \\
+              \{ n \mid & \;\exists r \in \var{localityReg}(g,W) \ldotp \\
               & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
               & \;\qquad W(r)\nsubeq[n-1] \iota^{\var{pwl}}_{\start',\addrend'}(W(r).v) \}
             \end{aligned}
@@ -1120,11 +1123,11 @@ Now define the value relation as follows:
 
 \begin{align*}
   \stdkr : &  \Worlds \monwknefun \UPred{\Words} \\
-  \stdkr \defeq & \lambda \stdvr \ldotp \lambda W \ldotp\{ \npair{c} \mid
+  \stdkr \defeq & \lambda W \ldotp\{ \npair{c} \mid
                      \begin{aligned}[t]
                        & \npair{c} \in \stdvr(W) \land \\
                        &  \forall W' \futurewk W, n' < n\ldotp
-                       \forall \heapSat[\hs]{n'}{W'} \ldotp \forall \reg, \npair[n']{\reg} \in \stdrr(\stdvr)(W') \ldotp \\
+                       \forall \heapSat[\hs]{n'}{W'} \ldotp \forall \reg, \npair[n']{\reg} \in \stdrr(W') \ldotp \\
                        & \quad \npair[n']{(\reg\update{\pcreg}{\updatePcPerm{\var{c}}},\hs)} \in \observations(W') \}
                  \end{aligned}
 \end{align*}
@@ -1134,8 +1137,8 @@ Now define the value relation as follows:
   \stder \defeq & \lambda W \ldotp \{ \npair{\pc} \mid 
   \begin{aligned}[t]
     & \forall n' \leq n \ldotp\\
-    & \quad \forall \npair[n']{\reg} \in \stdrr(\stdvr)(W) \ldotp \\
-    & \quad \quad \forall \npair[n']{c} \in \stdkr(\stdvr)(W) \ldotp \\
+    & \quad \forall \npair[n']{\reg} \in \stdrr(W) \ldotp \\
+    & \quad \quad \forall \npair[n']{c} \in \stdkr(W) \ldotp \\
     & \quad \qquad  \forall \heapSat[\hs]{n'}{W} \ldotp \\
     & \quad \qquad \quad \npair[n']{(\reg\update{r_0}{c}\update{\pcreg}{\pc},\hs)} \in \observations(W) \}
   \end{aligned}
