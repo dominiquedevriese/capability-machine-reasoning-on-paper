@@ -220,6 +220,7 @@
 \newcommand{\jmp}[1]{\oneinstr{jmp}{#1}}
 %Two arguments
 \newcommand{\twoinstr}[3]{\zinstr{#1} \; #2 \; #3}
+\newcommand{\restricttwo}[2]{\twoinstr{restrict}{#1}{#2}}
 \newcommand{\jnz}[2]{\twoinstr{jnz}{#1}{#2}}
 \newcommand{\isptr}[2]{\twoinstr{isptr}{#1}{#2}}
 \newcommand{\setptr}[2]{\twoinstr{setptr}{#1}{#2}}
@@ -380,7 +381,7 @@ i      &::=& \fail \mid \halt \mid
              \jmp{\lv} \mid \jnz{\lv}{\rv} \mid
              \isptr{\lv}{\rv} \mid \setptr{\lv}{\rv} \mid \\
        &   & \lea{\lv}{\rv} \mid\move{\lv}{\rv} \mid \load{\lv}{\hv} \mid \store{\hv}{\rv} \mid  \\
-       &   & \restrict{\lv}{\rv}{\rv} \mid \subseg{\lv}{\rv}{\rv} \mid \plus{\lv}{\rv}{\rv}
+       &   & \restricttwo{\lv}{\rv} \mid \subseg{\lv}{\rv}{\rv} \mid \plus{\lv}{\rv}{\rv}
 \end{array}$$
 
 \subsection*{Semantics}
@@ -505,18 +506,17 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                                              \end{cases} 
 \\
  % In the M-Machine, lea checks whether the pointer stay within the allowed range in the pointer.
-  \sem{\restrict{\refreg{r_1}}{\rv_1}{\rv_2}}           & =
+  \sem{\restricttwo{\refreg{r}}{\rv}}           & =
                                              \begin{cases}
-                                               \stdUpdatePc{\updateReg{r_1}{\var{c}}}  &
+                                               \stdUpdatePc{\updateReg{r}{\var{c}}}  &
                                                  \arraycolsep=0pt
                                                  \begin{array}{l}
-                                                   \text{if $\memreg(\rv_1) = c'$}\\
-                                                   \quad\text{and $c' = \stdcap[\permp]$}\\
-                                                   \quad\text{and either $\rv_2 = n$ or $\memreg(\rv_2) = n$}\\
+                                                   \text{if $\memreg(r) = \stdcap[\permp]$}\\
+                                                   \quad\text{and either $\rv = n$ or $\memreg(\rv) = n$}\\
                                                    \quad\text{and in either case $n \in \ints$}\\
                                                    \quad\text{and $\var{newPermPair} = \decodePerm(n)$}\\
                                                    \quad\text{and $\var{newPermPair} \sqsubseteq \permp$}\\
-                                                   \quad\text{and $c = (\var{newPerm},\start,\addrend,\addr)$}
+                                                   \quad\text{and $c = (\var{newPermPair},\start,\addrend,\addr)$}
                                                  \end{array}\\
                                                \failed                   & \text{otherwise}
                                              \end{cases} 
@@ -533,9 +533,23 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                                                             \end{array}\\
                                                             \failed & \text{otherwise}
                                                           \end{cases}\\
+  \sem{\subseg{\refreg{r}}{\rv_1}{\rv_2}} & = 
+                                            \begin{cases}
+                                              \stdUpdatePc{\updateReg{r}{\var{c}}} &
+                                              \arraycolsep=0pt
+                                              \begin{array}{l}
+                                                \text{if $\memreg{r} = \stdcap[\permp]$} \\
+                                                \quad\text{and for $i \in \{1,2\}$}\\
+                                                \quad\text{$n_i = \rv_i$ or $n_i = \memreg(\rv_i)$}\\
+                                                \quad\text{and in either case $n_i \in \ints$}\\
+                                                \quad\text{and $\start \leq n_1 \leq n_2 \leq \addrend$}\\
+                                                \quad\text{and $c = (\permp,n_2,n_2,\addr)$}
+                                              \end{array} \\
+                                              \failed & \text{otherwise}
+                                            \end{cases}
+ \\
   \sem{\isptr{\lv}{\rv}} & = \undefined \\ 
-  \sem{\setptr{\lv}{\rv}} & = \undefined \\ 
-  \sem{\subseg{\lv}{\rv}{\rv}} & = \undefined 
+  \sem{\setptr{\lv}{\rv}} & = \undefined 
 \end{align*}
 \lau{Dominique, apparently there was a reason I had not added the new condition in store to $\writeAllowed{}$. The new condition depends on a case distinction on $w$. It is only if $w$ is a capability that we look into whether it is local or not. But even if $w$ is just an integer, we still need the capability we write through to have some kind of write permission.}
 
@@ -1010,8 +1024,6 @@ Standard regions for when write local is not allowed:
     \end{aligned}
   \right\}
 \end{align*}
-\lau{In the above $H$ definitions, $\hat{W}$ is not a world, so there is a type problem that needs to be fixed. Maybe solve the recursive domain equations wrt the worlds instead.} 
-\dominique{comment above seems outdated.}
 
 For convenience define
 \begin{align*}
