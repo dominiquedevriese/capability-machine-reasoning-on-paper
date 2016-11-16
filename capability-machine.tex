@@ -222,7 +222,10 @@
 \newcommand{\restricttwo}[2]{\twoinstr{restrict}{#1}{#2}}
 \newcommand{\jnz}[2]{\twoinstr{jnz}{#1}{#2}}
 \newcommand{\isptr}[2]{\twoinstr{isptr}{#1}{#2}}
-\newcommand{\setptr}[2]{\twoinstr{setptr}{#1}{#2}}
+\newcommand{\geta}[2]{\twoinstr{geta}{#1}{#2}}
+\newcommand{\getb}[2]{\twoinstr{getb}{#1}{#2}}
+\newcommand{\gete}[2]{\twoinstr{gete}{#1}{#2}}
+\newcommand{\getp}[2]{\twoinstr{getp}{#1}{#2}}
 \newcommand{\move}[2]{\twoinstr{move}{#1}{#2}}
 \newcommand{\store}[2]{\twoinstr{store}{#1}{#2}}
 \newcommand{\load}[2]{\twoinstr{load}{#1}{#2}}
@@ -376,11 +379,23 @@ $$\begin{array}{rcl}
 \lv    &::=& \refreg{r} \\
 \hv    &::=& \refheap{r}\\
 \rv    &::=& n \mid \lv \\
-i      &::=& \fail \mid \halt \mid 
-             \jmp{\lv} \mid \jnz{\lv}{\rv} \mid
-             \isptr{\lv}{\rv} \mid \setptr{\lv}{\rv} \mid \\
-       &   & \lea{\lv}{\rv} \mid\move{\lv}{\rv} \mid \load{\lv}{\hv} \mid \store{\hv}{\rv} \mid  \\
-       &   & \restricttwo{\lv}{\rv} \mid \subseg{\lv}{\rv}{\rv} \mid \plus{\lv}{\rv}{\rv}
+i      &::=& 
+             \jmp{\lv} \mid 
+             \jnz{\lv}{\rv} \mid
+             \move{\lv}{\rv} \mid 
+             \load{\lv}{\hv} \mid 
+             \store{\hv}{\rv} \mid  \\
+       &   & \plus{\lv}{\rv}{\rv} \mid 
+             \lea{\lv}{\rv} \mid 
+             \restricttwo{\lv}{\rv} \mid 
+             \subseg{\lv}{\rv}{\rv} \mid  \\
+       &   & \isptr{\lv}{\rv} \mid 
+             \getp{\lv}{\lv} \mid 
+             \getb{\lv}{\lv} \mid
+             \gete{\lv}{\lv} \mid
+             \geta{\lv}{\lv} \mid \\
+       &   & \fail \mid
+             \halt \mid 
 \end{array}$$
 
 \subsection*{Semantics}
@@ -547,8 +562,48 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                                               \failed & \text{otherwise}
                                             \end{cases}
  \\
-  \sem{\isptr{\lv}{\rv}} & = \undefined \\ 
-  \sem{\setptr{\lv}{\rv}} & = \undefined 
+  \sem{\geta{\refreg{r_1}}{\refreg{r_2}}} & = 
+                          \begin{cases}
+                            \stdUpdatePc{\updateReg{r_1}{\addr}} &
+                            \arraycolsep=0pt
+                            \begin{array}[t]{l}
+                              \text{if $\memreg{r_2} = \stdcap$}
+                            \end{array} \\
+                            \failed & \text{otherwise}
+                          \end{cases}
+  \\
+  \sem{\getb{\refreg{r_1}}{\refreg{r_2}}} & = 
+                          \begin{cases}
+                            \stdUpdatePc{\updateReg{r_1}{\start}} &
+                            \arraycolsep=0pt
+                            \begin{array}[t]{l}
+                              \text{if $\memreg{r_2} = \stdcap$}
+                            \end{array} \\
+                            \failed & \text{otherwise}
+                          \end{cases}
+  \\
+  \sem{\gete{\refreg{r_1}}{\refreg{r_2}}} & = 
+                          \begin{cases}
+                            \stdUpdatePc{\updateReg{r_1}{\addrend}} &
+                            \arraycolsep=0pt
+                            \begin{array}[t]{l}
+                              \text{if $\memreg{r_2} = \stdcap$}
+                            \end{array} \\
+                            \failed & \text{otherwise}
+                          \end{cases}
+  \\
+  \sem{\getp{\refreg{r_1}}{\refreg{r_2}}} & = 
+                          \begin{cases}
+                            \stdUpdatePc{\updateReg{r_1}{\perm}} & \text{if $\memreg{r_2} = \stdcap$} \\
+                            \failed & \text{otherwise}
+                          \end{cases}
+  \\
+%getl?
+  \sem{\isptr{\refreg{r}}{\rv}} & =  
+                          \begin{cases}
+                            \stdUpdatePc{\updateReg{r_1}{1}} & \text{if $\memreg{\rv} = \stdcap$} \\
+                            \stdUpdatePc{\updateReg{r_1}{0}} & \text{otherwise} 
+                          \end{cases}
 \end{align*}
 \lau{Dominique, apparently there was a reason I had not added the new condition in store to $\writeAllowed{}$. The new condition depends on a case distinction on $w$. It is only if $w$ is a capability that we look into whether it is local or not. But even if $w$ is just an integer, we still need the capability we write through to have some kind of write permission.}
 
@@ -587,7 +642,7 @@ Define the following simple macros:
 \label{sec:examples}
 \subsection{Simple Examples Using Local Capabilities}
 \label{subsec:example-loc-cap}
-In the below, let \texttt{assert(e)} do the following: evaluate \texttt{e} if it evaluates to true, then continue execution, otherwise terminate with the return value 1. Notice that an assertion will never terminate in a $\failed$ state.
+In the below, let \texttt{assert(e)} do the following: evaluate \texttt{e} if it evaluates to true, then continue execution, otherwise terminate where a designated assertion flag is set to 1. The assertion flag is assumed to start as 0 and is different from function to function (so in the program below, \texttt{adv} cannot directly use the assertion flag of \texttt{f}). Notice that an assertion will never terminate in a $\failed$ state.
 \subsubsection{Simple use of local capabilities}
 \begin{verbatim}
 let f = fun adv =>
@@ -619,7 +674,7 @@ let f = fun adv =>
           assert(x == 1);
           x := 2;
           adv();
-          return 0
+          return
 \end{verbatim}
 A sensible calling scheme uses local capabilities for the continuation capability passed to the callee. In the above example, if \texttt{adv} can store the continuation, then 
 \texttt{adv} can invoke it during the second call and thus force the assertion to fail. We expect this program to either not terminate or terminate in a failed state (not caused by the assertion) or terminate with the result 0.
@@ -637,7 +692,7 @@ let f = fun adv =>
           assert(x == 1);
           x := 2;
           adv(0);
-          return 0
+          return
 \end{verbatim}
 In the above example, we give \texttt{adv} a ``mini stack'' to work with in the form of \texttt{l}. \texttt{adv} can thus store local capabilities, but their access will be revoked, when they return from the first call.
 
@@ -655,6 +710,8 @@ let h = fun adv =>
           g(g)
 \end{verbatim}
 In Dreyer's example, the issue arises as the context can provide the result of evaluating $\mathtt{e_1}$ (the equivalent here is \texttt{g})) to \texttt{f} (the equivalent here is \texttt{adv}). In our system, the context cannot capture this, so in the above program, \texttt{adv} is given explicit access to \texttt{g}. The lemma we would want to prove here is that the assertion does not fail.
+
+To show this, we will probably need public/private transitions.
 
 \subsection{Ticket Dispenser}
 \label{sec:tick-disp}
