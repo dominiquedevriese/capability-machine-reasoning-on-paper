@@ -673,7 +673,7 @@ let f = fun adv =>
           adv(l);
           l := 1;
           adv(0);
-          assert(l == 1)
+          assert(!l == 1)
 \end{verbatim}
 In this example \texttt{let l = 1 in} allocates a new local capability \texttt{l} with read-write permissions. Assuming \texttt{adv} has no access to capabilities with permit write local, they cannot store \texttt{l} and thus change its value in the second call.
 \lars{So this means that the value returned by *l is 1, correct ? We
@@ -694,7 +694,7 @@ let f = fun adv =>
 let f = fun adv =>
           let x = 1 in
           adv();
-          assert(x == 1);
+          assert(!x == 1);
           x := 2;
           adv();
           return
@@ -712,7 +712,7 @@ let f = fun adv =>
           let x = 1 in
           let l = 0 in
           adv(l);
-          assert(x == 1);
+          assert(!x == 1);
           x := 2;
           adv(0);
           return
@@ -722,20 +722,42 @@ In the above example, we give \texttt{adv} a ``mini stack'' to work with in the 
 \subsection{Variant of the ``awkward'' example}
 Assembly variant of the ``awkward'' example from \citep[p.~11]{Dreyer:2010:IHS:1863543.1863566}. 
 \begin{verbatim}
-let h = fun adv =>
-          let x = 1 in
-          let g = fun g' =>
-                    x := 1;
-                    adv(g');
-                    x := 0;
-                    adv();
-                    assert(x == 0) in
-          g(g);
-          return
+g = fun _ => let x = 0 in
+               fun f =>
+                 x:=0;
+                 f();
+                 x:=1;
+                 f();
+                 assert(x==1)
 \end{verbatim}
-In Dreyer's example, the issue arises as the context can provide the result of evaluating $\mathtt{e_1}$ (the equivalent here is \texttt{g})) to \texttt{f} (the equivalent here is \texttt{adv}). In our system, the context cannot capture this, so in the above program, \texttt{adv} is given explicit access to \texttt{g}. The lemma we would want to prove here is that the assertion does not fail.
+\begin{lemma}
+  \newcommand{\adv}{\var{adv}}
+  \newcommand{\flag}{\var{flag}}
+  For all $n \in \nats$ 
+  let
+  \begin{align*}
+    c_{\var{adv}} & \defeq ((\rwx,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}) \\
+    c_{g} & \defeq ((\entry,\glob),\start_g,\addrend_g,\start_g)
+  \end{align*}
+if
+  \[
+    (\reg_0\update{\pcreg}{c_{\adv}}
+          \update{r_1}{c_g},\hs_{\adv} \uplus \hs_{\flag} \uplus \hs_{g} \uplus h_f) \step[n] (\halted,h')
+  \]
+where 
+\begin{align*}
+  &\dom(hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
+  &\dom(hs_g) = [\start_g,\addrend_g] \\
+  &\dom(hs_\flag) = [\flag,\flag] \\
+  &\heapSat[\hs_{\adv}]{n}{\iota^{\var{nwl}}_{\start_\adv,\addrend_\adv}}
+\end{align*}
+and $hs_\flag(\flag) = 0$ and $hs_g$ contains the code of $g$ including a $\readwrite$-capability for $\hs_\flag$, 
+then
+\[
+  h'(\flag) = 0
+\]
+\end{lemma}
 
-To show this, we will probably need public/private transitions.
 
 \subsection{Ticket Dispenser}
 \label{sec:tick-disp}
