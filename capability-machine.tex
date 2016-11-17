@@ -116,8 +116,10 @@
 }
 \newcommand{\decode}{\plainfun{decode}{}}
 \newcommand{\encode}{\plainfun{encode}{}}
-\newcommand{\encodePerm}{\plainfun{encodePerm}{}}
-\newcommand{\decodePerm}{\plainfun{decodePerm}{}}
+\newcommand{\encodePerm}{\mathit{encodePerm}}
+\newcommand{\encodePermPair}{\plainfun{encodePermPair}{}}
+\newcommand{\encodeLoc}{\mathit{encodeLoc}{}}
+\newcommand{\decodePermPair}{\plainfun{decodePerm}}
 \newcommand{\updatePcPerm}[1]{\plainfun{updatePcPerm}{#1}}
 
 \newcommand{\executeAllowed}[1]{\plainfun{executeAllowed}{#1}}
@@ -226,6 +228,7 @@
 \newcommand{\getb}[2]{\twoinstr{getb}{#1}{#2}}
 \newcommand{\gete}[2]{\twoinstr{gete}{#1}{#2}}
 \newcommand{\getp}[2]{\twoinstr{getp}{#1}{#2}}
+\newcommand{\getl}[2]{\twoinstr{getl}{#1}{#2}}
 \newcommand{\move}[2]{\twoinstr{move}{#1}{#2}}
 \newcommand{\store}[2]{\twoinstr{store}{#1}{#2}}
 \newcommand{\load}[2]{\twoinstr{load}{#1}{#2}}
@@ -360,7 +363,8 @@ Things to note:
 \label{fig:perm-hier}
 \end{figure}
 Notation:
-$$\begin{array}{rcl}
+\[
+\begin{array}{rcl}
 i       &\in& \Instrs \\
 r       &\in& \RegName\\
 \mem    &::=& (\reg,\heap)\\
@@ -373,9 +377,11 @@ r       &\in& \RegName\\
 \perm   &\in& \Perms\\
 (\perm,\start,\addrend,\addr) &\in& \Caps \\
 n       &\in& \ints\\
-\end{array}$$
+\end{array}
+\]
 Further definitions:
-$$\begin{array}{rcl}
+\[
+\begin{array}{rcl}
 \lv    &::=& \refreg{r} \\
 \hv    &::=& \refheap{r}\\
 \rv    &::=& n \mid \lv \\
@@ -391,25 +397,29 @@ i      &::=&
              \subseg{\lv}{\rv}{\rv} \mid  \\
        &   & \isptr{\lv}{\rv} \mid 
              \getp{\lv}{\lv} \mid 
+             \getl{\lv}{\lv} \mid 
              \getb{\lv}{\lv} \mid
              \gete{\lv}{\lv} \mid
              \geta{\lv}{\lv} \mid \\
        &   & \fail \mid
              \halt \mid 
-\end{array}$$
+\end{array}
+\]
 
 \subsection*{Semantics}
 Assume a $\decode$ function that decodes integer to instructions:
 \begin{align*}
 \decode &:\Words \fun \Instrs
 \end{align*}
-Assume an $\encodePerm$ function that encodes a permission as an integer:
+Assume an $\encodePerm$, $\encodeLoc$, and $\encodePermPair$ function that encodes a permissions, locality, and permission pair, respectively, as an integer:
 \begin{align*}
-\encodePerm &: (\Perms \times \Globals) \fun \ints
+\encodePerm &: \Perms \fun \ints \\
+\encodeLoc &: \Globals \fun \ints \\
+\encodePermPair &: (\Perms \times \Globals) \fun \ints \\
 \end{align*}
-Further, assume an inverse function, $\decodePerm$, that decodes permissions
+Further, assume an inverse function, $\decodePermPair$, that decodes permissions
 \[
-  \decodePerm : \ints \fun (\Perms \times \Globals)
+  \decodePermPair : \ints \fun (\Perms \times \Globals)
 \]
 \begin{align*}
   \Phi & \rightarrow \sem{\decode(\memheap(\addr))}(\Phi) & &                                   
@@ -528,7 +538,7 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
                                                    \text{if $\memreg(r) = \stdcap[\permp]$}\\
                                                    \quad\text{and either $\rv = n$ or $\memreg(\rv) = n$}\\
                                                    \quad\text{and in either case $n \in \ints$}\\
-                                                   \quad\text{and $\var{newPermPair} = \decodePerm(n)$}\\
+                                                   \quad\text{and $\var{newPermPair} = \decodePermPair(n)$}\\
                                                    \quad\text{and $\var{newPermPair} \sqsubseteq \permp$}\\
                                                    \quad\text{and $c = (\var{newPermPair},\start,\addrend,\addr)$}
                                                  \end{array}\\
@@ -594,11 +604,24 @@ It is assumed that address 0 is used for I/O, so whatever resides in location 0 
   \\
   \sem{\getp{\refreg{r_1}}{\refreg{r_2}}} & = 
                           \begin{cases}
-                            \stdUpdatePc{\updateReg{r_1}{\perm}} & \text{if $\memreg{r_2} = \stdcap$} \\
+                            \stdUpdatePc{\updateReg{r_1}{\encodePerm(\perm)}} &
+                            \arraycolsep=0pt
+                            \begin{array}[t]{l}
+                              \text{if $\memreg{r_2} = \stdcap$}
+                            \end{array} \\
                             \failed & \text{otherwise}
                           \end{cases}
   \\
-%getl?
+  \sem{\getl{\refreg{r_1}}{\refreg{r_2}}} & = 
+                          \begin{cases}
+                            \stdUpdatePc{\updateReg{r_1}{\encodeLoc(\gl)}} &
+                            \arraycolsep=0pt
+                            \begin{array}[t]{l}
+                              \text{if $\memreg{r_2} = \stdcap$}
+                            \end{array} \\
+                            \failed & \text{otherwise}
+                          \end{cases}
+  \\
   \sem{\isptr{\refreg{r}}{\rv}} & =  
                           \begin{cases}
                             \stdUpdatePc{\updateReg{r_1}{1}} & \text{if $\memreg{\rv} = \stdcap$} \\
@@ -683,11 +706,11 @@ A sensible calling scheme uses local capabilities for the continuation capabilit
 \lau{I am not sure I get what you have in mind, could you perhaps write the program you had in mind?}
 
 \subsection{Another simple well-bracketedness/local capability example}
-Here assume that \texttt{let l = ... in} produces a local, read-write permit write local capability.
+Here assume that \texttt{let l = ... in} produces a local, read-write permit write local capability (but \texttt{let x = ...} produces a global capability). 
 \begin{verbatim}
 let f = fun adv =>
-          let l = 0 in
           let x = 1 in
+          let l = 0 in
           adv(l);
           assert(x == 1);
           x := 2;
@@ -701,13 +724,14 @@ Assembly variant of the ``awkward'' example from \citep[p.~11]{Dreyer:2010:IHS:1
 \begin{verbatim}
 let h = fun adv =>
           let x = 1 in
-          let g = fun adv =>
-                    x := 0;
-                    adv(g);
+          let g = fun g' =>
                     x := 1;
-                    adv(g);
-                    assert(x == 1) in
-          g(g)
+                    adv(g');
+                    x := 0;
+                    adv();
+                    assert(x == 0) in
+          g(g);
+          return
 \end{verbatim}
 In Dreyer's example, the issue arises as the context can provide the result of evaluating $\mathtt{e_1}$ (the equivalent here is \texttt{g})) to \texttt{f} (the equivalent here is \texttt{adv}). In our system, the context cannot capture this, so in the above program, \texttt{adv} is given explicit access to \texttt{g}. The lemma we would want to prove here is that the assertion does not fail.
 
@@ -1239,9 +1263,16 @@ Now define the value relation as follows:
 \begin{align*}
   \observations : &  \Worlds \nefun \UPred{\Regs \times \HeapSegments} \\
   \observations (W) \defeq & \lambda W \ldotp 
+                               \{ \npair{(\reg,\hs)} \mid
                              \begin{aligned}[t]
-                               \{ \npair{(\reg,\hs)} \mid & \forall \heap_f, \heap', i \leq n \ldotp (\reg,\hs \uplus \heap_f) \step[i] (\halted,\heap')  \\
-                                                          & \quad \Rightarrow \exists W' \futurestr W \ldotp\exists \hs' \ldotp \heap' = \hs' \uplus \heap_f \land \heapSat[\hs']{n-i}{W'} \}
+                               & \forall \heap_f, \heap', i \leq n \ldotp \\
+                               & \quad(\reg,\hs \uplus \heap_f) \step[i] (\halted,\heap')  \\
+                               & \qquad \Rightarrow
+                               \begin{aligned}[t]
+                                 & \exists W' \futurestr W \ldotp\exists \hs' \ldotp\\
+                                 & \quad \heap' = \hs' \uplus \heap_f \land \\ 
+                                 & \quad \heapSat[\hs']{n-i}{W'} \}
+                               \end{aligned}
                              \end{aligned}
 \end{align*}
 
