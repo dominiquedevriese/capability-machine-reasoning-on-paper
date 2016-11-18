@@ -21,7 +21,7 @@
 \usepackage{appendix}
 
 \usepackage{tikz}
-\usepackage{multirow}
+\usepackage{multirow,bigdelim}
 
 %% make latex preview-mode work with natbib...
 \usepackage[displaymath,floats,graphics,textmath,footnotes]{preview}
@@ -674,7 +674,7 @@ Define the following simple macros:
 \section{Macros}
 In order to write readable example programs, we provide macros that can be programmed using the instruction set given in the formalisation.
 \begin{description}
-\item[\texttt{call f(r)}] Moves the argument to register $\texttt{r}$ (if there are more arguments, then they are moved to the appropriate registers). Sets up a return capability in $r_0$ (this includes storing existing capabilities, so they can be read upon return). Erases all registers but the argument register(s), $\pcreg$, and the return register. Jumps to $\texttt{f}$.
+\item[\texttt{call f(r)}] Moves the argument to a register (if there are more arguments, then they are moved to the appropriate registers). Sets up a return capability in $r_0$ (this includes storing existing capabilities, so they can be read upon return). Erases all registers but the argument register(s), $\pcreg$, the $\malloc$ register (if there is one), and the return register. Jumps to $\texttt{f}$.
 \item[\texttt{malloc x}] Calls malloc to allocates a piece of memory (of an appropriate size). In the program $\texttt{x}$ will henceforth be used to refer to the capability returned by malloc.
 \item[\texttt{hstore x n}] Fetches the capability referred to with \texttt{x} and stores \texttt{n} to it.
 \item[\texttt{assert x y}] Fetches \texttt{x} and \texttt{y} and compares them. If they are equal, then execution continues. If they are unequal, then the assertion flag is set to 1 and execution halts.
@@ -760,6 +760,9 @@ $r_{\var{stk}} \rightarrow$      & arg1 \\
 \caption{Stack after arguments pushed to stack an ready to jump}
 \end{figure}
 
+
+
+
 \begin{figure}
   \centering
   \begin{tabular}[!h]{r | >{\centering\arraybackslash}p{3cm} |}
@@ -798,7 +801,7 @@ $r_{\var{stk}} \rightarrow$   & local state\\
 \caption{Stack after everything has been restored}
 \end{figure}
 \subsection{Labels}
-\texttt{l:} defines a meta level label.
+\texttt{l:} is a meta level label that can be used to refer to a specific address.
 
 \section{Examples}
 \label{sec:examples}
@@ -806,7 +809,7 @@ $r_{\var{stk}} \rightarrow$   & local state\\
 \label{subsec:example-loc-cap}
 In the below, let \texttt{assert(e)} do the following: evaluate \texttt{e} if it evaluates to true, then continue execution, otherwise terminate where a designated assertion flag is set to 1. The assertion flag is assumed to start as 0 and is different from function to function (so in the program below, \texttt{adv} cannot directly use the assertion flag of \texttt{f}). Notice that an assertion will never terminate in a $\failed$ state.
 \subsubsection{Simple use of local capabilities}
-Old ML-like program:
+ML-like program we had before:
 \begin{verbatim}
 let f = fun adv =>
           let l = 1 in
@@ -822,8 +825,41 @@ f1: malloc l
     halt
 1f:
 \end{verbatim}
+\begin{lemma}[Correctness lemma for \texttt{f1}]
+  For all $n \in \nats$
+  let
+  \begin{align*}
+    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}) \\
+    c_{f1} & \defeq ((\rwx,\glob),\mathtt{f1},\mathtt{1f},\mathtt{f1}) \\
+  \end{align*}
+if
+  \[
+    (\reg_0\update{\pcreg}{c_{\adv}}
+          \update{r_1}{c_{f1}}\update{r_2}{c_\malloc},\hs_\adv \uplus \hs_\flag \uplus \hs_{f1} \uplus h_{\malloc} \uplus \hs_f) \step[n] (\halted,h')
+  \]
+where 
+\begin{align*}
+  &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
+  &\dom(\hs_{f1}) = [\mathtt{f1},\mathtt{1f}] \\
+  &\dom(\hs_\flag) = [\flag,\flag] \\
+  &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc}]}
+\end{align*}
+and $hs_\flag(\flag) = 0$. $hs_g$ contains the code of $g$ including a $\readwrite$-capability for $\hs_\flag$. $\hs_\adv$ is only instructions.
+then
+\[
+  h'(\flag) = 0
+\]  
+\end{lemma}
 
-
+Assembly program using the stack:
+\begin{verbatim}
+f2: push 1
+    scall adv()
+    pop r1
+    assert r1 1
+    halt
+2f:
+\end{verbatim}
 
 \begin{verbatim}
 let f = fun adv =>
@@ -895,6 +931,7 @@ g = fun _ => let x = 0 in
                  f();
                  assert(x==1)
 \end{verbatim}
+\lau{ This example relies on \texttt{adv} actually passing on a proper $\malloc$ - is that a fair assumption? The example can be changed to not require this by assuming x and the function is already in the heap. This change does not remove the difficulties in the original program. }
 \begin{lemma}\forcenewline
   For all $n \in \nats$
   let
