@@ -835,9 +835,9 @@ Erase all but a set of views:
 
 Heap satisfaction:
 \begin{align*}
-  &\heapSat[\hs]{n}{W} \\
-  &\qquad\text{ iff }\\
-  &\begin{aligned}[t]
+  &\heapSat[\hs]{n}{W} 
+  \text{ iff }
+  \left\{\begin{aligned}
     &\exists R : \dom(\erase{W}{\perma,\temp}) \rightarrow \HeapSegments \ldotp \\
     &\quad \hs = \uplus_{r\in\dom(\erase{W}{\perma,\temp})}R(r) \land \\
     &\quad \forall r \in \dom(\erase{W}{\perma,\temp}) \ldotp\\
@@ -845,8 +845,9 @@ Heap satisfaction:
     &\qquad \quad \exists H,s \ldotp\\
     &\qquad \qquad W(r) = (\_,s,\_,H) \land \\
     &\qquad \qquad \npair[n']{R(r)} \in H(s)(\xi^{-1}(W))\\
-  \end{aligned}
+  \end{aligned}\right.
 \end{align*}
+\dominique{quantification over $n' < n$ needed?}
 
 Standard regions for when writing locally is permitted:
 \begin{align*}
@@ -869,11 +870,8 @@ Revoking all temporary regions:
                      W(r)                & \text{otherwise}
                    \end{cases}
 \end{align*}
-\newcommand{\wrev}[1]{#1_{\var{rev}}}
-Let
-\[
-\revokeTemp(W) = \wrev{W}
-\]
+\newcommand{\wrev}[1]{\revokeTemp{#1}}
+
 
 Standard regions for when write local is not allowed:
 \begin{align*}
@@ -1035,7 +1033,7 @@ We expect the following lemmas to hold true:
 \subsubsection{Heap Satisfaction}
 \begin{lemma}[Downwards closure]
   \begin{align*}
-    &\forall \hs, n' leq n, W \ldotp \\
+    &\forall \hs, n' \leq n, W \ldotp \\
     &\quad \heapSat[\hs]{n}{W} \Rightarrow \heapSat[\hs]{n'}{W}
   \end{align*}
 \end{lemma}
@@ -1061,7 +1059,6 @@ We expect the following lemmas to hold true:
   \begin{itemize}
   \item $W' \futurewk W \Rightarrow W' \futurestr W$
   \item $\wrev{W} \futurestr W$
-  \item $W \futurestr \wrev{W} \Rightarrow W \futurewk \wrev{W}$
   \end{itemize}
   Combined with transitivity of $\futurestr$, the above gives us:
   \begin{itemize}
@@ -1225,31 +1222,34 @@ In the initial configuration the $\pcreg$ register is assumed to have an execute
 
 The ticket dispenser test program uses $\malloc$. To be able to reason about programs that use $\malloc$, we assume that it follows the following specification. If you provide it with one argument, namely the size of the allocation you wish and a return capability, then at some point $\pcreg$ will contain an executable capability based on this return capability and the return register will contain a $\rwx$ capability for the freshly allocated memory. 
 \begin{specification}[Malloc v.2]
+  $c_\malloc$ satisfies the specification for malloc iff
   \begin{align*}
     &\forall \Phi \in \Mems \ldotp \forall \hsfoot, \hsframe \in \HeapSegments \ldotp \\
     &\quad \forall n, \size \in \nats \ldotp \forall b,e,a,m_b,m_e \in \Addrs\ldotp\forall p \in \Perms \ldotp \forall W \in \Worlds \ldotp\\
-    &\qquad \exists i, \iota_{\malloc} \ldotp \\
-    &\qquad \quad W = [i \mapsto \iota_{\malloc}] \land \\
-    &\qquad \quad \dom(\hsfoot) = [m_b,m_e] \land \\ % This
+    &\qquad \exists i, \iota_{\malloc,0} \ldotp \\
+    &\qquad \quad \forall W \future [i \mapsto \iota_{\malloc,0}] \land \\
+%    &\qquad \quad \dom(\hsfoot) = [m_b,m_e] \land \\ % This
     &\qquad \quad \memheap = \hsfoot \uplus \hsframe \land\\
     &\qquad \quad \heapSat[\hsfoot]{n}{W} \land \\
     &\qquad \quad \memreg(r_1) = \size \land \\
     &\qquad \quad \size \geq 0 \land \\
     &\qquad \quad \memreg(r_0) = (p,b,e,a) \land \\
-    &\qquad \quad \memreg(\pcreg) = (\entry,m_b,m_e,m_b) \\ %and this needs to change with ABI.
+    &\qquad \quad \memreg(\pcreg) = c_\malloc \\ %and this needs to change with ABI.
     &\qquad \quad \Rightarrow \\
     &\qquad \qquad\exists \Phi' \in \Mems \ldotp \exists \hsfoot' \in \HeapSegments\ldotp\\
     &\qquad \qquad \quad \exists j,k \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \exists W' \in \Worlds \ldotp \\
     &\qquad \qquad \qquad \Phi \step[j]\Phi' \land \\
-    &\qquad \qquad \qquad \memheap[\Phi']=\hsfoot' \uplus \hsframe \land\\
-    &\qquad \qquad \qquad W' = [k \mapsto \iota_{b',e'}^0, i \mapsto \iota_{\malloc}]\\
-    &\qquad \qquad \qquad W' \future W \land \\
+    &\qquad \qquad \qquad \memheap[\Phi']=\hsfoot'\uplus \hs_{\var{alloc}} \uplus \hsframe \land\\
+    &\qquad \qquad \qquad W' = [i \mapsto \iota_{\malloc}']\land W' \futurewk W \land \\
     &\qquad \qquad \qquad \heapSat[\hsfoot']{n-j}{W'} \land \\
+    &\qquad \qquad \qquad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land \\
     &\qquad \qquad \qquad \memreg[\Phi'](\pcreg) = (\updatePcPerm{p},b,e,a) \land \\
     &\qquad \qquad \qquad \size = e'-b' \\
     &\qquad \qquad \qquad \memreg[\Phi'](r_1) = (\rwx,b',e',b') \land \\
     &\qquad \qquad \qquad \forall r \in \RegName \setminus \{\pcreg,r_1\} \ldotp \memreg[\Phi'](r) = 0
   \end{align*}
+
+  Additionally, we require that for every $W' \future [i\mapsto \iota_{\malloc,0}]$, $\heapSat[\hs]{n}{W'}$ implies that $\dom(\hs)$ contains $[n',+\infty)$ for some $n'$.
 \end{specification}
 The specification uses the malloc island defined as
 \lau{I am not satisfied with the pc in the premise. The exact capability necessary very much depend on the implementation (this is mostly a note to myself.)}
