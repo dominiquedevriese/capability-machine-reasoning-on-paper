@@ -675,10 +675,130 @@ Define the following simple macros:
 In order to write readable example programs, we provide macros that can be programmed using the instruction set given in the formalisation.
 \begin{description}
 \item[\texttt{call f(r)}] Moves the argument to register $\texttt{r}$ (if there are more arguments, then they are moved to the appropriate registers). Sets up a return capability in $r_0$ (this includes storing existing capabilities, so they can be read upon return). Erases all registers but the argument register(s), $\pcreg$, and the return register. Jumps to $\texttt{f}$.
-\item[\texttt{malloc x}] Calls malloc to allocates a piece of memory. In the program $\texttt{x}$ will henceforth be used to refer to the capability returned by malloc.
-\item[\texttt{hstore x n}] Fetches the capability refered to with \texttt{x} and stores \texttt{n} to it.
+\item[\texttt{malloc x}] Calls malloc to allocates a piece of memory (of an appropriate size). In the program $\texttt{x}$ will henceforth be used to refer to the capability returned by malloc.
+\item[\texttt{hstore x n}] Fetches the capability referred to with \texttt{x} and stores \texttt{n} to it.
 \item[\texttt{assert x y}] Fetches \texttt{x} and \texttt{y} and compares them. If they are equal, then execution continues. If they are unequal, then the assertion flag is set to 1 and execution halts.
 \end{description}
+
+\subsection{Stack}
+Some programs will assume access to a stack which will be in part indicated by the program macros, but also in the correctness lemma. The stack is accessed through a local $\rwlx$-capability. Programs will assume that the stack resides in some register, say $r_{\var{stk}}$.
+\begin{description}
+\item[\texttt{push r}] Pushes the word in register \texttt{r} to the stack by storing it through the stack capability and increment said capability.\footnote{The stack grows upwards.}
+\item[\texttt{pop r}] Pops the top word of the stack by loading it to regiser $r$, moves 0 to the address, and decrementing the stack pointer.
+\item[\texttt{scall f(r)}] This call assumes the presence of a stack! Push the code that restores the stackpointer, $\pcreg$ and $r_0$. Push the code return point, $r_0$ (the continuation for this execution), and the stack pointer. Set up a continuation for \texttt{f} that is make the stack pointer point to the ``restore code'' and restrict it to an enter capability and move it to $r_0$. Restrict the stackpointer to the ``unused part''. Push the arguments to the stack and jump to \texttt{f}.
+  \begin{description}
+  \item[Restore code] Restores the stack capability, the continuation zeros the part of the stack passed to \texttt{f} and finally jumps to the return point in code.
+  \end{description}
+Figure \ref{fig:stack-before-call}-\ref{fig:stack-after-call} illustrates what the stack would look like at different stages of the scall.
+\end{description}
+
+\begin{figure}
+  \label{fig:stack-before-call}
+  \centering
+  \begin{tabular}[!h]{r | >{\centering\arraybackslash}p{3cm} |}
+   & \\
+   & $\vdots$\\
+\cline{2-2}
+   & 0 \\
+\cline{2-2}
+$r_{\var{stk}} \rightarrow$   & local state\\
+   & $\vdots$
+\end{tabular}
+\caption{Stack after everything stored}
+\end{figure}
+
+
+\begin{figure}
+  \centering
+  \begin{tabular}[!h]{r | >{\centering\arraybackslash}p{3cm} |}
+   & \\
+   & $\vdots$\\
+\cline{2-2}
+   & 0 \\
+\cline{2-2}
+$r_{\var{stk}} \rightarrow$     & Stack cap\\
+\cline{2-2}
+   & $r_0$-continuation\\
+\cline{2-2}
+   & o-$\pcreg$\\
+\cline{2-2}
+   & Restore code\\
+   & $\vdots$\\
+\cline{2-2}
+   & local state\\
+   & $\vdots$
+\end{tabular}
+\caption{Stack after everything stored}
+\end{figure}
+
+\begin{figure}
+  \centering
+  \begin{tabular}[!h]{r | >{\centering\arraybackslash}p{3cm} |}
+   & \\
+   & $\vdots$\\
+\cline{2-2}
+   & 0 \\
+\cline{2-2}
+$r_{\var{stk}} \rightarrow$      & arg1 \\
+\cline{2-2}
+   & $\vdots$\\
+\cline{2-2}
+   & argn \\
+\cline{2-2}
+   & Stack cap\\
+\cline{2-2}
+   & $r_0$-continuation\\
+\cline{2-2}
+   & o-$\pcreg$\\
+\cline{2-2}
+   & Restore code\\
+   & $\vdots$\\
+\cline{2-2}
+   & local state\\
+   & $\vdots$
+\end{tabular}
+\caption{Stack after arguments pushed to stack an ready to jump}
+\end{figure}
+
+\begin{figure}
+  \centering
+  \begin{tabular}[!h]{r | >{\centering\arraybackslash}p{3cm} |}
+   & \\
+   & $\vdots$\\
+\cline{2-2}
+   & ? \\
+\cline{2-2}
+   & Stack cap\\
+\cline{2-2}
+   & $r_0$-continuation\\
+\cline{2-2}
+   & o-$\pcreg$\\
+\cline{2-2}
+$\pcreg \rightarrow$   & Restore code\\
+   & $\vdots$\\
+\cline{2-2}
+   & local state\\
+   & $\vdots$
+\end{tabular}
+\caption{Stack just after return}
+\end{figure}
+
+\begin{figure}
+  \label{fig:stack-after-call}
+  \centering
+  \begin{tabular}[!h]{r | >{\centering\arraybackslash}p{3cm} |}
+   & \\
+   & $\vdots$\\
+\cline{2-2}
+   & 0 \\
+\cline{2-2}
+$r_{\var{stk}} \rightarrow$   & local state\\
+   & $\vdots$
+\end{tabular}
+\caption{Stack after everything has been restored}
+\end{figure}
+\subsection{Labels}
+\texttt{l:} defines a meta level label.
 
 \section{Examples}
 \label{sec:examples}
@@ -686,7 +806,7 @@ In order to write readable example programs, we provide macros that can be progr
 \label{subsec:example-loc-cap}
 In the below, let \texttt{assert(e)} do the following: evaluate \texttt{e} if it evaluates to true, then continue execution, otherwise terminate where a designated assertion flag is set to 1. The assertion flag is assumed to start as 0 and is different from function to function (so in the program below, \texttt{adv} cannot directly use the assertion flag of \texttt{f}). Notice that an assertion will never terminate in a $\failed$ state.
 \subsubsection{Simple use of local capabilities}
-ML-like program:
+Old ML-like program:
 \begin{verbatim}
 let f = fun adv =>
           let l = 1 in
@@ -695,11 +815,15 @@ let f = fun adv =>
 \end{verbatim}
 Assembly program not using stack
 \begin{verbatim}
-f:  malloc l
+f1: malloc l
     hstore l 1
     call adv()
     assert l 1
+    halt
+1f:
 \end{verbatim}
+
+
 
 \begin{verbatim}
 let f = fun adv =>
