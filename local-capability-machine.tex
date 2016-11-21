@@ -674,12 +674,18 @@ Define the following simple macros:
 \section{Macros}
 In order to write readable example programs, we provide macros that can be programmed using the instruction set given in the formalisation.
 \dominique{how is the return capability constructed: not on the stack, I presume, so this means mallocing a block of memory for the activation record?}
+\lau{See the new addition below - when we don't have a stack, then we have no need to ``save'' local capabilities which means that we can have the return code as part of the program. The only thing we have to do is to have the capability point to the return address and make the capability into an entry capability. }
 \dominique{Similarly: how is malloc invoked?  Do we trust malloc enough to not encapsulate ourselves from it, i.e. provide an rx return capability and use callee-save registers?}
+\lau{ I think this is a conceptual question as we can make it work with either. We already trust malloc to give us a fresh piece of memory and not reuse it later on, so we already assume malloc to be somewhat trusted, so why not go all the way? }
 \dominique{what does ``fetch the capability ...'' mean?}
+\lau{ We don't know where the capability resides, but if it is in memory, then it will be loaded into a register. }
 \dominique{Wouldn't it be more clear to provide call with two explicit lists of registers: those which need to be stored, and those which are provided as arguments (i.e. which do not need to be erased)?}
 \dominique{Perhaps you could also provide an explicit syntax for ``undefined symbols'' that should be filled in by a linker?}
 \begin{description}
 \item[\texttt{call f(r)}] Moves the argument to a register (if there are more arguments, then they are moved to the appropriate registers). Sets up a return capability in $r_0$ (this includes storing existing capabilities, so they can be read upon return). Erases all registers but the argument register(s), $\pcreg$, the $\malloc$ register (if there is one), and the return register. Jumps to $\texttt{f}$.
+  \begin{description}
+  \item[return capability] The return capability is an enter capability into caller code. Upon return, the caller may assume that any return value is stored in $r_1$. The caller is responsible for clearing the remaining registers as part of its program.  
+  \end{description}
 \item[\texttt{malloc x}] Calls malloc to allocates a piece of memory (of an appropriate size). In the program $\texttt{x}$ will henceforth be used to refer to the capability returned by malloc.
 \item[\texttt{hstore x n}] Fetches the capability referred to with \texttt{x} and stores \texttt{n} to it.
 \item[\texttt{assert x y}] Fetches \texttt{x} and \texttt{y} and compares them. If they are equal, then execution continues. If they are unequal, then the assertion flag is set to 1 and execution halts.
@@ -765,7 +771,36 @@ $r_{\var{stk}} \rightarrow$      & arg1 \\
 \caption{Stack after arguments pushed to stack an ready to jump}
 \end{figure}
 
-
+\begin{figure}
+  \centering
+  \begin{tabular}[!h]{r|>{\centering\arraybackslash}p{3cm}|l}
+   & &\\
+   & $\vdots$ &\\
+\cline{2-2}
+   & 0 &\\
+\cline{2-2}
+$r_{\var{stk}} \rightarrow$      & arg1 & \\
+\cline{2-2}
+   & $\vdots$ & \\
+\cline{2-2}
+   & argn & \\
+\cline{2-2}
+   & Stack cap & \\
+\cline{2-2}
+   & $r_0$-continuation &  \\
+\cline{2-2}
+   & o-$\pcreg$ & \\
+\cline{2-2}
+   & Restore code & \rdelim\}{2}{2cm}[variable length]\\
+   & $\smash{\vdots}$ & \\
+\cline{2-2}
+   & & \\
+\cline{2-2}
+   & local state & \\
+   & $\smash{\vdots}$ &
+\end{tabular}
+\caption{Stack after arguments pushed to stack an ready to jump}
+\end{figure}
 
 
 \begin{figure}
