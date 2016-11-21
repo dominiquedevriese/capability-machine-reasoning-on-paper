@@ -95,6 +95,10 @@
 \newcommand{\roll}{\var{roll}}
 \newcommand{\instr}{\var{instr}}
 \newcommand{\stdcap}[1][(\perm,\gl)]{\left(#1,\start,\addrend,\addr \right)}
+\newcommand{\adv}{\var{adv}}
+\newcommand{\flag}{\var{flag}}
+
+
 
 %Memory projections
 \newcommand{\plainproj}[1]{\mathrm{#1}}
@@ -280,7 +284,7 @@
 \Heaps &::= \Addrs \rightarrow \Words \\
 \Perms &::= \{ \noperm, \readonly, \readwrite, \readwritel, \exec, \entry, \rwx, \rwlx\} & & &
 \Mems  &::= \Regs \times \Heaps \\
-\Caps  &::= (\Perms \times \Globals) \times \Addrs \times \Addrs \times \Addrs & & &
+\Caps  &::= (\Perms \times \Globals) \times \Addrs \times (\Addrs + \{ \infty \}) \times \Addrs & & &
 \Confs &::= \Mems + \{\failed, \halted \times \Mems\} \\
 \HeapSegments &::= \Addrs \parfun \Words & & &
 \Globals & ::= \{\glob, \local \}
@@ -683,18 +687,30 @@ let f = fun adv =>
           assert(!l == 1)
 \end{verbatim}
 In this example \texttt{let l = 1 in} allocates a new local capability \texttt{l} with read-write permissions. Assuming \texttt{adv} has no access to capabilities with permit write local, they cannot store \texttt{l} and thus change its value in the second call.
-\lars{So this means that the value returned by *l is 1, correct ? We
-  could add an assert statement to the example to show it more directly.}
-\lau{Yes, and done.}
 
-\lars{What about an even simpler example, such as the one below:}
 \begin{verbatim}
 let f = fun adv =>
           let l = 1 in
           adv();
           assert (l == 1)
 \end{verbatim}
-\lau{This example should certainly also hold true work, but it does not need local capabilities (it might serve well as a sanity check). }
+
+Correctness lemma not assuming stack
+\begin{lemma}
+  For all $n$,
+  let
+  \begin{align*}
+    c_\adv & = ((\entry,\local),\start_\adv,\addrend_\adv,\start_\adv) \\
+    c_f & = ((\exec,\local),\start_f,\addrend_f,\start_f)
+  \end{align*}
+  if
+  \[
+    (\reg_0\update{\pcreg}{c_f}\update{r_1}{c_\adv},\hs_\adv \uplus \hs_f \uplus \hs_\malloc \uplus h_\flag \uplus h_\var{frame}) \step[n] (\halted, h')
+  \]
+  where
+\lau{TODO: finish this}
+\end{lemma}
+
 
 \subsection{Simple well-bracketedness/local capability example}
 \begin{verbatim}
@@ -738,8 +754,6 @@ g = fun _ => let x = 0 in
                  assert(x==1)
 \end{verbatim}
 \begin{lemma}\forcenewline
-  \newcommand{\adv}{\var{adv}}
-  \newcommand{\flag}{\var{flag}}
   For all $n \in \nats$
   let
   \begin{align*}
@@ -1083,7 +1097,7 @@ We expect the following lemmas to hold true:
 \newcommand{\hsframe}{\hs_\var{frame}}
 \newcommand{\size}{\var{size}}
 \newcommand{\rio}{r_{io}}
-\newcommand{\adv}{\codelabel{adv}}
+\renewcommand{\adv}{\codelabel{adv}}
 \newcommand{\advb}{\var{adv_{base}}}
 \newcommand{\adve}{\var{adv_{end}}}
 \newcommand{\initb}{\var{init}_{base}}
