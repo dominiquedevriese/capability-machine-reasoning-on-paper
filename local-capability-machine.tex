@@ -671,21 +671,113 @@ Define the following simple macros:
                    \end{aligned}
 \end{align*}
 
+\section{Malloc specification}
+\newcommand{\hsfoot}{\hs_\var{footprint}}
+\newcommand{\hsframe}{\hs_\var{frame}}
+\newcommand{\size}{\var{size}}
+\newcommand{\rio}{r_{io}}
+\renewcommand{\adv}{\codelabel{adv}}
+\newcommand{\advb}{\var{adv_{base}}}
+\newcommand{\adve}{\var{adv_{end}}}
+\newcommand{\initb}{\var{init}_{base}}
+\newcommand{\inite}{\var{init}_{end}}
+\newcommand{\mrlen}{5cm}
+\newcommand{\retm}{\var{ret}_{\malloc}}
+\newcommand{\reta}{\var{ret}_{\adv}}
+\newcommand{\base}{\var{base}}
+\newcommand{\eend}{\var{end}}
+\newcommand{\bracket}[1]{\multirow{#1}{*}{\ensuremath{
+ \left . \vphantom{\begin{array}{l}
+ \ifthenelse{\equal{#1}{1}}{3\\}{
+    \ifthenelse{\equal{#1}{2}}{3\\3\\}{
+    \ifthenelse{\equal{#1}{3}}{3\\3\\3\\}{
+    \ifthenelse{\equal{#1}{4}}{3\\3\\3\\3\\}{
+    \ifthenelse{\equal{#1}{5}}{3\\3\\3\\3\\3\\}{
+    \ifthenelse{\equal{#1}{6}}{3\\3\\3\\3\\3\\3\\}{
+      3\\3\\3\\3\\3\\3\\3\\ %7
+  }}}}}}
+  \end{array}} \right \}}}
+}
+\newcommand{\annotate}[2]{\multirow{#1}{\mrlen}{\scriptsize #2}}
+
+\begin{specification}[Malloc v.2]
+  $c_\malloc$ satisfies the specification for malloc iff
+  \begin{align*}
+    &\forall \Phi \in \Mems \ldotp \forall \hsfoot, \hsframe \in \HeapSegments \ldotp \\
+    &\quad \forall n, \size \in \nats \ldotp \forall b,e,a,m_b,m_e \in \Addrs\ldotp\forall p \in \Perms \ldotp \forall W \in \Worlds \ldotp\\
+    &\qquad \exists i, \iota_{\malloc,0} \ldotp \\
+    &\qquad \quad \forall W \future [i \mapsto \iota_{\malloc,0}] \land \\
+%    &\qquad \quad \dom(\hsfoot) = [m_b,m_e] \land \\ % This
+    &\qquad \quad \memheap = \hsfoot \uplus \hsframe \land\\
+    &\qquad \quad \heapSat[\hsfoot]{n}{W} \land \\
+    &\qquad \quad \memreg(r_1) = \size \land \\
+    &\qquad \quad \size \geq 0 \land \\
+    &\qquad \quad \memreg(r_0) = (p,b,e,a) \land \\
+    &\qquad \quad \memreg(\pcreg) = c_\malloc \\ %and this needs to change with ABI.
+    &\qquad \quad \Rightarrow \\
+    &\qquad \qquad\exists \Phi' \in \Mems \ldotp \exists \hsfoot' \in \HeapSegments\ldotp\\
+    &\qquad \qquad \quad \exists j,k \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \exists W' \in \Worlds \ldotp \\
+    &\qquad \qquad \qquad \Phi \step[j]\Phi' \land \\
+    &\qquad \qquad \qquad \memheap[\Phi']=\hsfoot'\uplus \hs_{\var{alloc}} \uplus \hsframe \land\\
+    &\qquad \qquad \qquad W' = [i \mapsto \iota_{\malloc}']\land W' \futurewk W \land \\
+    &\qquad \qquad \qquad \heapSat[\hsfoot']{n-j}{W'} \land \\
+    &\qquad \qquad \qquad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land \\
+    &\qquad \qquad \qquad \memreg[\Phi'](\pcreg) = (\updatePcPerm{p},b,e,a) \land \\
+    &\qquad \qquad \qquad \size = e'-b' \\
+    &\qquad \qquad \qquad \memreg[\Phi'](r_1) = (\rwx,b',e',b') \land \\
+    &\qquad \qquad \qquad \forall r \in \RegName \setminus \{\pcreg,r_1\} \ldotp \memreg[\Phi'](r) = 0
+  \end{align*}
+
+  Additionally, we require that for every $W' \future [i\mapsto \iota_{\malloc,0}]$, $\heapSat[\hs]{n}{W'}$ implies that $\dom(\hs)$ contains $[n',+\infty)$ for some $n'$.
+\end{specification}
+
 \section{Macros}
 In order to write readable example programs, we provide macros that can be programmed using the instruction set given in the formalisation.
 \dominique{how is the return capability constructed: not on the stack, I presume, so this means mallocing a block of memory for the activation record?}
 \lau{See the new addition below - when we don't have a stack, then we have no need to ``save'' local capabilities which means that we can have the return code as part of the program. The only thing we have to do is to have the capability point to the return address and make the capability into an entry capability. }
+\lau{On further thought, conveniently the examples did not seem to need an activation record, but if we want \texttt{call} to work more generally speaking, then it needs to setup an activation record. I have changed the descrition of \texttt{call}, so it now uses an activation record. }
 \dominique{Similarly: how is malloc invoked?  Do we trust malloc enough to not encapsulate ourselves from it, i.e. provide an rx return capability and use callee-save registers?}
 \lau{ I think this is a conceptual question as we can make it work with either. We already trust malloc to give us a fresh piece of memory and not reuse it later on, so we already assume malloc to be somewhat trusted, so why not go all the way? }
 \dominique{what does ``fetch the capability ...'' mean?}
 \lau{ We don't know where the capability resides, but if it is in memory, then it will be loaded into a register. }
 \dominique{Wouldn't it be more clear to provide call with two explicit lists of registers: those which need to be stored, and those which are provided as arguments (i.e. which do not need to be erased)?}
 \dominique{Perhaps you could also provide an explicit syntax for ``undefined symbols'' that should be filled in by a linker?}
+
 \begin{description}
-\item[\texttt{call f(r)}] Moves the argument to a register (if there are more arguments, then they are moved to the appropriate registers). Sets up a return capability in $r_0$ (this includes storing existing capabilities, so they can be read upon return). Erases all registers but the argument register(s), $\pcreg$, the $\malloc$ register (if there is one), and the return register. Jumps to $\texttt{f}$.
-  \begin{description}
-  \item[return capability] The return capability is an enter capability into caller code. Upon return, the caller may assume that any return value is stored in $r_1$. The caller is responsible for clearing the remaining registers as part of its program.  
-  \end{description}
+\item[\texttt{call} $f(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] $\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}})$ are lists of registers. An overview of this call:
+  \begin{itemize}
+  \item Set up activation record
+  \item Create local enter capability for activation
+  \item Clear unused registers
+  \item Jump
+  \item Upon return: Run activation code
+  \end{itemize}
+A more detailed description of each of the above steps:
+\begin{description}
+  \item [Set up activation record]
+    \begin{itemize}
+    \item Run malloc to get a piece of memory with space for:
+    \begin{itemize}
+      \item Words in $\bar{r}_{\var{priv}}$
+      \item Code return capability (opc)
+      \item Activation code
+    \end{itemize}
+    \item Store the words in $\bar{r}_{\var{priv}}$ to the activation record. 
+    \item Adjust the current pc to point to the return address and save it to the activation record.
+    \item Write the activation code to the activation record.
+  \end{itemize}
+  \item [Create local enter capability for activation] Make the capability for the activaion record point to the beginning of the activation record and restrict it to a local-enter capability. Place this capability in $r_0$.
+  \item [Clear unused registers]
+    Clear all the register that are not $\pcreg$, $r_0$, or in $\bar{r}_{\var{args}}$.
+  \item [Jump] jump to $f$
+\lau{This needs some thought - how do I jump to $f$. In our semantics, you need a capability in a register in order to do a jump. The only way to still have the $f$ capability in a register is if it is one of the arguments.}
+  \item [Activation code] The activation code does the following:
+    \begin{itemize}
+    \item Move the stored ``private'' words in to their respective $\bar{r}_{\var{priv}}$ registers.
+    \item Clear all registers but $r_1$, $\pcreg$, and $\bar{r}_{\var{priv}}$.
+    \item Load the return address to $\pcreg$
+    \end{itemize}
+\end{description}
 \item[\texttt{malloc x}] Calls malloc to allocates a piece of memory (of an appropriate size). In the program $\texttt{x}$ will henceforth be used to refer to the capability returned by malloc.
 \item[\texttt{hstore x n}] Fetches the capability referred to with \texttt{x} and stores \texttt{n} to it.
 \item[\texttt{assert x y}] Fetches \texttt{x} and \texttt{y} and compares them. If they are equal, then execution continues. If they are unequal, then the assertion flag is set to 1 and execution halts.
@@ -696,7 +788,7 @@ Some programs will assume access to a stack which will be in part indicated by t
 \begin{description}
 \item[\texttt{push r}] Pushes the word in register \texttt{r} to the stack by storing it through the stack capability and increment said capability.\footnote{The stack grows upwards.}
 \item[\texttt{pop r}] Pops the top word of the stack by loading it to regiser $r$, moves 0 to the address, and decrementing the stack pointer.
-\item[\texttt{scall f(r)}] This call assumes the presence of a stack! Push the code that restores the stackpointer, $\pcreg$ and $r_0$. Push the code return point, $r_0$ (the continuation for this execution), and the stack pointer \dominique{and other registers?}. Set up a continuation for \texttt{f} that is make the stack pointer point to the ``restore code'' and restrict it to an enter capability and move it to $r_0$. Restrict the stackpointer to the ``unused part''. Push the arguments to the stack and jump to \texttt{f}.
+\item[\texttt{scall f(r)}] This call assumes the presence of a stack! Push the code that restores the stackpointer, $\pcreg$ and $r_0$. Push the code return point, $r_0$ (the continuation for this execution), and the stack pointer \dominique{and other registers?} . Set up a continuation for \texttt{f} that is make the stack pointer point to the ``restore code'' and restrict it to an enter capability and move it to $r_0$. Restrict the stackpointer to the ``unused part''. Push the arguments to the stack and jump to \texttt{f}.
   \begin{description}
   \item[Restore code] Restores the stack capability, the continuation zeros the part of the stack passed to \texttt{f} and finally jumps to the return point in code. \dominique{restores other registers too, right?}
   \end{description}
