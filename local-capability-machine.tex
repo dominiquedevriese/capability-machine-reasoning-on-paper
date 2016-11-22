@@ -746,7 +746,7 @@ In order to write readable example programs, we provide macros that can be progr
 \dominique{Perhaps you could also provide an explicit syntax for ``undefined symbols'' that should be filled in by a linker?}
 
 \begin{description}
-\item[\texttt{call} $f(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] $\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. An overview of this call:
+\item[\texttt{call} $r_f(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] $\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. An overview of this call:
   \begin{itemize}
   \item Set up activation record
   \item Create local enter capability for activation
@@ -770,10 +770,8 @@ A more detailed description of each of the above steps:
   \end{itemize}
   \item [Create local enter capability for activation] Make the capability for the activation record point to the beginning of the activation record and restrict it to a local-enter capability. Place this capability in $r_0$.
   \item [Clear unused registers]
-    Clear all the register that are not $\pcreg$, $r_0$, or in $\bar{r}_{\var{args}}$.
-  \item [Jump] jump to $f$
-\lau{This needs some thought - how do I jump to $f$. In our semantics, you need a capability in a register in order to do a jump. The only way to still have the $f$ capability in a register is if it is one of the arguments.}
-\lau{Maybe instead of having $f$, we use $r_f$ as the register where the ``function'' capability resides.}
+    Clear all the register that are not $\pcreg$, $r_0$, $r_f$ or in $\bar{r}_{\var{args}}$.
+  \item [Jump] jump to $r_f$
   \item [Activation code] The activation code does the following:
     \begin{itemize}
     \item Move the stored ``private'' words in to their respective $\bar{r}_{\var{priv}}$ registers.
@@ -791,7 +789,7 @@ Some programs will assume access to a stack which will be in part indicated by t
 \begin{description}
 \item[\texttt{push r}] Pushes the word in register \texttt{r} to the stack by storing it through the stack capability and increment said capability.\footnote{The stack grows upwards.}
 \item[\texttt{pop r}] Pops the top word of the stack by loading it to register $r$, moves 0 to the address, and decrementing the stack pointer.
-\item[\texttt{scall} $f(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] $\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. This call assumes $r_{\var{stk}}$ contains a stack capability. An overview of this call:
+\item[\texttt{scall} $r_f(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] $\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. This call assumes $r_{\var{stk}}$ contains a stack capability. An overview of this call:
   \begin{itemize}
   \item Push restore code to the stack.
   \item Push ``private'' registers to the stack.
@@ -802,8 +800,8 @@ Some programs will assume access to a stack which will be in part indicated by t
   \item Clear unused registers
   \item Jump
   \item Upon return: Run restore code
-  \item Return address:  Restore ``private'' state
-\lau{ Need to clear the returned stack. }
+  \item Return address: Clear the stack segment we gave control over
+  \item Restore ``private'' state
   \end{itemize}
 A more detailed description of the above steps:
 \begin{description}
@@ -825,11 +823,15 @@ A more detailed description of the above steps:
 \lau{same issue as with \texttt{call}, where dos $f$ come from.}
   \item [Restore code]
     Load the stack capability to $r_{\var{stk}}$. Pop the old program counter to $\pcreg$.
-  \item [Return address: Restore ``private'' state]
-    \begin{itemize}
-    \item Pop the private state on the stack into their respective $\bar{r}_{\var{priv}}$ registers.
-    \item Pop the restore code of the stack
-    \end{itemize}
+  \item [Return Address:] \forcenewline
+    \begin{description}
+    \item [Clear the stack segment we gave control over]
+    \item [Restore ``private'' state] \forcenewline
+      \begin{itemize}
+      \item Pop the private state on the stack into their respective $\bar{r}_{\var{priv}}$ registers.
+      \item Pop the restore code of the stack
+      \end{itemize}
+  \end{description}
 \end{description}
 \end{description}
 
@@ -837,7 +839,7 @@ A more detailed description of the above steps:
   \label{fig:stack-before-call}
   \centering
   \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
-\multicolumn{2}{l}{Heap} \\
+\multicolumn{2}{l}{Stack} \\
    & \\
    & $\vdots$\\
 \cline{2-2}
@@ -855,6 +857,8 @@ $\pcreg$ & $c_{\pc}$\\
 $r_0$  & $c_0$ \\
 \cline{2-2}
 $r_{\var{stk}}$  & $c_{\var{stk}}$ \\
+\cline{2-2}
+$r_f$ & $c_f$ \\
 \cline{2-2}
 $r_{\var{args},1}$ & $w_{a,1}$ \\
 \cline{2-2}
@@ -879,7 +883,8 @@ $r_{\var{priv},m}$ & $w_{p,m}$\\
   \label{fig:stack-after-push}
   \centering
   \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
-\multicolumn{2}{l}{Heap} \\
+\multicolumn{2}{l}{Stack} \\
+\cline{2-2}
    & \\
    & $\vdots$\\
 \cline{2-2}
@@ -898,7 +903,8 @@ $c_{\var{stk}}' \rightarrow$  & $c_{\var{stk}}'$ \\
    & Restore code \\
 \cline{2-2}
    & local stack\\
-   & $\vdots$
+   & $\vdots$ \\
+\cline{2-2}
 \end{tabular}
 \hspace{1cm}
 \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
@@ -909,6 +915,8 @@ $\pcreg$ & $c_{\pc}''$\\
 $r_0$  & $c_0$ \\
 \cline{2-2}
 $r_{\var{stk}}$  & $c_{\var{stk}}'$ \\
+\cline{2-2}
+$r_f$ & $c_f$ \\
 \cline{2-2}
 $r_{\var{args},1}$ & $w_{a,1}$ \\
 \cline{2-2}
@@ -932,7 +940,8 @@ $r_{\var{priv},m}$ & $w_{p,m}$\\
   \label{fig:stack-after-restrict-and-zero}
   \centering
   \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
-\multicolumn{2}{l}{Heap} \\
+\multicolumn{2}{l}{Stack} \\
+\cline{2-2}
    & \\
    & $\vdots$\\
 \cline{2-2}
@@ -952,7 +961,8 @@ $c_0' \rightarrow$   & Restore code \\
    & $\vdots$\\
 \cline{2-2}
    & local stack\\
-   & $\vdots$
+   & $\vdots$\\
+\cline{2-2}
 \end{tabular}
 \hspace{1cm}
 \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
@@ -987,7 +997,8 @@ $r_{\var{priv},m}$ & 0 \\
   \label{fig:stack-upon-return}
   \centering
   \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
-\multicolumn{2}{l}{Heap} \\
+\multicolumn{2}{l}{Stack} \\
+\cline{2-2}
    & \\
    & $\vdots$\\
 \cline{2-2} 
@@ -1009,7 +1020,8 @@ $c_0' \rightarrow$   & Restore code \\
    & $\vdots$\\
 \cline{2-2}
    & local stack\\
-   & $\vdots$
+   & $\vdots$\\
+\cline{2-2}
 \end{tabular}
 \hspace{1cm}
 \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
@@ -1040,13 +1052,10 @@ $r_{\var{priv},m}$ & ? \\
   \label{fig:stack-after-restore-code}
   \centering
   \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
-\multicolumn{2}{l}{Heap} \\
+\multicolumn{2}{l}{Stack} \\
+\cline{2-2}
    & \\
    & $\vdots$\\
-\cline{2-2} 
-   & $?$\\
-\cline{2-2} 
-   & 0 \\
 \cline{2-2}
    & 0 \\
 \cline{2-2}
@@ -1058,11 +1067,12 @@ $c_{\var{stk}}^{(3)} \rightarrow$  & $c_0$ \\
 \cline{2-2}
    & $w_{p,m}$ \\
 \cline{2-2}
-$c_0' \rightarrow$   & Restore code \\
+   & Restore code \\
    & $\vdots$\\
 \cline{2-2}
    & local stack\\
-   & $\vdots$
+   & $\vdots$\\
+\cline{2-2}
 \end{tabular}
 \hspace{1cm}
 \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
@@ -1085,27 +1095,23 @@ $r_{\var{priv},m}$ & ? \\
 & $\vdots$ \\
 \cline{2-2}
 \end{tabular}
-\caption{ Stack and register-file upon return. }
+\caption{ Stack and register-file after clearing stack. }
 \end{figure}
 
 \begin{figure}
   \label{fig:stack-after-restore-code}
   \centering
   \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
-\multicolumn{2}{l}{Heap} \\
-   & \\
-   & $\vdots$\\
-\cline{2-2} 
-   & $?$\\
-\cline{2-2} 
-   & 0 \\
+\multicolumn{2}{l}{Stack} \\
 \cline{2-2}
+   & \\
    & $\vdots$\\
 \cline{2-2}
    & 0 \\
 \cline{2-2}
 $c_{\var{stk}}^{(4)} \rightarrow$   & local stack\\
-   & $\vdots$
+   & $\vdots$\\
+\cline{2-2}
 \end{tabular}
 \hspace{1cm}
 \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
