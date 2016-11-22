@@ -794,8 +794,8 @@ Some programs will assume access to a stack which will be in part indicated by t
 \item[\texttt{scall} $f(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] $\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. This call assumes $r_{\var{stk}}$ contains a stack capability. An overview of this call:
   \begin{itemize}
   \item Push restore code to the stack.
-  \item Push return address capability 
   \item Push ``private'' registers to the stack.
+  \item Push return address capability 
   \item Push stack pointer
   \item Create local enter capability for restoration
   \item Restrict stack capability
@@ -803,6 +803,7 @@ Some programs will assume access to a stack which will be in part indicated by t
   \item Jump
   \item Upon return: Run restore code
   \item Return address:  Restore ``private'' state
+\lau{ Need to clear the returned stack. }
   \end{itemize}
 A more detailed description of the above steps:
 \begin{description}
@@ -831,91 +832,307 @@ A more detailed description of the above steps:
     \end{itemize}
 \end{description}
 \end{description}
-\begin{comment}
-\lau{todo: adjust figures}
+
 \begin{figure}
   \label{fig:stack-before-call}
   \centering
-  \begin{tabular}[!h]{r | >{\centering\arraybackslash}p{3cm} |}
+  \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+\multicolumn{2}{l}{Heap} \\
    & \\
    & $\vdots$\\
 \cline{2-2}
    & 0 \\
 \cline{2-2}
-$r_{\var{stk}} \rightarrow$   & local stack\\
+$c_{\var{stk}} \rightarrow$   & local stack\\
    & $\vdots$
 \end{tabular}
-\hspace{0.5cm}
-\begin{tabular}{*{10}{>{\centering\arraybackslash}p{0.2cm}}}
-  \begin{sideways}
-    $\pcreg$
-  \end{sideways}
-& 
-  \begin{sideways}
-    $r_{\var{stk}}$
-  \end{sideways}
-& 
-  \begin{sideways}
-    $r_0$
-  \end{sideways}
-& 
-  \begin{sideways}
-    $r_{\var{args},1}$
-  \end{sideways}
-&  
-
-& 
-  \begin{sideways}
-    $r_{\var{args},n}$ 
-  \end{sideways}
-& 
-  \begin{sideways}
-    $r_{\var{priv},1}$
-  \end{sideways}
-& 
-
-&
-  \begin{sideways}
-    $r_{\var{priv},n}$
-  \end{sideways}
-&\\
-\hline
-\multicolumn{1}{|>{\centering\arraybackslash}p{0.2cm}}{
-$\pc$
-} &
-\multicolumn{1}{|>{\centering\arraybackslash}p{0.2cm}}{
-$c_s$
-} &
-\multicolumn{1}{|>{\centering\arraybackslash}p{0.2cm}}{
-$c_0$
-} &
-\multicolumn{1}{|>{\centering\arraybackslash}p{0.2cm}}{
-$w_1$
-} &
-\multicolumn{1}{|>{\centering\arraybackslash}p{0.2cm}}{
- $\phantom{1}$
-} &
-\multicolumn{1}{|>{\centering\arraybackslash}p{0.2cm}}{
-$w_n$
-} &
-\multicolumn{1}{|>{\centering\arraybackslash}p{0.2cm}}{
-$v_1$
-} &
-\multicolumn{1}{|>{\centering\arraybackslash}p{0.2cm}}{
-  $\phantom{1}$
-} &
-\multicolumn{1}{|>{\centering\arraybackslash}p{0.2cm}}{
-$v_n$
-} &
-\multicolumn{1}{|>{\centering\arraybackslash}p{0.2cm} | }{
-  $\phantom{1}$
-}\\
-\hline
+\hspace{1cm}
+\begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
+\multicolumn{2}{r}{Register file} \\
+\cline{2-2}
+$\pcreg$ & $c_{\pc}$\\
+\cline{2-2}
+$r_0$  & $c_0$ \\
+\cline{2-2}
+$r_{\var{stk}}$  & $c_{\var{stk}}$ \\
+\cline{2-2}
+$r_{\var{args},1}$ & $w_{a,1}$ \\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+$r_{\var{args},n}$ & $w_{a,1}$\\
+\cline{2-2}
+$r_{\var{priv},1}$ & $w_{p,1}$\\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+$r_{\var{priv},m}$ & $w_{p,m}$\\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
 \end{tabular}
-\caption{Stack after everything stored}
+\caption{Stack and register-file before the call}
 \end{figure}
 
 
+\begin{figure}
+  \label{fig:stack-after-push}
+  \centering
+  \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+\multicolumn{2}{l}{Heap} \\
+   & \\
+   & $\vdots$\\
+\cline{2-2}
+$c_{\var{stk}}' \rightarrow$  & $c_{\var{stk}}'$ \\
+\cline{2-2}
+   & $c_\pc'$ \\
+\cline{2-2}
+   & $c_0$ \\
+\cline{2-2}
+   & $w_{p,1}$ \\
+\cline{2-2}
+   & $\vdots$ \\
+\cline{2-2}
+   & $w_{p,m}$ \\
+\cline{2-2}
+   & Restore code \\
+\cline{2-2}
+   & local stack\\
+   & $\vdots$
+\end{tabular}
+\hspace{1cm}
+\begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
+\multicolumn{2}{r}{Register file} \\
+\cline{2-2}
+$\pcreg$ & $c_{\pc}''$\\
+\cline{2-2}
+$r_0$  & $c_0$ \\
+\cline{2-2}
+$r_{\var{stk}}$  & $c_{\var{stk}}'$ \\
+\cline{2-2}
+$r_{\var{args},1}$ & $w_{a,1}$ \\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+$r_{\var{args},n}$ & $w_{a,1}$\\
+\cline{2-2}
+$r_{\var{priv},1}$ & $w_{p,1}$\\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+$r_{\var{priv},m}$ & $w_{p,m}$\\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+\end{tabular}
+\caption{Stack and register-file after everything has been pushed to the stack.}
+\end{figure}
+
+\begin{figure}
+  \label{fig:stack-after-restrict-and-zero}
+  \centering
+  \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+\multicolumn{2}{l}{Heap} \\
+   & \\
+   & $\vdots$\\
+\cline{2-2}
+$c_{\var{stk}}'' \rightarrow$  & $c_{\var{stk}}'$ \\
+\cline{2-2}
+   & $c_\pc'$ \\
+\cline{2-2}
+   & $c_0$ \\
+\cline{2-2}
+   & $w_{p,1}$ \\
+\cline{2-2}
+   & $\vdots$ \\
+\cline{2-2}
+   & $w_{p,m}$ \\
+\cline{2-2}
+$c_0' \rightarrow$   & Restore code \\
+   & $\vdots$\\
+\cline{2-2}
+   & local stack\\
+   & $\vdots$
+\end{tabular}
+\hspace{1cm}
+\begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
+\multicolumn{2}{r}{Register file} \\
+\cline{2-2}
+$\pcreg$ & $c_{\pc}^{(3)}$\\
+\cline{2-2}
+$r_0$  & $c_0'$ \\
+\cline{2-2}
+$r_{\var{stk}}$  & $c_{\var{stk}}''$ \\
+\cline{2-2}
+$r_{\var{args},1}$ & $w_{a,1}$ \\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+$r_{\var{args},n}$ & $w_{a,1}$\\
+\cline{2-2}
+$r_{\var{priv},1}$ & 0\\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+$r_{\var{priv},m}$ & 0 \\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+\end{tabular}
+\caption{ Stack and register-file after the $c_{\var{stk}}'$ has been limited to only give authority over the empty part of the stack (the new capability is $c_{\var{stk}}''$. $c_0'$ is made from $c_{\var{stk}}'$ by setting it to point to the restore code and restricting it to a local enter-capability. }
+\end{figure}
+
+
+\begin{figure}
+  \label{fig:stack-upon-return}
+  \centering
+  \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+\multicolumn{2}{l}{Heap} \\
+   & \\
+   & $\vdots$\\
+\cline{2-2} 
+   & $?$\\
+\cline{2-2} 
+$c_{\var{stk}}' \rightarrow$  & $c_{\var{stk}}'$ \\
+\cline{2-2}
+   & $c_\pc'$ \\
+\cline{2-2}
+   & $c_0$ \\
+\cline{2-2}
+   & $w_{p,1}$ \\
+\cline{2-2}
+   & $\vdots$ \\
+\cline{2-2}
+   & $w_{p,m}$ \\
+\cline{2-2}
+$c_0' \rightarrow$   & Restore code \\
+   & $\vdots$\\
+\cline{2-2}
+   & local stack\\
+   & $\vdots$
+\end{tabular}
+\hspace{1cm}
+\begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
+\multicolumn{2}{r}{Register file} \\
+\cline{2-2}
+$\pcreg$ & $c_0'$\\
+\cline{2-2}
+$r_0$  &  ? \\
+\cline{2-2}
+$r_{\var{stk}}$  & ? \\
+\cline{2-2}
+$r_1$ & $w_1$ \\
+\cline{2-2}
+$r_{\var{priv},1}$ & ?\\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+$r_{\var{priv},m}$ & ? \\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+\end{tabular}
+\caption{ Stack and register-file upon return. }
+\end{figure}
+
+
+\begin{figure}
+  \label{fig:stack-after-restore-code}
+  \centering
+  \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+\multicolumn{2}{l}{Heap} \\
+   & \\
+   & $\vdots$\\
+\cline{2-2} 
+   & $?$\\
+\cline{2-2} 
+   & 0 \\
+\cline{2-2}
+   & 0 \\
+\cline{2-2}
+$c_{\var{stk}}^{(3)} \rightarrow$  & $c_0$ \\
+\cline{2-2}
+   & $w_{p,1}$ \\
+\cline{2-2}
+   & $\vdots$ \\
+\cline{2-2}
+   & $w_{p,m}$ \\
+\cline{2-2}
+$c_0' \rightarrow$   & Restore code \\
+   & $\vdots$\\
+\cline{2-2}
+   & local stack\\
+   & $\vdots$
+\end{tabular}
+\hspace{1cm}
+\begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
+\multicolumn{2}{r}{Register file} \\
+\cline{2-2}
+$\pcreg$ & $c_\pc'$\\
+\cline{2-2}
+$r_0$  &  ? \\
+\cline{2-2}
+$r_{\var{stk}}$  & $c_{\var{stk}}^{(3)}$ \\
+\cline{2-2}
+$r_1$ & $w_1$ \\
+\cline{2-2}
+$r_{\var{priv},1}$ & ?\\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+$r_{\var{priv},m}$ & ? \\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+\end{tabular}
+\caption{ Stack and register-file upon return. }
+\end{figure}
+
+\begin{figure}
+  \label{fig:stack-after-restore-code}
+  \centering
+  \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+\multicolumn{2}{l}{Heap} \\
+   & \\
+   & $\vdots$\\
+\cline{2-2} 
+   & $?$\\
+\cline{2-2} 
+   & 0 \\
+\cline{2-2}
+   & $\vdots$\\
+\cline{2-2}
+   & 0 \\
+\cline{2-2}
+$c_{\var{stk}}^{(4)} \rightarrow$   & local stack\\
+   & $\vdots$
+\end{tabular}
+\hspace{1cm}
+\begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
+\multicolumn{2}{r}{Register file} \\
+\cline{2-2}
+$\pcreg$ & $c_\pc^{(3)}$\\
+\cline{2-2}
+$r_0$  &  $c_0$ \\
+\cline{2-2}
+$r_{\var{stk}}$  & $c_{\var{stk}}^{(4)}$ \\
+\cline{2-2}
+$r_1$ & $w_1$ \\
+\cline{2-2}
+$r_{\var{priv},1}$ & $w_{p,1}$\\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+$r_{\var{priv},m}$ & $w_{p,m}$ \\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+\end{tabular}
+\caption{ Stack and register-file upon return. }
+\end{figure}
+
+
+\begin{comment}
 \begin{figure}
   \centering
   \begin{tabular}[!h]{r | >{\centering\arraybackslash}p{3cm} |}
