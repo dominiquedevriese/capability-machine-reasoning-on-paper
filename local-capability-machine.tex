@@ -1208,8 +1208,6 @@ let f = fun adv =>
 \end{verbatim}
 In this example \texttt{let l = 1 in} allocates a new local capability \texttt{l} with read-write permissions. Assuming \texttt{adv} has no access to capabilities with permit write local, they cannot store \texttt{l} and thus change its value in the second call.
 
-
-
 Correctness lemma not assuming stack
 \begin{lemma}
   For all $n$,
@@ -1262,13 +1260,17 @@ Assembly variant of the ``awkward'' example from \citep[p.~11]{Dreyer:2010:IHS:1
 \begin{verbatim}
 g = fun _ => let x = 0 in
                fun f =>
-                 x:=0;
+                 x := 0;
                  f();
-                 x:=1;
+                 x := 1;
                  f();
-                 assert(x==1)
+                 assert(x == 1)
 \end{verbatim}
-\lau{ This example relies on \texttt{adv} actually passing on a proper $\malloc$ - is that a fair assumption? The example can be changed to not require this by assuming x and the function is already in the heap. This change does not remove the difficulties in the original program. }
+
+\lau{In order for this to be secure using a stack the closure needs to make a couple of checks: 1) The alleged stack capability has to be local and $\rwlx$ - if not, then fail. 2) The callback \texttt{f} has to be a global capability - if not, then fail. 3) The stack needs to be cleared before the first callback. \\If it looks like a stack, works like a stack, and quacks like a stack, then it is probably a stack. The first requirement makes sure that what was passed as the stack can be used as a stack eventhough it might not be a stack capability that follows the conventional stack diciplin. If the capability is actually for part of the callers stack, then we will just overwrite their part of the stack. We are not guaranteed that the caller did not save the stack capability - they did after all have a stack to save it on. In fact, if the caller wants to reuse our part of the stack later, then they have to keep a capability for our part of the stack around. When the caller is not trusted, then this seems like an unsafe practice. This brings us to the second requirement: If the callback is global, then there is no way it can restore the previous stack capability and gain access to our part of the stack. This is the case as the \emph{only} place they could have stored the stack capability is on the stack, and the only way they can restore this is through one of the local stack capabilities. In other words, this requirement makes sure that the callback cabaility is not derived from the stack pointer (which would allow them to get a stack capability for our part of the stack).\\ The last requirement is to sanitize the stack. This makes sure that the caller does not try to sneak a capability to the callback simply by leaving it somewhere on the stack and hoping that we won't notice and pass it on. }
+
+
+
 \begin{lemma}\forcenewline
   For all $n \in \nats$
   let
