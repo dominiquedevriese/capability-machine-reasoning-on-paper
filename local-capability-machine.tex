@@ -713,9 +713,9 @@ Define the following simple macros:
     &\forall \Phi \in \ExecConfs \ldotp \forall m_{\var{footprint}} \in \Heaps\ldotp \hsframe \in \HeapSegments \ldotp \\
     &\quad \forall n, \size \in \nats \ldotp \forall b,e,a \in \Addrs\ldotp\forall p \in \Perms \ldotp \forall W \in \Worlds \ldotp\\
     &\qquad \exists i, \iota_{\malloc,0} \ldotp \\
-    &\qquad \quad \forall W \futurewk [i \mapsto \iota_{\malloc,0}] \land \\
+    &\qquad \quad \forall \iota_\malloc \futurewk \iota_{\malloc,0} \land \\
     &\qquad \quad \memheap = m_{\var{footprint}} \uplus \hsframe \land\\
-    &\qquad \quad \heapSat[m_{\var{footprint}}]{n}{W} \land \\
+    &\qquad \quad \heapSat[m_{\var{footprint}}]{n}{[i \mapsto \iota_\malloc]} \land \\
     &\qquad \quad \memreg(r_1) = \size \land \\
     &\qquad \quad \size \geq 0 \land \\
     &\qquad \quad \memreg(r_0) = (p,b,e,a) \land \\
@@ -725,8 +725,8 @@ Define the following simple macros:
     &\qquad \qquad \quad \exists j,k \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \exists W' \in \Worlds \ldotp \\
     &\qquad \qquad \qquad \Phi \step[j]\Phi' \land \\
     &\qquad \qquad \qquad \memheap[\Phi']=m_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land\\
-    &\qquad \qquad \qquad W'(i) = \iota_{\malloc}' \land W' \futurewk W \land \\
-    &\qquad \qquad \qquad \heapSat[m_{\var{footprint}}']{n-j}{W'} \land \\
+    &\qquad \qquad \qquad  \iota_{\malloc}' \futurewk \iota_{\malloc}\\
+    &\qquad \qquad \qquad \heapSat[m_{\var{footprint}}']{n-j}{[i \mapsto \iota_{\malloc}']} \land \\
     &\qquad \qquad \qquad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land \\
     &\qquad \qquad \qquad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{(p,b,e,a)}}\update{r_1}{((\rwx,\glob),b',e',b')} \land \\
     &\qquad \qquad \qquad \size = e'-b' \land\\
@@ -1221,7 +1221,7 @@ where
   &\dom(\hs_\flag) = [\flag,\flag] \\
   &\dom(\ms_\link) = [\link,\link+1]\\
   &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
-  &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc}]} \text{ for all } n
+  &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]} \text{ for all } n
 \end{align*}
 and
 \begin{itemize}
@@ -1240,6 +1240,31 @@ then
 \]  
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:correctness-f1}]
+Let $n$ be given and assume the premisses in the lemma.  Consider the following part of the execution:
+  \[
+    (\reg_0\update{\pcreg}{c_{f1}},m) \step[i] (\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}'}\update{r_1}{1},m)
+  \]
+Where $c_{f1}'$ is the return address. Use the malloc specification with
+\begin{align*}
+  W &= [0 \mapsto \iota_{\malloc,0}] \\
+  m_{\var{footprint}} & = m_\malloc \\
+  size & = 1
+\end{align*}
+to get 
+\[
+(\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}'}\update{r_1}{1},m) \step[j] (\reg_0\update{\pcreg}{c_{f1}'}\update{r_0}{c_{f1}'}\update{r_1}{c_l},m')
+\]
+where for some $W' \futurewk W$
+\begin{align*}
+  m' & = \hs_{f1} \uplus 
+         \hs_\flag \uplus                
+         \ms_{\var{link}} \uplus 
+         \hs_\adv \uplus 
+         \ms_{\var{alloc}} \uplus
+         m_{\malloc}' \uplus 
+         \hs_{\var{frame}} 
+\end{align*}
+
 
 \end{proof}
 
@@ -1275,7 +1300,7 @@ f2: push 1
     &\dom(\ms_\link) = [\link,\link+1]\\
     &\dom(\ms_\stk) = [\start_\stk, \addrend_\stk]\\
     &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
-    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc}]} \text{ for all } n
+    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]} \text{ for all } n
   \end{align*}
   and
   \begin{itemize}
