@@ -432,9 +432,9 @@ Assume an $\encodePerm$, $\encodeLoc$, and $\encodePermPair$ function that encod
 \encodeLoc &: \Globals \fun \ints \\
 \encodePermPair &: (\Perms \times \Globals) \fun \ints \\
 \end{align*}
-Further, assume an inverse function, $\decodePermPair$, that decodes permissions
+Further, assume an inverse function, $\decodePermPair{}$, that decodes permissions
 \[
-  \decodePermPair : \ints \fun (\Perms \times \Globals)
+  \decodePermPair{} : \ints \fun (\Perms \times \Globals)
 \]
 \begin{align*}
   \Phi & \rightarrow \sem{\decode(\memheap(\addr))}(\Phi) & &                                   
@@ -446,7 +446,8 @@ Further, assume an inverse function, $\decodePermPair$, that decodes permissions
                                                               \end{array}\\
 \Phi & \rightarrow \failed                                 & & \text{otherwise}
 \end{align*}
-It is assumed that address 0 is used for I/O, so whatever resides in location 0 after an execution can be seen as a result. As we will see in the semantics, it is assumed that the initial process starts with a readwrite capability for this location.
+
+A number of functions and predicates used in the definition of $\sem{-}$ (defined later). Notice all of them are total.
 \begin{align*}
   \executeAllowed{\perm} &=
                            \begin{cases}
@@ -794,6 +795,8 @@ A more detailed description of each of the above steps:
 \end{description}
 \item[\texttt{malloc $r$ $n$}] Calls malloc to allocates a piece of memory of size $n$. The capability will be stored in register \texttt{r}.
 \item[\texttt{assert$_{\var{flag}}$ $r_1$ $r_2$}] Compares the words in register $r_1$ and $r_2$ (if one of them is an integer, then use that in the comparison). If they are equal, then execution continues. If they are unequal, then the assertion flag named $flag$ in the flag list is set to 1 and execution halts (if no flag is specified, then the first flag in the list is set to 1).
+\item[cclear $r$] Stores 0 to all the memory cells the capability $r$ governs.\footnote{This may in some cases seem like an unreasonable slow instruction. In a real system it would probably be implemented as a vector operation which allows modification of continous segments of memory rather fast.}
+\item[rclear $\bar{r}$] Moves 0 to all the registers in the list $\bar{r}$.
 \end{description}
 Note:
 \begin{itemize}
@@ -861,6 +864,8 @@ Note:
 \item If we want to have local capabilities as part of our private state, then we need to have a stack and use \texttt{scall}. If we do not have any local capabilities we want to keep around, then we can use \texttt{call}, but it will incur a small memory leak as the activation records cannot be recycled! It is also possible to use a combination of \texttt{scall} and \texttt{call}, but when \texttt{call} is used, then we have no way to store the stack, so we cannot use \texttt{scall} after that.
 \item As a rule of thumb: If you have provided an untrusted entity access to part of the stack, then it needs to be cleared upon return.
 \item As a rule of thumb: If you receive a stack from an untrusted source, then you need to check that it is a local $\rwlx$-capability and clear it! If any callbacks are provided, then they need to be global.
+\item In a real setting due to a limited number of registers, some of the arguments might be spilled to the stack. It would be possible to do something similar here, but to keep
+ matters simple, we opt not to do so.
 \end{itemize}
 \begin{figure}
   \label{fig:stack-before-call}
@@ -1292,7 +1297,6 @@ let f = fun adv =>
           assert(!l == 1)
 \end{verbatim}
 In this example \texttt{let l = 1 in} allocates a new local capability \texttt{l} with read-write permissions. Assuming \texttt{adv} has no access to capabilities with permit write local, they cannot store \texttt{l} and thus change its value in the second call.
-
 
 \subsection{Simple well-bracketedness/local capability example}
 \begin{verbatim}
