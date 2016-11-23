@@ -707,11 +707,13 @@ Define the following simple macros:
 
 \begin{specification}[Malloc v.2]
   $c_\malloc$ satisfies the specification for malloc iff
-  \begin{align*}
+\[  
+  \left\{
+  \begin{aligned}
     &\forall \Phi \in \ExecConfs \ldotp \forall m_{\var{footprint}} \in \Heaps\ldotp \hsframe \in \HeapSegments \ldotp \\
     &\quad \forall n, \size \in \nats \ldotp \forall b,e,a \in \Addrs\ldotp\forall p \in \Perms \ldotp \forall W \in \Worlds \ldotp\\
     &\qquad \exists i, \iota_{\malloc,0} \ldotp \\
-    &\qquad \quad \forall W \future [i \mapsto \iota_{\malloc,0}] \land \\
+    &\qquad \quad \forall W \futurewk [i \mapsto \iota_{\malloc,0}] \land \\
     &\qquad \quad \memheap = m_{\var{footprint}} \uplus \hsframe \land\\
     &\qquad \quad \heapSat[m_{\var{footprint}}]{n}{W} \land \\
     &\qquad \quad \memreg(r_1) = \size \land \\
@@ -719,19 +721,20 @@ Define the following simple macros:
     &\qquad \quad \memreg(r_0) = (p,b,e,a) \land \\
     &\qquad \quad \memreg(\pcreg) = c_\malloc \\ %and this needs to change with ABI.
     &\qquad \quad \Rightarrow \\
-    &\qquad \qquad\exists \Phi' \in \ExecConfs \ldotp \exists m_{\var{footprint}}' \in \HeapSegments\ldotp\\
+    &\qquad \qquad\exists \Phi' \in \ExecConfs \ldotp \exists m_{\var{footprint}}' \in \Heaps\ldotp \exists \ms_{\var{alloc}} \in \HeapSegments\ldotp\\
     &\qquad \qquad \quad \exists j,k \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \exists W' \in \Worlds \ldotp \\
     &\qquad \qquad \qquad \Phi \step[j]\Phi' \land \\
     &\qquad \qquad \qquad \memheap[\Phi']=m_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land\\
-    &\qquad \qquad \qquad W' = [i \mapsto \iota_{\malloc}']\land W' \futurewk W \land \\
+    &\qquad \qquad \qquad W'(i) = \iota_{\malloc}' \land W' \futurewk W \land \\
     &\qquad \qquad \qquad \heapSat[m_{\var{footprint}}']{n-j}{W'} \land \\
     &\qquad \qquad \qquad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land \\
     &\qquad \qquad \qquad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{(p,b,e,a)}}\update{r_1}{((\rwx,\glob),b',e',b')} \land \\
     &\qquad \qquad \qquad \size = e'-b' \land\\
-  \end{align*}
-
-  Additionally, we require that for every $W' \future [i\mapsto \iota_{\malloc,0}]$, $\heapSat[\hs]{n}{W'}$ implies that $\dom(\hs)$ contains $[n',+\infty)$ for some $n'$.
+  \end{aligned}\right.
+\]
+where $\iota_{\malloc,0}$ is the region that initially governs malloc 
 \end{specification}
+In the specfication above $\iota_\malloc'$ is a future region of the initial region that governs malloc.
 
 
 \section{Macros}
@@ -791,6 +794,7 @@ A more detailed description of each of the above steps:
     \end{itemize}
 \end{description}
 \item[\texttt{malloc $r$ $n$}] Calls malloc to allocates a piece of memory of size $n$. The capability will be stored in register \texttt{r}.
+
 \item[\texttt{assert$_{\var{flag}}$ $r_1$ $r_2$}] Compares the words in register $r_1$ and $r_2$ (if one of them is an integer, then use that in the comparison). If they are equal, then execution continues. If they are unequal, then the assertion flag named $flag$ in the flag list is set to 1 and execution halts (if no flag is specified, then the first flag in the list is set to 1).
 \item[cclear $r$] Stores 0 to all the memory cells the capability $r$ governs.\footnote{This may in some cases seem like an unreasonable slow instruction. In a real system it would probably be implemented as a vector operation which allows modification of continous segments of memory rather fast.}
 \item[rclear $\bar{r}$] Moves 0 to all the registers in the list $\bar{r}$.
