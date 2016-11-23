@@ -1179,6 +1179,8 @@ $r_{\var{priv},m}$ & $w_{p,m}$ \\
 \label{subsec:example-loc-cap}
 In the below, let \texttt{assert(e)} do the following: evaluate \texttt{e} if it evaluates to true, then continue execution, otherwise terminate where a designated assertion flag is set to 1. The assertion flag is assumed to start as 0 and is different from function to function (so in the program below, \texttt{adv} cannot directly use the assertion flag of \texttt{f}). Notice that an assertion will never terminate in a $\failed$ state.
 \subsubsection{Simple use of local capabilities}
+The following programs only use local capabilities when they create protected return pointers. The strength of this is, however, not shown as the untrusted code only gets one chance to execute.
+
 ML-like program we had before:
 \begin{verbatim}
 let f = fun adv =>
@@ -1186,6 +1188,8 @@ let f = fun adv =>
           adv();
           assert (l == 1)
 \end{verbatim}
+\lau{The above program is obsolete (and the other ML-like programs), but I will not remove it until we have gotten used to the assembly programs.}
+
 Assembly program not using stack. Assume that $r_l \not\in \{\pcreg,r_0 \}$ is a register.
 \begin{verbatim}
 f1: malloc r_l 1
@@ -1193,8 +1197,8 @@ f1: malloc r_l 1
     call adv([],[r_l])
     assert r_l 1
 1f: halt
-
 \end{verbatim}
+
 \begin{lemma}[Correctness lemma for \texttt{f1}] \forcenewline
   For all $n \in \nats$
   let
@@ -1234,14 +1238,13 @@ then
 \]  
 \end{lemma}
 
-Assembly program using the stack:
+Assembly program using the stack. This program assumes a $r_\stk \not\in \{\pcreg,r_0\}$ register that contains a stack capability (a local $rwlx$-capability):
 \begin{verbatim}
 f2: push 1
     scall adv([],[])
     pop r1
     assert r1 1
 2f: halt
-
 \end{verbatim}
 
 \begin{lemma}
