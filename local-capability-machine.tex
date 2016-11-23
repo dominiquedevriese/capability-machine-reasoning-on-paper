@@ -781,7 +781,7 @@ A more detailed description of each of the above steps:
   \end{itemize}
   \item [Create local enter capability for activation] Make the capability for the activation record point to the beginning of the activation record and restrict it to a local-enter capability. Place this capability in $r_0$.
   \item [Clear unused registers]
-    Clear all the register that are not $\pcreg$, $r_0$, $r_f$ or in $\bar{r}_{\var{args}}$.
+    Clear all the register that are not $\pcreg$, $r_0$ or in $\bar{r}_{\var{args}}$.
   \item [Jump] Load the entry $f$ from the linking table to a free register and jump to it.
   \item [Activation code] The activation code does the following:
     \begin{itemize}
@@ -791,7 +791,6 @@ A more detailed description of each of the above steps:
     \end{itemize}
 \end{description}
 \item[\texttt{malloc $r$ $n$}] Calls malloc to allocates a piece of memory of size $n$. The capability will be stored in register \texttt{r}.
-\item[\texttt{store $r$ $n$}] Stores $n$ to $r$ - notice the semantics do not allow an integer to be stored directly.
 \item[\texttt{assert$_{\var{flag}}$ $r_1$ $r_2$}] Compares the words in register $r_1$ and $r_2$. If they are equal, then execution continues. If they are unequal, then the assertion flag named $flag$ in the flag list is set to 1 and execution halts (if no flag is specified, then the first flag in the list is set to 1).
 \end{description}
 Note:
@@ -802,6 +801,8 @@ Note:
 Some programs will assume access to a stack which will be in part indicated by the program macros, but also in the correctness lemma. The stack is accessed through a local $\rwlx$-capability. Programs will assume that the stack resides in some register, say $r_{\var{stk}}$.
 
 The stack will reside entirely in memory. There is no seperation between the memory and the stack, so when we talk about the stack it is as a conceptual thing.
+
+Eventhough the memory is infinite, we will only use a finite part for the stack. If we have allocated too little memory for the stack, and we try to push something anyway, then the execution will fail. As we consider failing admissable, we are okay with this. 
 
 \begin{description}
 \item[\texttt{push $r$}] Pushes the word in register \texttt{r} to the stack by storing it through the stack capability and increment said capability.\footnote{The stack grows upwards.}
@@ -835,7 +836,7 @@ A more detailed description of the above steps:
   \item [Restrict stack capability]
     Make the stack capability only govern the unused part.
   \item [Clear unused registers]
-    Clear all registers but $\pcreg$, $r_0$, $r_{\var{stk}}$, $r_f$, and $\bar{r}_{\var{args}}$.
+    Clear all registers but $\pcreg$, $r_0$, $r_{\var{stk}}$, and $\bar{r}_{\var{args}}$.
   \item [Jump] Load the entry $f$ from the linking table to a free register and jump to it.
   \item [Restore code]
     Load the stack capability to $r_{\var{stk}}$. Pop the old program counter to $\pcreg$.
@@ -849,7 +850,7 @@ A more detailed description of the above steps:
       \end{itemize}
   \end{description}
 \end{description}
-\item[\texttt{clear $r$}] Clears all cells $r$ has authority over. 
+\item[\texttt{mclear $r$}] Clears all cells $r$ has authority over. 
 \end{description}
 Note:
 \begin{itemize}
@@ -880,13 +881,11 @@ $r_0$  & $c_0$ \\
 \cline{2-2}
 $r_{\var{stk}}$  & $c_{\var{stk}}$ \\
 \cline{2-2}
-$r_f$ & $c_f$ \\
-\cline{2-2}
 $r_{\var{args},1}$ & $w_{a,1}$ \\
 \cline{2-2}
 & $\vdots$ \\
 \cline{2-2}
-$r_{\var{args},n}$ & $w_{a,1}$\\
+$r_{\var{args},n}$ & $w_{a,n}$\\
 \cline{2-2}
 $r_{\var{priv},1}$ & $w_{p,1}$\\
 \cline{2-2}
@@ -897,7 +896,7 @@ $r_{\var{priv},m}$ & $w_{p,m}$\\
 & $\vdots$ \\
 \cline{2-2}
 \end{tabular}
-\caption{Stack and register-file before the call}
+\caption{This is the first figure of 6 that illustrates how \texttt{scall} works. In this example, the call \texttt{scall $f([r_{\var{args},1},\dots,r_{\var{args},n}],[r_0,r_{\var{priv},1},\dots,r_{\var{priv},m}])$. In this example the two lists of registers are disjoined eventhough that does not have to be the case.}}
 \end{figure}
 
 
@@ -938,13 +937,11 @@ $r_0$  & $c_0$ \\
 \cline{2-2}
 $r_{\var{stk}}$  & $c_{\var{stk}}'$ \\
 \cline{2-2}
-$r_f$ & $c_f$ \\
-\cline{2-2}
 $r_{\var{args},1}$ & $w_{a,1}$ \\
 \cline{2-2}
 & $\vdots$ \\
 \cline{2-2}
-$r_{\var{args},n}$ & $w_{a,1}$\\
+$r_{\var{args},n}$ & $w_{a,n}$\\
 \cline{2-2}
 $r_{\var{priv},1}$ & $w_{p,1}$\\
 \cline{2-2}
@@ -955,7 +952,7 @@ $r_{\var{priv},m}$ & $w_{p,m}$\\
 & $\vdots$ \\
 \cline{2-2}
 \end{tabular}
-\caption{Stack and register-file after everything has been pushed to the stack.}
+\caption{Stack and register-file after the restore code, ``private'' registers (remember $r_0$ is here private.), return address ($c_\pc'$), and stack capability ($c_{\var{stk}}'$) have been pushed to the stack.}
 \end{figure}
 
 \begin{figure}
@@ -1000,7 +997,7 @@ $r_{\var{args},1}$ & $w_{a,1}$ \\
 \cline{2-2}
 & $\vdots$ \\
 \cline{2-2}
-$r_{\var{args},n}$ & $w_{a,1}$\\
+$r_{\var{args},n}$ & $w_{a,n}$\\
 \cline{2-2}
 $r_{\var{priv},1}$ & 0\\
 \cline{2-2}
@@ -1011,7 +1008,7 @@ $r_{\var{priv},m}$ & 0 \\
 & $\vdots$ \\
 \cline{2-2}
 \end{tabular}
-\caption{ Stack and register-file after the $c_{\var{stk}}'$ has been limited to only give authority over the empty part of the stack (the new capability is $c_{\var{stk}}''$. $c_0'$ is made from $c_{\var{stk}}'$ by setting it to point to the restore code and restricting it to a local enter-capability. }
+\caption{ Stack and register-file after the $c_{\var{stk}}'$ has been limited to only give authority over the empty part of the stack (the new capability is $c_{\var{stk}}''$). $c_0'$ is made from $c_{\var{stk}}'$ by setting it to point to the restore code and restricting it to a local enter-capability. The ``private'' registers have been cleared.}
 \end{figure}
 
 
@@ -1066,7 +1063,7 @@ $r_{\var{priv},m}$ & ? \\
 & $\vdots$ \\
 \cline{2-2}
 \end{tabular}
-\caption{ Stack and register-file upon return. }
+\caption{ Stack and register-file upon return from $f$. At this point we have no idea what is in the register-file apart from the $\pcreg$ which we know points to the restore code. The contents of the stack we released access to is also unknown. (Notice that we have changed the order of the registers as we are no longer interested in the argument registers. By convention we expect a return value to be in $r_1$, which is why we have named that word, but the words in the remaining non-special-purpose registers could also be considered return values.)}
 \end{figure}
 
 
@@ -1079,7 +1076,7 @@ $r_{\var{priv},m}$ & ? \\
    & \\
    & $\vdots$\\
 \cline{2-2}
-   & 0 \\
+   & ? \\
 \cline{2-2}
 $c_{\var{stk}}^{(3)} \rightarrow$  & $c_0$ \\
 \cline{2-2}
@@ -1117,7 +1114,7 @@ $r_{\var{priv},m}$ & ? \\
 & $\vdots$ \\
 \cline{2-2}
 \end{tabular}
-\caption{ Stack and register-file after clearing stack. }
+\caption{ Stack and register-file after executing the restore code. The old stack capability has been restored and the  $\pcreg$-register now points to the return address in memory. }
 \end{figure}
 
 \begin{figure}
@@ -1131,7 +1128,7 @@ $r_{\var{priv},m}$ & ? \\
 \cline{2-2}
    & 0 \\
 \cline{2-2}
-$c_{\var{stk}}^{(4)} \rightarrow$   & local stack\\
+$c_{\var{stk}} \rightarrow$   & local stack\\
    & $\vdots$\\
 \cline{2-2}
 \end{tabular}
@@ -1143,7 +1140,7 @@ $\pcreg$ & $c_\pc^{(3)}$\\
 \cline{2-2}
 $r_0$  &  $c_0$ \\
 \cline{2-2}
-$r_{\var{stk}}$  & $c_{\var{stk}}^{(4)}$ \\
+$r_{\var{stk}}$  & $c_{\var{stk}}$ \\
 \cline{2-2}
 $r_1$ & $w_1$ \\
 \cline{2-2}
@@ -1153,10 +1150,12 @@ $r_{\var{priv},1}$ & $w_{p,1}$\\
 \cline{2-2}
 $r_{\var{priv},m}$ & $w_{p,m}$ \\
 \cline{2-2}
+& $?$ \\
+\cline{2-2}
 & $\vdots$ \\
 \cline{2-2}
 \end{tabular}
-\caption{ Stack and register-file upon return. }
+\caption{ Stack and register-register file after the clean up code has been run. The untrusted part of the stack has been cleared. The ``private'' words have been poped to their respective registers. The restore code has been poped of the stack. The stack is now in the same state as it was before the call. }
 \end{figure}
 
 
