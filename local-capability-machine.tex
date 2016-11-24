@@ -1,5 +1,5 @@
 \documentclass[a4paper]{article}
-%\usepackage[a4paper]{geometry}
+\usepackage[a4paper]{geometry}
 \usepackage[utf8]{inputenc}
 
 \usepackage{amsmath,amsfonts,amssymb,amsthm}
@@ -22,6 +22,7 @@
 
 \usepackage{appendix}
 
+\usepackage{enumitem}
 \usepackage{tikz}
 \usepackage{multirow,bigdelim}
 
@@ -708,31 +709,39 @@ Define the following simple macros:
 \begin{specification}[Malloc v.2]
   $c_\malloc$ satisfies the specification for malloc iff
 \[  
-  \left\{
   \begin{aligned}
-    &\forall \Phi \in \ExecConfs \ldotp \forall m_{\var{footprint}} \in \Heaps\ldotp \hsframe \in \HeapSegments \ldotp \\
-    &\quad \forall n, \size \in \nats \ldotp \forall b,e,a \in \Addrs\ldotp\forall p \in \Perms \ldotp \forall W \in \Worlds \ldotp\\
-    &\qquad \exists i, \iota_{\malloc,0} \ldotp \\
-    &\qquad \quad \forall W \futurewk [i \mapsto \iota_{\malloc,0}] \land \\
-    &\qquad \quad \memheap = m_{\var{footprint}} \uplus \hsframe \land\\
-    &\qquad \quad \heapSat[m_{\var{footprint}}]{n}{W} \land \\
+    & \exists \iota_{\malloc,0} \ldotp \\
+    & \quad \forall \Phi \in \ExecConfs \ldotp \forall \ms_{\var{footprint}}, \hsframe \in \HeapSegments \ldotp \\
+    &\qquad \forall i, n, \size \in \nats \ldotp \forall b,e,a \in \Addrs\ldotp\forall p \in \Perms \ldotp \\
+    &\qquad \quad \forall \iota_\malloc \futurestr \iota_{\malloc,0} \land \\
+    &\qquad \quad \memheap = \ms_{\var{footprint}} \uplus \hsframe \land\\
+    &\qquad \quad \heapSat[\ms_{\var{footprint}}]{n}{[i \mapsto \iota_\malloc]} \land \\
     &\qquad \quad \memreg(r_1) = \size \land \\
     &\qquad \quad \size \geq 0 \land \\
     &\qquad \quad \memreg(r_0) = (p,b,e,a) \land \\
     &\qquad \quad \memreg(\pcreg) = c_\malloc \\ %and this needs to change with ABI.
     &\qquad \quad \Rightarrow \\
-    &\qquad \qquad\exists \Phi' \in \ExecConfs \ldotp \exists m_{\var{footprint}}' \in \Heaps\ldotp \exists \ms_{\var{alloc}} \in \HeapSegments\ldotp\\
-    &\qquad \qquad \quad \exists j,k \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \exists W' \in \Worlds \ldotp \\
-    &\qquad \qquad \qquad \Phi \step[j]\Phi' \land \\
-    &\qquad \qquad \qquad \memheap[\Phi']=m_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land\\
-    &\qquad \qquad \qquad W'= W \update{i}{\iota_{\malloc}'} \land W' \futurewk W \land \\
-    &\qquad \qquad \qquad \heapSat[m_{\var{footprint}}']{n-j}{W'} \land \\
+    &\qquad \qquad\exists \Phi' \in \ExecConfs \ldotp \exists \ms_{\var{footprint}}', \ms_{\var{alloc}} \in \HeapSegments\ldotp\\
+    &\qquad \qquad \quad \exists j,k \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \exists \iota_\malloc' \in \Regions \ldotp \\
+    &\qquad \qquad \qquad \Phi \step[j] \Phi' \land \\
+    &\qquad \qquad \qquad \memheap[\Phi']=\ms_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land\\
+    &\qquad \qquad \qquad \iota_{\malloc}' \futurewk \iota_\malloc \land \\
+    &\qquad \qquad \qquad \heapSat[\ms_{\var{footprint}}']{n-j}{[i \mapsto \iota_\malloc']} \land \\
     &\qquad \qquad \qquad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land \\
     &\qquad \qquad \qquad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{(p,b,e,a)}}\update{r_1}{((\rwx,\glob),b',e',b')} \land \\
     &\qquad \qquad \qquad \size - 1 = e'-b' 
-  \end{aligned}\right.
+  \end{aligned}
 \]
 where $\iota_{\malloc,0}$ is the region that initially governs malloc 
+\[
+\forall \iota' \futurestr \iota_{\malloc,0} \ldotp \forall W,i, W(i)=\iota' \ldotp \iota'.H (\iota'.s) (W) = \iota'.H (\iota'.s ([i \mapsto W(i)]))
+\]
+and
+\[
+  \iota_{\malloc,0}.v = \perm
+\]
+
+
 \end{specification}
 In the specfication above $\iota_\malloc'$ is a future region of the initial region that governs malloc.
 \lau{should it be a public or private future world in the premise?}
@@ -780,7 +789,7 @@ A more detailed description of each of the above steps:
       \item Activation code
     \end{itemize}
     \item Store the words in $\bar{r}_{\var{priv}}$ to the activation record. 
-    \item Adjust the a copy of the current pc to point to the return address and save it to the activation record.
+    \item Adjust a copy of the current pc to point to the return address and save it to the activation record.
     \item Write the activation code to the activation record.
   \end{itemize}
   \item [Create local enter capability for activation] Make the capability for the activation record point to the beginning of the activation record and restrict it to a local-enter capability. Place this capability in $r_0$.
@@ -1255,20 +1264,68 @@ to get
 \[
 (\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}'}\update{r_1}{1},m) \step[j] (\reg_0\update{\pcreg}{c_{f1}'}\update{r_0}{c_{f1}'}\update{r_1}{c_l},m')
 \]
-for some $j$ where for some $[0 \mapsto \iota_{\malloc}] \futurewk [0 \mapsto_{\malloc,0}]$
+for some $j$ where for some $[0 \mapsto \iota_{\malloc}] \futurewk [0 \mapsto \iota_{\malloc,0}]$
 \begin{enumerate}
 \item $m' = \hs_{f1} \uplus 
          \hs_\flag \uplus                
          \ms_{\var{link}} \uplus 
          \hs_\adv \uplus 
-         \ms_{\var{alloc}} \uplus
+         \ms_l \uplus
          m_{\malloc}' \uplus 
          \hs_{\var{frame}} $
-\item $\heapSat[m_{\malloc}']{n-j}{[0 \mapsto \iota_{\malloc}]}$
-\item $\dom[\hs_{\var{alloc}}] = [l,l]$
-\item $c_l = ((\rwx,\glob),l,l,l)$
+\item $\heapSat[m_{\malloc}']{n-j}{[0 \mapsto \iota_{\malloc}]}$ \label{f1:mallocsat}
+\item $\dom(\hs_l) = [l,l]$
+\item $c_l = ((\rwx,\glob),l,l,l)$ \label{test}
+\item $\ms_l(l) = 0$
 \end{enumerate}
-
+Continue the execution to the next malloc hidden in \texttt{call}.
+\[
+  (\reg_0\update{\pcreg}{c_{f1}'}\update{r_0}{c_{f1}'}\update{r_1}{c_l},m')
+  \step[k]
+  (\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}''}\update{r_1}{\dots}\update{r_l}{c_l},m'')
+\]
+where
+\begin{enumerate}[resume]
+\item $m'' = m'[l\mapsto 1]$
+\end{enumerate}
+Use the malloc specification notice:
+\begin{itemize}
+\item $\cdots$ represents the needed size for the activation record. 
+\item \ref{f1:mallocsat}.\ and (downwards closure) gives us the needed memory segment satisfaction.
+\item $m_{\var{footprint}} =  m_\malloc' $
+\end{itemize}
+Get:
+\[
+  (\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}''}\update{r_1}{\dots}\update{r_l}{c_l},m'')
+\step[j']
+  (\reg_0\update{\pcreg}{c_{f1}''}\update{r_0}{c_{f1}''}\update{r_1}{c_{\var{ar}}}\update{r_l}{c_l},m^{(3)})
+\]
+for some $j'$ where for some $[0 \mapsto \iota_{\malloc}'] \futurewk [0 \mapsto \iota_{\malloc}]$
+\begin{enumerate}[resume]
+\item $m'' = \hs_{f1} \uplus 
+         \hs_\flag \uplus                
+         \ms_{\var{link}} \uplus 
+         \hs_\adv \uplus 
+         \ms_{l} \uplus
+         \ms_{\var{ar}} \uplus
+         m_{\malloc}'' \uplus 
+         \hs_{\var{frame}} $
+\item $\heapSat[m_{\malloc}'']{n-j}{[0 \mapsto \iota_{\malloc}']}$ \label{f1:mallocsat}
+\item $\dom(\hs_{\var{ar}}) = [b,e]$
+\item $c_l = ((\rwx,\glob),b,e,b)$ \label{test}
+\item $\forall a \in [b,e] \ldotp \ms_{\var{ar}}(a) = 0$
+\end{enumerate}
+Contniue execution until just after the jump to $\var{adv}$.
+\[
+  (\reg_0\update{\pcreg}{c_{f1}''}\update{r_0}{c_{f1}''}\update{r_1}{c_{\var{ar}}}\update{r_l}{c_l},m^{(3)})
+\step[k']
+  (\reg_0\update{\pcreg}{\updatePcPerm{c_{\var{adv}}}}\update{r_0}{c_{ar}'}\update{r_l}{c_l},m^{(3)})
+\]
+for some $k'$ wher
+\begin{itemize}
+\item $\ms_{\var{ar}}$ contains the activation record, i.e., $c_l$, $c_{f1}^{(3)}$, and activation code.
+\item $c_{ar}' = ((\entry,\local)b,e,b+2)$ where $b+2$ is the first address of the activation code.
+\end{itemize}
 
 \end{proof}
 
