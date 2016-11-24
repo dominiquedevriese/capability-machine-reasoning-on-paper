@@ -441,7 +441,7 @@ Further, assume an inverse function, $\decodePermPair{}$, that decodes permissio
                                                               \arraycolsep=0pt
                                                               \begin{array}{l}
                                                                 \text{if $\memreg(\pcreg) = \stdcap$}\\
-                                                                \quad\text{and $\start \leq \addr < \addrend$}\\
+                                                                \quad\text{and $\start \leq \addr \leq \addrend$}\\
                                                                 \quad\text{and $\perm \in \{ \exec,\rwx, \rwlx \}$ }
                                                               \end{array}\\
 \Phi & \rightarrow \failed                                 & & \text{otherwise}
@@ -713,9 +713,9 @@ Define the following simple macros:
     &\forall \Phi \in \ExecConfs \ldotp \forall m_{\var{footprint}} \in \Heaps\ldotp \hsframe \in \HeapSegments \ldotp \\
     &\quad \forall n, \size \in \nats \ldotp \forall b,e,a \in \Addrs\ldotp\forall p \in \Perms \ldotp \forall W \in \Worlds \ldotp\\
     &\qquad \exists i, \iota_{\malloc,0} \ldotp \\
-    &\qquad \quad \forall \iota_\malloc \futurewk \iota_{\malloc,0} \land \\
+    &\qquad \quad \forall W \futurewk [i \mapsto \iota_{\malloc,0}] \land \\
     &\qquad \quad \memheap = m_{\var{footprint}} \uplus \hsframe \land\\
-    &\qquad \quad \heapSat[m_{\var{footprint}}]{n}{[i \mapsto \iota_\malloc]} \land \\
+    &\qquad \quad \heapSat[m_{\var{footprint}}]{n}{W} \land \\
     &\qquad \quad \memreg(r_1) = \size \land \\
     &\qquad \quad \size \geq 0 \land \\
     &\qquad \quad \memreg(r_0) = (p,b,e,a) \land \\
@@ -725,16 +725,17 @@ Define the following simple macros:
     &\qquad \qquad \quad \exists j,k \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \exists W' \in \Worlds \ldotp \\
     &\qquad \qquad \qquad \Phi \step[j]\Phi' \land \\
     &\qquad \qquad \qquad \memheap[\Phi']=m_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land\\
-    &\qquad \qquad \qquad  \iota_{\malloc}' \futurewk \iota_{\malloc}\\
-    &\qquad \qquad \qquad \heapSat[m_{\var{footprint}}']{n-j}{[i \mapsto \iota_{\malloc}']} \land \\
+    &\qquad \qquad \qquad W'= W \update{i}{\iota_{\malloc}'} \land W' \futurewk W \land \\
+    &\qquad \qquad \qquad \heapSat[m_{\var{footprint}}']{n-j}{W'} \land \\
     &\qquad \qquad \qquad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land \\
     &\qquad \qquad \qquad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{(p,b,e,a)}}\update{r_1}{((\rwx,\glob),b',e',b')} \land \\
-    &\qquad \qquad \qquad \size = e'-b' \land\\
+    &\qquad \qquad \qquad \size - 1 = e'-b' 
   \end{aligned}\right.
 \]
 where $\iota_{\malloc,0}$ is the region that initially governs malloc 
 \end{specification}
 In the specfication above $\iota_\malloc'$ is a future region of the initial region that governs malloc.
+\lau{should it be a public or private future world in the premise?}
 
 
 \section{Macros}
@@ -1248,22 +1249,25 @@ Where $c_{f1}'$ is the return address. Use the malloc specification with
 \begin{align*}
   W &= [0 \mapsto \iota_{\malloc,0}] \\
   m_{\var{footprint}} & = m_\malloc \\
-  size & = 1
+  \memreg(r_1) & = \size = 1
 \end{align*}
 to get 
 \[
 (\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}'}\update{r_1}{1},m) \step[j] (\reg_0\update{\pcreg}{c_{f1}'}\update{r_0}{c_{f1}'}\update{r_1}{c_l},m')
 \]
-where for some $W' \futurewk W$
-\begin{align*}
-  m' & = \hs_{f1} \uplus 
+for some $j$ where for some $[0 \mapsto \iota_{\malloc}] \futurewk [0 \mapsto_{\malloc,0}]$
+\begin{enumerate}
+\item $m' = \hs_{f1} \uplus 
          \hs_\flag \uplus                
          \ms_{\var{link}} \uplus 
          \hs_\adv \uplus 
          \ms_{\var{alloc}} \uplus
          m_{\malloc}' \uplus 
-         \hs_{\var{frame}} 
-\end{align*}
+         \hs_{\var{frame}} $
+\item $\heapSat[m_{\malloc}']{n-j}{[0 \mapsto \iota_{\malloc}]}$
+\item $\dom[\hs_{\var{alloc}}] = [l,l]$
+\item $c_l = ((\rwx,\glob),l,l,l)$
+\end{enumerate}
 
 
 \end{proof}
