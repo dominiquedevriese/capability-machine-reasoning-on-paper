@@ -838,10 +838,11 @@ When not in the middle of a push or a pop, the stack capability points to the to
   \item Push stack pointer
   \item Create protected return pointer
   \item Restrict stack capability
+  \item Clear the stack we release control over
   \item Clear unused registers
   \item Jump
   \item Upon return: Run restore code
-  \item Return address: Clear the stack segment we gave control over
+  \item Return address: 
   \item Restore ``private'' state
   \end{itemize}
 A more detailed description of the above steps:
@@ -858,6 +859,8 @@ A more detailed description of the above steps:
     Make a new version of the stack pointer that points to the beginning of the restoration code. Restrict it to a local enter-capability and put it in $r_0$. \lau{Do we want to use ``protected return pointer'' to mean a local enter capability?}
   \item [Restrict stack capability]
     Make the stack capability only govern the unused part.
+  \item [Clear the stack we release control over]
+    Store 0 to all the memory cells the restricted stack pointer has authority over.
   \item [Clear unused registers]
     Clear all registers but $\pcreg$, $r_0$, $r_{\var{stk}}$, and $\bar{r}_{\var{args}}$.
   \item [Jump] Load the entry $f$ from the linking table to a free register and jump to it.
@@ -865,8 +868,6 @@ A more detailed description of the above steps:
     Load the stack capability to $r_{\var{stk}}$. Pop the old program counter to $\pcreg$.
   \item [Return Address:] \forcenewline
     \begin{description}
-    \item [Clear the stack segment we gave control over] Store 0 to all the cells the stack capability passed to the callee governed.
-\lau{It would maybe make sense to clear the stack before calls rather than after. \emph{We} do after all not care what is on there, but we want to make sure that it is not used by an adversary to make an unintended information flow. }
     \item [Restore ``private'' state] \forcenewline
       \begin{itemize}
       \item Pop the private state on the stack into their respective $\bar{r}_{\var{priv}}$ registers.
@@ -992,6 +993,8 @@ $r_{\var{priv},m}$ & $w_{p,m}$\\
    & \\
    & $\vdots$\\
 \cline{2-2}
+   & $?$\\
+\cline{2-2}
 $c_{\var{stk}}'' \rightarrow$  & $c_{\var{stk}}'$ \\
 \cline{2-2}
    & $c_\pc'$ \\
@@ -1036,7 +1039,7 @@ $r_{\var{priv},m}$ & 0 \\
 & $\vdots$ \\
 \cline{2-2}
 \end{tabular}
-\caption{ Stack and register-file after the $c_{\var{stk}}'$ has been limited to only give authority over the empty part of the stack (the new capability is $c_{\var{stk}}''$). $c_0'$ is made from $c_{\var{stk}}'$ by setting it to point to the restore code and restricting it to a local enter-capability. The ``private'' registers have been cleared.}
+\caption{ Stack and register-file after the $c_{\var{stk}}'$ has been limited to only give authority over the empty part of the stack (the new capability is $c_{\var{stk}}''$). The empty part of the stack has been cleared. $c_0'$ is made from $c_{\var{stk}}'$ by setting it to point to the restore code and restricting it to a local enter-capability. The ``private'' registers have been cleared.}
 \end{figure}
 
 
@@ -1151,7 +1154,13 @@ $r_{\var{priv},m}$ & ? \\
   \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
 \multicolumn{2}{l}{Stack} \\
 \cline{2-2}
-   & \\
+   &  \\
+   & $\vdots$ \\
+\cline{2-2}
+   & ?\\
+\cline{2-2}
+   & 0 \\
+\cline{2-2}
    & $\vdots$\\
 \cline{2-2}
    & 0 \\
@@ -1183,7 +1192,7 @@ $r_{\var{priv},m}$ & $w_{p,m}$ \\
 & $\vdots$ \\
 \cline{2-2}
 \end{tabular}
-\caption{ Stack and register-register file after the clean up code has been run. The untrusted part of the stack has been cleared. The ``private'' words have been poped to their respective registers. The restore code has been poped of the stack. The stack is now in the same state as it was before the call. }
+\caption{ Stack and register-register file after the clean up code has been run. The ``private'' words have been poped to their respective registers. The restore code has been poped of the stack. }
 \end{figure}
 
 
@@ -1448,7 +1457,7 @@ f2: push 1
 \end{verbatim}
 
 \begin{lemma}
-  For all $n \in \nats$
+   For all $n \in \nats$
   let
   \begin{align*}
     c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+2) \\
