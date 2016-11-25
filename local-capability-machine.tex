@@ -23,6 +23,9 @@
 \usepackage{appendix}
 
 \usepackage{enumitem}
+\newlist{enumproof}{enumerate}{10}
+\setlist[enumproof]{label*=\arabic*.}
+
 \usepackage{tikz}
 \usepackage{multirow,bigdelim}
 
@@ -104,6 +107,8 @@
 \newcommand{\link}{\var{link}}
 \newcommand{\stk}{\var{stk}}
 \newcommand{\flag}{\var{flag}}
+\newcommand{\nwl}{\var{nwl}}
+\newcommand{\pwl}{\var{pwl}}
 
 
 
@@ -743,7 +748,7 @@ and
 
 
 \end{specification}
-In the specfication above $\iota_\malloc'$ is a future region of the initial region that governs malloc.
+In the specification above $\iota_\malloc'$ is a future region of the initial region that governs malloc.
 \lau{should it be a public or private future world in the premise?}
 
 
@@ -806,8 +811,8 @@ A more detailed description of each of the above steps:
 \item[\texttt{malloc $r$ $n$}] Calls malloc to allocates a piece of memory of size $n$. The capability will be stored in register \texttt{r}.
 
 \item[\texttt{assert$_{\var{flag}}$ $r_1$ $r_2$}] Compares the words in register $r_1$ and $r_2$ (if one of them is an integer, then use that in the comparison). If they are equal, then execution continues. If they are unequal, then the assertion flag named $flag$ in the flag list is set to 1 and execution halts (if no flag is specified, then the first flag in the list is set to 1).
-\item[cclear $r$] Stores 0 to all the memory cells the capability $r$ governs.\footnote{This may in some cases seem like an unreasonable slow instruction. In a real system it would probably be implemented as a vector operation which allows modification of continous segments of memory rather fast.}
-\item[rclear $\bar{r}$] Moves 0 to all the registers in the list $\bar{r}$.
+\item[\texttt{cclear $r$}] Stores 0 to all the memory cells the capability $r$ governs.\footnote{This may in some cases seem like an unreasonable slow instruction. In a real system it would probably be implemented as a vector operation which allows modification of continuous segments of memory rather fast.}
+\item[\texttt{rclear $\bar{r}$}] Moves 0 to all the registers in the list $\bar{r}$.
 \end{description}
 Note:
 \begin{itemize}
@@ -816,9 +821,9 @@ Note:
 \subsection{Stack}
 Some programs will assume access to a stack which will be in part indicated by the program macros, but also in the correctness lemma. The stack is accessed through a local $\rwlx$-capability. Programs will assume that the stack resides in some register, say $r_{\var{stk}}$.
 
-The stack will reside entirely in memory. There is no seperation between the memory and the stack, so when we talk about the stack it is as a conceptual thing.
+The stack will reside entirely in memory. There is no separation between the memory and the stack, so when we talk about the stack it is as a conceptual thing.
 
-Eventhough the memory is infinite, we will only use a finite part for the stack. If we have allocated too little memory for the stack, and we try to push something anyway, then the execution will fail. As we consider failing admissable, we are okay with this. 
+Even though the memory is infinite, we will only use a finite part for the stack. If we have allocated too little memory for the stack, and we try to push something anyway, then the execution will fail. As we consider failing admissible, we are okay with this. 
 
 When not in the middle of a push or a pop, the stack capability points to the top word of the stack. For an empty stack, the stack capability points to the address just outside of the range of authority for the stack capability.
 
@@ -848,7 +853,7 @@ A more detailed description of the above steps:
   \item [Push return address capability]
     Push a capability for the return address (in the memory) to the stack.
   \item [Push stack pointer]
-    Push the full stackpointer to the stack.
+    Push the full stack pointer to the stack.
   \item [Create protected return pointer]
     Make a new version of the stack pointer that points to the beginning of the restoration code. Restrict it to a local enter-capability and put it in $r_0$. \lau{Do we want to use ``protected return pointer'' to mean a local enter capability?}
   \item [Restrict stack capability]
@@ -918,7 +923,7 @@ $r_{\var{priv},m}$ & $w_{p,m}$\\
 & $\vdots$ \\
 \cline{2-2}
 \end{tabular}
-\caption{This is the first figure of 6 that illustrates how \texttt{scall} works. In this example, the call \texttt{scall $f([r_{\var{args},1},\dots,r_{\var{args},n}],[r_0,r_{\var{priv},1},\dots,r_{\var{priv},m}])$. In this example the two lists of registers are disjoined eventhough that does not have to be the case.}}
+\caption{This is the first figure of 6 that illustrates how \texttt{scall} works. In this example, the call \texttt{scall $f([r_{\var{args},1},\dots,r_{\var{args},n}],[r_0,r_{\var{priv},1},\dots,r_{\var{priv},m}])$. In this example the two lists of registers are disjoint even though that does not have to be the case.}}
 \end{figure}
 
 
@@ -1222,7 +1227,7 @@ f1: malloc r_l 1
                \hs_\flag \uplus                
                \ms_{\var{link}} \uplus 
                \hs_\adv \uplus 
-               m_{\malloc} \uplus 
+               \ms_{\malloc} \uplus 
                \hs_{\var{frame}} 
   \end{align*}
 where 
@@ -1249,31 +1254,32 @@ then
   m'(\flag) = 0
 \]  
 \end{lemma}
+
 \begin{proof}[Proof of Lemma~\ref{lem:correctness-f1}]
-Let $n$ be given and assume the premisses in the lemma.  Consider the following part of the execution:
+Let $n$ be given and assume the premises in the lemma.  Consider the following part of the execution:
   \[
     (\reg_0\update{\pcreg}{c_{f1}},m) \step[i] (\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}'}\update{r_1}{1},m)
   \]
 Where $c_{f1}'$ is the return address. Use the malloc specification with
 \begin{align*}
-  W &= [0 \mapsto \iota_{\malloc,0}] \\
-  m_{\var{footprint}} & = m_\malloc \\
+  \iota_\malloc &= \iota_{\malloc,0} \\
+  \ms_{\var{footprint}} & = \ms_\malloc \\
   \memreg(r_1) & = \size = 1
 \end{align*}
 to get 
 \[
 (\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}'}\update{r_1}{1},m) \step[j] (\reg_0\update{\pcreg}{c_{f1}'}\update{r_0}{c_{f1}'}\update{r_1}{c_l},m')
 \]
-for some $j$ where for some $[0 \mapsto \iota_{\malloc}] \futurewk [0 \mapsto \iota_{\malloc,0}]$
+for some $j$ where for some $\iota_{\malloc}' \futurewk \iota_{\malloc,0}$
 \begin{enumerate}
 \item $m' = \hs_{f1} \uplus 
          \hs_\flag \uplus                
          \ms_{\var{link}} \uplus 
          \hs_\adv \uplus 
          \ms_l \uplus
-         m_{\malloc}' \uplus 
+         \ms_{\malloc}' \uplus 
          \hs_{\var{frame}} $
-\item $\heapSat[m_{\malloc}']{n-j}{[0 \mapsto \iota_{\malloc}]}$ \label{f1:mallocsat}
+\item $\heapSat[\ms_{\malloc}']{n-j}{[0 \mapsto \iota_{\malloc}]}$ \label{f1:mallocsat}
 \item $\dom(\hs_l) = [l,l]$
 \item $c_l = ((\rwx,\glob),l,l,l)$ \label{test}
 \item $\ms_l(l) = 0$
@@ -1292,7 +1298,7 @@ Use the malloc specification notice:
 \begin{itemize}
 \item $\cdots$ represents the needed size for the activation record. 
 \item \ref{f1:mallocsat}.\ and (downwards closure) gives us the needed memory segment satisfaction.
-\item $m_{\var{footprint}} =  m_\malloc' $
+\item $\ms_{\var{footprint}} =  \ms_\malloc' $
 \end{itemize}
 Get:
 \[
@@ -1308,29 +1314,130 @@ for some $j'$ where for some $[0 \mapsto \iota_{\malloc}'] \futurewk [0 \mapsto 
          \hs_\adv \uplus 
          \ms_{l} \uplus
          \ms_{\var{ar}} \uplus
-         m_{\malloc}'' \uplus 
+         \ms_{\malloc}'' \uplus 
          \hs_{\var{frame}} $
-\item $\heapSat[m_{\malloc}'']{n-j}{[0 \mapsto \iota_{\malloc}']}$ \label{f1:mallocsat}
+\item $\heapSat[\ms_{\malloc}'']{n-j-j'}{[0 \mapsto \iota_{\malloc}']}$ \label{f1:mallocsat}
 \item $\dom(\hs_{\var{ar}}) = [b,e]$
 \item $c_l = ((\rwx,\glob),b,e,b)$ \label{test}
 \item $\forall a \in [b,e] \ldotp \ms_{\var{ar}}(a) = 0$
 \end{enumerate}
-Contniue execution until just after the jump to $\var{adv}$.
+Continue execution until just after the jump to $\var{adv}$.
 \[
   (\reg_0\update{\pcreg}{c_{f1}''}\update{r_0}{c_{f1}''}\update{r_1}{c_{\var{ar}}}\update{r_l}{c_l},m^{(3)})
 \step[k']
-  (\reg_0\update{\pcreg}{\updatePcPerm{c_{\var{adv}}}}\update{r_0}{c_{ar}'}\update{r_l}{c_l},m^{(3)})
+  (\reg_0\update{\pcreg}{\updatePcPerm{c_{\var{adv}}}}\update{r_1}{c_{\var{adv}}}\update{r_0}{c_{ar}'},m^{(3)})
 \]
-for some $k'$ wher
+for some $k'$ where
 \begin{itemize}
-\item $\ms_{\var{ar}}$ contains the activation record, i.e., $c_l$, $c_{f1}^{(3)}$, and activation code.
-\item $c_{ar}' = ((\entry,\local)b,e,b+2)$ where $b+2$ is the first address of the activation code.
+\item $m^{(3)} = \hs_{f1} \uplus 
+         \hs_\flag \uplus                
+         \ms_{\var{link}} \uplus 
+         \hs_\adv \uplus 
+         \ms_{l} \uplus
+         \ms_{\var{ar}}' \uplus
+         \ms_{\malloc}'' \uplus 
+         \hs_{\var{frame}} $
+\item $\ms_{\var{ar}}'$ contains the activation record, i.e., $c_l$, $c_{f1}^{(3)}$ (the return address in f1), and activation code.
+\item $c_{\var{ar}}' = ((\entry,\local)b,e,b+2)$ where $b+2$ is the first address of the activation code.
 \end{itemize}
-
+Define
+\begin{itemize}
+\item $W = [0 \mapsto \iota_\malloc']
+           [1 \mapsto \iota^\nwl_{\start_\adv,\addrend_\adv}(\perma)]
+           [2 \mapsto \iota_{f1}]
+           [3 \mapsto \iota_{\var{ar}}]
+           [4 \mapsto \iota_l]
+           [5 \mapsto \iota_\flag]
+           [5 \mapsto \iota_\link]$
+\end{itemize}
+where
+\begin{itemize}
+\item $\iota_{f1}$, $\iota_{\var{ar}}$, $\iota_l$, $\iota_\flag$, and $\iota_\link$ are permanent islands that only accepts respectively $\ms_{f1}$, $\ms_{\var{ar}}$, $\ms_l$, $\ms_\flag$, and $\ms_\link$.
+\end{itemize}
+define
+\begin{enumerate}
+\item $\ms = \hs_{f1} \uplus 
+         \hs_\flag \uplus                
+         \ms_{\var{link}} \uplus 
+         \hs_\adv \uplus 
+         \ms_{l} \uplus
+         \ms_{\var{ar}}' \uplus
+         \ms_{\malloc}'' $ \label{f1:ms-disj-union}
+\end{enumerate}
+Use the FTLR on $\updatePcPerm{c_{\var{adv}}}$ using world $W$, so show
+\begin{itemize}
+\item $\npair{(\start_{\adv},\addrend_{\adv})} \in \readCond{}(\glob)(W)$
+  \begin{itemize}
+  \item Show: $\mapsto \iota^\nwl_{\start_\adv,\addrend_\adv}(\perma) \nsubeq[n-1] \iota^\pwl_{\start_\adv,\addrend_\adv}(\perma)$.
+  \end{itemize}
+\end{itemize}
+Have
+\begin{enumerate}[resume]
+\item $\npair{\updatePcPerm{c_{\var{adv}}}} \in \stder(W)$
+\end{enumerate}
+Let $n' = n - j - j'$ and show
+\begin{enumproof}[resume]
+\item $n' \leq n$
+  \begin{enumproof}
+    \item trivial
+  \end{enumproof}
+\item $\heapSat[\ms]{n'}{W}$
+  \begin{enumproof}
+    \item Split the memory into the disjoint unions of \ref{f1:m3-disj-union} and show:
+      \begin{enumproof}
+      \item case: $\npair[n']{\ms_\adv} \in \iota_\malloc'.H (\iota_\malloc'.s) (W)$
+        \begin{enumproof}
+          \item Use $\heapSat[\ms_\malloc]{n'}{[0 \mapsto \iota_\malloc']}$ with malloc specification context independence property.
+        \end{enumproof}
+      \item case: $\npair[n']{\ms_\adv} \in H^\nwl_{\start_\adv,\addrend_\adv} (\start_\adv,\addrend_\adv) W$
+        \begin{enumproof}
+          \item Show $\forall a \in [\start_\adv,\addrend_\adv] \ldotp \npair[n'-1]{\ms(a)} \in \stdvr(\revokeTemp{W})$
+          \item Notice: $W = \revokeTemp(W)$
+        \end{enumproof}
+        \begin{enumproof}
+          \item $a \neq \start_\adv$ : trivial, contains instruction only.
+          \item $a = \start_\adv$: show $((\readonly,\glob),\link,\link+1,\link) \in \stdvr(W)$\\
+           SFTS $\iota_{\link} \nsubeq[n'-1] \iota^\pwl_{\link,\link+1} (\perma)$\\
+           $\iota_{\link}$ accepts only $\ms_\link$, so show:
+            \begin{enumproof}
+            \item $\npair[n'-2]{c_\malloc} \in \stdvr(W)$: We assume this is indeed the case.
+            \item $\npair[n'-2]{c_\adv} \in \stdvr(W)$: for $n'' < n'-2$ and $W' \futurestr W$ show: \\$\npair[n'']{\updatePcPerm{c_\adv}} \in \stdvr(W')$. Use FTLR. \label{f1:adv}
+            \end{enumproof}
+          \end{enumproof}
+      \item The remaining islands are designed to accept their designated islands.
+    \end{enumproof}
+  \end{enumproof}
+\item $\npair[n']{\reg_0\update{\pcreg}{\updatePcPerm{c_{\var{adv}}}}\update{r_1}{c_{\var{adv}}}\update{r_0}{c_{ar}'}} \in \stdrr(W)$
+  \begin{enumproof}
+    \item case: $\npair[n']{c_{\var{adv}}} \in \stdvr(W)$
+      \begin{enumproof}
+        \item Similar to \ref{f1:adv}
+      \end{enumproof}
+    \item case: $\npair[n']{c_{\var{ar}}'} \in \stdvr(W)$.
+      \begin{enumproof}
+        \item Let $n'' < n'$ and $W' \futurewk W$ be given and show $\npair[n'']{\updatePcPerm{c_{\var{ar}}'}} \in \stdvr(W')$\\
+          Let $n^{(3)} \leq n''$, $\heapSat[\ms']{n''}{W'}$, and $\npair[n^{(3)}]{\reg}$ be given\\
+          Show: $\npair[n^{(3)}]{(\reg\update{\pcreg}{\updatePcPerm{c_{\var{ar}}'}},\ms)}$\\
+          Assume $(\reg\update{\pcreg}{\updatePcPerm{c_{\var{ar}}'}},\ms \uplus \ms_{\var{frame}}) \step[k''] (\halted, m')$, for some $k''$, $m'$ and $\ms_{\var{frame}}$. Due to $\heapSat[\ms']{n''}{W'}$ $\ms_{f1}$, $\ms_\flag$, $\ms_{\var{ar}}'$, and $\ms_l$ are unchanged. \\
+          The execution loads $c_l$ to $r_l$ and jumps to $c_{f1}^{(3)}$ (the point just before the assertion). As $\ms_l = 1$, the assetion is successful and the execution halts. In other words, there were no changes to the memory.\\
+          Use $W'$, $\ms_r = \emptyset$, and $\ms'$ to get the desired result, i.e., $m' = \ms' \uplus \ms_{\var{frame}}$ and $\heapSat[\ms']{n''-k''}{W'}$ (using downwardsclosure of memory satisfaction).          
+      \end{enumproof}
+    \item case: $\npair[n']{0} \in \stdvr(W)$
+      \begin{enumproof}
+        \item Trivial
+      \end{enumproof}
+  \end{enumproof}
+\end{enumproof}
+Get
+\[
+\npair[n']{(\reg_0\update{\pcreg}{\updatePcPerm{c_{\var{adv}}}}\update{r_1}{c_{\var{adv}}}\update{r_0}{c_{ar}'},\ms)} \in \observations(W)
+\]
+By initial assumption of the lemma, the execution halts. Use $\ms_{\var{frame}}$, $m'$ and the number of steps it takes to halt to get:
+$W' \futurestr W$, $\ms_r$ and $\ms'$ s.t. $m' = \ms_r \uplus \ms' \uplus \ms_{\var{frame}}$ and $\heapSat[\ms']{n' - \dots}{W'}$. As $\iota_\flag$ is a permanent region, we know it is still in $W'$, so $m'(\flag) = 0$.
 \end{proof}
 
 
-Assembly program using the stack. This program assumes a $r_\stk \not\in \{\pcreg,r_0\}$ register that contains a stack capability (a local $rwlx$-capability):
+Assembly program using the stack. This program assumes a $r_\stk \not\in \{\pcreg,r_0\}$ register that contains a stack capability (a local $\rwlx$-capability):
 \begin{verbatim}
 f2: push 1
     scall adv([],[])
@@ -1350,7 +1457,7 @@ f2: push 1
         \hs_\flag \uplus                
         \ms_{\var{link}} \uplus 
         \hs_\adv \uplus 
-        m_{\malloc} \uplus 
+        \ms_{\malloc} \uplus 
         \ms_{\var{stk}}
         \ms_{\var{frame}} 
   \end{align*}
@@ -1432,7 +1539,7 @@ g = fun _ => let x = 0 in
                  assert(x == 1)
 \end{verbatim}
 
-\lau{In order for this to be secure using a stack the closure needs to make a couple of checks: 1) The alleged stack capability has to be local and $\rwlx$ - if not, then fail. 2) The callback \texttt{f} has to be a global capability - if not, then fail. 3) The stack needs to be cleared before the first callback. \\If it looks like a stack, works like a stack, and quacks like a stack, then it is probably a stack. The first requirement makes sure that what was passed as the stack can be used as a stack eventhough it might not be a stack capability that follows the conventional stack diciplin. If the capability is actually for part of the callers stack, then we will just overwrite their part of the stack. We are not guaranteed that the caller did not save the stack capability - they did after all have a stack to save it on. In fact, if the caller wants to reuse our part of the stack later, then they have to keep a capability for our part of the stack around. When the caller is not trusted, then this seems like an unsafe practice. This brings us to the second requirement: If the callback is global, then there is no way it can restore the previous stack capability and gain access to our part of the stack. This is the case as the \emph{only} place they could have stored the stack capability is on the stack, and the only way they can restore this is through one of the local stack capabilities. In other words, this requirement makes sure that the callback cabaility is not derived from the stack pointer (which would allow them to get a stack capability for our part of the stack).\\ The last requirement is to sanitize the stack. This makes sure that the caller does not try to sneak a capability to the callback simply by leaving it somewhere on the stack and hoping that we won't notice and pass it on. }
+\lau{In order for this to be secure using a stack the closure needs to make a couple of checks: 1) The alleged stack capability has to be local and $\rwlx$ - if not, then fail. 2) The callback \texttt{f} has to be a global capability - if not, then fail. 3) The stack needs to be cleared before the first callback. \\If it looks like a stack, works like a stack, and quacks like a stack, then it is probably a stack. The first requirement makes sure that what was passed as the stack can be used as a stack even though it might not be a stack capability that follows the conventional stack discipline. If the capability is actually for part of the callers stack, then we will just overwrite their part of the stack. We are not guaranteed that the caller did not save the stack capability - they did after all have a stack to save it on. In fact, if the caller wants to reuse our part of the stack later, then they have to keep a capability for our part of the stack around. When the caller is not trusted, then this seems like an unsafe practice. This brings us to the second requirement: If the callback is global, then there is no way it can restore the previous stack capability and gain access to our part of the stack. This is the case as the \emph{only} place they could have stored the stack capability is on the stack, and the only way they can restore this is through one of the local stack capabilities. In other words, this requirement makes sure that the callback capability is not derived from the stack pointer (which would allow them to get a stack capability for our part of the stack).\\ The last requirement is to sanitise the stack. This makes sure that the caller does not try to sneak a capability to the callback simply by leaving it somewhere on the stack and hoping that we won't notice and pass it on. }
 
 
 
@@ -1446,7 +1553,7 @@ g = fun _ => let x = 0 in
 if
   \[
     (\reg_0\update{\pcreg}{c_{\adv}}
-          \update{r_1}{c_g},\hs_{\adv} \uplus \hs_{\flag} \uplus \hs_{g} \uplus \hs_{\malloc} \uplus m_f) \step[n] (\halted,m')
+          \update{r_1}{c_g},\hs_{\adv} \uplus \hs_{\flag} \uplus \hs_{g} \uplus \hs_{\malloc} \uplus \ms_f) \step[n] (\halted,m')
   \]
 \lau{the frame should probably just be a segment}
 where 
@@ -1695,12 +1802,12 @@ Now define the value relation as follows:
   \observations (W) \defeq & \lambda W \ldotp 
                                \{ \npair{(\reg,\hs)} \mid
                              \begin{aligned}[t]
-                               & \forall \heap_f, \heap', i \leq n \ldotp \\
-                               & \quad(\reg,\hs \uplus \heap_f) \step[i] (\halted,\heap')  \\
+                               & \forall \ms_f, \heap', i \leq n \ldotp \\
+                               & \quad(\reg,\hs \uplus \ms_f) \step[i] (\halted,\heap')  \\
                                & \qquad \Rightarrow
                                \begin{aligned}[t]
                                  & \exists W' \futurestr W \ldotp\exists \hs_r, \hs' \ldotp\\
-                                 & \quad \heap' = \hs' \uplus \hs_r \uplus \heap_f \land \\ 
+                                 & \quad \heap' = \hs' \uplus \hs_r \uplus \ms_f \land \\ 
                                  & \quad \heapSat[\hs']{n-i}{W'} \}
                                \end{aligned}
                              \end{aligned}
