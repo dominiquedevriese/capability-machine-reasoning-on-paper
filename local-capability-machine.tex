@@ -659,7 +659,7 @@ $\mathtt{store}$ has the same conditions as before, but if what we try to write 
 
 $\mathtt{restrict}$ looks like before, but now it uses a ``permission pair'' which is the access permission and the locality. Whether a $\mathtt{restrict}$ succeeds depends on the ordering, so the real change lies in the new ordering, which is described further above (it is the point-wise ordering of the pair).
 
-Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\mathtt{lea}$ that does not overwrite the source register. A $\mathtt{store}$ that allows integers to be stored directly.
+Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\mathtt{lea}$ that does not overwrite the source register. A $\mathtt{store}$ that allows integers to be stored directly. $\mathtt{store}$ requries a register $r_t$ for storage of temporary values to be available.
 \begin{align*}
   \restrict{r_1}{r_2}{r_3} \; r_4 &\defeq
                                     \begin{aligned}[t]
@@ -678,10 +678,11 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
                                     \end{aligned}\\
   \store{r}{n} &\defeq
                    \begin{aligned}[t]
-                     & \move{r_i}{n} \qquad \text{ where $r_i$ unused register}\\
-                     & \store{r}{r_i}
+                     & \move{r_t}{n} \\
+                     & \store{r}{r_t}
                    \end{aligned}
 \end{align*}
+
 
 \section{Malloc specification}
 \newcommand{\hsfoot}{\hs_\var{footprint}}
@@ -1224,9 +1225,10 @@ f1: malloc r_l 1
   For all $n \in \nats$
   let
   \begin{align*}
-    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+2) \\
-    c_{f1} & \defeq ((\rwx,\glob),\mathtt{f1}-2,\mathtt{1f},\mathtt{f1}) \\
-    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+2) \\
+    \var{offset-link-flag} & = 2 \\
+    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\var{offset-link-flag}) \\
+    c_{f1} & \defeq ((\rwx,\glob),\mathtt{f1}-\var{offset-link-flag},\mathtt{1f},\mathtt{f1}) \\
+    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\var{offset-link-flag}) \\
     m & \defeq \hs_{f1} \uplus 
                \hs_\flag \uplus                
                \ms_{\var{link}} \uplus 
@@ -1236,7 +1238,7 @@ f1: malloc r_l 1
   \end{align*}
 where 
 \begin{align*}
-  &\dom(\hs_{f1}) = [\mathtt{f1}-2,\mathtt{1f}] \\
+  &\dom(\hs_{f1}) = [\mathtt{f1}-\var{offset-link-flag},\mathtt{1f}] \\
   &\dom(\hs_\flag) = [\flag,\flag] \\
   &\dom(\ms_\link) = [\link,\link+1]\\
   &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
@@ -1342,7 +1344,7 @@ for some $k'$ where
          \ms_{\malloc}'' \uplus 
          \hs_{\var{frame}} $
 \item $\ms_{\var{ar}}'$ contains the activation record, i.e., $c_l$, $c_{f1}^{(3)}$ (the return address in f1), and activation code.
-\item $c_{\var{ar}}' = ((\entry,\local)b,e,b+2)$ where $b+2$ is the first address of the activation code.
+\item $c_{\var{ar}}' = ((\entry,\local)b,e,b+\var{offset-link-flag})$ where $b+\var{offset-link-flag}$ is the first address of the activation code.
 \end{itemize}
 Define
 \begin{itemize}
@@ -1372,7 +1374,7 @@ Use the FTLR on $\updatePcPerm{c_{\var{adv}}}$ using world $W$, so show
 \begin{itemize}
 \item $\npair{(\start_{\adv},\addrend_{\adv})} \in \readCond{}(\glob)(W)$
   \begin{itemize}
-  \item Show: $\mapsto \iota^\nwl_{\start_\adv,\addrend_\adv}(\perma) \nsubeq[n-1] \iota^\pwl_{\start_\adv,\addrend_\adv}(\perma)$.
+  \item Show: $\iota^\nwl_{\start_\adv,\addrend_\adv}(\perma) \nsubeq[n-1] \iota^\pwl_{\start_\adv,\addrend_\adv}(\perma)$.
   \end{itemize}
 \end{itemize}
 Have
@@ -1387,7 +1389,7 @@ Let $n' = n - j - j'$ and show
   \end{enumproof}
 \item $\heapSat[\ms]{n'}{W}$
   \begin{enumproof}
-    \item Split the memory into the disjoint unions of \ref{f1:m3-disj-union} and show:
+    \item Split the memory into the disjoint unions of \ref{f1:ms-disj-union} and show:
       \begin{enumproof}
       \item case: $\npair[n']{\ms_\adv} \in \iota_\malloc'.H (\iota_\malloc'.s) (W)$
         \begin{enumproof}
@@ -1421,8 +1423,8 @@ Let $n' = n - j - j'$ and show
       \begin{enumproof}
         \item Let $n'' < n'$ and $W' \futurewk W$ be given and show $\npair[n'']{\updatePcPerm{c_{\var{ar}}'}} \in \stdvr(W')$\\
           Let $n^{(3)} \leq n''$, $\heapSat[\ms']{n''}{W'}$, and $\npair[n^{(3)}]{\reg}$ be given\\
-          Show: $\npair[n^{(3)}]{(\reg\update{\pcreg}{\updatePcPerm{c_{\var{ar}}'}},\ms)}$\\
-          Assume $(\reg\update{\pcreg}{\updatePcPerm{c_{\var{ar}}'}},\ms \uplus \ms_{\var{frame}}) \step[k''] (\halted, m')$, for some $k''$, $m'$ and $\ms_{\var{frame}}$. Due to $\heapSat[\ms']{n''}{W'}$ $\ms_{f1}$, $\ms_\flag$, $\ms_{\var{ar}}'$, and $\ms_l$ are unchanged. \\
+          Show: $\npair[n^{(3)}]{(\reg\update{\pcreg}{\updatePcPerm{c_{\var{ar}}'}},\ms')} \in \observations(W')$\\
+          Assume $(\reg\update{\pcreg}{\updatePcPerm{c_{\var{ar}}'}},\ms' \uplus \ms_{\var{frame}}) \step[k''] (\halted, m')$, for some $k''$, $m'$ and $\ms_{\var{frame}}$. Due to $\heapSat[\ms']{n''}{W'}$, $\ms_{f1}$, $\ms_\flag$, $\ms_{\var{ar}}'$, and $\ms_l$ are unchanged. \\
           The execution loads $c_l$ to $r_l$ and jumps to $c_{f1}^{(3)}$ (the point just before the assertion). As $\ms_l = 1$, the assetion is successful and the execution halts. In other words, there were no changes to the memory.\\
           Use $W'$, $\ms_r = \emptyset$, and $\ms'$ to get the desired result, i.e., $m' = \ms' \uplus \ms_{\var{frame}}$ and $\heapSat[\ms']{n''-k''}{W'}$ (using downwardsclosure of memory satisfaction).          
       \end{enumproof}
@@ -1455,8 +1457,9 @@ f2: push 1
   For all $n \in \nats$
   let
   \begin{align*}
-    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+2) \\
-    c_{f2} & \defeq ((\rwx,\glob),\mathtt{f2}-2,\mathtt{2f},\mathtt{f2}) \\
+    \var{offset-link-flag} & \defeq 2
+    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\var{offset-link-flag}) \\
+    c_{f2} & \defeq ((\rwx,\glob),\mathtt{f2}-\var{offset-link-flag},\mathtt{2f},\mathtt{f2}) \\
     c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_{\adv},\start_\stk-1) \\
     \reg & \in \Regs \\
     m & \defeq \hs_{f2} \uplus 
@@ -1469,7 +1472,7 @@ f2: push 1
   \end{align*}
   where 
   \begin{align*}
-    &\dom(\hs_{f2}) = [\mathtt{f2}-2,\mathtt{2f}] \\
+    &\dom(\hs_{f2}) = [\mathtt{f2}-\var{offset-link-flag},\mathtt{2f}] \\
     &\dom(\hs_\flag) = [\flag,\flag] \\
     &\dom(\ms_\link) = [\link,\link+1]\\
     &\dom(\ms_\stk) = [\start_\stk, \addrend_\stk]\\
