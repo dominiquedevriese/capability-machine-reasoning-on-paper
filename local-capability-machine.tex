@@ -1202,7 +1202,7 @@ $r_{\var{priv},m}$ & $w_{p,m}$ \\
 & $\vdots$ \\
 \cline{2-2}
 \end{tabular}
-\caption{ Stack and register-register file after the clean up code has been run. The ``private'' words have been poped to their respective registers. The restore code has been poped off the stack. }
+\caption{ Stack and register-register file after the clean up code has been run. The ``private'' words have been popped to their respective registers. The restore code has been popped off the stack. }
 \end{figure}
 
 
@@ -1602,7 +1602,7 @@ Which amounts to
 \]
 which is indeed the case. Use this to apply the FTLR to get 
 \begin{enumproof}
-\item $\npair{c_\adv} \in \stder(W)$
+\item $\npair{c_\adv} \in \stder(W)$ \label{lem:f2-adv-er}
 \end{enumproof}
 Define
 \[
@@ -1615,7 +1615,7 @@ Define
 \]
 ($m''$ without the frame) and show
 \begin{enumproof}[resume]
-\item $\heapSat[\ms]{n}{W}$ \lau{The argument here is a bit informal}
+\item $\heapSat[\ms]{n}{W}$ \label{lem:f2-mem-sat}\lau{The argument here is a bit informal}
   \begin{itemize}
   \item For $\hs_{f2}$, $\hs_\flag$, and $\ms_\link$ the regions $\iota^\sta(\perma,\ms_{f2})$,$\iota^\sta (\perma,\ms_\flag)$, and $\iota^\sta (\perma,\ms_\link)$ are designed to respectively accept each of these memory segments.
   \item $\hs_\adv$, showing this case is similar to item \ref{lem:f1-adv-mem-sat} in the proof of Lemma~\ref{lem:correctness-f1}.
@@ -1626,7 +1626,7 @@ Define
     \item case $\npair[n']{\ms_\stk'|_{[\start_\stk'', \addrend_\stk]}} \in H_{\start_\stk'', \addrend_\stk}(1)(W)$:\\ Show $\forall a \in [\start_\stk'', \addrend_\stk] \ldotp \ms_\stk'|_{[\start_\stk'', \addrend_\stk]}(a) \in \stdvr(W)$, trivially true since these memory cells contain 0. 
     \end{itemize}
   \end{itemize}
-\item $\npair{\reg_0\update{\pcreg}{\updatePcPerm{c_\adv}}\update{r_0}{c_{\var{prp}}}\update{r_1}{c_\adv}\update{r_\stk}{c_\stk''}} \in \stdrr(W)$
+\item $\npair{\reg_0\update{r_0}{c_{\var{prp}}}\update{r_1}{c_\adv}\update{r_\stk}{c_\stk''}} \in \stdrr(W)$ \label{lem:f2-reg-rel}
   \begin{enumproof}
     \item case $\npair{c_\stk''} \in \stdvr(W)$: Show:
       \begin{enumproof}
@@ -1684,16 +1684,35 @@ Similar to case~\ref{f2:rwlx-exec-case}
         (\reg'\update{\pcreg}{\updatePcPerm{c_{\var{prp}}}},\ms'\uplus\ms_f) \step[i]
         (\halted,m'')
       \]
-      (From $\heapSat[\ms']{n''}{W'}$ we know that that $\ms'$ contains memory segments $\hs_{f2}$, $\hs_\flag$, and $\ms_\stk'|_{[\start_\stk, \start_\stk''-1]}$ (our local part of the stack). The restoration code remains unaltered, and so does the data on the stack, so the execution continues by poping the $c_\stk'$ to $r_\stk$ followed by a pop of $c_{f2}'$ to $\pcreg$. Continuing in $f2$, the restore code is poped off the stack which is the last of the $\mathtt{scall}$ instruction. Now the top word of the stack is poped to $r_1$, and thanks to the world satisfaction, we know that this word is 1. The $\mathtt{assert}$ therefore succeeds making no changes to the memory and afterwards the execution halts.)
 
-Use $\revokeTemp(W') \futurestr W'$. From the private-future memory satisfaction lemma (Lemma~\ref{lem:priv-mono-like}) get $\ms''$ and $\ms_f$ such that
-      
+      From $\heapSat[\ms']{n''}{W'}$ we know that that $\ms'$ contains memory segments $\hs_{f2}$, $\hs_\flag$, and $\ms_\stk'|_{[\start_\stk, \start_\stk''-1]}$ (our local part of the stack). The restoration code remains unaltered, and so does the data on the stack, so the execution continues by popping the $c_\stk'$ to $r_\stk$ followed by a pop of $c_{f2}'$ to $\pcreg$. Continuing in $f2$, the restore code is popped off the stack which is the last of the $\mathtt{scall}$ instruction. Now the top word of the stack is popped to $r_1$, and thanks to the world satisfaction, we know that this word is 1. The $\mathtt{assert}$ therefore succeeds making no changes to the memory and afterwards the execution halts.
+
+All in all, there are no changes to the memory, so we can conclude
+\[
+  m'' = \ms' \uplus \ms_f
+\]
+From Lemma~\ref{lem:priv-mono-like}, we can get $\ms''$ and $\ms_r$ such that
+\begin{itemize}
+\item $\ms' = \ms'' \uplus \ms_r$
+\item $\heapSat[\ms'']{n}{\revokeTemp{W}}$
+\end{itemize}
+Now downwards closure of memory segment satisfaction gives us the desired result.
     \item case $r\not\in \{\pcreg,r_0,r_1,r_\stk\}$: $\reg_0(r) = 0$. Trivial.
   \end{enumproof}
 \end{enumproof}
-to get
-
-
+From \ref{lem:f2-adv-er}, \ref{lem:f2-mem-sat}, and \ref{lem:f2-reg-rel} it follows that
+\[
+  \npair{(\reg_0\update{r_0}{c_{\var{prp}}}\update{r_1}{c_\adv}\update{r_\stk}{c_\stk''}\update{\pcreg}{c_\adv},\ms)} \in \observations(W)
+\]
+Now using $i$, the number of steps we need to halt, $\ms_f$ as the frame, $m'$ as the resulting memory and the assumption that the execution terminates successfuly gives $W' \futurestr W$, $\ms'$, and $\ms_r$ such that
+\begin{itemize}
+\item $m' = \ms' \uplus\ms_r \uplus \ms_f$
+\item $\heapSat[\ms']{n-i}{W'}$
+\end{itemize}
+The permanent region $\iota^\sta (\perma,\ms_\flag)$ ensures that $\ms_\flag$ is unchanged, so
+\[
+  m'(\flag) = 0
+\]
 \end{proof}
 
 ML-like program:
