@@ -52,8 +52,17 @@
 \newcommand{\fun}{\rightarrow}
 \newcommand{\defeq}{\stackrel{\textit{\tiny{def}}}{=}}
 \newcommand{\nequal}[1][n]{\stackrel{\tiny{#1}}{=}}
+
+\newcommand\subsetsim{\mathrel{\ooalign{\raise.2ex\hbox{$\subset$}\cr
+  \hidewidth\lower.8ex\hbox{\scalebox{0.9}{$\sim$}}\hidewidth\cr}}}
+\newcommand\supsetsim{\mathrel{\ooalign{\raise.2ex\hbox{$\supset$}\cr
+  \hidewidth\lower.8ex\hbox{\scalebox{0.9}{$\sim$}}\hidewidth\cr}}}
+\newcommand{\nsubsim}[1][n]{\stackrel{\tiny{#1}}{\subsetsim}}
+\newcommand{\nsupsim}[1][n]{\stackrel{\tiny{#1}}{\supsetsim}}
+
 \newcommand{\nsubeq}[1][n]{\stackrel{\tiny{#1}}{\subseteq}}
 \newcommand{\nsupeq}[1][n]{\stackrel{\tiny{#1}}{\supseteq}}
+
 \newcommand{\union}{\mathbin{\cup}}
 \DeclareMathOperator{\dom}{dom}
 \newcommand{\blater}{\mathop{\blacktriangleright}}
@@ -64,6 +73,7 @@
 
 \newcommand{\false}{\mathit{false}}
 \newcommand{\true}{\mathit{true}}
+
 
 %cofes
 \newcommand{\cofe}{c.o.f.e.}
@@ -109,7 +119,8 @@
 \newcommand{\flag}{\var{flag}}
 \newcommand{\nwl}{\var{nwl}}
 \newcommand{\pwl}{\var{pwl}}
-
+\newcommand{\sta}{\var{sta}}
+\newcommand{\cnst}{\var{cnst}}
 
 
 %Memory projections
@@ -185,7 +196,9 @@
 \newcommand{\RegName}{\plaindom{RegisterName}}
 \newcommand{\Regs}{\plaindom{Reg}}
 \newcommand{\Heaps}{\plaindom{Mem}}
+\newcommand{\Mems}{\Heaps}
 \newcommand{\HeapSegments}{\plaindom{MemSegment}}
+\newcommand{\MemSegments}{\HeapSegments}
 \newcommand{\Confs}{\plaindom{Conf}}
 \newcommand{\Instrs}{\plaindom{Instructions}}
 \newcommand{\nats}{\mathbb{N}}
@@ -289,6 +302,7 @@
 \today
 \end{flushright}
 \section{Domains and Notation}
+
 \begin{align*}
 \Addrs &::= \nats\\
 \Words &::= \Caps + \ints \\
@@ -296,14 +310,13 @@
 \Heaps &::= \Addrs \rightarrow \Words \\
 \Perms &::= \{ \noperm, \readonly, \readwrite, \readwritel, \exec, \entry, \rwx, \rwlx\}\\
 \ExecConfs  &::= \Regs \times \Heaps \\
+\Globals & ::= \{\glob, \local \} \\
 \Caps  &::= (\Perms \times \Globals) \times \Addrs \times (\Addrs + \{ \infty \}) \times \Addrs\\
-\Confs &::= \ExecConfs + \{\failed, \halted \times \ExecConfs\} \\
-\HeapSegments &::= \Addrs \parfun \Words\\
-\Globals & ::= \{\glob, \local \}
+\Confs &::= \ExecConfs + \{\failed \} + \halted \times \ExecConfs \\
+\HeapSegments &::= \Addrs \parfun \Words
 \end{align*}
-Local capabilities have been added by adding a new domain $\Globals$ which represents whether a capability is local or global. Two new permissions $\readwritel$ and $\rwlx$ that permits writing local capabilities. They are otherwise the same as their non-''permit write local'' counterparts.
+Local capabilities have been added by adding a new domain $\Globals$ which represents whether a capability is local or global. There are two new permissions $\readwritel$ and $\rwlx$ that permits writing local capabilities. They are otherwise the same as their non-''permit write local'' counterparts.
 
-The $\glob$ and $\local$ are ordered as shown in Figure~\ref{fig:glob-hier}.
 \begin{figure}[!h]
   \centering
   \begin{tikzpicture}[main node/.style={}]
@@ -334,17 +347,17 @@ Things to note:
 \hline
   $\readonly$ & Read only. Grants read permission \\
 \hline
-  $\readwrite$ & Read-write. Grants read and write permissions. Storage of local capabilities prohibited. \\
+  $\readwrite$ & Read-write. Grants read and write permission. Storage of local capabilities prohibited. \\
 \hline
-  $\readwritel$ & read-write, permit write local. Grants read and write permissions. Storage of local capabilities granted. \\
+  $\readwritel$ & Read-write, permit write local. Grants read and write permission. Storage of local capabilities possible. \\
 \hline
   $\exec$ & Execute permission. Grants execute and read permissions.\\
 \hline
-  $\entry$ & Entry permission. This permission grants no access, but when jumped to, it Will turn into an $\exec$ permission.\\
+  $\entry$ & Enter permission. This permission grants no access, but when jumped to, it will turn into an $\exec$ permission.\\
 \hline
-  $\rwx$ & Read, write, execute permission. Grants read, write, and execute permissions. Storage of local capabilities prohibited. \\
+  $\rwx$ & Read-write-execute permission. Grants read, write, and execute permissions. Storage of local capabilities prohibited. \\
 \hline
-  $\rwlx$ & Read, write, execute permission with permit write local. Grants read, write, and execute permissions. Storage of local capabilities possible.
+  $\rwlx$ & Read-write-execute, permit write local. Grants read, write, and execute permissions. Storage of local capabilities possible.
 \end{tabular}
 
 \caption{The permissions in this capability system}
@@ -386,15 +399,16 @@ r       &\in& \RegName\\
 \pc     &\in& \Caps \\
 \pcreg  &\in& \RegName \\
 \Phi    &\in& \ExecConfs \\
-\memheap&\in& \Heaps \\
+m, \memheap&\in& \Heaps \\
 \memreg &\in& \Regs \\
 \addr   &\in& \Addrs\\
 \perm   &\in& \Perms\\
 ((\perm,\gl),\start,\addrend,\addr) &\in& \Caps \\
 n       &\in& \ints\\
+\ms     &\in& \MemSegments
 \end{array}
 \]
-Further definitions:
+Words and instructions:
 \[
 \begin{array}{rcl}
 \lv    &::=& \refreg{r} \\
@@ -425,10 +439,8 @@ Further define $\reg_0 \in \Regs$ such that
   \forall r \in \RegName \ldotp \reg_0(r) = 0
 \]
 
-
-
 \subsection*{Semantics}
-Assume a $\decode$ function that decodes integer to instructions:
+Assume a $\decode$ function that decodes words to instructions:
 \begin{align*}
 \decode &:\Words \fun \Instrs
 \end{align*}
@@ -452,7 +464,7 @@ Further, assume an inverse function, $\decodePermPair{}$, that decodes permissio
                                                               \end{array}\\
 \Phi & \rightarrow \failed                                 & & \text{otherwise}
 \end{align*}
-
+\lau{With respect to our talk about whether the upper bound should be included in the range of authority or not, I have found one example where it would work better when the upper-bound is not included. If we have a stack and call and want to pass the empty part on, then if the unused part of the stack is 0 cells, then we cannot pass anything that ``looks like a stack''.}
 A number of functions and predicates used in the definition of $\sem{-}$ (defined later). Notice all of them are total.
 \begin{align*}
   \executeAllowed{\perm} &=
@@ -560,13 +572,13 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                                    \text{if $\memreg(r) = \stdcap[\permp]$}\\
                                                    \quad\text{and either $\rv = n$ or $\memreg(\rv) = n$}\\
                                                    \quad\text{and in either case $n \in \ints$}\\
-                                                   \quad\text{and $\var{newPermPair} = \decodePermPair(n)$}\\
-                                                   \quad\text{and $\var{newPermPair} \sqsubseteq \permp$}\\
-                                                   \quad\text{and $c = (\var{newPermPair},\start,\addrend,\addr)$}
+                                                   \quad\text{and $\decodePermPair{n}\sqsubseteq \permp$}\\
+                                                   \quad\text{and $c = (\decodePermPair{n},\start,\addrend,\addr)$}
                                                  \end{array}\\
                                                \failed                   & \text{otherwise}
                                              \end{cases} 
 \end{align*}
+\lau{Do we need other arithmetic operators than plus?}
 \begin{align*}
   \sem{\plus{\refreg{r_1}}{\rv_1}{\rv_2}}               & =
                                                           \begin{cases}
@@ -584,12 +596,12 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                               \stdUpdatePc{\updateReg{r}{\var{c}}} &
                                               \arraycolsep=0pt
                                               \begin{array}[t]{l}
-                                                \text{if $\memreg{r} = \stdcap[\permp]$} \\
+                                                \text{if $\memreg(r) = \stdcap[\permp]$} \\
                                                 \quad\text{and for $i \in \{1,2\}$}\\
                                                 \quad\text{$n_i = \rv_i$ or $n_i = \memreg(\rv_i)$}\\
                                                 \quad\text{and in either case $n_i \in \ints$}\\
-                                                \quad\text{and $\start \leq n_1 \leq n_2 \leq \addrend$}\\
-                                                \quad\text{and $c = (\permp,n_2,n_2,\addr)$}
+                                                \quad\text{and $\start \leq n_1$ and $n_2 \leq \addrend$}\\
+                                                \quad\text{and $c = (\permp,n_1,n_2,\addr)$}
                                               \end{array} \\
                                               \failed & \text{otherwise}
                                             \end{cases}
@@ -599,7 +611,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                             \stdUpdatePc{\updateReg{r_1}{\addr}} &
                             \arraycolsep=0pt
                             \begin{array}[t]{l}
-                              \text{if $\memreg{r_2} = \stdcap$}
+                              \text{if $\memreg(r_2) = ((\_,\_),\_,\_,\addr)$}
                             \end{array} \\
                             \failed & \text{otherwise}
                           \end{cases}
@@ -609,7 +621,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                             \stdUpdatePc{\updateReg{r_1}{\start}} &
                             \arraycolsep=0pt
                             \begin{array}[t]{l}
-                              \text{if $\memreg{r_2} = \stdcap$}
+                              \text{if $\memreg(r_2) = ((\_,\_),\start,\_,\_)$}
                             \end{array} \\
                             \failed & \text{otherwise}
                           \end{cases}
@@ -619,7 +631,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                             \stdUpdatePc{\updateReg{r_1}{\addrend}} &
                             \arraycolsep=0pt
                             \begin{array}[t]{l}
-                              \text{if $\memreg{r_2} = \stdcap$}
+                              \text{if $\memreg(r_2) = ((\_,\_),\_,\addrend,\_)$}
                             \end{array} \\
                             \failed & \text{otherwise}
                           \end{cases}
@@ -629,7 +641,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                             \stdUpdatePc{\updateReg{r_1}{\encodePerm(\perm)}} &
                             \arraycolsep=0pt
                             \begin{array}[t]{l}
-                              \text{if $\memreg{r_2} = \stdcap$}
+                              \text{if $\memreg(r_2) = ((\perm,\_),\_,\_,\_)$}
                             \end{array} \\
                             \failed & \text{otherwise}
                           \end{cases}
@@ -639,27 +651,26 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                             \stdUpdatePc{\updateReg{r_1}{\encodeLoc(\gl)}} &
                             \arraycolsep=0pt
                             \begin{array}[t]{l}
-                              \text{if $\memreg{r_2} = \stdcap$}
+                              \text{if $\memreg(r_2) = ((\_,\gl),\_,\_,\_)$}
                             \end{array} \\
                             \failed & \text{otherwise}
                           \end{cases}
   \\
   \sem{\isptr{\refreg{r}}{\rv}} & =  
                           \begin{cases}
-                            \stdUpdatePc{\updateReg{r_1}{1}} & \text{if $\memreg{\rv} = \stdcap$} \\
+                            \stdUpdatePc{\updateReg{r_1}{1}} & \text{if $\memreg(\rv) \in \Caps$ } \\
                             \stdUpdatePc{\updateReg{r_1}{0}} & \text{otherwise} 
                           \end{cases}
 \end{align*}
 \lau{Dominique, apparently there was a reason I had not added the new condition in store to $\writeAllowed{}$. The new condition depends on a case distinction on $w$. It is only if $w$ is a capability that we look into whether it is local or not. But even if $w$ is just an integer, we still need the capability we write through to have some kind of write permission.}
 
-After adding local capabilities, most of the definitions have changed slightly to take into the account new form the capabilities take. The only two instructions that have undergone enough change to deserve to be mentioned are $\store{}$ and $\restrict{}{}{}$. 
+After adding local capabilities, most of the definitions have changed slightly to take into account the new form the capabilities take. The only two instructions that have undergone enough change to deserve to be mentioned are $\mathtt{store}$ and $\mathtt{restrict}$. 
 
-$\store{}$ has the same conditions as before, but if what it tries to write is a capability, then it needs to be a write access that permits write local.
+$\mathtt{store}$ has the same conditions as before, but if what we try to write is a local capability, then it needs to be a write access that permits write local.
 
-$\restrict{}{}{}$ looks like before, but now it uses a ``permission pair'' which is the access permission and whether it is local or not. Whether a $\restrict{}{}{}$ succeeds depends on the ordering, so the real change lies in the new ordering, which is described further above.
+$\mathtt{restrict}$ looks like before, but now it uses a ``permission pair'' which is the access permission and the locality. Whether a $\mathtt{restrict}$ succeeds depends on the ordering, so the real change lies in the new ordering, which is described further above (it is the point-wise ordering of the pair).
 
-Define the following simple macros:
-
+Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\mathtt{lea}$ that does not overwrite the source register. A $\mathtt{store}$ that allows integers to be stored directly. $\mathtt{store}$ requries a register $r_t$ for storage of temporary values to be available.
 \begin{align*}
   \restrict{r_1}{r_2}{r_3} \; r_4 &\defeq
                                     \begin{aligned}[t]
@@ -678,10 +689,11 @@ Define the following simple macros:
                                     \end{aligned}\\
   \store{r}{n} &\defeq
                    \begin{aligned}[t]
-                     & \move{r_i}{n} \qquad \text{ where $r_i$ unused register}\\
-                     & \store{r}{r_i}
+                     & \move{r_t}{n} \\
+                     & \store{r}{r_t}
                    \end{aligned}
 \end{align*}
+
 
 \section{Malloc specification}
 \newcommand{\hsfoot}{\hs_\var{footprint}}
@@ -715,8 +727,10 @@ Define the following simple macros:
   $c_\malloc$ satisfies the specification for malloc iff
 \[  
   \begin{aligned}
-    & \exists \iota_{\malloc,0} \ldotp \\
-    & \quad \forall \Phi \in \ExecConfs \ldotp \forall \ms_{\var{footprint}}, \hsframe \in \HeapSegments \ldotp \\
+    &\exists \iota_{\malloc,0} \ldotp \\
+    &\quad (\forall \iota' \futurestr \iota_{\malloc,0} \ldotp \forall W,i \ldotp W(i)=\iota' \Rightarrow \iota'.H (\iota'.s) (W) = \iota'.H (\iota'.s) ([i \mapsto W(i)]) ) \; \land \\
+    &\quad \iota_{\malloc,0}.v = \perma \; \land \\
+    &\quad (\forall \Phi \in \ExecConfs \ldotp \forall \ms_{\var{footprint}}, \hsframe \in \HeapSegments \ldotp \\
     &\qquad \forall i, n, \size \in \nats \ldotp \forall b,e,a \in \Addrs\ldotp\forall p \in \Perms \ldotp \\
     &\qquad \quad \forall \iota_\malloc \futurestr \iota_{\malloc,0} \land \\
     &\qquad \quad \memheap = \ms_{\var{footprint}} \uplus \hsframe \land\\
@@ -727,36 +741,21 @@ Define the following simple macros:
     &\qquad \quad \memreg(\pcreg) = c_\malloc \\ %and this needs to change with ABI.
     &\qquad \quad \Rightarrow \\
     &\qquad \qquad\exists \Phi' \in \ExecConfs \ldotp \exists \ms_{\var{footprint}}', \ms_{\var{alloc}} \in \HeapSegments\ldotp\\
-    &\qquad \qquad \quad \exists j,k \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \exists \iota_\malloc' \in \Regions \ldotp \\
+    &\qquad \qquad \quad \exists j \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \exists \iota_\malloc' \in \Regions \ldotp \\
     &\qquad \qquad \qquad \Phi \step[j] \Phi' \land \\
     &\qquad \qquad \qquad \memheap[\Phi']=\ms_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land\\
     &\qquad \qquad \qquad \iota_{\malloc}' \futurewk \iota_\malloc \land \\
     &\qquad \qquad \qquad \heapSat[\ms_{\var{footprint}}']{n-j}{[i \mapsto \iota_\malloc']} \land \\
     &\qquad \qquad \qquad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land \\
     &\qquad \qquad \qquad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{(p,b,e,a)}}\update{r_1}{((\rwx,\glob),b',e',b')} \land \\
-    &\qquad \qquad \qquad \size - 1 = e'-b' 
+    &\qquad \qquad \qquad \size - 1 = e'-b' )
   \end{aligned}
 \]
-where $\iota_{\malloc,0}$ is the region that initially governs malloc 
-\[
-\forall \iota' \futurestr \iota_{\malloc,0} \ldotp \forall W,i \ldotp W(i)=\iota' \Rightarrow \iota'.H (\iota'.s) (W) = \iota'.H (\iota'.s ([i \mapsto W(i)]))
-\]
-and
-\[
-  \iota_{\malloc,0}.v = \perma
-\]
-
-
 \end{specification}
 In the specification above $\iota_\malloc'$ is a future region of the initial region that governs malloc.
-\lau{should it be a public or private future world in the premise?}
-
 
 \section{Macros}
 In order to write readable example programs, we provide macros that can be programmed using the instruction set given in the formalisation.
-\dominique{how is the return capability constructed: not on the stack, I presume, so  means mallocing a block of memory for the activation record?}
-\lau{See the new addition below - when we don't have a stack, then we have no need to ``save'' local capabilities which means that we can have the return code as part of the program. The only thing we have to do is to have the capability point to the return address and make the capability into an entry capability. }
-\lau{On further thought, conveniently the examples did not seem to need an activation record, but if we want \texttt{call} to work more generally speaking, then it needs to setup an activation record. I have changed the description of \texttt{call}, so it now uses an activation record. }
 \dominique{Similarly: how is malloc invoked?  Do we trust malloc enough to not encapsulate ourselves from it, i.e. provide an rx return capability and use callee-save registers?}
 \lau{ I think this is a conceptual question as we can make it work with either. We already trust malloc to give us a fresh piece of memory and not reuse it later on, so we already assume malloc to be somewhat trusted, so why not go all the way? }
 \dominique{what does ``fetch the capability ...'' mean?}
@@ -765,27 +764,34 @@ In order to write readable example programs, we provide macros that can be progr
 \dominique{Perhaps you could also provide an explicit syntax for ``undefined symbols'' that should be filled in by a linker?}
 
 \subsection{Linking and ABI}
-In order to make capabilities to trusted code (and possibly untrusted code) available, we assume that some sort of linker has made these available. This is done in the following way: For every function, the first memory cell the capability for that function governs contains a capability for the list in question. Each function name in a program corresponds to an offset in the table, e.g., \texttt{malloc}. When a name is used in a program, it indicates what entry to pick from the list. The list should always be accessible by taking a copy of the capability in the $\pcreg$-register and adjusting it to point to the first cell it governs.
+In order to make capabilities to trusted code (and possibly untrusted code) available, we assume that some sort of linker has made these available. This is done in the following way: For every function, the first memory cell the capability for that function governs contains a capability for the linking table. Each function name in a program corresponds to an offset in the table, e.g., \texttt{malloc} could be at offset 0. When a name is used in a program, it indicates what entry from the linking table to pick. The table should always be accessible by taking a copy of the capability in the $\pcreg$-register and adjusting it to point to the first cell it governs.
 
-The capability link list can be shared between multiple functions as it is accessed through a read-only capability.
+The capability linking table can be shared between multiple functions that are linked to the same capabiblities as it is accessed through read-only capabilities.
 
-\subsection{Flag list}
-A function may use flags to signal failure. We use the convention that a flag list is available in the second memory cell of a functions code (so just after the linking table). The flag list is accessed through a read-write capability and initially it contains all zero. Like the linking list, each entry is associated with a name which may appear in the macros.
+\subsection{Flag table}
+A function may use flags to signal failure. We use the convention that a flag table is available in the second memory cell of a functions code (so just after the linking table). The flag table is accessed through a read-write capability and initially it contains all zero. Like the linking table, each entry is associated with a name which may appear in the macros.
 
-The flag list should never be shared between distrusting parties.
+The flag table should never be shared between distrusting parties.
 
+We will often want to make room in memory for a linking-table capability and a flag-table capability. We therefore define a constant that represents the offset of the actual code of a function caused by these two capabilities:
+\[
+    \var{offset-link-flag} \defeq 2
+\]
+
+\subsection{Macro definitions}
 \begin{description}
-\item[\texttt{call} $f(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] $\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. An overview of this call:
+\item[\texttt{call} $f(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] \forcenewline
+$\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. An overview of this call:
   \begin{itemize}
   \item Set up activation record
-  \item Create local enter capability for activation
+  \item Create local enter capability for activation (protected return pointer)
   \item Clear unused registers
   \item Jump
   \item Upon return: Run activation code
   \end{itemize}
 A more detailed description of each of the above steps:
 \begin{description}
-  \item [Set up activation record]
+  \item [Set up activation record]\forcenewline
     \begin{itemize}
     \item Run malloc to get a piece of memory with space for:
     \begin{itemize}
@@ -794,10 +800,10 @@ A more detailed description of each of the above steps:
       \item Activation code
     \end{itemize}
     \item Store the words in $\bar{r}_{\var{priv}}$ to the activation record. 
-    \item Adjust a copy of the current pc to point to the return address and save it to the activation record.
+    \item Adjust a copy of the current pc to point to the return address in code and save it to the activation record.
     \item Write the activation code to the activation record.
   \end{itemize}
-  \item [Create local enter capability for activation] Make the capability for the activation record point to the beginning of the activation record and restrict it to a local-enter capability. Place this capability in $r_0$.
+  \item [Create local enter capability for activation] Adjust the capability for the activation record to point to the beginning of the activation record and restrict it to a local enter-capability. Place this capability in $r_0$.
   \item [Clear unused registers]
     Clear all the register that are not $\pcreg$, $r_0$ or in $\bar{r}_{\var{args}}$.
   \item [Jump] Load the entry $f$ from the linking table to a free register and jump to it.
@@ -805,82 +811,81 @@ A more detailed description of each of the above steps:
     \begin{itemize}
     \item Move the stored ``private'' words in to their respective $\bar{r}_{\var{priv}}$ registers.
 %    \item Clear all registers but $r_1$, $\pcreg$, and $\bar{r}_{\var{priv}}$.
-    \item Load the return address to $\pcreg$
+    \item Load the return capability to $\pcreg$
     \end{itemize}
 \end{description}
-\item[\texttt{malloc $r$ $n$}] Calls malloc to allocates a piece of memory of size $n$. The capability will be stored in register \texttt{r}.
+\item[\texttt{malloc $r$ $n$}] Calls malloc to allocates a piece of memory of size $n$. The capability will be stored in register $r$.
 
-\item[\texttt{assert$_{\var{flag}}$ $r_1$ $r_2$}] Compares the words in register $r_1$ and $r_2$ (if one of them is an integer, then use that in the comparison). If they are equal, then execution continues. If they are unequal, then the assertion flag named $flag$ in the flag list is set to 1 and execution halts (if no flag is specified, then the first flag in the list is set to 1).
+\item[\texttt{assert$_{\var{flag}}$ $r_1$ $r_2$}] Compares the words in register $r_1$ and $r_2$ (if one of them is an integer, then use that in the comparison). If they are equal, then execution continues. If they are unequal, then the assertion flag named $\var{flag}$ in the flag list is set to 1 and execution halts (if no flag is specified, then the first flag in the list is set to 1).
 \item[\texttt{cclear $r$}] Stores 0 to all the memory cells the capability $r$ governs.\footnote{This may in some cases seem like an unreasonable slow instruction. In a real system it would probably be implemented as a vector operation which allows modification of continuous segments of memory rather fast.}
 \item[\texttt{rclear $\bar{r}$}] Moves 0 to all the registers in the list $\bar{r}$.
 \end{description}
 Note:
 \begin{itemize}
-\item \texttt{call} will fail if we have local capabilities as part of the ``private'' state as it relies on a capability returned by malloc which will not be permit-write-local. Below, we introduce \texttt{scall} which can handle local capabilities in the ``private'' state.
+\item \texttt{call} will fail if we have local capabilities in one of the registers of the ``private'' register list as it relies on a capability returned by malloc which will not be permit-write-local. Below, we introduce \texttt{scall} which can handle local capabilities in the ``private'' state.
 \end{itemize}
 \subsection{Stack}
-Some programs will assume access to a stack which will be in part indicated by the program macros, but also in the correctness lemma. The stack is accessed through a local $\rwlx$-capability. Programs will assume that the stack resides in some register, say $r_{\var{stk}}$.
+Some programs will assume access to a stack which will be in part indicated by the program macros but also in the correctness lemma. The stack is accessed through a local $\rwlx$-capability. Programs will assume that the stack resides in some register, say $r_{\var{stk}}$.
 
-The stack will reside entirely in memory. There is no separation between the memory and the stack, so when we talk about the stack it is as a conceptual thing.
+The stack resides entirely in memory. There is no separation between the memory and the stack, so when we talk about the stack it is as a conceptual thing.
 
 Even though the memory is infinite, we will only use a finite part for the stack. If we have allocated too little memory for the stack, and we try to push something anyway, then the execution will fail. As we consider failing admissible, we are okay with this. 
 
-When not in the middle of a push or a pop, the stack capability points to the top word of the stack. For an empty stack, the stack capability points to the address just outside of the range of authority for the stack capability.
+When not in the middle of a push or a pop, the stack capability points to the top word of the stack. For an empty stack, the stack capability points to the address just below of the range of authority for the stack capability.
+
+The stack grows upwards
 
 \begin{description}
-\item[\texttt{push $r$}] Pushes the word in register \texttt{r} to the stack by incrementing the stack capability by one and storing the word through said capability.\footnote{The stack grows upwards.}
-\item[\texttt{pop $r$}] Pops the top word of the stack by loading it to register $r$, moves 0 to the address, and decrementing the stack pointer.
-\item[\texttt{scall} $f(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] $\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. This call assumes $r_{\var{stk}}$ contains a stack capability. An overview of this call:
+\item[\texttt{push $r$}] Pushes the word in register \texttt{r} to the stack by incrementing the address of the stack capability by one and storing the word through the stack capability.
+\item[\texttt{pop $r$}] Pops the top word of the stack by loading it to register $r$, and decrementing the address of the stack capability.
+\item[\texttt{scall} \forcenewline
+$f(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] $\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. This call assumes $r_{\var{stk}}$ contains a stack capability. An overview of this call:
   \begin{itemize}
-  \item Push restore code to the stack.
+  \item Push the restore code to the stack.
   \item Push ``private'' registers to the stack.
   \item Push return address capability 
-  \item Push stack pointer
+  \item Push stack capability
   \item Create protected return pointer
-  \item Restrict stack capability
-  \item Clear the stack we release control over
+  \item Restrict stack capability to unused part 
+  \item Clear the part of the stack we release control over
   \item Clear unused registers
   \item Jump
-  \item Upon return: Run restore code
-  \item Return address: 
-  \item Restore ``private'' state
+  \item Upon return: Run the on stack restore code
+  \item Return address in caller-code:  Restore ``private'' state
   \end{itemize}
 A more detailed description of the above steps:
 \begin{description}
-  \item [Push restore code to the stack]
-    Push the restore code to the stack (described later). This code needs to be on the stack to make sure the stack capability can be restored. We try to keep the restore code on the stack minimal.
+  \item [Push the restore code to the stack]
+    Push the restore code to the stack (described later). This code needs to be on the stack to make sure the stack capability can be restored. We keep the restore code on the stack minimal. The caller code does the rest of the restoration.
   \item [Push ``private'' registers to the stack]
     Push all the words in the registers in  $\bar{r}_{\var{priv}}$ to the stack.
   \item [Push return address capability]
     Push a capability for the return address (in the memory) to the stack.
-  \item [Push stack pointer]
-    Push the full stack pointer to the stack.
+  \item [Push stack capability]
+    Push the full stack capability to the stack.
   \item [Create protected return pointer]
-    Make a new version of the stack pointer that points to the beginning of the restoration code. Restrict it to a local enter-capability and put it in $r_0$. \lau{Do we want to use ``protected return pointer'' to mean a local enter capability?}
-  \item [Restrict stack capability]
+    Make a new version of the stack pointer that points to the beginning of the restoration code. Restrict it to a local enter-capability and put it in $r_0$. \lau{Do we want to use ``protected return pointer'' to mean a local enter capability?} \lau{It is also used when we want to call code for the first time, so calling it a protected return pointer is more of a conceptul thing.}
+  \item [Restrict stack capability to unused part]
     Make the stack capability only govern the unused part.
-  \item [Clear the stack we release control over]
+  \item [Clear the part of the stack we release control over]
     Store 0 to all the memory cells the restricted stack pointer has authority over.
   \item [Clear unused registers]
     Clear all registers but $\pcreg$, $r_0$, $r_{\var{stk}}$, and $\bar{r}_{\var{args}}$.
   \item [Jump] Load the entry $f$ from the linking table to a free register and jump to it.
-  \item [Restore code]
-    Load the stack capability to $r_{\var{stk}}$. Pop the old program counter to $\pcreg$.
-  \item [Return Address:] \forcenewline
-    \begin{description}
-    \item [Restore ``private'' state] \forcenewline
+  \item [Run the on stack restore code]
+    Load the stack capability to $r_{\var{stk}}$. Pop the old program counter (the return address in caller-code) from the stack to $\pcreg$.
+  \item [Return address in caller-code: Restore ``private'' state] \forcenewline
       \begin{itemize}
       \item Pop the private state on the stack into their respective $\bar{r}_{\var{priv}}$ registers.
       \item Pop the restore code of the stack
-      \end{itemize}
-  \end{description}
+      \end{itemize}\
 \end{description}
 \item[\texttt{mclear $r$}] Clears all cells $r$ has authority over. 
 \end{description}
 Note:
 \begin{itemize}
 \item If we want to have local capabilities as part of our private state, then we need to have a stack and use \texttt{scall}. If we do not have any local capabilities we want to keep around, then we can use \texttt{call}, but it will incur a small memory leak as the activation records cannot be recycled! It is also possible to use a combination of \texttt{scall} and \texttt{call}, but when \texttt{call} is used, then we have no way to store the stack, so we cannot use \texttt{scall} after that.
-\item As a rule of thumb: If you have provided an untrusted entity access to part of the stack, then it needs to be cleared upon return.
+\item As a rule of thumb: If you have provided an untrusted entity access to part of the stack, then it needs to be cleared before it is passed to an untrusted party.
 \item As a rule of thumb: If you receive a stack from an untrusted source, then you need to check that it is a local $\rwlx$-capability and clear it! If any callbacks are provided, then they need to be global.
 \item In a real setting due to a limited number of registers, some of the arguments might be spilled to the stack. It would be possible to do something similar here, but to keep
  matters simple, we opt not to do so.
@@ -1154,18 +1159,23 @@ $r_{\var{priv},m}$ & ? \\
   \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
 \multicolumn{2}{l}{Stack} \\
 \cline{2-2}
-   &  \\
-   & $\vdots$ \\
-\cline{2-2}
-   & ?\\
-\cline{2-2}
-   & 0 \\
-\cline{2-2}
+   & \\
    & $\vdots$\\
 \cline{2-2}
-   & 0 \\
+   & ? \\
 \cline{2-2}
-$c_{\var{stk}} \rightarrow$   & local stack\\
+$ \rightarrow$  & $c_0$ \\
+\cline{2-2}
+   & $w_{p,1}$ \\
+\cline{2-2}
+   & $\vdots$ \\
+\cline{2-2}
+   & $w_{p,m}$ \\
+\cline{2-2}
+   & Restore code \\
+   & $\vdots$\\
+\cline{2-2}
+ $c_\stk \rightarrow$  & local stack\\
    & $\vdots$\\
 \cline{2-2}
 \end{tabular}
@@ -1192,7 +1202,7 @@ $r_{\var{priv},m}$ & $w_{p,m}$ \\
 & $\vdots$ \\
 \cline{2-2}
 \end{tabular}
-\caption{ Stack and register-register file after the clean up code has been run. The ``private'' words have been poped to their respective registers. The restore code has been poped of the stack. }
+\caption{ Stack and register-register file after the clean up code has been run. The ``private'' words have been popped to their respective registers. The restore code has been popped off the stack. }
 \end{figure}
 
 
@@ -1203,6 +1213,7 @@ $r_{\var{priv},m}$ & $w_{p,m}$ \\
 \label{sec:examples}
 \subsection{Simple Examples Using Local Capabilities}
 \label{subsec:example-loc-cap}
+\lau{This text regards the ML-like programs and can be removed when they are.}
 In the below, let \texttt{assert(e)} do the following: evaluate \texttt{e} if it evaluates to true, then continue execution, otherwise terminate where a designated assertion flag is set to 1. The assertion flag is assumed to start as 0 and is different from function to function (so in the program below, \texttt{adv} cannot directly use the assertion flag of \texttt{f}). Notice that an assertion will never terminate in a $\failed$ state.
 \subsubsection{Simple use of local capabilities}
 The following programs only use local capabilities when they create protected return pointers. The strength of this is, however, not shown as the untrusted code only gets one chance to execute.
@@ -1216,7 +1227,7 @@ let f = fun adv =>
 \end{verbatim}
 \lau{The above program is obsolete (and the other ML-like programs), but I will not remove it until we have gotten used to the assembly programs.}
 
-Assembly program not using stack. Assume that $r_l \not\in \{\pcreg,r_0 \}$ is a register.
+Assembly program not using stack. Assume that $\mathtt{r_l} \not\in \{\pcreg,r_0 \}$ is a register.
 \begin{verbatim}
 f1: malloc r_l 1
     store r_l 1
@@ -1230,9 +1241,9 @@ f1: malloc r_l 1
   For all $n \in \nats$
   let
   \begin{align*}
-    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+2) \\
-    c_{f1} & \defeq ((\rwx,\glob),\mathtt{f1}-2,\mathtt{1f},\mathtt{f1}) \\
-    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+2) \\
+    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\var{offset-link-flag}) \\
+    c_{f1} & \defeq ((\rwx,\glob),\mathtt{f1}-\var{offset-link-flag},\mathtt{1f},\mathtt{f1}) \\
+    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\var{offset-link-flag}) \\
     m & \defeq \hs_{f1} \uplus 
                \hs_\flag \uplus                
                \ms_{\var{link}} \uplus 
@@ -1242,11 +1253,11 @@ f1: malloc r_l 1
   \end{align*}
 where 
 \begin{align*}
-  &\dom(\hs_{f1}) = [\mathtt{f1}-2,\mathtt{1f}] \\
+  &\dom(\hs_{f1}) = [\mathtt{f1}-\var{offset-link-flag},\mathtt{1f}] \\
   &\dom(\hs_\flag) = [\flag,\flag] \\
   &\dom(\ms_\link) = [\link,\link+1]\\
   &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
-  &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]} \text{ for all } n
+  &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]}
 \end{align*}
 and
 \begin{itemize}
@@ -1348,18 +1359,19 @@ for some $k'$ where
          \ms_{\malloc}'' \uplus 
          \hs_{\var{frame}} $
 \item $\ms_{\var{ar}}'$ contains the activation record, i.e., $c_l$, $c_{f1}^{(3)}$ (the return address in f1), and activation code.
-\item $c_{\var{ar}}' = ((\entry,\local)b,e,b+2)$ where $b+2$ is the first address of the activation code.
+\item $c_{\var{ar}}' = ((\entry,\local)b,e,b+\var{offset-link-flag})$ where $b+\var{offset-link-flag}$ is the first address of the activation code.
 \end{itemize}
 Define
 \begin{itemize}
 \item $W = [0 \mapsto \iota_\malloc']
-           [1 \mapsto \iota^\nwl_{\start_\adv,\addrend_\adv}(\perma)]
+           [1 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]
            [2 \mapsto \iota_{f1}]
            [3 \mapsto \iota_{\var{ar}}]
            [4 \mapsto \iota_l]
            [5 \mapsto \iota_\flag]
            [5 \mapsto \iota_\link]$
 \end{itemize}
+\lau{Need to change this to use the new standard regions}
 where
 \begin{itemize}
 \item $\iota_{f1}$, $\iota_{\var{ar}}$, $\iota_l$, $\iota_\flag$, and $\iota_\link$ are permanent islands that only accepts respectively $\ms_{f1}$, $\ms_{\var{ar}}$, $\ms_l$, $\ms_\flag$, and $\ms_\link$.
@@ -1378,7 +1390,7 @@ Use the FTLR on $\updatePcPerm{c_{\var{adv}}}$ using world $W$, so show
 \begin{itemize}
 \item $\npair{(\start_{\adv},\addrend_{\adv})} \in \readCond{}(\glob)(W)$
   \begin{itemize}
-  \item Show: $\mapsto \iota^\nwl_{\start_\adv,\addrend_\adv}(\perma) \nsubeq[n-1] \iota^\pwl_{\start_\adv,\addrend_\adv}(\perma)$.
+  \item Show: $\iota^{\nwl,p}_{\start_\adv,\addrend_\adv} \nsubsim[n-1] \iota^\pwl_{\start_\adv,\addrend_\adv}$.
   \end{itemize}
 \end{itemize}
 Have
@@ -1393,13 +1405,13 @@ Let $n' = n - j - j'$ and show
   \end{enumproof}
 \item $\heapSat[\ms]{n'}{W}$
   \begin{enumproof}
-    \item Split the memory into the disjoint unions of \ref{f1:m3-disj-union} and show:
+    \item Split the memory into the disjoint unions of \ref{f1:ms-disj-union} and show:
       \begin{enumproof}
-      \item case: $\npair[n']{\ms_\adv} \in \iota_\malloc'.H (\iota_\malloc'.s) (W)$
+      \item case: $\npair[n']{\ms_\malloc} \in \iota_\malloc'.H (\iota_\malloc'.s) (W)$ 
         \begin{enumproof}
           \item Use $\heapSat[\ms_\malloc]{n'}{[0 \mapsto \iota_\malloc']}$ with malloc specification context independence property.
         \end{enumproof}
-      \item case: $\npair[n']{\ms_\adv} \in H^\nwl_{\start_\adv,\addrend_\adv} (\start_\adv,\addrend_\adv) W$
+      \item case: $\npair[n']{\ms_\adv} \in H^\nwl_{\start_\adv,\addrend_\adv} 1 W$ \label{lem:f1-adv-mem-sat}
         \begin{enumproof}
           \item Show $\forall a \in [\start_\adv,\addrend_\adv] \ldotp \npair[n'-1]{\ms(a)} \in \stdvr(\revokeTemp{W})$
           \item Notice: $W = \revokeTemp(W)$
@@ -1407,7 +1419,7 @@ Let $n' = n - j - j'$ and show
         \begin{enumproof}
           \item $a \neq \start_\adv$ : trivial, contains instruction only.
           \item $a = \start_\adv$: show $((\readonly,\glob),\link,\link+1,\link) \in \stdvr(W)$\\
-           SFTS $\iota_{\link} \nsubeq[n'-1] \iota^\pwl_{\link,\link+1} (\perma)$\\
+           SFTS $\iota_{\link} \nsubsim[n'-1] \iota^\pwl_{\link,\link+1}$\\
            $\iota_{\link}$ accepts only $\ms_\link$, so show:
             \begin{enumproof}
             \item $\npair[n'-2]{c_\malloc} \in \stdvr(W)$: We assume this is indeed the case.
@@ -1427,8 +1439,8 @@ Let $n' = n - j - j'$ and show
       \begin{enumproof}
         \item Let $n'' < n'$ and $W' \futurewk W$ be given and show $\npair[n'']{\updatePcPerm{c_{\var{ar}}'}} \in \stdvr(W')$\\
           Let $n^{(3)} \leq n''$, $\heapSat[\ms']{n''}{W'}$, and $\npair[n^{(3)}]{\reg}$ be given\\
-          Show: $\npair[n^{(3)}]{(\reg\update{\pcreg}{\updatePcPerm{c_{\var{ar}}'}},\ms)}$\\
-          Assume $(\reg\update{\pcreg}{\updatePcPerm{c_{\var{ar}}'}},\ms \uplus \ms_{\var{frame}}) \step[k''] (\halted, m')$, for some $k''$, $m'$ and $\ms_{\var{frame}}$. Due to $\heapSat[\ms']{n''}{W'}$ $\ms_{f1}$, $\ms_\flag$, $\ms_{\var{ar}}'$, and $\ms_l$ are unchanged. \\
+          Show: $\npair[n^{(3)}]{(\reg\update{\pcreg}{\updatePcPerm{c_{\var{ar}}'}},\ms')} \in \observations(W')$\\
+          Assume $(\reg\update{\pcreg}{\updatePcPerm{c_{\var{ar}}'}},\ms' \uplus \ms_{\var{frame}}) \step[k''] (\halted, m')$, for some $k''$, $m'$ and $\ms_{\var{frame}}$. Due to $\heapSat[\ms']{n''}{W'}$, $\ms_{f1}$, $\ms_\flag$, $\ms_{\var{ar}}'$, and $\ms_l$ are unchanged. \\
           The execution loads $c_l$ to $r_l$ and jumps to $c_{f1}^{(3)}$ (the point just before the assertion). As $\ms_l = 1$, the assetion is successful and the execution halts. In other words, there were no changes to the memory.\\
           Use $W'$, $\ms_r = \emptyset$, and $\ms'$ to get the desired result, i.e., $m' = \ms' \uplus \ms_{\var{frame}}$ and $\heapSat[\ms']{n''-k''}{W'}$ (using downwardsclosure of memory satisfaction).          
       \end{enumproof}
@@ -1457,47 +1469,251 @@ f2: push 1
 \end{verbatim}
 
 \begin{lemma}
-   For all $n \in \nats$
+  \label{lem:correctness-f2}
+  For all $n \in \nats$
   let
   \begin{align*}
-    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+2) \\
-    c_{f2} & \defeq ((\rwx,\glob),\mathtt{f2}-2,\mathtt{2f},\mathtt{f2}) \\
+    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\var{offset-link-flag}) \\
+    c_{f2} & \defeq ((\rwx,\glob),\mathtt{f2}-\var{offset-link-flag},\mathtt{2f},\mathtt{f2}) \\
     c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_{\adv},\start_\stk-1) \\
-    m & \defeq \hs_{f1} \uplus 
+    \reg & \in \Regs \\
+    m & \defeq \hs_{f2} \uplus 
         \hs_\flag \uplus                
         \ms_{\var{link}} \uplus 
         \hs_\adv \uplus 
         \ms_{\malloc} \uplus 
-        \ms_{\var{stk}}
+        \ms_{\var{stk}} \uplus
         \ms_{\var{frame}} 
   \end{align*}
   where 
   \begin{align*}
-    &\dom(\hs_{f2}) = [\mathtt{f2}-2,\mathtt{2f}] \\
+    &\dom(\hs_{f2}) = [\mathtt{f2}-\var{offset-link-flag},\mathtt{2f}] \\
     &\dom(\hs_\flag) = [\flag,\flag] \\
     &\dom(\ms_\link) = [\link,\link+1]\\
     &\dom(\ms_\stk) = [\start_\stk, \addrend_\stk]\\
     &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
-    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]} \text{ for all } n
+    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]}
   \end{align*}
   and
   \begin{itemize}
   \item The first address of $\hs_{f2}$ contains a global read-only capability for $\hs_\link$, the second address of $\hs_{f2}$ contains a global read-write capability to $\hs_\flag$, the rest of $\hs_{f2}$ contains the code of $f2$.
   \item $\ms_\flag = [flag \mapsto 0]$
   \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
-  \item $\ms_\stk(a) = 0$ for all $a \in [\start_\stk, \addrend_\stk]$
   \item $\hs_\adv$ is only instructions and possibly a global read-only capability for $\hs_\link$
   \end{itemize}
   if 
   \[
-    (\reg_0\update{\pcreg}{c_{f2}}\update{r_\stk}{c_\stk},m) \step[n] (\halted,m'),
+    (\reg\update{\pcreg}{c_{f2}}\update{r_\stk}{c_\stk},m) \step[n] (\halted,m'),
   \]
   then
   \[
     m'(\flag) = 0
   \]  
 \end{lemma}
+\begin{proof}[Proof of lemma~\ref{lem:correctness-f2}]
+  Let $n$ be given and make the assunptions of the lemma. Consider the execution until just after the jump to $\adv$, i.e.,
+  \begin{multline*}
+    (\reg\update{\pcreg}{c_{f2}}\update{r_\stk}{c_\stk},m) \step[k] \\
+    (\reg_0\update{\pcreg}{\updatePcPerm{c_\adv}}\update{r_0}{c_{\var{prp}}}\update{r_1}{c_\adv}\update{r_\stk}{c_\stk''},m'')
+  \end{multline*}
+Where 
+\[
+  m''  \defeq \hs_{f2} \uplus 
+        \hs_\flag \uplus                
+        \ms_\link \uplus 
+        \hs_\adv \uplus 
+        \ms_\malloc \uplus 
+        \ms_\stk' \uplus
+        \ms_{\var{frame}}
+\]
+Only the stack part of memory has changed. The stack and register-file at this point of execution is illustrated in figure~\ref{fig:f2-stack-before-adv}, where
+\begin{itemize}
+\item The range of authority for 
+  \begin{itemize}
+  \item $c_\stk'$ is $[\start_\stk,\addrend_\stk]$ (the entire stack)
+  \item $c_\stk''$ is $[\start_\stk'',\addrend_\stk]$ (the unused part of the stack)
+  \end{itemize}
+  the two stack capabilities have the same permissions as $c_\stk$
+\item $c_{f2}'$ points to the return address in f2's code.
+\item $c_{\var{prp}}$ is a local enter-capability (with authority of all of the stack).
+\item Notice: $f2$ has no return capability, so $r_0$ was not listed as a private register in the call.
+\end{itemize}
 
+\begin{figure}
+  \centering
+  \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+\multicolumn{2}{l}{Stack} \\
+\cline{2-2}
+   &         \\
+   & $\vdots$ \\
+\cline{2-2}
+$\start_\stk'':$   & $0$\\
+\cline{2-2}
+$c_\stk',c_\stk'' \rightarrow$   & $c_\stk'$ \\
+\cline{2-2}
+   & $c_{f2}'$ \\
+\cline{2-2}
+$c_{\var{prp}} \rightarrow$   & Restore code \\
+   & $\vdots$ \\
+\cline{2-2}
+   & $1$\\
+\cline{2-2}
+\end{tabular}
+\hspace{1cm}
+\begin{tabular}{r |c |}
+\multicolumn{2}{r}{Register file} \\
+\cline{2-2}
+$\pcreg$ & $\updatePcPerm{c_\adv}$\\
+\cline{2-2}
+$r_0$  &  $c_{\var{prp}}$ \\
+\cline{2-2}
+$r_1$ & $c_\adv$ \\
+\cline{2-2}
+$r_{\var{priv},1}$ & $w_{p,1}$\\
+\cline{2-2}
+$r_{\var{stk}}$  & $c_{\var{stk}}'$ \\
+\cline{2-2}
+& $0$ \\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+\end{tabular}
+\caption{Stack and register-file just after jump to $\adv$.}
+\label{fig:f2-stack-before-adv}
+\end{figure}
+Define 
+  \begin{align*}
+W = \;& [0 \mapsto \iota_{\malloc,0}] \\
+    & [1 \mapsto \iota^\sta(\perma,\ms_{f2})]\\ 
+    & [2 \mapsto \iota^\sta (\perma,\ms_\flag)]\\
+    & [3 \mapsto \iota^\sta (\perma,\ms_\link)]\\
+    & [4 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]\\
+    & [5 \mapsto \iota^\sta (\temp,\ms_\stk'|_{[\start_\stk,\start_\stk''-1]})] \\
+    & [6 \mapsto \iota^\pwl_{\start_\stk'', \addrend_\stk}]
+  \end{align*}
+\lau{The interesting regions here are region 5 and 6. Region 5 governs our private part of the stack whereas region 6 governs the part of the stack we are about to release. I don't think it is strictly needed to make them $\temp$ for this example, but in general it is what we wish to do, so we can revoke them upon return.}
+Show
+\[
+  \npair{(\start_\adv,\addrend_\adv)}\in\readCond{}(\glob)(\iota^\pwl_{\start_\adv,\addrend_\adv})
+\]
+Which amounts to
+\[
+\iota^{\nwl,p}_{\start_\adv,\addrend_\adv} \nsubsim[n-1] \iota^\pwl_{\start_\adv,\addrend_\adv}
+\]
+which is indeed the case. Use this to apply the FTLR to get 
+\begin{enumproof}
+\item $\npair{c_\adv} \in \stder(W)$ \label{lem:f2-adv-er}
+\end{enumproof}
+Define
+\[
+  \ms  \defeq \hs_{f2} \uplus 
+        \hs_\flag \uplus                
+        \ms_\link \uplus 
+        \hs_\adv \uplus 
+        \ms_\malloc \uplus 
+        \ms_\stk'
+\]
+($m''$ without the frame) and show
+\begin{enumproof}[resume]
+\item $\heapSat[\ms]{n}{W}$ \label{lem:f2-mem-sat}\lau{The argument here is a bit informal}
+  \begin{itemize}
+  \item For $\hs_{f2}$, $\hs_\flag$, and $\ms_\link$ the regions $\iota^\sta(\perma,\ms_{f2})$,$\iota^\sta (\perma,\ms_\flag)$, and $\iota^\sta (\perma,\ms_\link)$ are designed to respectively accept each of these memory segments.
+  \item $\hs_\adv$, showing this case is similar to item \ref{lem:f1-adv-mem-sat} in the proof of Lemma~\ref{lem:correctness-f1}.
+  \item $\ms_\malloc$, this case follows from the specification of malloc and the assumption that $\iota_{\malloc,0}$ models $\ms_\malloc$.    
+  \item $\ms_\stk'$, here we need to split the memory segment in two and for $n' < n$ argue
+    \begin{itemize}
+    \item case $\npair[n']{\ms_\stk'|_{[\start_\stk, \start_\stk''-1]}} \in H^\sta(\ms_\stk'|_{[\start_\stk,\start_\stk''-1]})$:\\ This region matches only this memory segment.
+    \item case $\npair[n']{\ms_\stk'|_{[\start_\stk'', \addrend_\stk]}} \in H_{\start_\stk'', \addrend_\stk}(1)(W)$:\\ Show $\forall a \in [\start_\stk'', \addrend_\stk] \ldotp \ms_\stk'|_{[\start_\stk'', \addrend_\stk]}(a) \in \stdvr(W)$, trivially true since these memory cells contain 0. 
+    \end{itemize}
+  \end{itemize}
+\item $\npair{\reg_0\update{r_0}{c_{\var{prp}}}\update{r_1}{c_\adv}\update{r_\stk}{c_\stk''}} \in \stdrr(W)$ \label{lem:f2-reg-rel}
+  \begin{enumproof}
+    \item case $\npair{c_\stk''} \in \stdvr(W)$: Show:
+      \begin{enumproof}
+        \item $\npair{(\start_\stk'', \addrend_\stk)} \in \readCond{}(\local)(W)$ \\
+          This amounts to showing 
+\[
+  \iota^\pwl_{\start_\stk'', \addrend_\stk} \nsubsim[n-1] \iota^\pwl_{\start_\stk'', \addrend_\stk}
+\]
+which is indeed the case.
+        \item $\npair{(\start_\stk'', \addrend_\stk)} \in \writeCond{}(\iota^\pwl,\local)(W)$\\
+This amounts to showing 
+\[
+  \iota^\pwl_{\start_\stk'', \addrend_\stk} \nsupsim[n-1] \iota^\pwl_{\start_\stk'', \addrend_\stk}
+\]
+which is indeed the case.
+        \item $\npair{(\rwlx,\start_\stk'', \addrend_\stk)} \in \execCond{}(\local)(W)$ \label{f2:rwlx-exec-case} \\
+We will show this case in some detail, the others are similar. \\
+Let $n' < n$, $W' \futurewk W$, and $a \in [\start_\stk'', \addrend_\stk]$ be given. Show
+\[
+  \npair[n']{((\rwlx,\local),\start_\stk'', \addrend_\stk,a)} \in \stder(W')
+\]
+If we can apply the FTLR at this point, then we are done. SFTS:
+\begin{enumproof}
+  \item $\npair[n']{\start_\stk'', \addrend_\stk} \in \readCond{}(\local)(W')$\\
+this amounts to showing
+\[
+  \iota^\pwl_{\start_\stk'', \addrend_\stk} \nsubsim[n'-1] \iota^\pwl_{\start_\stk'', \addrend_\stk}
+\]
+which is indeed the case.
+  \item $\npair[n']{\start_\stk'', \addrend_\stk} \in \writeCond{}(\local)(W')$ \\
+this amounts to showing
+\[
+  \iota^\pwl_{\start_\stk'', \addrend_\stk} \nsupsim[n'-1] \iota^\pwl_{\start_\stk'', \addrend_\stk}
+\]
+which is indeed the case.
+\end{enumproof}
+        \item $\npair{(\rwx,\start_\stk'', \addrend_\stk)} \in \execCond{}(\local)(W)$\\
+Similar to case~\ref{f2:rwlx-exec-case}
+        \item $\npair{(\exec,\start_\stk'', \addrend_\stk)} \in \execCond{}(\local)(W)$\\
+Similar to case~\ref{f2:rwlx-exec-case}
+      \end{enumproof}
+    \item case $\npair{c_\adv} \in \stdvr(W)$:\\
+     Follows from the FTLR.
+    \item case $\npair{c_{\var{prp}}} \in \stdvr(W)$:\\
+      Let $n' < n$ and $W' \future W$ be given and show
+      \[
+        \npair[n']{\updatePcPerm{c_{\var{prp}}}} \in \stder(W')
+      \]
+      to this en let $n'' \leq n'$, $\heapSat[\ms']{n''}{W'}$, and $\npair[n'']{\reg'} \in \stdrr$ be given and show
+      \[
+        \npair[n'']{(\reg'\update{\pcreg}{\updatePcPerm{c_{\var{prp}}}},\ms')} \in \observations(W')
+      \]
+      Let $i \leq n''$, $m''$ and $\ms_f$ be given and assume
+      \[
+        (\reg'\update{\pcreg}{\updatePcPerm{c_{\var{prp}}}},\ms'\uplus\ms_f) \step[i]
+        (\halted,m'')
+      \]
+
+      From $\heapSat[\ms']{n''}{W'}$ we know that that $\ms'$ contains memory segments $\hs_{f2}$, $\hs_\flag$, and $\ms_\stk'|_{[\start_\stk, \start_\stk''-1]}$ (our local part of the stack). The restoration code remains unaltered, and so does the data on the stack, so the execution continues by popping the $c_\stk'$ to $r_\stk$ followed by a pop of $c_{f2}'$ to $\pcreg$. Continuing in $f2$, the restore code is popped off the stack which is the last of the $\mathtt{scall}$ instruction. Now the top word of the stack is popped to $r_1$, and thanks to the world satisfaction, we know that this word is 1. The $\mathtt{assert}$ therefore succeeds making no changes to the memory and afterwards the execution halts.
+
+All in all, there are no changes to the memory, so we can conclude
+\[
+  m'' = \ms' \uplus \ms_f
+\]
+From Lemma~\ref{lem:priv-mono-like}, we can get $\ms''$ and $\ms_r$ such that
+\begin{itemize}
+\item $\ms' = \ms'' \uplus \ms_r$
+\item $\heapSat[\ms'']{n}{\revokeTemp{W}}$
+\end{itemize}
+Now downwards closure of memory segment satisfaction gives us the desired result.
+    \item case $r\not\in \{\pcreg,r_0,r_1,r_\stk\}$: $\reg_0(r) = 0$. Trivial.
+  \end{enumproof}
+\end{enumproof}
+From \ref{lem:f2-adv-er}, \ref{lem:f2-mem-sat}, and \ref{lem:f2-reg-rel} it follows that
+\[
+  \npair{(\reg_0\update{r_0}{c_{\var{prp}}}\update{r_1}{c_\adv}\update{r_\stk}{c_\stk''}\update{\pcreg}{c_\adv},\ms)} \in \observations(W)
+\]
+Now using $i$, the number of steps we need to halt, $\ms_f$ as the frame, $m'$ as the resulting memory and the assumption that the execution terminates successfuly gives $W' \futurestr W$, $\ms'$, and $\ms_r$ such that
+\begin{itemize}
+\item $m' = \ms' \uplus\ms_r \uplus \ms_f$
+\item $\heapSat[\ms']{n-i}{W'}$
+\end{itemize}
+The permanent region $\iota^\sta (\perma,\ms_\flag)$ ensures that $\ms_\flag$ is unchanged, so
+\[
+  m'(\flag) = 0
+\]
+\end{proof}
 
 ML-like program:
 \begin{verbatim}
@@ -1666,16 +1882,18 @@ Memory segment satisfaction:
 
 Standard regions for when writing locally is permitted:
 \begin{align*}
-  &\iota_{\start,\addrend}^{\var{pwl}} : \Views \fun \Regions\\
-  &\iota_{\start,\addrend}^{\var{pwl}} \defeq \lambda \_ \ldotp(\temp,(\start,\addrend),=,H^{\var{pwl}}) \\ \\
-  &H^{\var{pwl}} : \States \fun (\Worwk \monnefun \UPred{\HeapSegments})\\
-  &H^{\var{pwl}} \; (\start,\addrend) \; \hat{W} \defeq \left\{\npair{\hs} \middle|
+  &\iota_{\start,\addrend}^\pwl : \Regions\\
+  &\iota_{\start,\addrend}^\pwl \defeq (\temp,1,=,H^\pwl_{\start,\addrend}) \\
+\\
+  &H^\pwl : \Addrs^2 \fun \States \fun (\Worwk \monnefun \UPred{\HeapSegments})\\
+  &H^\pwl_{\start,\addrend}\; s \; \hat{W} \defeq \left\{\npair{\hs} \middle|
     \begin{aligned}
       &\dom(\hs) = [\start,\addrend] \land \\
       &\forall \addr \in [\start,\addrend] \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\xi_{\var{wk}}(\hat{W}))
     \end{aligned}
   \right\}
 \end{align*}
+\lau{What is the reason to have the ``view'' always be $\temp$? It seems like it does not play well with the read condition if it is always $\temp$.}
 Revoking all temporary regions:
 \begin{align*}
   \revokeTemp{} & : \Worlds \fun \Worlds \\
@@ -1690,15 +1908,14 @@ Revoking all temporary regions:
 
 Standard regions for when write local is not allowed:
 \begin{align*}
-  &\iota_{\start,\addrend}^{\var{nwl}} : \Views \parfun \Regions \\
-  &\iota_{\start,\addrend}^{\var{nwl}} \defeq \lambda v \ldotp
-    \begin{cases}
-      (v,(\start,\addrend),=,H^{\var{nwl}}) & v \neq \revoked \\
-      \bot & \text{otherwise}
-\end{cases}
-\\ \\
-  &H^{\var{nwl}} : \States \fun (\Worstr \monnefun \UPred{\HeapSegments})\\
-  &H^{\var{nwl}} \; (\start,\addrend) \;\hat{W} \defeq \left\{\npair{\hs} \middle|
+  &\iota_{\start,\addrend}^{\nwl} : \Regions \\
+  &\iota_{\start,\addrend}^{\nwl} \defeq (\temp,1,=,H^\nwl_{start,\addrend}) \\
+\\
+  &\iota_{\start,\addrend}^{\nwl,p} : \Regions \\
+  &\iota_{\start,\addrend}^{\nwl,p} \defeq (\perma,1,=,H^\nwl_{start,\addrend})\\
+\\
+  &H^\nwl : \Addrs^2 \fun \States \fun (\Worstr \monnefun \UPred{\HeapSegments})\\
+  &H^\nwl_{\start,\addrend} \; s \;\hat{W} \defeq \left\{\npair{\hs} \middle|
     \begin{aligned}
       &\dom(\hs) = [\start,\addrend] \land \\
       &\forall \addr \in [\start,\addrend] \ldotp \\
@@ -1721,22 +1938,21 @@ $\localReg$ are the regions that local capabilities may govern - that is permane
   \end{cases}
 \]
 
+We need a notion of subset between regions that is almost $n$-subset, but not quite. The only difference is that the view part of a region is diregarded. Define ``semi $n$-subset'' and ``semi $n$-supset'' as:
+\lau{ Using normal the canonical $n$-subset gave some technical problems in the proofs. For instance, it was not possible to have a global read capability for a region governed by a permanent standard region. }
+\begin{mathpar}
+  \inferrule{(s,H) = (s',H) \\
+              \forall \hat{W} \ldotp H \; s \; \hat{W} \nsubeq H' \; s' \; \hat{W} }
+            { (v,s,\phi,H) \nsubsim (v',s',\phi',H')}
+\end{mathpar}
+
 \begin{align*}
     & \writeCond{} : ((\Views \rightharpoonup \Regions) \times \Globals) \fun \Worlds \monnefun \UPred{\Addrs^2}  \\
     & \writeCond{}(\iota,\gl)(W) =  \\
     & \quad \begin{aligned}[t]
               \{ \npair{(\start,\addrend)} \mid & \;\exists r \in \var{localityReg}(g,W) \ldotp \\
               & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
-              & \;\qquad W(r)\nsupeq[n-1] \iota_{\start',\addrend'}(W(r).v) \}
-            \end{aligned}
-\end{align*}
-
-\begin{align*}
-    & \readCond{}(\gl)(W) =  \\
-    & \quad \begin{aligned}[t]
-              \{ \npair{(\start,\addrend)} \mid & \;\exists r \in \var{localityReg}(g,W) \ldotp \\
-                        & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
-                        & \;\qquad W(r)\nsubeq[n-1] \iota^{\var{pwl}}_{\start',\addrend'}(W(r).v) \}
+              & \;\qquad W(r)\nsupsim[n-1] \iota_{\start',\addrend'} \}
             \end{aligned}
 \end{align*}
 
@@ -1779,11 +1995,11 @@ Now define the value relation as follows:
              \union \\
              & \{ \npair{\stdcap[(\readwrite,\gl)] } \mid \\
              & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
-             & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^{\var{nwl}},\gl)(W) \}
+             & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W) \}
              \union \\
              & \{ \npair{\stdcap[(\readwritel,\gl)] } \mid \\
              & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
-             & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^{\var{pwl}},\gl)(W) \}
+             & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W) \}
              \union \\
              & \{ \npair{\stdcap[(\exec,\gl)]} \mid \\
              & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
@@ -1794,13 +2010,13 @@ Now define the value relation as follows:
              \union \\
              & \{ \npair{\stdcap[(\rwx,\gl)]} \mid \\
              & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
-             & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^{\var{nwl}},\gl)(W) \land\\
+             & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W) \land\\
              & \quad \npair{(\rwx,\start,\addrend)} \in \execCond{}(\gl)(W)  \land \\
              & \quad \npair{(\exec,\start,\addrend)} \in \execCond{}(\gl)(W) \}
              \union \\
              & \{ \npair{\stdcap[(\rwlx,\gl)]} \mid \\
              & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
-             & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^{\var{pwl}},\gl)(W) \land\\
+             & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W) \land\\
              & \quad \npair{(\rwlx,\start,\addrend)} \in \execCond{}(\gl)(W) \land \\
              & \quad \npair{(\rwx,\start,\addrend)} \in \execCond{}(\gl)(W) \land \\
              & \quad \npair{(\exec,\start,\addrend)} \in \execCond{}(\gl)(W) \}
@@ -1843,6 +2059,18 @@ Now define the value relation as follows:
   \end{aligned}
 \end{align*}
 
+\subsection{Useful regions}
+Static region used for parts of memory that should not change.
+\begin{align*}
+  \iota^\sta (v,\ms) &= (v,1,=,H^\sta\;\ms)\\
+  H^\sta \; \ms \; s \; \hat{W} = & \{\npair{\ms} \mid n > 0 \} \union \{\npair[0]{\ms'} \mid \ms' \in \Mems \}
+\end{align*}
+
+\begin{align*}
+  \iota^\cnst (v,n) &= (v,1,=,H^\cnst\;n)\\
+  H^\sta \; n \; s \; \hat{W} = & \{\npair{\ms} \mid n > 0 \Rightarrow \forall a \in \dom(\ms)\ldotp \ms(a) = n \}
+\end{align*}
+
 \subsection{Lemmas}
 We expect the following lemmas to hold true:
 \subsubsection{Memory Segment Satisfaction}
@@ -1861,6 +2089,7 @@ We expect the following lemmas to hold true:
 \end{lemma}
 
 \begin{lemma}[Private monotonicity-like property]
+\label{lem:priv-mono-like}
   \begin{align*}
     & \forall \hs, n, W, W' \ldotp \\
     & \quad  \heapSat[\hs]{n}{W} \land W' \futurewk \wrev{W} \futurestr W \\
@@ -1902,6 +2131,14 @@ We expect the following lemmas to hold true:
     & \forall n, \perm, \start, \addrend, \addr, W \ldotp \\
     & \quad  \npair{\stdcap[(\perm,\glob)]} \in \stdvr(W) \\
     & \qquad \Rightarrow \npair{\stdcap[(\perm,\glob)]} \in \stdvr(\wrev{W}) 
+  \end{align*}
+\end{lemma}
+
+\subsubsection{Standard regions}
+\begin{lemma}
+  \begin{align*}
+    & \forall n \in \nats\ldotp \forall \addr, \addrend \in \Addrs \ldotp \forall v \in \{\perma, \temp\} \ldotp \\
+    & \quad \iota^\nwl_{\start,\addrend} (v) \nsubsim \iota^\pwl_{\start,\addrend}(v)
   \end{align*}
 \end{lemma}
 
