@@ -339,7 +339,7 @@ Things to note:
 \item Table~\ref{tab:permission-list} describes what all the permissions grant access to.
 \item Figure~\ref{fig:perm-hier} shows the ordering of the permissions, i.e, the elements of $\Perms$.
 \item Figure~\ref{fig:glob-hier} shows the ordering of $\local$ and $\glob$, i.e., the elements of $\Globals$.
-\item The ordering of $\Perms \times \Globals$ is point wise.
+\item The ordering of $\Perms \times \Globals$ is pointwise.
 \end{itemize}
 
 \begin{table}[!h]
@@ -665,6 +665,15 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                           \end{cases}
 \end{align*}
 \lau{Dominique, apparently there was a reason I had not added the new condition in store to $\writeAllowed{}$. The new condition depends on a case distinction on $w$. It is only if $w$ is a capability that we look into whether it is local or not. But even if $w$ is just an integer, we still need the capability we write through to have some kind of write permission.}
+\dominique{I see, but maybe writeAllowed could take $w$ and $c$ as an argument, rather than just $\perm$? It is now weird that some conditions for writing are in $\writeAllowed{}$, but not all.}
+
+\dominique{factor out reoccuring conditions of the form $n_i = \rv_i$ or $n_i =
+  \memreg(\rv_i)$ into a function that evaluates an $\rv$ using a system state?
+  This would generalize nicely to the case where we would have additional
+  addressing modes.}
+
+\dominique{why doesn't store take an $\rv$?}
+
 
 After adding local capabilities, most of the definitions have changed slightly to take into account the new form the capabilities take. The only two instructions that have undergone enough change to deserve to be mentioned are $\mathtt{store}$ and $\mathtt{restrict}$. 
 
@@ -757,9 +766,11 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
 In the specification above $\iota_\malloc'$ is a future region of the initial region that governs malloc.
 
 \section{Macros}
-In order to write readable example programs, we provide macros that can be programmed using the instruction set given in the formalisation.
+In order to write readable example programs, we provide macros (macro-instructions) that can be implemented in terms of the instruction set given in the formalisation.
 \dominique{Similarly: how is malloc invoked?  Do we trust malloc enough to not encapsulate ourselves from it, i.e. provide an rx return capability and use callee-save registers?}
 \lau{ I think this is a conceptual question as we can make it work with either. We already trust malloc to give us a fresh piece of memory and not reuse it later on, so we already assume malloc to be somewhat trusted, so why not go all the way? }
+\lau{Agreed.}
+
 \dominique{what does ``fetch the capability ...'' mean?}
 \lau{ We don't know where the capability resides, but if it is in memory, then it will be loaded into a register. }
 \dominique{Wouldn't it be more clear to provide call with two explicit lists of registers: those which need to be stored, and those which are provided as arguments (i.e. which do not need to be erased)?}
@@ -1472,7 +1483,6 @@ f2: push 1
 
 \begin{lemma}[Correctness lemma for \texttt{f2}]
   \label{lem:correctness-f2}
-  For all $n \in \nats$
   let
   \begin{align*}
     c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
@@ -1494,7 +1504,7 @@ f2: push 1
     &\dom(\ms_\link) = [\link,\link+1]\\
     &\dom(\ms_\stk) = [\start_\stk, \addrend_\stk]\\
     &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
-    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]}
+    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]} \qquad \text{ for all $n \in \nats$}
   \end{align*}
   and
   \begin{itemize}
@@ -1600,7 +1610,7 @@ Which amounts to
 \[
 \iota^{\nwl,p}_{\start_\adv,\addrend_\adv} \nsubsim[n-1] \iota^\pwl_{\start_\adv,\addrend_\adv}
 \]
-which is indeed the case. Use this to apply the FTLR to get 
+which is indeed the case\dominique{by some lemma?}. Use this to apply the FTLR to get 
 \begin{enumproof}
 \item $\npair{c_\adv} \in \stder(W)$ \label{lem:f2-adv-er}
 \end{enumproof}
@@ -1622,7 +1632,8 @@ Define
   \item $\ms_\malloc$, this case follows from the specification of malloc and the assumption that $\iota_{\malloc,0}$ models $\ms_\malloc$.    
   \item $\ms_\stk'$, here we need to split the memory segment in two and for $n' < n$ argue
     \begin{itemize}
-    \item case $\npair[n']{\ms_\stk'|_{[\start_\stk, \start_\stk''-1]}} \in H^\sta(\ms_\stk'|_{[\start_\stk,\start_\stk''-1]})$:\\ This region matches only this memory segment.
+    \item case $\npair[n']{\ms_\stk'|_{[\start_\stk, \start_\stk''-1]}} \in
+      H^\sta(\ms_\stk'|_{[\start_\stk,\start_\stk''-1]})$ \dominique{apply to world?}:\\ This region matches only this memory segment.
     \item case $\npair[n']{\ms_\stk'|_{[\start_\stk'', \addrend_\stk]}} \in H_{\start_\stk'', \addrend_\stk}(1)(W)$:\\ Show $\forall a \in [\start_\stk'', \addrend_\stk] \ldotp \ms_\stk'|_{[\start_\stk'', \addrend_\stk]}(a) \in \stdvr(W)$, trivially true since these memory cells contain 0. 
     \end{itemize}
   \end{itemize}
@@ -1644,6 +1655,7 @@ This amounts to showing
 which is indeed the case.
         \item $\npair{(\rwlx,\start_\stk'', \addrend_\stk)} \in \execCond{}(\local)(W)$ \label{f2:rwlx-exec-case} \\
 We will show this case in some detail, the others are similar. \\
+\dominique{Factor out a reusable lemma?}
 Let $n' < n$, $W' \futurewk W$, and $a \in [\start_\stk'', \addrend_\stk]$ be given. Show
 \[
   \npair[n']{((\rwlx,\local),\start_\stk'', \addrend_\stk,a)} \in \stder(W')
@@ -1675,6 +1687,7 @@ Similar to case~\ref{f2:rwlx-exec-case}
       \[
         \npair[n']{\updatePcPerm{c_{\var{prp}}}} \in \stder(W')
       \]
+      \dominique{part of a phrase missing here?}
       to this en let $n'' \leq n'$, $\heapSat[\ms']{n''}{W'}$, and $\npair[n'']{\reg'} \in \stdrr$ be given and show
       \[
         \npair[n'']{(\reg'\update{\pcreg}{\updatePcPerm{c_{\var{prp}}}},\ms')} \in \observations(W')
@@ -1685,7 +1698,9 @@ Similar to case~\ref{f2:rwlx-exec-case}
         (\halted,m'')
       \]
 
-      From $\heapSat[\ms']{n''}{W'}$ we know that that $\ms'$ contains memory segments $\hs_{f2}$, $\hs_\flag$, and $\ms_\stk'|_{[\start_\stk, \start_\stk''-1]}$ (our local part of the stack). The restoration code remains unaltered, and so does the data on the stack, so the execution continues by popping the $c_\stk'$ to $r_\stk$ followed by a pop of $c_{f2}'$ to $\pcreg$. Continuing in $f2$, the restore code is popped off the stack which is the last of the $\mathtt{scall}$ instruction. Now the top word of the stack is popped to $r_1$, and thanks to the world satisfaction, we know that this word is 1. The $\mathtt{assert}$ therefore succeeds making no changes to the memory and afterwards the execution halts.
+      From $\heapSat[\ms']{n''}{W'}$ we know that that $\ms'$ contains memory segments $\hs_{f2}$, $\hs_\flag$, and $\ms_\stk'|_{[\start_\stk, \start_\stk''-1]}$ (our local part of the stack). The restoration code remains unaltered, and so does the data on the stack, so the execution continues by popping the $c_\stk'$ to $r_\stk$ followed by a pop of $c_{f2}'$ to $\pcreg$. Continuing in $f2$, the restore code is popped off the stack which is the last of the $\mathtt{scall}$ macro-instruction. Now the top word of the stack is popped to $r_1$, and thanks to the world satisfaction, we know that this word is 1. The $\mathtt{assert}$ therefore succeeds making no changes to the memory and afterwards the execution halts.
+      \dominique{Maybe you can factor out some sort of reusable antireduction lemma
+        for this sort of argument?}
 
 All in all, there are no changes to the memory, so we can conclude
 \[
@@ -1704,7 +1719,7 @@ From \ref{lem:f2-adv-er}, \ref{lem:f2-mem-sat}, and \ref{lem:f2-reg-rel} it foll
 \[
   \npair{(\reg_0\update{r_0}{c_{\var{prp}}}\update{r_1}{c_\adv}\update{r_\stk}{c_\stk''}\update{\pcreg}{c_\adv},\ms)} \in \observations(W)
 \]
-Now using $i$, the number of steps we need to halt, $\ms_f$ as the frame, $m'$ as the resulting memory and the assumption that the execution terminates successfuly gives $W' \futurestr W$, $\ms'$, and $\ms_r$ such that
+Now using $i$, the number of steps we need to halt, $\ms_f$ as the frame, $m'$ as the resulting memory and the assumption that the execution terminates successfully gives $W' \futurestr W$, $\ms'$, and $\ms_r$ such that
 \begin{itemize}
 \item $m' = \ms' \uplus\ms_r \uplus \ms_f$
 \item $\heapSat[\ms']{n-i}{W'}$
