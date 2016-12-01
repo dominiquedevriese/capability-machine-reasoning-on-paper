@@ -121,7 +121,8 @@
 \newcommand{\pwl}{\var{pwl}}
 \newcommand{\sta}{\var{sta}}
 \newcommand{\cnst}{\var{cnst}}
-
+\newcommand{\olf}{\var{offsetLinkFlag}}
+\newcommand{\prp}{\var{prp}}
 
 %Memory projections
 \newcommand{\plainproj}[1]{\mathrm{#1}}
@@ -163,7 +164,7 @@
 
 \newcommand{\revokeTemp}[1]{\plainfun{revokeTemp}{#1}}
 \newcommand{\erase}[2]{\floor*{#1}_{\{#2\}}}
-
+\newcommand{\activeReg}[1]{\plainfun{active}{#1}}
 
 %World operations
 \newcommand{\future}{\mathbin{\sqsupseteq}}
@@ -284,6 +285,7 @@
 \newcommand{\local}{\plainperm{local}}
 \newcommand{\glob}{\plainperm{global}}
 
+\newcommand{\localityReg}{\var{localityReg}}
 \newcommand{\localReg}{\var{localReg}}
 \newcommand{\globalReg}{\var{globalReg}}
 
@@ -775,7 +777,7 @@ The flag table should never be shared between distrusting parties.
 
 We will often want to make room in memory for a linking-table capability and a flag-table capability. We therefore define a constant that represents the offset of the actual code of a function caused by these two capabilities:
 \[
-    \var{offset-link-flag} \defeq 2
+    \olf \defeq 2
 \]
 
 \subsection{Macro definitions}
@@ -1241,9 +1243,9 @@ f1: malloc r_l 1
   For all $n \in \nats$
   let
   \begin{align*}
-    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\var{offset-link-flag}) \\
-    c_{f1} & \defeq ((\rwx,\glob),\mathtt{f1}-\var{offset-link-flag},\mathtt{1f},\mathtt{f1}) \\
-    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\var{offset-link-flag}) \\
+    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
+    c_{f1} & \defeq ((\rwx,\glob),\mathtt{f1}-\olf,\mathtt{1f},\mathtt{f1}) \\
+    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
     m & \defeq \hs_{f1} \uplus 
                \hs_\flag \uplus                
                \ms_{\var{link}} \uplus 
@@ -1253,7 +1255,7 @@ f1: malloc r_l 1
   \end{align*}
 where 
 \begin{align*}
-  &\dom(\hs_{f1}) = [\mathtt{f1}-\var{offset-link-flag},\mathtt{1f}] \\
+  &\dom(\hs_{f1}) = [\mathtt{f1}-\olf,\mathtt{1f}] \\
   &\dom(\hs_\flag) = [\flag,\flag] \\
   &\dom(\ms_\link) = [\link,\link+1]\\
   &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
@@ -1359,7 +1361,7 @@ for some $k'$ where
          \ms_{\malloc}'' \uplus 
          \hs_{\var{frame}} $
 \item $\ms_{\var{ar}}'$ contains the activation record, i.e., $c_l$, $c_{f1}^{(3)}$ (the return address in f1), and activation code.
-\item $c_{\var{ar}}' = ((\entry,\local)b,e,b+\var{offset-link-flag})$ where $b+\var{offset-link-flag}$ is the first address of the activation code.
+\item $c_{\var{ar}}' = ((\entry,\local)b,e,b+\olf)$ where $b+\olf$ is the first address of the activation code.
 \end{itemize}
 Define
 \begin{itemize}
@@ -1468,13 +1470,13 @@ f2: push 1
 2f: halt
 \end{verbatim}
 
-\begin{lemma}
+\begin{lemma}[Correctness lemma for \texttt{f2}]
   \label{lem:correctness-f2}
   For all $n \in \nats$
   let
   \begin{align*}
-    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\var{offset-link-flag}) \\
-    c_{f2} & \defeq ((\rwx,\glob),\mathtt{f2}-\var{offset-link-flag},\mathtt{2f},\mathtt{f2}) \\
+    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
+    c_{f2} & \defeq ((\rwx,\glob),\mathtt{f2}-\olf,\mathtt{2f},\mathtt{f2}) \\
     c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_{\adv},\start_\stk-1) \\
     \reg & \in \Regs \\
     m & \defeq \hs_{f2} \uplus 
@@ -1487,7 +1489,7 @@ f2: push 1
   \end{align*}
   where 
   \begin{align*}
-    &\dom(\hs_{f2}) = [\mathtt{f2}-\var{offset-link-flag},\mathtt{2f}] \\
+    &\dom(\hs_{f2}) = [\mathtt{f2}-\olf,\mathtt{2f}] \\
     &\dom(\hs_\flag) = [\flag,\flag] \\
     &\dom(\ms_\link) = [\link,\link+1]\\
     &\dom(\ms_\stk) = [\start_\stk, \addrend_\stk]\\
@@ -1569,8 +1571,6 @@ $r_0$  &  $c_{\var{prp}}$ \\
 \cline{2-2}
 $r_1$ & $c_\adv$ \\
 \cline{2-2}
-$r_{\var{priv},1}$ & $w_{p,1}$\\
-\cline{2-2}
 $r_{\var{stk}}$  & $c_{\var{stk}}'$ \\
 \cline{2-2}
 & $0$ \\
@@ -1582,15 +1582,15 @@ $r_{\var{stk}}$  & $c_{\var{stk}}'$ \\
 \label{fig:f2-stack-before-adv}
 \end{figure}
 Define 
-  \begin{align*}
-W = \;& [0 \mapsto \iota_{\malloc,0}] \\
-    & [1 \mapsto \iota^\sta(\perma,\ms_{f2})]\\ 
-    & [2 \mapsto \iota^\sta (\perma,\ms_\flag)]\\
-    & [3 \mapsto \iota^\sta (\perma,\ms_\link)]\\
-    & [4 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]\\
-    & [5 \mapsto \iota^\sta (\temp,\ms_\stk'|_{[\start_\stk,\start_\stk''-1]})] \\
-    & [6 \mapsto \iota^\pwl_{\start_\stk'', \addrend_\stk}]
-  \end{align*}
+\begin{align*}
+  W = \;& [0 \mapsto \iota_{\malloc,0}] \\
+        & [1 \mapsto \iota^\sta(\perma,\ms_{f2})]\\ 
+        & [2 \mapsto \iota^\sta (\perma,\ms_\flag)]\\
+        & [3 \mapsto \iota^\sta (\perma,\ms_\link)]\\
+        & [4 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]\\
+        & [5 \mapsto \iota^\sta (\temp,\ms_\stk'|_{[\start_\stk,\start_\stk''-1]})] \\
+        & [6 \mapsto \iota^\pwl_{\start_\stk'', \addrend_\stk}]
+\end{align*}
 \lau{The interesting regions here are region 5 and 6. Region 5 governs our private part of the stack whereas region 6 governs the part of the stack we are about to release. I don't think it is strictly needed to make them $\temp$ for this example, but in general it is what we wish to do, so we can revoke them upon return.}
 Show
 \[
@@ -1670,7 +1670,7 @@ Similar to case~\ref{f2:rwlx-exec-case}
       \end{enumproof}
     \item case $\npair{c_\adv} \in \stdvr(W)$:\\
      Follows from the FTLR.
-    \item case $\npair{c_{\var{prp}}} \in \stdvr(W)$:\\
+    \item case $\npair{c_{\var{prp}}} \in \stdvr(W)$: \label{f2:c-prp}\\
       Let $n' < n$ and $W' \future W$ be given and show
       \[
         \npair[n']{\updatePcPerm{c_{\var{prp}}}} \in \stder(W')
@@ -1749,6 +1749,130 @@ f3: push 1
     scall adv([],[])
 3f: halt
 \end{verbatim}
+
+\begin{lemma}[Correctness lemma for \texttt{f3}]
+    \label{lem:correctness-f3}
+  For all $n \in \nats$
+  let
+  \begin{align*}
+    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
+    c_{f3} & \defeq ((\rwx,\glob),\mathtt{f3}-\olf,\mathtt{3f},\mathtt{f3}) \\
+    c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_{\adv},\start_\stk-1) \\
+    \reg & \in \Regs \\
+    m & \defeq \hs_{f3} \uplus 
+        \hs_\flag \uplus                
+        \ms_{\var{link}} \uplus 
+        \hs_\adv \uplus 
+        \ms_{\malloc} \uplus 
+        \ms_{\var{stk}} \uplus
+        \ms_{\var{frame}} 
+  \end{align*}
+  where 
+  \begin{align*}
+    &\dom(\hs_{f3}) = [\mathtt{f3}-\olf,\mathtt{3f}] \\
+    &\dom(\hs_\flag) = [\flag,\flag] \\
+    &\dom(\ms_\link) = [\link,\link+1]\\
+    &\dom(\ms_\stk) = [\start_\stk, \addrend_\stk]\\
+    &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
+    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]}
+  \end{align*}
+  and
+  \begin{itemize}
+  \item The first address of $\hs_{f3}$ contains a global read-only capability for $\hs_\link$, the second address of $\hs_{f3}$ contains a global read-write capability to $\hs_\flag$, the rest of $\hs_{f3}$ contains the code of $f3$.
+  \item $\ms_\flag = [flag \mapsto 0]$
+  \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
+  \item $\hs_\adv$ contains a read-write capability for $\hs_\link$ on its first address and otherwise it consists only of code.
+  \end{itemize}
+  if 
+  \[
+    (\reg\update{\pcreg}{c_{f3}}\update{r_\stk}{c_\stk},m) \step[n] (\halted,m'),
+  \]
+  then
+  \[
+    m'(\flag) = 0
+  \]  
+\end{lemma}
+
+\begin{proof}[Proof of Lemma~\ref{lem:correctness-f3}]
+This proof goes like the proof of Lemma~\ref{lem:correctness-f3} except for item \ref{f2:c-prp}
+\begin{enumproof}[start=3]
+  \item $\npair{\reg_0\update{r_0}{c_{\var{prp}}}\update{r_1}{c_\adv}\update{r_\stk}{c_\stk''}} \in \stdrr(W)$ \\
+    $\dots$
+  \begin{enumproof}[start=3]
+  \item $\npair{c_{\var{prp}}} \in \stdvr(W)$ \\
+    To this end let $n' < n$ and $W' \futurewk W$ be given and show
+    \[
+      \npair[n']{\updatePcPerm(c_\prp)} \in \stder(W')
+    \]
+    to this end let 
+    \begin{enumproof}
+      \item $n'' \leq n'$
+      \item $\npair[n'']{\reg} \in \stdrr(W')$ \label{f3:mem-sat-mid}
+      \item $\heapSat[\ms]{n''}{W'}$
+    \end{enumproof}
+    be given and show
+    \[
+      \npair[n'']{(\reg\update{\pcreg}{\updatePcPerm(c_\prp)},\ms)}
+    \]
+    to this end let $i \leq n''$, $\ms_f$, and $m''$ be given and assume
+    \begin{enumproof}[resume]
+      \item $(\reg\update{\pcreg}{c_\prp},\ms \uplus \ms_f) \step[i] (\halted,m'')$ \label{f3:mid-exec}
+    \end{enumproof}
+    now show
+    \[
+      \exists \ms_R,\ms', W'' \futurestr W' \ldotp m'' = \ms' \uplus \ms_R \uplus \ms_f \land \heapSat[\ms']{n''-i}{W''}
+    \]
+    At this point use Lemma~\ref{lem:priv-mono-like2} with \ref{f3:mem-sat-mid} to get $\ms_p$, $\ms_r$, and $R$ that such that $\ms = \ms_p \uplus \ms_r$ and $\heapSat[\ms_p]{n''}{W'}$. We can further conclude that $\ms |_{[\start_\stk,\addrend_\stk]} \subseteq \ms_r$ \lau{The needs to be spelled out - preferably in an easy to use lemma. The idea is that $R$ partitions $\ms_r$ into memory segments that each are accepted by a temporary region. The stack is governed by a temporary region, so it must be in $\ms_r$.}.
+
+ Now consider the first steps of execution \ref{f3:mid-exec}. From \ref{f3:mem-sat-mid} we have that the private part of the stack and $f3$ is unchanged, so the recovery code gets to run which restores the stack capability and program counter, and pops the return code off the stack (there are no ``private'' registers). Next, the top word is popped off the stack. Again due to memory satisfaction, we know that this word is the integer 1 and therefore the assertion succeeds. Execution continues by pushing 2 to the stack. Now due the $\mathtt{scall}$ up to the point just after the jump to $\adv$. Figure~\ref{fig:f3-stack-before-snd-adv} shows the stack and register file at this point. The $\ms_p$ part of $\ms$ was not changed. For convenience, name the stack part of memory at this point $\ms'_\stk$.
+
+Let $W^{(3)} = \revokeTemp{W''}\update{i_1}{\iota^\sta(\temp,\ms|_{[\start_\stk, \start_\stk''-1]})}\update{i_2}{\iota^\sta(\temp,\ms|_{[\start_\stk'',\addrend_\stk]})}$
+
+Show 
+
+\begin{figure}
+  \centering
+  \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+\multicolumn{2}{l}{Stack} \\
+\cline{2-2}
+   &         \\
+   & $\vdots$ \\
+\cline{2-2}
+$\start_\stk'':$   & $0$\\
+\cline{2-2}
+$c_\stk',c_\stk'' \rightarrow$   & $c_\stk'$ \\
+\cline{2-2}
+   & $c_{f2}'$ \\
+\cline{2-2}
+$c_{\var{prp}} \rightarrow$   & Restore code \\
+   & $\vdots$ \\
+\cline{2-2}
+   & $2$\\
+\cline{2-2}
+\end{tabular}
+\hspace{1cm}
+\begin{tabular}{r |c |}
+\multicolumn{2}{r}{Register file} \\
+\cline{2-2}
+$\pcreg$ & $\updatePcPerm{c_\adv}$\\
+\cline{2-2}
+$r_0$  &  $c_{\var{prp}}$ \\
+\cline{2-2}
+$r_1$ & $c_\adv$ \\
+\cline{2-2}
+$r_{\var{stk}}$  & $c_{\var{stk}}'$ \\
+\cline{2-2}
+& $0$ \\
+\cline{2-2}
+& $\vdots$ \\
+\cline{2-2}
+\end{tabular}
+\caption{Stack and register-file just after second jump to $\adv$.}
+\label{fig:f3-stack-before-snd-adv}
+\end{figure}
+  \end{enumproof}
+\end{enumproof}
+\end{proof}
 
 \subsection{Another simple well-bracketedness/local capability example}
 Here assume that \texttt{let l = ... in} produces a local, read-write permit write local capability (but \texttt{let x = ...} produces a global capability). 
@@ -1875,14 +1999,21 @@ Erase all but a set of views:
   \end{cases}
 \end{align*}
 
+Define the function $\active{}$ as follows
+\begin{align*}
+  \activeReg{} & : \Worlds \fun 2^\RegionNames \\
+  \activeReg{W} & \defeq \dom(\erase{W}{\perma,\temp})
+\end{align*}
+
+
 Memory segment satisfaction:
 \begin{align*}
   &\heapSat[\hs]{n}{W} 
   \text{ iff }
   \left\{\begin{aligned}
-    &\exists R : \dom(\erase{W}{\perma,\temp}) \rightarrow \HeapSegments \ldotp \\
-    &\quad \hs = \uplus_{r\in\dom(\erase{W}{\perma,\temp})}R(r) \land \\
-    &\quad \forall r \in \dom(\erase{W}{\perma,\temp}) \ldotp\\
+    &\exists R : \activeReg{W} \rightarrow \HeapSegments \ldotp \\
+    &\quad \hs = \biguplus_{r\in\activeReg{W}}R(r) \land \\
+    &\quad \forall r \in \activeReg{W} \ldotp\\
     &\qquad \forall n'<n \ldotp \\
     &\qquad \quad \exists H,s \ldotp\\
     &\qquad \qquad W(r) = (\_,s,\_,H) \land \\
@@ -1936,18 +2067,14 @@ Standard regions for when write local is not allowed:
 \end{align*}
 
 For convenience define
-\begin{align*}
-  \localReg(W) & \defeq \dom(\erase{W}{\perm,\temp}) \\
-  \globalReg(W) & \defeq \dom(\erase{W}{\perm})
-\end{align*}
-$\localReg$ are the regions that local capabilities may govern - that is permanent and temporary regions. $\globalReg$ are the regions that global capabilities may govern - that is permanent regions. Now define the following function
 \[
-  \var{localityReg}(\gl,W) \defeq 
+  \localityReg(\gl,W) \defeq 
   \begin{cases}
-    \localReg(W) & \text{if } \gl = \local \\
-    \globalReg(W) & \text{if } \gl = \glob
+    \dom(\erase{W}{\perm,\temp}) & \text{if } \gl = \local \\
+    \dom(\erase{W}{\perm}) & \text{if } \gl = \glob
   \end{cases}
 \]
+$\localityReg(\local,W)$ are the regions that local capabilities may govern - that is permanent and temporary regions. $\localityReg(\glob,W)$ are the regions that global capabilities may govern - that is permanent regions. Now define the following function
 
 We need a notion of subset between regions that is almost $n$-subset, but not quite. The only difference is that the view part of a region is diregarded. Define ``semi $n$-subset'' and ``semi $n$-supset'' as:
 \lau{ Using normal the canonical $n$-subset gave some technical problems in the proofs. For instance, it was not possible to have a global read capability for a region governed by a permanent standard region. }
@@ -1958,12 +2085,22 @@ We need a notion of subset between regions that is almost $n$-subset, but not qu
 \end{mathpar}
 
 \begin{align*}
-    & \writeCond{} : ((\Views \rightharpoonup \Regions) \times \Globals) \fun \Worlds \monnefun \UPred{\Addrs^2}  \\
+    & \writeCond{} : (\Regions \times \Globals) \fun \Worlds \monnefun \UPred{\Addrs^2}  \\
     & \writeCond{}(\iota,\gl)(W) =  \\
     & \quad \begin{aligned}[t]
               \{ \npair{(\start,\addrend)} \mid & \;\exists r \in \var{localityReg}(g,W) \ldotp \\
               & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
               & \;\qquad W(r)\nsupsim[n-1] \iota_{\start',\addrend'} \}
+            \end{aligned}
+\end{align*}
+
+\begin{align*}
+    & \readCond{} : \Globals \fun \Worlds \monnefun \UPred{\Addrs^2}  \\
+    & \readCond{}(\gl)(W) =  \\
+    & \quad \begin{aligned}[t]
+              \{ \npair{(\start,\addrend)} \mid & \;\exists r \in \var{localityReg}(g,W) \ldotp \\
+              & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
+              & \;\qquad W(r)\nsubsim[n-1] \iota_{\start',\addrend'}^\pwl \}
             \end{aligned}
 \end{align*}
 
@@ -2100,12 +2237,33 @@ We expect the following lemmas to hold true:
   \end{align*}
 \end{lemma}
 
-\begin{lemma}[Private monotonicity-like property]
+\begin{lemma}[Revoke temporary memory satisfaction]
 \label{lem:priv-mono-like}
   \begin{align*}
-    & \forall \hs, n, W, W' \ldotp \\
-    & \quad  \heapSat[\hs]{n}{W} \land W' \futurewk \wrev{W} \futurestr W \\
-    & \qquad \Rightarrow \exists \hs', \hs_f \ldotp \hs = \hs' \uplus \hs_f \land \heapSat[\hs']{n}{W'}
+    &      \forall \hs, n, W, W' \ldotp \\
+    & \quad  \heapSat[\hs]{n}{W} \Rightarrow\\
+    & \qquad \exists \hs', \hs_r \ldotp \\
+    & \qquad \quad \hs = \hs' \uplus \hs_r \land \heapSat[\hs']{n}{\wrev{W}}
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Revoke temporary memory satisfaction 2]
+\label{lem:priv-mono-like2}
+  \begin{align*}
+    & \forall \ms, n, W \ldotp \heapSat[\ms]{n}{W} \Rightarrow \\
+    & \quad \exists \ms', \ms_r, R : \dom(\erase{W}{\temp}) \fun \MemSegments \ldotp \\
+    & \qquad \ms = \ms' \uplus \ms_r \land \\
+    & \qquad \heapSat[\ms']{n}{\wrev{W}} \land \\
+    & \qquad \forall r \ldotp \forall n' < n \ldotp \npair[n']{R(r)} \in W(r).\mathrm{H}(W(r).\mathrm(s))(W)\\
+    & \qquad \ms_r = \biguplus_{r \in \dom(R)} R(r)
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}[Disjoint memory satisfaction]
+\label{lem:disj-mem-sat}
+  \begin{align*}
+    & \forall n \ldotp \forall \ms, \ms' \ldotp \forall W, W' \ldotp\\
+    & \quad \heapSat[\ms \uplus \ms' ]{n}{W \uplus W'}
   \end{align*}
 \end{lemma}
 
