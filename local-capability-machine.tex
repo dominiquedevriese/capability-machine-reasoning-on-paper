@@ -171,6 +171,8 @@
 \newcommand{\futurewk}{\mathbin{\sqsupseteq}^{\var{pub}}}
 \newcommand{\futurestr}{\mathbin{\sqsupseteq}^{\var{priv}}}
 \newcommand{\heapSat}[3][\heap]{#1 :_{#2} #3}
+\newcommand{\memSat}[3][n]{\heapSat[#2]{#1}{#3}}
+\newcommand{\memSatPar}[4][n]{\heapSat[#2]{#1 , #4}{#3}}
 
 \newcommand{\monwknefun}{\xrightarrow[\text{\tiny{$\futurewk$}}]{\textit{\tiny{mon, ne}}}}
 \newcommand{\monstrnefun}{\xrightarrow[\text{\tiny{$\futurestr$}}]{\textit{\tiny{mon, ne}}}}
@@ -1639,7 +1641,7 @@ Define
   \end{itemize}
 \item $\npair{\reg_0\update{r_0}{c_{\var{prp}}}\update{r_1}{c_\adv}\update{r_\stk}{c_\stk''}} \in \stdrr(W)$ \label{lem:f2-reg-rel}
   \begin{enumproof}
-    \item case $\npair{c_\stk''} \in \stdvr(W)$: Show:
+    \item case $\npair{c_\stk''} \in \stdvr(W)$: Show: \label{f2:stack-in-vr}
       \begin{enumproof}
         \item $\npair{(\start_\stk'', \addrend_\stk)} \in \readCond{}(\local)(W)$ \\
           This amounts to showing 
@@ -1808,84 +1810,166 @@ f3: push 1
 \end{lemma}
 
 \begin{proof}[Proof of Lemma~\ref{lem:correctness-f3}]
-This proof goes like the proof of Lemma~\ref{lem:correctness-f3} except for item \ref{f2:c-prp}
-\begin{enumproof}[start=3]
+  This proof goes like the proof of Lemma~\ref{lem:correctness-f3} except for item \ref{f2:c-prp}
+  \begin{enumproof}[start=3]
   \item $\npair{\reg_0\update{r_0}{c_{\var{prp}}}\update{r_1}{c_\adv}\update{r_\stk}{c_\stk''}} \in \stdrr(W)$ \\
     $\dots$
-  \begin{enumproof}[start=3]
-  \item $\npair{c_{\var{prp}}} \in \stdvr(W)$ \\
-    To this end let $n' < n$ and $W' \futurewk W$ be given and show
-    \[
-      \npair[n']{\updatePcPerm(c_\prp)} \in \stder(W')
-    \]
-    to this end let 
-    \begin{enumproof}
+    \begin{enumproof}[start=3]
+    \item $\npair{c_{\var{prp}}} \in \stdvr(W)$ \\
+      To this end let $n' < n$ and $W' \futurewk W$ be given and show
+      \[
+        \npair[n']{\updatePcPerm(c_\prp)} \in \stder(W')
+      \]
+      to this end let 
+      \begin{enumproof}
       \item $n'' \leq n'$
-      \item $\npair[n'']{\reg} \in \stdrr(W')$ \label{f3:mem-sat-mid}
-      \item $\heapSat[\ms]{n''}{W'}$
-    \end{enumproof}
-    be given and show
-    \[
-      \npair[n'']{(\reg\update{\pcreg}{\updatePcPerm(c_\prp)},\ms)}
-    \]
-    to this end let $i \leq n''$, $\ms_f$, and $m''$ be given and assume
-    \begin{enumproof}[resume]
+      \item $\npair[n'']{\reg} \in \stdrr(W')$
+      \item $\heapSat[\ms]{n''}{W'}$ \label{f3:mem-sat-mid}
+      \end{enumproof}
+      be given and show
+      \[
+        \npair[n'']{(\reg\update{\pcreg}{\updatePcPerm(c_\prp)},\ms)}
+      \]
+      to this end let $i \leq n''$, $\ms_f$, and $m''$ be given and assume
+      \begin{enumproof}[resume]
       \item $(\reg\update{\pcreg}{c_\prp},\ms \uplus \ms_f) \step[i] (\halted,m'')$ \label{f3:mid-exec}
+      \end{enumproof}
+      now show
+
+      \begin{enumproof}
+        \item $\exists \ms_R,\ms', W'' \futurestr W' \ldotp m'' = \ms' \uplus \ms_R \uplus \ms_f \land \heapSat[\ms']{n''-i}{W''}$ \label{f3:proof-burden}.
+      \end{enumproof}
+      From \ref{f3:mem-sat-mid}, get $P$ such that 
+      \begin{enumproof}[resume]
+      \item $\memSatPar[n'']{\ms}{W'}{P}$ \label{f3:mem-sat-par-mid}
+      \end{enumproof}
+      Use this with Lemma~\ref{lem:priv-mono-like2} to get $\ms_r$ and $\ms'$ where
+      \begin{enumproof}[resume]
+      \item $\ms = \ms' \uplus \ms_r$
+      \item $\memSatPar{\ms'}{\revokeTemp{W'}}{P|_{\dom(\erase{W'}{\perma})}}$ \label{f3:perm-mem-sat}
+      \item $\ms_r = \biguplus_{r \in \erase{W'}{\temp}} P(r)$ \label{f3:ms-revoked}
+      \item $\ms' = \biguplus_{r \in \erase{W'}{\perma}} P(r)$
+      \end{enumproof}
+      Let
+      \begin{itemize}
+      \item $\ms_{\stk,\var{priv}} = \ms |_{\start_\stk,\base_\stk''-1}$
+      \item $\ms_{\stk,\var{rest}} = \ms |_{\base_\stk'',\addrend_\stk}$
+      \end{itemize}
+      We know $W'(6)=\iota^\pwl_{\base_\stk'',\addrend_\stk}$ (using the definition of $W$ from the proof of Lemma~\ref{lem:correctness-f2}) which is a $\temp$ region. We futher know that $P(6) = \ms_{\var{?}}$ for some memory segment. By \ref{f3:mem-sat-par-mid} we know that $\npair[n'']{\ms_?} \in H^\pwl_{\base_\stk'',\addrend_\stk} \; 1 \; W'$ and thus $\ms_? = \ms_{\stk,\var{rest}}$. Sine $W'(6)$ is a $\temp$ region, we can from \ref{f3:ms-revoked} conlude that 
+      \begin{enumproof}[resume]
+      \item $\ms_{\stk,\var{rest}} \subseteq \ms_r$
+      \end{enumproof}
+      In a similar fashion, get
+      \begin{enumproof}[resume]
+      \item $\ms_{\stk,\var{priv}} \subseteq \ms_r$
+      \end{enumproof}
+
+      Now consider what happens in execution \ref{f3:mid-exec}. From \ref{f3:mem-sat-mid} we have that the private part of the stack and $f3$ is unchanged, so the recovery code gets to run which restores the stack capability and program counter, and pops the return code off the stack (there are no ``private'' registers). Next, the top word is popped off the stack. Again due to memory satisfaction, we know that this word is the integer 1 and therefore the assertion succeeds. Notice that up to this point, no change has been done to memory. Execution continues by pushing 2 to the stack. Now consider the execution of $\mathtt{scall}$ up to the point just after the jump to $\adv$. Restore code is pushed to the stack, return and stack capabilities are pushed to the stack, and the rest of the stack is cleared. Figure~\ref{fig:f3-stack-before-snd-adv} shows the stack and register file at this point. Let $\ms_\stk'$ be the stack at this point.
+
+      For convenience define let $i_1 \neq i_2$ and $i_1,i_2 \not\in \dom(\revokeTemp(W'))$ and define
+      \[
+        W^{(3)} = \revokeTemp{W'}\update{i_1}{\iota^\pwl_{\base_\stk'',\addrend_\stk}}\update{i_2}{\iota^\sta (\temp,\ms_\stk' |_{\start_\stk,\base_\stk''-1})}
+      \]
+      We now want to use the FTLR on the $\updatePcPerm{c_\adv}$ capability which is possible as we have 
+      \[
+        \npair[n'']{\start_\adv,\addrend_\adv} \in \readCond(\glob)(W^{(3)})
+      \]
+      This follows from Lemma~\ref{lem:nwlp-subset-pwl}.
+
+      We have 
+      \[
+        \npair[n''] \in \stder(W^{(3)})
+      \]
+      Show
+      \begin{enumproof}[resume]
+      \item $\memSat[n'']{\ms' \uplus \ms_\stk'}{W^{(3)}}$ \\
+        show:
+        \begin{itemize}
+        \item $\memSat[n'']{\ms_\stk'}{[i_1 \mapsto \iota^\pwl_{\base_\stk'',\addrend_\stk}][i_2\mapsto \iota^\sta (\temp,\ms_\stk' |_{\start_\stk,\base_\stk''-1})]}$ 
+        \end{itemize}
+        The private part of the stack is exactly the memory of the that is accepted by region $i_2$ and the rest of the stack contains all 0's, so it is accepted by region $i_1$.
+
+        Using the above and \label{f3:perm-mem-sat} by Lemma~\ref{lem:disj-mem-sat} get
+        \begin{enumproof}
+        \item $\memSat[n'']{\ms' \uplus \ms_\stk'}{\revokeTemp{W'}\update{i_1}{\iota^\pwl_{\base_\stk'',\addrend_\stk}}\update{i_2}{\iota^\sta (\temp,\ms_\stk' |_{\start_\stk,\base_\stk''-1})}}$ 
+        \end{enumproof}
+        Notice that this is only possible, because we argued that the stack part was in $\ms_r$, so it is disjoint from $\ms'$. The lower step comes from downwards closure.
+      \item $\npair[n'']{\reg_0\update{r_0}{c_{\var{prp}}'}\update{r_1}{c_\adv}\update{r_\stk}{c_\stk'}} \in \stdrr(W^{(3)})$ \\
+        Amounts to showing:
+        \begin{enumproof}
+          \item $\npair[n'']{c_\adv} \in \stdvr(W^{(3)})$\\
+            Follows from FTLR.
+          \item $\npair[n'']{c_\stk'} \in \stdvr(W^{(3)})$\\
+            Like case \ref{f2:stack-in-vr} in the proof of Lemma~\ref{lem:correctness-f2}.
+          \item $\npair[n'']{c_{\var{prp}}} \in \stdvr(W^{(3)})$\\
+            Let $n^{(3)} < n''$ and $W^{(4)} \futurewk W^{(3)}$ be given. Further led $\ms''$and $\reg'$ be given such that:
+            \begin{itemize}
+            \item $\npair[n^{(3)}]{\reg'} \in \stdrr(W^{(4)})$
+            \item $\memSat[n^{(3)}]{\ms''}{W^{(4)}}$
+            \end{itemize}
+            and show
+            \begin{enumproof}
+              \item $\npair[n^{(3)}]{(\reg'\update{\pcreg}{\updatePcPerm{c_{\var{prp}}}},\ms'')} \in \observations(W^{(4)})$\\
+                To this end let $\ms_f''$, $k \leq n^{(3)}$, $m^{(3)}$ be given and assume
+                \[
+                  (\reg'\update{\pcreg}{\updatePcPerm{c_{\var{prp}}}},\ms' \uplus \ms_f'') \step[k] (\halted,m^{(3)})
+                \]
+                From $\memSat[n^{(3)}]{\ms'}{W^{(4)}}$ we know that the $\ms_f$ and $\ms_\stk' |_{\base_\stk,\base_\stk''-1}$ is part of $\ms''$, so upon return, the restore code is run and subsequently, the $\mathtt{halt}$ instruction in $f3$ is executed. No changes have been made to the memory, so $\memSat[n^{(3)}]{\ms'}{W^{(4)}}$ provides the desired result (picking the ``revoked'' part to be empty and $W^{(4)}$ to be the private future world). 
+            \end{enumproof}
+        \end{enumproof}
+      \end{enumproof}
+      to get
+      \[
+        \npair[n'']{(\reg_0\update{r_0}{c_{\var{prp}}'}\update{r_1}{c_\adv}\update{r_\stk}{c_\stk'}\update{\pcreg}{\updatePcPerm{c_\adv}},\ms' \uplus \ms_\stk')} \in \observations(W^{(3)})
+      \]
+      By assumption $\ref{f3:mid-exec}$ the execution terminates after $i-j$ steps in memory $m''$ where $j$ is the amount of steps we described previously. The above gives us $W^{(4)} \futurestr W^{(3)}$, $\ms''$, and $\ms_R'$ such that
+      \begin{itemize}
+      \item $m'' = \ms'' \uplus \ms_R' \uplus \ms_f$
+      \item $\memSat[n''-(i-j))]{\ms''}{W^{(4)}}$
+      \end{itemize}
+      Using downwards closure of heap satisfaction, this is exactly what we needed to show \ref{f3:proof-burden}
+      \begin{figure}
+        \centering
+        \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+          \multicolumn{2}{l}{Stack} \\
+          \cline{2-2}
+       &         \\
+       & $\vdots$ \\
+          \cline{2-2}
+          $\start_\stk'':$   & $0$\\
+          \cline{2-2}
+          $c_\stk',c_\stk'' \rightarrow$   & $c_\stk'$ \\
+          \cline{2-2}
+       & $c_{f3}''$ \\
+          \cline{2-2}
+          $c_{\var{prp}} \rightarrow$   & Restore code \\
+       & $\vdots$ \\
+          \cline{2-2}
+       & $2$\\
+          \cline{2-2}
+        \end{tabular}
+        \hspace{1cm}
+        \begin{tabular}{r |c |}
+          \multicolumn{2}{r}{Register file} \\
+          \cline{2-2}
+          $\pcreg$ & $\updatePcPerm{c_\adv}$\\
+          \cline{2-2}
+          $r_0$  &  $c_{\var{prp}}'$ \\
+          \cline{2-2}
+          $r_1$ & $c_\adv$ \\
+          \cline{2-2}
+          $r_{\var{stk}}$  & $c_{\var{stk}}'$ \\
+          \cline{2-2}
+                   & $0$ \\
+          \cline{2-2}
+                   & $\vdots$ \\
+          \cline{2-2}
+        \end{tabular}
+        \caption{Stack and register-file just after second jump to $\adv$.}
+        \label{fig:f3-stack-before-snd-adv}
+      \end{figure}
     \end{enumproof}
-    now show
-    \[
-      \exists \ms_R,\ms', W'' \futurestr W' \ldotp m'' = \ms' \uplus \ms_R \uplus \ms_f \land \heapSat[\ms']{n''-i}{W''}
-    \]
-    At this point use Lemma~\ref{lem:priv-mono-like2} with \ref{f3:mem-sat-mid} to get $\ms_p$, $\ms_r$, and $R$ that such that $\ms = \ms_p \uplus \ms_r$ and $\heapSat[\ms_p]{n''}{W'}$. We can further conclude that $\ms |_{[\start_\stk,\addrend_\stk]} \subseteq \ms_r$ \lau{The needs to be spelled out - preferably in an easy to use lemma. The idea is that $R$ partitions $\ms_r$ into memory segments that each are accepted by a temporary region. The stack is governed by a temporary region, so it must be in $\ms_r$.}.
-
- Now consider the first steps of execution \ref{f3:mid-exec}. From \ref{f3:mem-sat-mid} we have that the private part of the stack and $f3$ is unchanged, so the recovery code gets to run which restores the stack capability and program counter, and pops the return code off the stack (there are no ``private'' registers). Next, the top word is popped off the stack. Again due to memory satisfaction, we know that this word is the integer 1 and therefore the assertion succeeds. Execution continues by pushing 2 to the stack. Now due the $\mathtt{scall}$ up to the point just after the jump to $\adv$. Figure~\ref{fig:f3-stack-before-snd-adv} shows the stack and register file at this point. The $\ms_p$ part of $\ms$ was not changed. For convenience, name the stack part of memory at this point $\ms'_\stk$.
-
-Let $W^{(3)} = \revokeTemp{W''}\update{i_1}{\iota^\sta(\temp,\ms|_{[\start_\stk, \start_\stk''-1]})}\update{i_2}{\iota^\sta(\temp,\ms|_{[\start_\stk'',\addrend_\stk]})}$
-
-Show 
-
-\begin{figure}
-  \centering
-  \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
-\multicolumn{2}{l}{Stack} \\
-\cline{2-2}
-   &         \\
-   & $\vdots$ \\
-\cline{2-2}
-$\start_\stk'':$   & $0$\\
-\cline{2-2}
-$c_\stk',c_\stk'' \rightarrow$   & $c_\stk'$ \\
-\cline{2-2}
-   & $c_{f2}'$ \\
-\cline{2-2}
-$c_{\var{prp}} \rightarrow$   & Restore code \\
-   & $\vdots$ \\
-\cline{2-2}
-   & $2$\\
-\cline{2-2}
-\end{tabular}
-\hspace{1cm}
-\begin{tabular}{r |c |}
-\multicolumn{2}{r}{Register file} \\
-\cline{2-2}
-$\pcreg$ & $\updatePcPerm{c_\adv}$\\
-\cline{2-2}
-$r_0$  &  $c_{\var{prp}}$ \\
-\cline{2-2}
-$r_1$ & $c_\adv$ \\
-\cline{2-2}
-$r_{\var{stk}}$  & $c_{\var{stk}}'$ \\
-\cline{2-2}
-& $0$ \\
-\cline{2-2}
-& $\vdots$ \\
-\cline{2-2}
-\end{tabular}
-\caption{Stack and register-file just after second jump to $\adv$.}
-\label{fig:f3-stack-before-snd-adv}
-\end{figure}
   \end{enumproof}
-\end{enumproof}
 \end{proof}
 
 \subsection{Another simple well-bracketedness/local capability example}
@@ -2025,13 +2109,21 @@ Memory segment satisfaction:
   &\heapSat[\hs]{n}{W} 
   \text{ iff }
   \left\{\begin{aligned}
-    &\exists R : \activeReg{W} \rightarrow \HeapSegments \ldotp \\
-    &\quad \hs = \biguplus_{r\in\activeReg{W}}R(r) \land \\
-    &\quad \forall r \in \activeReg{W} \ldotp\\
-    &\qquad \forall n'<n \ldotp \\
-    &\qquad \quad \exists H,s \ldotp\\
-    &\qquad \qquad W(r) = (\_,s,\_,H) \land \\
-    &\qquad \qquad \npair[n']{R(r)} \in H(s)(\xi^{-1}(W))\\
+    &\exists P : \activeReg{W} \rightarrow \HeapSegments \ldotp \\
+    &\quad \memSatPar{\ms}{W}{P}
+  \end{aligned}\right.
+\end{align*}
+
+\begin{align*}
+  &\memSatPar{\ms}{W}{P}
+  \text{ iff }
+  \left\{\begin{aligned}
+    &\hs = \biguplus_{r\in\activeReg{W}}P(r) \land \\
+    &\forall r \in \activeReg{W} \ldotp\\
+    &\quad  \forall n'<n \ldotp \\
+    &\qquad \exists H,s \ldotp\\
+    &\qquad \quad W(r) = (\_,s,\_,H) \land \\
+    &\qquad \quad \npair[n']{P(r)} \in H(s)(\xi^{-1}(W))\\
   \end{aligned}\right.
 \end{align*}
 \dominique{quantification over $n' < n$ needed?}
@@ -2264,12 +2356,13 @@ We expect the following lemmas to hold true:
 \begin{lemma}[Revoke temporary memory satisfaction 2]
 \label{lem:priv-mono-like2}
   \begin{align*}
-    & \forall \ms, n, W \ldotp \heapSat[\ms]{n}{W} \Rightarrow \\
-    & \quad \exists \ms', \ms_r, R : \dom(\erase{W}{\temp}) \fun \MemSegments \ldotp \\
-    & \qquad \ms = \ms' \uplus \ms_r \land \\
-    & \qquad \heapSat[\ms']{n}{\wrev{W}} \land \\
-    & \qquad \forall r \ldotp \forall n' < n \ldotp \npair[n']{R(r)} \in W(r).\mathrm{H}(W(r).\mathrm(s))(W)\\
-    & \qquad \ms_r = \biguplus_{r \in \dom(R)} R(r)
+    & \forall \ms, n, W, R : \activeReg(W) \fun \MemSegments  \ldotp \\
+    & \quad \memSatPar{\ms}{W}{P} \Rightarrow \\
+    & \qquad \exists \ms', \ms_r\ldotp \\
+    & \qquad \quad \ms = \ms' \uplus \ms_r \land \\
+    & \qquad \quad \memSatPar{\ms'}{\wrev{W}}{P|_{\dom(\erase{W}{\perma})}} \land \\
+    & \qquad \quad \ms_r = \biguplus_{r \in \erase{W}{\temp}} P(r) \land \\
+    & \qquad \quad \ms' = \biguplus_{r \in \erase{W}{\perma}} P(r)
   \end{align*}
 \end{lemma}
 
@@ -2277,7 +2370,8 @@ We expect the following lemmas to hold true:
 \label{lem:disj-mem-sat}
   \begin{align*}
     & \forall n \ldotp \forall \ms, \ms' \ldotp \forall W, W' \ldotp\\
-    & \quad \heapSat[\ms \uplus \ms' ]{n}{W \uplus W'}
+    & \quad \memSat{\ms}{W} \land \memSat{\ms'}{W'} \Rightarrow \\
+    & \qquad \heapSat[\ms \uplus \ms' ]{n}{W \uplus W'}
   \end{align*}
 \end{lemma}
 
