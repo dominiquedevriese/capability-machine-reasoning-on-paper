@@ -13,6 +13,13 @@
 \usepackage{ifpdf}
 \usepackage{verbatim}
 \usepackage{mathpartir}
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily,
+  columns=fullflexible,
+  keepspaces=true,
+  mathescape
+}
 
 \usepackage{rotating}
 
@@ -843,7 +850,7 @@ Note:
 \subsection{Stack}
 Some programs will assume access to a stack which will be in part indicated by the program macros but also in the correctness lemma. The stack is accessed through a local $\rwlx$-capability. Programs will assume that the stack resides in some register, say $r_{\var{stk}}$.
 
-The stack resides entirely in memory. There is no separation between the memory and the stack, so when we talk about the stack it is as a conceptual thing.
+The stack resides entirely in memory. There is no separation between the memory and the stack, so when we talk about the stack it is as a conceptual thing. %
 
 Even though the memory is infinite, we will only use a finite part for the stack. If we have allocated too little memory for the stack, and we try to push something anyway, then the execution will fail. As we consider failing admissible, we are okay with this. 
 
@@ -933,8 +940,8 @@ $[(x_1,r_1),\dots(x_n,r_n)]$ is a list of variable bindings. If an instruction r
     \item Jump to the code.
     \end{itemize}
   \end{description}
-\item[\texttt{load $r$ $x$}] Assumes environment capability available in register $r_{\var{env}}$. Loads the at the index associated with $x$ in the list. Loads from this capability into $r$.
-\item[\texttt{store $x$ $r$}] Assumes environment capability available in register $r_{\var{env}}$. Loads the at the index associated with $x$ in the list. Stores the contents of register $r$ through this capability.
+\item[\texttt{load $r$ $x$}] Assumes environment capability available in register $r_{\var{env}}$. Loads the word at the index associated with $x$ in the environment list. Loads from this capability into $r$.
+\item[\texttt{store $x$ $r$}] Assumes environment capability available in register $r_{\var{env}}$. Loads the word at the index associated with $x$ in the environment list. Stores the contents of register $r$ through this capability.
 \item[\texttt{reqglob $r$}] Tests if register $r$ contains a $\glob$ capability. If not fail, otherwise continue execution.
 \item[\texttt{reqperm $r$ $n$}] Tests if register $r$ contains a capability with $\decodePerm{n}$. If not fail, otherwise continue execution.
 \item[\texttt{mclear $r$}] Clears all cells $r$ has authority over. 
@@ -2039,6 +2046,27 @@ g = fun _ => let x = 0 in
                  f();
                  assert(x == 1)
 \end{verbatim}
+\begin{lstlisting}
+g2:  malloc $r_2$ 1
+     store $r_2$ 0
+     move $\pcreg$ $r_3$
+     lea $r_3$  $\dots$
+     crtcls $[(x, r_2)]$ $r_3$
+     rclear $\RegName \setminus \{\pcreg,r_0,r_1 \}$
+2g:  jmp $r_0$
+
+f4:  reqglob $r1$
+     reqperm $r_\stk$ $\encodePerm(\rwlx)$
+     store $x$ 0
+     scall $r_1$($[]$,$[r_0,r_1]$)
+     store $x$ 1
+     scall $r_1$($[]$,$[r_0]$)
+     load $r_1$ x
+     assert $r_1$ 1
+     cclear $\RegName \setminus \{r_0,\pcreg\}$
+4f:  jmp $r_0$
+\end{lstlisting}
+
 
 \lau{In order for this to be secure using a stack the closure needs to make a couple of checks: 1) The alleged stack capability has to be local and $\rwlx$ - if not, then fail. 2) The callback \texttt{f} has to be a global capability - if not, then fail. 3) The stack needs to be cleared before the first callback. \\If it looks like a stack, works like a stack, and quacks like a stack, then it is probably a stack. The first requirement makes sure that what was passed as the stack can be used as a stack even though it might not be a stack capability that follows the conventional stack discipline. If the capability is actually for part of the callers stack, then we will just overwrite their part of the stack. We are not guaranteed that the caller did not save the stack capability - they did after all have a stack to save it on. In fact, if the caller wants to reuse our part of the stack later, then they have to keep a capability for our part of the stack around. When the caller is not trusted, then this seems like an unsafe practice. This brings us to the second requirement: If the callback is global, then there is no way it can restore the previous stack capability and gain access to our part of the stack. This is the case as the \emph{only} place they could have stored the stack capability is on the stack, and the only way they can restore this is through one of the local stack capabilities. In other words, this requirement makes sure that the callback capability is not derived from the stack pointer (which would allow them to get a stack capability for our part of the stack).\\ The last requirement is to sanitise the stack. This makes sure that the caller does not try to sneak a capability to the callback simply by leaving it somewhere on the stack and hoping that we won't notice and pass it on. }
 
