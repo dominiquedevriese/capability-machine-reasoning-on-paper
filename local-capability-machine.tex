@@ -896,19 +896,56 @@ A more detailed description of the above steps:
       \item Pop the restore code of the stack
       \end{itemize}\
 \end{description}
-\item[\texttt{reqglob $r$}] Tests if register $r$ contains a $\glob$ capability. If not fail, otherwise continue execution.
-\item[\texttt{reqperm $r$ $n$}] Tests if register $r$ contains a capability with $\decodePerm{n}$. If not fail, otherwise continue execution.
-\item[\texttt{mclear $r$}] Clears all cells $r$ has authority over. 
 \end{description}
 Note:
 \begin{itemize}
 \item If we want to have local capabilities as part of our private state, then we need to have a stack and use \texttt{scall}. If we do not have any local capabilities we want to keep around, then we can use \texttt{call}, but it will incur a small memory leak as the activation records cannot be recycled! It is also possible to use a combination of \texttt{scall} and \texttt{call}, but when \texttt{call} is used, then we have no way to store the stack, so we cannot use \texttt{scall} after that.
 \item As a rule of thumb: If you have provided an untrusted entity access to part of the stack, then it needs to be cleared before it is passed to an untrusted party.
 \item As a rule of thumb: If you receive a stack from an untrusted source, then you need to check that it is a local $\rwlx$-capability and clear it! If any callbacks are provided, then they need to be global.
+\end{itemize}
+\begin{description}
+\item[\texttt{crtcls $[(x_1,r_1),\dots(x_n,r_n)]$ $r_{\var{code}}$}] \forcenewline
+$[(x_1,r_1),\dots(x_n,r_n)]$ is a list of variable bindings. If an instruction refers to a variable, then it will assume that an environment is available in a designated register (say $r_{\var{env}}$). The register $r_{\var{code}}$ should contain a capability governs the code of the closure and that is executable when jumped to.
+  \begin{description}
+  \item[Allocate memory for variable environment]
+  \item[Store register contents to environment]
+  \item[Allocate memory for record with environment capability, code capability, and acitvation code]
+  \item[Store capabilities and activation code to record]
+  \item[Restrict the capability for the ``clojure pair'' to an enter capability]
+  \item[Activation code:] \forcenewline
+    \begin{itemize}
+    \item Load the environment capability to a designated register
+    \item Load the code capability.
+    \item Jump to the code.
+    \end{itemize}
+  \end{description}
+  A more detailed description of each step:
+  \begin{description}
+  \item[Allocate memory for variable environment] Have malloc allocate a piece of memory of size $n$ (the size of the variable environment). 
+  \item[Store register contents to environment] Store the contents of each of the registers $r_1,\dots,r_n$ to the newly allocated memory
+  \item[Allocate memory for record with environment capability, code capability, and acitvation code] Allocate a new piece of memory with room for a capability for the environment
+  \item[Store capabilities and activation code to record] Store the environment capability and code capability in the record followed by the activation code. 
+  \item[Restrict the capability for the ``clojure pair'' to an enter capability] Adjust the capability to point to the start of the acitvation code and restrict it to an enter capability.
+  \item[Activation code:] \forcenewline
+    \begin{itemize}
+    \item Load the environment capability to a designated register.
+    \item Load the code capability.
+    \item Jump to the code.
+    \end{itemize}
+  \end{description}
+\item[\texttt{load $r$ $x$}] Assumes environment capability available in register $r_{\var{env}}$. Loads the at the index associated with $x$ in the list. Loads from this capability into $r$.
+\item[\texttt{store $x$ $r$}] Assumes environment capability available in register $r_{\var{env}}$. Loads the at the index associated with $x$ in the list. Stores the contents of register $r$ through this capability.
+\item[\texttt{reqglob $r$}] Tests if register $r$ contains a $\glob$ capability. If not fail, otherwise continue execution.
+\item[\texttt{reqperm $r$ $n$}] Tests if register $r$ contains a capability with $\decodePerm{n}$. If not fail, otherwise continue execution.
+\item[\texttt{mclear $r$}] Clears all cells $r$ has authority over. 
+\end{description}
+Note:
+\begin{itemize}
 \item In a real setting due to a limited number of registers, some of the arguments might be spilled to the stack. It would be possible to do something similar here, but to keep
  matters simple, we opt not to do so.
 \item \texttt{reqperm} can be used to test whether something can pass as a stack.
 \item \texttt{reqglob} can be used to test whether a callback is admissable in the presence of a stack.
+\item The code of a closure will often be found in conjunction with the code that creates it.
 \end{itemize}
 \begin{figure}
   \label{fig:stack-before-call}
