@@ -929,10 +929,10 @@ $[(x_1,r_1),\dots(x_n,r_n)]$ is a list of variable bindings. If an instruction r
   A more detailed description of each step:
   \begin{description}
   \item[Allocate memory for variable environment] Have malloc allocate a piece of memory of size $n$ (the size of the variable environment). 
-  \item[Store register contents to environment] Store the contents of each of the registers $r_1,\dots,r_n$ to the newly allocated memory
-  \item[Allocate memory for record with environment capability, code capability, and acitvation code] Allocate a new piece of memory with room for a capability for the environment
+  \item[Store register contents to environment] Store the contents of each of the registers $r_1,\dots,r_n$ to the newly allocated memory.
+  \item[Allocate memory for record with environment capability, code capability, and acitvation code] Allocate a new piece of memory with room for a capability for the environment.
   \item[Store capabilities and activation code to record] Store the environment capability and code capability in the record followed by the activation code. 
-  \item[Restrict the capability for the ``clojure pair'' to an enter capability] Adjust the capability to point to the start of the acitvation code and restrict it to an enter capability.
+  \item[Restrict the capability for the ``clojure pair'' to an enter capability] Adjust the capability to point to the start of the acitvation code and restrict it to a global enter-capability.
   \item[Activation code:] \forcenewline
     \begin{itemize}
     \item Load the environment capability to a designated register.
@@ -1326,7 +1326,7 @@ where
 and
 \begin{itemize}
 \item $\ms_{f1}(\mathtt{f1}-\olf) = ((\readonly,\glob),\link,\link+1,\link)$, $\ms_{f1}(\mathtt{f1}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{f1}$ contains the code of $f1$.
-\item $\ms_\flag = [flag \mapsto 0]$
+\item $\ms_\flag = [\flag \mapsto 0]$
 \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
 \item $\hs_\adv$ contains a global read-only capability for $\hs_\link$ on its first address. The remaining cells of the memory segment only contain instructions.
 \end{itemize}
@@ -1538,7 +1538,8 @@ f2: push 1
   \begin{align*}
     c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
     c_{f2} & \defeq ((\rwx,\glob),\mathtt{f2}-\olf,\mathtt{2f},\mathtt{f2}) \\
-    c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_{\adv},\start_\stk-1) \\
+    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
+    c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_\stk,\start_\stk-1) \\
     \reg & \in \Regs \\
     m & \defeq \hs_{f2} \uplus 
         \hs_\flag \uplus                
@@ -1560,7 +1561,7 @@ f2: push 1
   and
   \begin{itemize}
   \item $\ms_{f2}(\mathtt{f2}-\olf) = ((\readonly,\glob),\link,\link+1,\link)$, $\ms_{f2}(\mathtt{f2}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{f2}$ contains the code of $f2$.
-  \item $\ms_\flag = [flag \mapsto 0]$
+  \item $\ms_\flag = [\flag \mapsto 0]$
   \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
   \item $\hs_\adv$ is only instructions and possibly a global read-only capability for $\hs_\link$
   \end{itemize}
@@ -1822,7 +1823,8 @@ f3: push 1
   \begin{align*}
     c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
     c_{f3} & \defeq ((\rwx,\glob),\mathtt{f3}-\olf,\mathtt{3f},\mathtt{f3}) \\
-    c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_{\adv},\start_\stk-1) \\
+    c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_\stk,\start_\stk-1) \\
+    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
     \reg & \in \Regs \\
     m & \defeq \hs_{f3} \uplus 
         \hs_\flag \uplus                
@@ -1844,7 +1846,7 @@ f3: push 1
   and
   \begin{itemize}
   \item $\ms_{f3}(\mathtt{f3}-\olf) = ((\readonly,\glob),\link,\link+1,\link)$, $\ms_{f3}(\mathtt{f3}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{f3}$ contains the code of $f3$.
-  \item $\ms_\flag = [flag \mapsto 0]$
+  \item $\ms_\flag = [\flag \mapsto 0]$
   \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
   \item $\hs_\adv$ contains a read-write capability for $\hs_\link$ on its first address and otherwise it consists only of code.
   \end{itemize}
@@ -2047,14 +2049,13 @@ g = fun _ => let x = 0 in
                  assert(x == 1)
 \end{verbatim}
 \begin{lstlisting}
-g2:  malloc $r_2$ 1
+g1:  malloc $r_2$ 1
      store $r_2$ 0
      move $\pcreg$ $r_3$
      lea $r_3$  $\dots$
      crtcls $[(x, r_2)]$ $r_3$
      rclear $\RegName \setminus \{\pcreg,r_0,r_1 \}$
-2g:  jmp $r_0$
-
+1g:  jmp $r_0$
 f4:  reqglob $r1$
      reqperm $r_\stk$ $\encodePerm(\rwlx)$
      store $x$ 0
@@ -2066,7 +2067,53 @@ f4:  reqglob $r1$
      cclear $\RegName \setminus \{r_0,\pcreg\}$
 4f:  jmp $r_0$
 \end{lstlisting}
+Where the $\dots$ is the appropriate offset to make the capability point to \texttt{f4}.
 
+
+\begin{lemma}[Correctness of $g1$]
+      \label{lem:correctness-g1}
+  For all $n \in \nats$
+  let
+  \begin{align*}
+    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
+    c_{g1} & \defeq ((\entry,\local),\mathtt{g1}-\olf,\mathtt{4f},\mathtt{g1}) \\
+    c_\stk & \defeq ((\rwlx,\local),\start_\stk,\addrend_\stk,\start_\stk-1) \\
+    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
+    \reg & \in \Regs \\
+    m & \defeq \hs_{g1} \uplus 
+        \ms_\flag \uplus                
+        \ms_\link \uplus 
+        \ms_\adv \uplus 
+        \ms_\malloc \uplus 
+        \ms_\stk \uplus
+        \ms_{\var{frame}} 
+  \end{align*}
+  where 
+  \begin{align*}
+    &\dom(\hs_{g1}) = [\mathtt{g1}-\olf,\mathtt{4f}] \\
+    &\dom(\hs_\flag) = [\flag,\flag] \\
+    &\dom(\ms_\link) = [\link,\link]\\
+    &\dom(\ms_\stk) = [\start_\stk, \addrend_\stk]\\
+    &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
+    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]}
+  \end{align*}
+  and
+  \begin{itemize}
+  \item $\ms_{g1}(\mathtt{g1}-\olf) = ((\readonly,\glob),\link,\link,\link)$, $\ms_{g1}(\mathtt{g1}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{g1}$ contains the code of $g1$ immediately followed by the code of $f4$.
+  \item $\ms_\flag = [\flag \mapsto 0]$
+  \item $\ms_{\var{link}} = [\link \mapsto c_\malloc]$
+  \item $\hs_\adv$ contains a read-write capability for $\hs_\link$ on its first address and otherwise it consists only of instruction.
+  \end{itemize}
+  if 
+  \[
+    (\reg\update{\pcreg}{c_\adv}\update{r_\stk}{c_\stk}\update{r_1}{c_{g1}},m) \step[n] (\halted,m'),
+  \]
+  then
+  \[
+    m'(\flag) = 0
+  \]  
+\end{lemma}
+\lau{If $c_{g1}$ is global it seems like we will run into trouble. When we have to prove $\npair{c_{g1}} \in \stdvr(W)$}
 
 \lau{In order for this to be secure using a stack the closure needs to make a couple of checks: 1) The alleged stack capability has to be local and $\rwlx$ - if not, then fail. 2) The callback \texttt{f} has to be a global capability - if not, then fail. 3) The stack needs to be cleared before the first callback. \\If it looks like a stack, works like a stack, and quacks like a stack, then it is probably a stack. The first requirement makes sure that what was passed as the stack can be used as a stack even though it might not be a stack capability that follows the conventional stack discipline. If the capability is actually for part of the callers stack, then we will just overwrite their part of the stack. We are not guaranteed that the caller did not save the stack capability - they did after all have a stack to save it on. In fact, if the caller wants to reuse our part of the stack later, then they have to keep a capability for our part of the stack around. When the caller is not trusted, then this seems like an unsafe practice. This brings us to the second requirement: If the callback is global, then there is no way it can restore the previous stack capability and gain access to our part of the stack. This is the case as the \emph{only} place they could have stored the stack capability is on the stack, and the only way they can restore this is through one of the local stack capabilities. In other words, this requirement makes sure that the callback capability is not derived from the stack pointer (which would allow them to get a stack capability for our part of the stack).\\ The last requirement is to sanitise the stack. This makes sure that the caller does not try to sneak a capability to the callback simply by leaving it somewhere on the stack and hoping that we won't notice and pass it on. }
 
