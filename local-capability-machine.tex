@@ -945,6 +945,8 @@ $[(x_1,r_1),\dots(x_n,r_n)]$ is a list of variable bindings. If an instruction r
 \item[\texttt{store $x$ $r$}] Assumes environment capability available in register $r_{\var{env}}$. Loads the word at the index associated with $x$ in the environment list. Stores the contents of register $r$ through this capability.
 \item[\texttt{reqglob $r$}] Tests if register $r$ contains a $\glob$ capability. If not fail, otherwise continue execution.
 \item[\texttt{reqperm $r$ $n$}] Tests if register $r$ contains a capability with $\decodePerm{n}$. If not fail, otherwise continue execution.
+\item[\texttt{prepstack} $r$] Tests if register $r$ contains a capability with $\decodePerm{n}$. If not fail, otherwise assume $r$ points to $((\rwlx,\gl),\start,\addrend,\addr)$ adjust it to $((\rwlx,\gl),\start,\addrend,\start - 1)$. 
+\lau{What if the stack starts at address 0? Changing the stack convention to always point at the first free cell will get rid of this problem (because our memory us uncapped.)}
 \item[\texttt{mclear $r$}] Clears all cells $r$ has authority over. 
 \end{description}
 Note:
@@ -954,6 +956,7 @@ Note:
 \item \texttt{reqperm} can be used to test whether something can pass as a stack.
 \item \texttt{reqglob} can be used to test whether a callback is admissable in the presence of a stack.
 \item The code of a closure will often be found in conjunction with the code that creates it.
+\item \texttt{prepstack} as ``prepare stacl''. This ensures that the register contains something that looks like a stack and it is prepared for our stack convention.
 \end{itemize}
 \begin{figure}
   \label{fig:stack-before-call}
@@ -2058,7 +2061,7 @@ g1:  malloc $r_2$ 1
      rclear $\RegName \setminus \{\pcreg,r_0,r_1 \}$
 1g:  jmp $r_0$
 f4:  reqglob $r1$
-     reqperm $r_\stk$ $\encodePerm(\rwlx)$
+     prepstack $r_\stk$
      store $x$ 0
      scall $r_1$($[]$,$[r_0,r_1,r_{\var{env}}]$)
      store $x$ 1
@@ -2069,7 +2072,6 @@ f4:  reqglob $r1$
      cclear $\RegName \setminus \{r_0,\pcreg\}$
 4f:  jmp $r_0$
 \end{lstlisting}
-\lau{todo: when the stack is received the first time, make sure it points to where we would expect it to point (1 - range of auth.) Make macro for this.}
 Where the $\dots$ is the appropriate offset to make the capability point to \texttt{f4}.
 
 
