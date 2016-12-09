@@ -2652,18 +2652,68 @@ Static region used for parts of memory that should not change.
 \end{align*}
 
 \subsection{Lemmas}
-\begin{lemma}[Scall works]
-  
+
+
+\begin{definition}
+  We say that $(\ms,\reg) \text{ is looking at } [i_0,\cdots,i_n]$ if
+  \begin{itemize}
+  \item $\reg(\pcreg) = ((p,g),b,e,a)$
+  \item $p = \rwx$, $p = \exec$, or $p = \rwlx$
+  \item $a+n\leq e$, $b\leq a\leq e$
+  \item $\ms(a+0,\cdots,a+n) = [i_0,\cdots,i_n]$
+  \end{itemize}
+\end{definition}
+
+\begin{definition}
+  $(\ms,\reg) \text{ has stack $\ms_\stk$ with $\ms_{\mathit{unused}}$ unused}$
+
+  \begin{itemize}
+  \item $\reg(r_\stk) =((\rwlx,\_),b_\stk,e_\stk,a_\stk)$
+  \item $\dom(\ms_{\mathit{unused}}) = [a_\stk+1,\cdots,e_\stk]$
+  \item $\dom(\ms_\stk) = [b_\stk,\cdots,a_\stk]$
+  \item $b_\stk - 1\leq a_\stk$
+  \end{itemize}
+\end{definition}
+
+\begin{lemma}[$\mathtt{scall}$ works]
   If
   \begin{itemize}
   \item $\heapSat[\ms]{n}{W}$ 
-  \item $c_{\mathit{pc}} = \reg(\pcreg)$
-  \item $c_{\mathit{pc}} = ((p,g),b,e,a)$ and
-  \item $\ms(a,a+k) = \mathtt{scall}(r,\overline{r_{\mathit{arg}}},  \overline{r_{\mathit{priv}}})$
+  \item $(\ms,\reg) \text{ is looking at } \mathtt{scall}(r(\overline{r_{\mathit{arg}}},
+    \overline{r_{\mathit{priv}}}))$
+  \item $(\ms,\reg) \text{ has stack $\ms_\stk$ with $\ms_{\mathit{unused}}$ unused}$
+  \item $(\ms\uplus \ms_{\mathit{frame}},\reg) \rightarrow^j (\halted,
+    \ms')$
+  \item[Hyp-Callee] If
+    \begin{itemize}
+    \item $\ms_{\mathit{unused}} = \ms_{\mathit{act}}
+      \uplus \ms_{\mathit{unused}}'$
+    \item $W' =
+      \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk\uplus\ms_{\mathit{act}}),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}'))]$,
+    \item $\memSat[n-1]{\ms''}{W'}$
+    \item $(\ms'',\reg') \text{ has stack $\emptyset$ with
+        $\ms_{\mathit{unused}}'$ unused}$,
+    \item $\reg'= \reg_0[\pcreg\mapsto\updatePcPerm{\reg(r)},
+      \overline{r_{\mathit{arg}}} \mapsto \reg(\overline{r_{\mathit{arg}}}),r_0
+      \mapsto c_{\mathit{ret}}]$
+    \item $(n,c_{\mathit{ret}}) \in \stdvr(W')$
+    \end{itemize}
+    then we have that $(\reg',\ms'') \in \observations(W')$
+  \item[Hyp-Cont] ...
+  \end{itemize}
+  Then $\exists W' \futurestr W\ldotp$
+  \begin{itemize}
+  \item $\ms' = \ms'' \uplus \ms_{\mathit{frame}}\uplus \ms_{\mathit{rev}}$
+  \item $\ms'' :_{n-j} W'$
   \end{itemize}
 
-  
+  Note: $k_{\mathit{act-rec}}$ is the (standard) size of an activation record (2
+  words for stack pointer and return pointer and some fixed number of words for
+  the standard return instructions).
 \end{lemma}
+\begin{proof}
+  Apply Hyp-Callee with $\ms_{\mathit{act}} = ...$. 
+\end{proof}
 
 We expect the following lemmas to hold true:
 \subsubsection{Memory Segment Satisfaction}
@@ -2672,7 +2722,7 @@ We expect the following lemmas to hold true:
     &\forall \hs, n' \leq n, W \ldotp \\
     &\quad \heapSat[\hs]{n}{W} \Rightarrow \heapSat[\hs]{n'}{W}
   \end{align*}
-\end{lemma}
+\end{lemma} 
 
 \begin{lemma}[Public monotonicity]
   \lau{This is not true! If the new region is active and does not accept the empty memory, then it is no longer possible to make a satisfactory partition of the heap.}
