@@ -2656,12 +2656,13 @@ Static region used for parts of memory that should not change.
 
 
 \begin{definition}
-  We say that $(\reg,\ms) \text{ is looking at } [i_0,\cdots,i_n]$ if
+  We say that $(\reg,\ms) \text{ is looking at } [i_0,\cdots,i_n] \text{ followed by } c_{\mathit{next}}$ if
   \begin{itemize}
   \item $\reg(\pcreg) = ((p,g),b,e,a)$
   \item $p = \rwx$, $p = \exec$, or $p = \rwlx$
   \item $a+n\leq e$, $b\leq a\leq e$
   \item $\ms(a+0,\cdots,a+n) = [i_0,\cdots,i_n]$
+  \item $c_{\mathit{next}} = ((p,g),b,e,a+n+1)$
   \end{itemize}
 \end{definition}
 
@@ -2680,8 +2681,9 @@ Static region used for parts of memory that should not change.
   If
   \begin{itemize}
   \item $\heapSat[\ms]{n}{W}$ 
-  \item $(\reg,\ms) \text{ is looking at } \mathtt{scall}(r(\overline{r_{\mathit{arg}}},
-    \overline{r_{\mathit{priv}}}))$
+  \item $(\reg,\ms) \text{ is looking at }
+    \mathtt{scall}(r(\overline{r_{\mathit{arg}}},
+    \overline{r_{\mathit{priv}}})) \text{ followed by } c_{\mathit{next}}$
   \item $(\reg,\ms) \text{ has stack $\ms_\stk$ with $\ms_{\mathit{unused}}$ unused}$
   \item[Hyp-Callee] If
     \begin{itemize}
@@ -2694,11 +2696,28 @@ Static region used for parts of memory that should not change.
         $\ms_{\mathit{unused}}'$ unused}$,
     \item $\reg'= \reg_0[\pcreg\mapsto\updatePcPerm{\reg(r)},
       \overline{r_{\mathit{arg}}} \mapsto \reg(\overline{r_{\mathit{arg}}}),r_0
-      \mapsto c_{\mathit{ret}}]$ \lau{add stack capability?}
+      \mapsto c_{\mathit{ret}}, r_\stk \mapsto \_]$ \lau{add stack capability?}
     \item $(n,c_{\mathit{ret}}) \in \stdvr(W')$
     \end{itemize}
-    then we have that $(\reg',\ms'') \in \observations(W')$
-  \item[Hyp-Cont] ...
+    then we have that $(n-1,(\reg',\ms'')) \in \observations(W')$
+  \item[Hyp-Cont] If
+    \begin{itemize}
+    \item $n' \geq n-2$
+    \item $W'' \futurewk \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk)]$
+    \item for all $r$, we have that:
+      \begin{equation*}
+        \reg'(r)
+        \begin{cases}
+          = c_{\mathit{next}} &\text{ if } r = \pcreg\\
+          = \reg(r)&\text{ if } r \in \overline{r_{\mathit{priv}}}\\
+          \in \stdvr(W'') &\text{ if $\reg'(r)$ is a global capability and } r \not\in \{\pcreg,\overline{r_{\mathit{priv}}}, r_\stk\}
+        \end{cases}
+      \end{equation*}
+    \item $(\reg',\ms'')$ has stack $\ms_\stk$ with
+        $\ms_{\mathit{unused}}''$ unused for some $\ms_{\mathit{unused}}''$
+    \item $\memSat[n']{\ms''}{W''}$
+    \end{itemize}
+    then we have that $(n', (\reg',\ms'')) \in \observations(W'')$
   \end{itemize}
   Then 
   \begin{itemize}
