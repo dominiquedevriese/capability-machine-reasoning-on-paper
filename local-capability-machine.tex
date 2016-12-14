@@ -290,6 +290,7 @@
 \newcommand{\rwx}{\plainperm{rwx}}
 % PWL permissions
 \newcommand{\readwritel}{\plainperm{rwl}}
+\newcommand{\rwl}{\readwritel}
 \newcommand{\rwlx}{\plainperm{rwlx}}
 
 % Global/local
@@ -804,7 +805,8 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
 
               \subsection{Macro definitions}
               \begin{description}
-              \item[\texttt{call} $f(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] \forcenewline
+              \item[\texttt{fetch} $r$ $f$] load the entry of the linking table corresponding to $f$ to register $r$.
+              \item[\texttt{call} $r(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] \forcenewline
                 $\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. An overview of this call:
                 \begin{itemize}
                 \item Set up activation record
@@ -829,8 +831,8 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
                   \end{itemize}
                 \item [Create local enter capability for activation] Adjust the capability for the activation record to point to the beginning of the activation record and restrict it to a local enter-capability. Place this capability in $r_0$.
                 \item [Clear unused registers]
-                  Clear all the register that are not $\pcreg$, $r_0$ or in $\bar{r}_{\var{args}}$.
-                \item [Jump] Load the entry $f$ from the linking table to a free register and jump to it.
+                  Clear all the register that are not $\pcreg$, $r$, $r_0$ or in $\bar{r}_{\var{args}}$.
+                \item [Jump] Jump to $r$
                 \item [Activation code] The activation code does the following:
                   \begin{itemize}
                   \item Move the stored ``private'' words in to their respective $\bar{r}_{\var{priv}}$ registers.
@@ -841,7 +843,7 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
               \item[\texttt{malloc $r$ $n$}] Calls malloc to allocates a piece of memory of size $n$. The capability will be stored in register $r$.
 
               \item[\texttt{assert$_{\var{flag}}$ $r_1$ $r_2$}] Compares the words in register $r_1$ and $r_2$ (if one of them is an integer, then use that in the comparison). If they are equal, then execution continues. If they are unequal, then the assertion flag named $\var{flag}$ in the flag list is set to 1 and execution halts (if no flag is specified, then the first flag in the list is set to 1).
-              \item[\texttt{cclear $r$}] Stores 0 to all the memory cells the capability $r$ governs.\footnote{This may in some cases seem like an unreasonable slow instruction. In a real system it would probably be implemented as a vector operation which allows modification of continuous segments of memory rather fast.}
+              \item[\texttt{mclear $r$}] Stores 0 to all the memory cells the capability $r$ governs.\footnote{This may in some cases seem like an unreasonable slow instruction. In a real system it would probably be implemented as a vector operation which allows modification of continuous segments of memory rather fast.}
               \item[\texttt{rclear $\bar{r}$}] Moves 0 to all the registers in the list $\bar{r}$.
               \end{description}
               Note:
@@ -862,8 +864,7 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
               \begin{description}
               \item[\texttt{push $r$}] Pushes the word in register \texttt{r} to the stack by incrementing the address of the stack capability by one and storing the word through the stack capability.
               \item[\texttt{pop $r$}] Pops the top word of the stack by loading it to register $r$, and decrementing the address of the stack capability.
-              \item[\texttt{scall} \forcenewline
-                $f(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] $\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. This call assumes $r_{\var{stk}}$ contains a stack capability. An overview of this call:
+              \item[\texttt{scall} $r(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] \forcenewline$\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. This call assumes $r_{\var{stk}}$ contains a stack capability. An overview of this call:
                 \begin{itemize}
                 \item Push the restore code to the stack.
                 \item Push ``private'' registers to the stack.
@@ -894,8 +895,10 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
                 \item [Clear the part of the stack we release control over]
                   Store 0 to all the memory cells the restricted stack pointer has authority over.
                 \item [Clear unused registers]
-                  Clear all registers but $\pcreg$, $r_0$, $r_{\var{stk}}$, and $\bar{r}_{\var{args}}$.
-                \item [Jump] Load the entry $f$ from the linking table to a free register and jump to it.
+                  Clear all registers but $\pcreg$, $r$, $r_0$, $r_{\var{stk}}$, and $\bar{r}_{\var{args}}$.
+                \item [Jump] Jump to register $r$.
+\\ \lau{scall used to be dependent on linking, but now this part has been extracted to the fetch macro to make scall independent of linking.}
+%Load the entry $f$ from the linking table to a free register and jump to it.
                 \item [Run the on stack restore code]
                   Load the stack capability to $r_{\var{stk}}$. Pop the old program counter (the return address in caller-code) from the stack to $\pcreg$.
                 \item [Return address in caller-code: Restore ``private'' state] \forcenewline
@@ -944,8 +947,8 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
               \item[\texttt{load $r$ $x$}] Assumes environment capability available in register $r_{\var{env}}$. Loads the word at the index associated with $x$ in the environment list. Loads from this capability into $r$.
               \item[\texttt{store $x$ $r$}] Assumes environment capability available in register $r_{\var{env}}$. Loads the word at the index associated with $x$ in the environment list. Stores the contents of register $r$ through this capability.
               \item[\texttt{reqglob $r$}] Tests if register $r$ contains a $\glob$ capability. If not fail, otherwise continue execution.
-              \item[\texttt{reqperm $r$ $n$}] Tests if register $r$ contains a capability with $\decodePerm{n}$. If not fail, otherwise continue execution.
-              \item[\texttt{prepstack} $r$] Tests if register $r$ contains a capability with $\decodePerm{n}$. If not fail, otherwise assume $r$ points to $((\rwlx,\gl),\start,\addrend,\addr)$ adjust it to $((\rwlx,\gl),\start,\addrend,\start - 1)$. 
+              \item[\texttt{reqperm $r$ $n$}] Tests if register $r$ contains a capability with permission $\decodePerm{n}$. If not fail, otherwise continue execution.
+              \item[\texttt{prepstack} $r$] Tests if register $r$ contains a capability with permission $\rwlx$. If not fail, otherwise assume $r$ points to $((\rwlx,\gl),\start,\addrend,\addr)$ adjust it to $((\rwlx,\gl),\start,\addrend,\start - 1)$. 
                 \lau{What if the stack starts at address 0? Changing the stack convention to always point at the first free cell will get rid of this problem (because our memory us uncapped.)}
               \item[\texttt{mclear $r$}] Clears all cells $r$ has authority over. 
               \end{description}
@@ -956,7 +959,7 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
               \item \texttt{reqperm} can be used to test whether something can pass as a stack.
               \item \texttt{reqglob} can be used to test whether a callback is admissable in the presence of a stack.
               \item The code of a closure will often be found in conjunction with the code that creates it.
-              \item \texttt{prepstack} as ``prepare stacl''. This ensures that the register contains something that looks like a stack and it is prepared for our stack convention.
+              \item \texttt{prepstack} as ``prepare stack''. This ensures that the register contains something that looks like a stack and it is prepared for our stack convention.
               \end{itemize}
               \begin{figure}
                 \label{fig:stack-before-call}
@@ -998,7 +1001,7 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
                            & $\vdots$ \\
                   \cline{2-2}
                 \end{tabular}
-                \caption{This is the first figure of 6 that illustrates how \texttt{scall} works. In this example, the call \texttt{scall $f([r_{\var{args},1},\dots,r_{\var{args},n}],[r_0,r_{\var{priv},1},\dots,r_{\var{priv},m}])$. In this example the two lists of registers are disjoint even though that does not have to be the case.}}
+                \caption{This is the first figure of 6 that illustrates how \texttt{scall} works. In this example, the call \texttt{scall $r([r_{\var{args},1},\dots,r_{\var{args},n}],[r_0,r_{\var{priv},1},\dots,r_{\var{priv},m}])$. In this example the two lists of registers are disjoint even though that does not have to be the case.}}
               \end{figure}
 
 
@@ -1530,7 +1533,8 @@ f1: malloc r_l 1
               Assembly program using the stack. This program assumes a $r_\stk \not\in \{\pcreg,r_0\}$ register that contains a stack capability (a local $\rwlx$-capability):
 \begin{verbatim}
 f2: push 1
-    scall adv([],[])
+    fetch r1 adv
+    scall r1([],[])
     pop r1
     assert r1 1
 2f: halt
@@ -1797,7 +1801,7 @@ let f = fun adv =>
 \end{verbatim}
               In this example \texttt{let l = 1 in} allocates a new local capability \texttt{l} with read-write permissions. Assuming \texttt{adv} has no access to capabilities with permit write local, they cannot store \texttt{l} and thus change its value in the second call.
 
-              \subsection{Simple well-bracketedness/local capability example}
+\subsection{Simple well-bracketedness/local capability example}
 \begin{verbatim}
 let f = fun adv =>
           let x = 1 in
@@ -1813,11 +1817,13 @@ let f = fun adv =>
 
 \begin{verbatim}
 f3: push 1
-    scall adv([],[])
+    fetch r1 adv
+    scall r1([],[])
     pop r1
     assert r1 1
     push 2
-    scall adv([],[])
+    fetch r1 adv
+    scall r1([],[])
 3f: halt
 \end{verbatim}
 
@@ -2070,7 +2076,7 @@ f4:  reqglob $r1$
      load $r_1$ x
      assert $r_1$ 1
      mclear $r_\stk$
-     cclear $\RegName \setminus \{r_0,\pcreg\}$
+     rclear $\RegName \setminus \{r_0,\pcreg\}$
 4f:  jmp $r_0$
 \end{lstlisting}
 Where the $\dots$ is the appropriate offset to make the capability point to \texttt{f4}.
@@ -2688,21 +2694,22 @@ Static region used for parts of memory that should not change.
   \item[Hyp-Callee] If
     \begin{itemize}
     \item $\ms_{\mathit{unused}} = \ms_{\mathit{act}}
-      \uplus \ms_{\mathit{unused}}'$
+      \uplus \ms_{\mathit{unused}}'$,
     \item $W' =
       \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk\uplus\ms_{\mathit{act}}),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}'))]$,
     \item $\memSat[n-1]{\ms''}{W'}$
     \item $(\reg',\ms'') \text{ has stack $\emptyset$ with
-        $\ms_{\mathit{unused}}'$ unused}$,
+        $\ms_{\mathit{unused}}'$ unused}$
+    \item $\forall a \in \dom(\ms_{\var{unused}}') \ldotp \ms''(a) = 0$
     \item $\reg'= \reg_0[\pcreg\mapsto\updatePcPerm{\reg(r)},
       \overline{r_{\mathit{arg}}} \mapsto \reg(\overline{r_{\mathit{arg}}}),r_0
-      \mapsto c_{\mathit{ret}}, r_\stk \mapsto \_]$ \lau{add stack capability?}
+      \mapsto c_{\mathit{ret}}, r_\stk \mapsto \_]$ 
     \item $(n,c_{\mathit{ret}}) \in \stdvr(W')$
     \end{itemize}
     then we have that $(n-1,(\reg',\ms'')) \in \observations(W')$
   \item[Hyp-Cont] If
     \begin{itemize}
-    \item $n' \geq n-2$
+    \item $n' \leq n-2$
     \item $W'' \futurewk \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk)]$
     \item for all $r$, we have that:
       \begin{equation*}
@@ -2715,7 +2722,7 @@ Static region used for parts of memory that should not change.
       \end{equation*}
     \item $(\reg',\ms'')$ has stack $\ms_\stk$ with
         $\ms_{\mathit{unused}}''$ unused for some $\ms_{\mathit{unused}}''$
-    \item $\memSat[n']{\ms''}{W''}$
+    \item $\memSat[n']{\ms''}{W''}$ 
     \end{itemize}
     then we have that $(n', (\reg',\ms'')) \in \observations(W'')$
   \end{itemize}
