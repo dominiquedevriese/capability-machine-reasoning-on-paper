@@ -1541,7 +1541,255 @@ f2: push 1
 2f: halt
 \end{verbatim}
               
+
 \begin{lemma}[Correctness lemma for \texttt{f2}]
+  \label{lem:correctness-f2}
+  let
+  \begin{align*}
+    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
+    c_{f2} & \defeq ((\rwx,\glob),\mathtt{f2}-\olf,\mathtt{2f},\mathtt{f2}) \\
+    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
+    c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_\stk,\start_\stk-1) \\
+    \reg & \in \Regs \\
+    m & \defeq \hs_{f2} \uplus 
+        \hs_\flag \uplus                
+        \ms_{\var{link}} \uplus 
+        \hs_\adv \uplus 
+        \ms_{\malloc} \uplus 
+        \ms_{\var{stk}} \uplus
+        \ms_{\var{frame}} 
+  \end{align*}
+  where 
+  \begin{align*}
+    &\dom(\hs_{f2}) = [\mathtt{f2}-\olf,\mathtt{2f}] \\
+    &\dom(\hs_\flag) = [\flag,\flag] \\
+    &\dom(\ms_\link) = [\link,\link+1]\\
+    &\dom(\ms_\stk) = [\start_\stk, \addrend_\stk]\\
+    &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
+    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]} \qquad \text{ for all $n \in \nats$}
+  \end{align*}
+  and
+  \begin{itemize}
+  \item $\ms_{f2}(\mathtt{f2}-\olf) = ((\readonly,\glob),\link,\link+1,\link)$, $\ms_{f2}(\mathtt{f2}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{f2}$ contains the code of $f2$.
+  \item $\ms_\flag = [\flag \mapsto 0]$
+  \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
+  \item $\hs_\adv$ is only instructions and possibly a global read-only capability for $\hs_\link$
+  \end{itemize}
+  if 
+  \[
+    (\reg\update{\pcreg}{c_{f2}}\update{r_\stk}{c_\stk},m) \step[n] (\halted,m'),
+  \]
+  then
+  \[
+    m'(\flag) = 0
+  \]  
+\end{lemma}
+\begin{proof}[Proof of lemma~\ref{lem:correctness-f2}]
+  Let $n$ be given and make the assunptions of the lemma. Consider the execution until just after the jump to $\adv$, i.e.,
+  \begin{multline*}
+    (\reg\update{\pcreg}{c_{f2}}\update{r_\stk}{c_\stk},m) \step[k] \\
+    (\reg_0\update{\pcreg}{\updatePcPerm{c_\adv}}\update{r_0}{c_{\var{prp}}}\update{r_1}{c_\adv}\update{r_\stk}{c_\stk''},m'')
+  \end{multline*}
+  Where 
+  \[
+    m''  \defeq \hs_{f2} \uplus 
+    \hs_\flag \uplus                
+    \ms_\link \uplus 
+    \hs_\adv \uplus 
+    \ms_\malloc \uplus 
+    \ms_\stk' \uplus
+    \ms_{\var{frame}}
+  \]
+  Only the stack part of memory has changed. The stack and register-file at this point of execution is illustrated in figure~\ref{fig:f2-stack-before-adv}, where
+  \begin{itemize}
+  \item The range of authority for 
+    \begin{itemize}
+    \item $c_\stk'$ is $[\start_\stk,\addrend_\stk]$ (the entire stack)
+    \item $c_\stk''$ is $[\start_\stk'',\addrend_\stk]$ (the unused part of the stack)
+    \end{itemize}
+    the two stack capabilities have the same permissions as $c_\stk$
+  \item $c_{f2}'$ points to the return address in f2's code.
+  \item $c_{\var{prp}}$ is a local enter-capability (with authority of all of the stack).
+  \item Notice: $f2$ has no return capability, so $r_0$ was not listed as a private register in the call.
+  \end{itemize}
+
+  \begin{figure}
+    \centering
+    \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+      \multicolumn{2}{l}{Stack} \\
+      \cline{2-2}
+   &         \\
+   & $\vdots$ \\
+      \cline{2-2}
+      $\start_\stk'':$   & $0$\\
+      \cline{2-2}
+      $c_\stk',c_\stk'' \rightarrow$   & $c_\stk'$ \\
+      \cline{2-2}
+   & $c_{f2}'$ \\
+      \cline{2-2}
+      $c_{\var{prp}} \rightarrow$   & Restore code \\
+   & $\vdots$ \\
+      \cline{2-2}
+   & $1$\\
+      \cline{2-2}
+    \end{tabular}
+    \hspace{1cm}
+    \begin{tabular}{r |c |}
+      \multicolumn{2}{r}{Register file} \\
+      \cline{2-2}
+      $\pcreg$ & $\updatePcPerm{c_\adv}$\\
+      \cline{2-2}
+      $r_0$  &  $c_{\var{prp}}$ \\
+      \cline{2-2}
+      $r_1$ & $c_\adv$ \\
+      \cline{2-2}
+      $r_{\var{stk}}$  & $c_{\var{stk}}'$ \\
+      \cline{2-2}
+               & $0$ \\
+      \cline{2-2}
+               & $\vdots$ \\
+      \cline{2-2}
+    \end{tabular}
+    \caption{Stack and register-file just after jump to $\adv$.}
+    \label{fig:f2-stack-before-adv}
+  \end{figure}
+  Define 
+  \begin{align*}
+    W = \;& [0 \mapsto \iota_{\malloc,0}] \\
+          & [1 \mapsto \iota^\sta(\perma,\ms_{f2})]\\ 
+          & [2 \mapsto \iota^\sta (\perma,\ms_\flag)]\\
+          & [3 \mapsto \iota^\sta (\perma,\ms_\link)]\\
+          & [4 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]\\
+          & [5 \mapsto \iota^\sta (\temp,\ms_\stk'|_{[\start_\stk,\start_\stk''-1]})] \\
+          & [6 \mapsto \iota^\pwl_{\start_\stk'', \addrend_\stk}]
+  \end{align*}
+  \lau{The interesting regions here are region 5 and 6. Region 5 governs our private part of the stack whereas region 6 governs the part of the stack we are about to release. I don't think it is strictly needed to make them $\temp$ for this example, but in general it is what we wish to do, so we can revoke them upon return.}
+  Show
+  \[
+    \npair{(\start_\adv,\addrend_\adv)}\in\readCond{}(\glob)(\iota^\pwl_{\start_\adv,\addrend_\adv})
+  \]
+  Which amounts to
+  \[
+    \iota^{\nwl,p}_{\start_\adv,\addrend_\adv} \nsubsim[n-1] \iota^\pwl_{\start_\adv,\addrend_\adv}
+  \]
+  which is indeed the case by Lemma~\ref{lem:nwlp-subset-pwl}. Use this to apply the FTLR to get 
+  \begin{enumproof}
+  \item $\npair{c_\adv} \in \stder(W)$ \label{lem:f2-adv-er}
+  \end{enumproof}
+  Define
+  \[
+    \ms  \defeq \hs_{f2} \uplus 
+    \hs_\flag \uplus                
+    \ms_\link \uplus 
+    \hs_\adv \uplus 
+    \ms_\malloc \uplus 
+    \ms_\stk'
+  \]
+  ($m''$ without the frame) and show
+  \begin{enumproof}[resume]
+  \item $\heapSat[\ms]{n}{W}$ \label{lem:f2-mem-sat}\lau{The argument here is a bit informal}
+    \begin{itemize}
+    \item For $\hs_{f2}$, $\hs_\flag$, and $\ms_\link$ the regions $\iota^\sta(\perma,\ms_{f2})$,$\iota^\sta (\perma,\ms_\flag)$, and $\iota^\sta (\perma,\ms_\link)$ are designed to respectively accept each of these memory segments.
+    \item $\hs_\adv$, showing this case is similar to item \ref{lem:f1-adv-mem-sat} in the proof of Lemma~\ref{lem:correctness-f1}.
+    \item $\ms_\malloc$, this case follows from the specification of malloc and the assumption that $\iota_{\malloc,0}$ models $\ms_\malloc$.    
+    \item $\ms_\stk'$, here we need to split the memory segment in two and for $n' < n$ argue
+      \begin{itemize}
+      \item case $\npair[n']{\ms_\stk'|_{[\start_\stk, \start_\stk''-1]}} \in
+        H^\sta(\ms_\stk'|_{[\start_\stk,\start_\stk''-1]})(W)$ \dominique{apply to world?}:\\ This region matches only this memory segment.
+      \item case $\npair[n']{\ms_\stk'|_{[\start_\stk'', \addrend_\stk]}} \in H_{\start_\stk'', \addrend_\stk}(1)(W)$:\\ Show $\forall a \in [\start_\stk'', \addrend_\stk] \ldotp \ms_\stk'|_{[\start_\stk'', \addrend_\stk]}(a) \in \stdvr(W)$, trivially true since these memory cells contain 0. 
+      \end{itemize}
+    \end{itemize}
+  \item $\npair{\reg_0\update{r_0}{c_{\var{prp}}}\update{r_1}{c_\adv}\update{r_\stk}{c_\stk''}} \in \stdrr(W)$ \label{lem:f2-reg-rel}
+    \begin{enumproof}
+    \item case $\npair{c_\stk''} \in \stdvr(W)$: Show: \label{f2:stack-in-vr}
+      \begin{enumproof}
+      \item $\npair{(\start_\stk'', \addrend_\stk)} \in \readCond{}(\local)(W)$ \\
+        This amounts to showing 
+        \[
+          \iota^\pwl_{\start_\stk'', \addrend_\stk} \nsubsim[n-1] \iota^\pwl_{\start_\stk'', \addrend_\stk}
+        \]
+        which is indeed the case.
+      \item $\npair{(\start_\stk'', \addrend_\stk)} \in \writeCond{}(\iota^\pwl,\local)(W)$\\
+        This amounts to showing 
+        \[
+          \iota^\pwl_{\start_\stk'', \addrend_\stk} \nsupsim[n-1] \iota^\pwl_{\start_\stk'', \addrend_\stk}
+        \]
+        which is indeed the case.
+      \item $\npair{(\rwlx,\start_\stk'', \addrend_\stk)} \in \execCond{}(\local)(W)$ \label{f2:rwlx-exec-case} \\
+        We will show this case in some detail, the others are similar. \\
+        \dominique{Factor out a reusable lemma?}
+        Let $n' < n$, $W' \futurewk W$, and $a \in [\start_\stk'', \addrend_\stk]$ be given. Show
+        \[
+          \npair[n']{((\rwlx,\local),\start_\stk'', \addrend_\stk,a)} \in \stder(W')
+        \]
+        If we can apply the FTLR at this point, then we are done. SFTS:
+        \begin{enumproof}
+        \item $\npair[n']{\start_\stk'', \addrend_\stk} \in \readCond{}(\local)(W')$\\
+          this amounts to showing
+          \[
+            \iota^\pwl_{\start_\stk'', \addrend_\stk} \nsubsim[n'-1] \iota^\pwl_{\start_\stk'', \addrend_\stk}
+          \]
+          which is indeed the case.
+        \item $\npair[n']{\start_\stk'', \addrend_\stk} \in \writeCond{}(\local)(W')$ \\
+          this amounts to showing
+          \[
+            \iota^\pwl_{\start_\stk'', \addrend_\stk} \nsupsim[n'-1] \iota^\pwl_{\start_\stk'', \addrend_\stk}
+          \]
+          which is indeed the case.
+        \end{enumproof}
+      \item $\npair{(\rwx,\start_\stk'', \addrend_\stk)} \in \execCond{}(\local)(W)$\\
+        Similar to case~\ref{f2:rwlx-exec-case}
+      \item $\npair{(\exec,\start_\stk'', \addrend_\stk)} \in \execCond{}(\local)(W)$\\
+        Similar to case~\ref{f2:rwlx-exec-case}
+      \end{enumproof}
+    \item case $\npair{c_\adv} \in \stdvr(W)$:\\
+      Follows from the FTLR.
+    \item case $\npair{c_{\var{prp}}} \in \stdvr(W)$: \label{f2:c-prp}\\
+      Let $n' < n$ and $W' \future W$ be given and show
+      \[
+        \npair[n']{\updatePcPerm{c_{\var{prp}}}} \in \stder(W').
+      \]
+      To this end let $n'' \leq n'$, $\heapSat[\ms']{n''}{W'}$, and $\npair[n'']{\reg'} \in \stdrr$ be given and show
+      \[
+        \npair[n'']{(\reg'\update{\pcreg}{\updatePcPerm{c_{\var{prp}}}},\ms')} \in \observations(W')
+      \]
+      Let $i \leq n''$, $m''$ and $\ms_f$ be given and assume
+      \[
+        (\reg'\update{\pcreg}{\updatePcPerm{c_{\var{prp}}}},\ms'\uplus\ms_f) \step[i]
+        (\halted,m'')
+      \]
+
+      From $\heapSat[\ms']{n''}{W'}$ we know that that $\ms'$ contains memory segments $\hs_{f2}$, $\hs_\flag$, and $\ms_\stk'|_{[\start_\stk, \start_\stk''-1]}$ (our local part of the stack). The restoration code remains unaltered, and so does the data on the stack, so the execution continues by popping the $c_\stk'$ to $r_\stk$ followed by a pop of $c_{f2}'$ to $\pcreg$. Continuing in $f2$, the restore code is popped off the stack which is the last of the $\mathtt{scall}$ macro-instruction. Now the top word of the stack is popped to $r_1$, and thanks to the world satisfaction, we know that this word is 1. The $\mathtt{assert}$ therefore succeeds making no changes to the memory and afterwards the execution halts.
+      \dominique{Maybe you can factor out some sort of reusable antireduction lemma
+        for this sort of argument?}
+
+      All in all, there are no changes to the memory, so we can conclude
+      \[
+        m'' = \ms' \uplus \ms_f
+      \]
+      From Lemma~\ref{lem:priv-mono-like}, we can get $\ms''$ and $\ms_r$ such that
+      \begin{itemize}
+      \item $\ms' = \ms'' \uplus \ms_r$
+      \item $\heapSat[\ms'']{n}{\revokeTemp{W}}$
+      \end{itemize}
+      Now downwards closure of memory segment satisfaction gives us the desired result.
+    \item case $r\not\in \{\pcreg,r_0,r_1,r_\stk\}$: $\reg_0(r) = 0$. Trivial.
+    \end{enumproof}
+  \end{enumproof}
+  From \ref{lem:f2-adv-er}, \ref{lem:f2-mem-sat}, and \ref{lem:f2-reg-rel} it follows that
+  \[
+    \npair{(\reg_0\update{r_0}{c_{\var{prp}}}\update{r_1}{c_\adv}\update{r_\stk}{c_\stk''}\update{\pcreg}{c_\adv},\ms)} \in \observations(W)
+  \]
+  Now using $i$, the number of steps we need to halt, $\ms_f$ as the frame, $m'$ as the resulting memory and the assumption that the execution terminates successfully gives $W' \futurestr W$, $\ms'$, and $\ms_r$ such that
+  \begin{itemize}
+  \item $m' = \ms' \uplus\ms_r \uplus \ms_f$
+  \item $\heapSat[\ms']{n-i}{W'}$
+  \end{itemize}
+  The permanent region $\iota^\sta (\perma,\ms_\flag)$ ensures that $\ms_\flag$ is unchanged, so
+  \[
+    m'(\flag) = 0
+  \]
+\end{proof}
 
 \lau{I have skipped the following program in favor of the one in the next section. }
               ML-like program:
