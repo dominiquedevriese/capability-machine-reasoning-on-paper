@@ -1970,17 +1970,32 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
   \item Hyp-Callee\\
     Assume
     \begin{itemize}
-    \item $\ms_\stk |_{\start_stk+1,\addrend_\stk} = \ms_{\mathit{act}} \uplus \ms_{\mathit{unused}}$
-    \item $W' = \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk\uplus\ms_{\mathit{act}}),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}'))]$
-    \item $\memSat[n-1]{\ms''}{W'}$
-    \item $\reg' \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}'}$ unused}$
+    \item $\dom(\ms_\stk |_{\start_stk+1,\addrend_\stk}) = \dom(\ms_{\mathit{act}} \uplus \ms_{\mathit{unused}})$
+    \item $W' = \revokeTemp{W}[\iota^{\sta}(\temp,[\start_\stk \mapsto 1]\uplus\ms_{\mathit{act}}),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}'))]$
+    \item $\memSat[n-i-1]{\ms''}{W'}$
+    \item $\reg'' \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}'}$ unused}$
     \item $\forall a \in \dom(\ms_{\var{unused}}') \ldotp \ms''(a) = 0$
-    \item $\reg'= \reg_0[\pcreg\mapsto\updatePcPerm{\reg(r)},
-      \overline{r_{\mathit{arg}}} \mapsto \reg(\overline{r_{\mathit{arg}}}),r_0
-      \mapsto c_{\mathit{ret}}, r_\stk \mapsto \_, r \mapsto \reg(r)]$ 
-    \item $(n,c_{\mathit{ret}}) \in \stdvr(W')$
+    \item $\reg''= \reg_0[\pcreg\mapsto\updatePcPerm{\reg'(r)},r_0 \mapsto c_{\mathit{ret}}, r_\stk \mapsto \_, r \mapsto \reg'(r)]$ 
+    \item $\npair[n-i-1]{c_{\mathit{ret}}} \in \stdvr(W')$
     \end{itemize}
-    where $\ms_{\mathit{act}}$ is the on stack activation code for this $\mathtt{scall}$.
+    for some $\ms_{\mathit{act}}$, $\ms_{\mathit{unused}}$, $\ms'$, $\reg''$, $c_{\mathit{ret}}$.
+    
+    Using the FTLR, we get $\npair[n-i-1]{\updatePcPerm{c_\adv}} \in \stder(W')$, from
+    \begin{enumproof}
+      \item $\memSat[n-i-1]{\ms''}{W'}$ : By the above assumptions
+      \item $\npair[n-i-1]{\reg''} \in \stdvr(W')$:\\
+        show
+        \begin{enumproof}
+          \item $\npair[n-i-1]{c_{\mathit{ret}}} \in \stdvr(W')$ : by above assumptions.
+          \item $\npair[n-i-1]{reg''(r_\stk)} \in \stdvr(W')$ : by Lemma~\ref{lem:stack-cap-vr}.
+          \item $\npair[n-i-1]{c_\adv} \in \stdvr(W')$ : follows from \ref{eq:f3:adv-in-stder}.
+          \item The remaining registers we need to consider contain 0 and are thus trivial to show.
+        \end{enumproof}
+    \end{enumproof}
+    we get
+    \[
+      \npair[n-i-1]{(\ms'',\reg'')} \in \observations(W')
+    \]
   \item Hyp-Cont\\
     % TODO
 \end{enumproof}
@@ -2869,8 +2884,52 @@ Static region used for parts of memory that should not change.
     & \quad (\forall \ms_f \ldotp (\reg,\ms \uplus \ms_r \uplus \ms_f) \step[i] (\reg',\ms' \uplus \ms_r \uplus \ms_f)) \land \npair[n-i]{(\reg',\ms')} \in \observations(W) \\
     & \qquad \Rightarrow \npair{(\reg,\ms \uplus \ms_r)} \in \observations(W)
   \end{align*}
-
 \end{lemma}
+
+\begin{lemma}[Stack capability in value relation]
+  \label{lem:stack-cap-vr}
+  \begin{align*}
+    & \pointstostack{\reg}{\ms'}{\ms} \land \\
+    & (\exists r \ldotp W(r) = \iota^\pwl (\dom(\ms))) \\
+    & \quad \Rightarrow \reg(r_\stk) \in \stdvr(W)
+  \end{align*}
+\end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:stack-cap-vr}]
+  Say 
+\[
+  \reg(r_\stk) = c_\stk = ((\rwlx,\local),\start,\addrend,\_)
+\]
+  Show
+  \begin{enumproof}
+    \item $\npair{(\start,\addrend)} \in \readCond{}(\local)(W)$ : \label{pf:stack-cap-read}\\
+      Amounts to
+      \[
+        \iota^\pwl (\dom(\ms)) \nsubsim \iota^\pwl_{\start,\addrend}
+      \]
+      which is true as they are even equal.
+    \item $\npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\local)(W)$ : \label{pf:stack-cap-write}\\
+      Amounts to
+      \[
+        \iota^\pwl (\dom(\ms)) \nsupsim \iota^\pwl_{\start,\addrend}
+      \]
+      which is true as they are even equal.
+    \item $\npair{(\rwlx,\start,\addrend)} \in \execCond{}(\local)(W)$ : \label{pf:stack-cap-exec}\\
+      Let $n' < n$, $W' \futurewk W$, and $a\in \dom(\start,\addrend)$ be given and show
+      \[
+        \npair[n']{((\rwlx,\local),\start,\addrend,a)} \in \stder(W')
+      \]
+      to this end use the FTLR. To do so, we need to show
+      \begin{itemize}
+        \item $\npair[n']{(\start,\addrend)} \in \readCond{}(\local)(W')$
+        \item $\npair[n']{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\local)(W')$
+      \end{itemize}
+      As we are considering a public future world, some region still contains $\iota^\pwl (\dom(\ms))$, so it is the same argument as \ref{pf:stack-cap-read} and \ref{pf:stack-cap-write}, respectively.
+    \item $\npair{(\rwx,\start,\addrend)} \in \execCond{}(\local)(W)$ : \\
+      Same argument as \ref{pf:stack-cap-exec}, but also use \ref{lem:nwl-subset-pwl}.
+    \item $\npair{(\exec,\start,\addrend)} \in \execCond{}(\local)(W)$
+      Same argument as \ref{pf:stack-cap-exec}.
+  \end{enumproof}
+\end{proof}
 
 We expect the following lemmas to hold true:
 \subsubsection{Memory Segment Satisfaction}
