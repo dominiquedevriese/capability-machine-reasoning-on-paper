@@ -311,6 +311,14 @@
 \newcommand{\diverge}[1][n]{\not\Downarrow_{#1}}
 \newcommand{\step}[1][]{\rightarrow_{#1}}
 
+% Conv defs
+\newcommand{\lookingat}[3]{\ensuremath{#1} \text{ is looking at } \ensuremath{#2} \text{ followed by } \ensuremath{#3}}
+\newcommand{\pointstostack}[3]{\ensuremath{#1} \text{ points to stack with } \ensuremath{#2} \text{ used and } \ensuremath{#3} \text{ unused}}
+
+% Macros
+\newcommand{\scall}[3]{\mathtt{scall} \; #1(#2,#3)}
+
+
 \begin{document}
 \begin{flushright}
   \today
@@ -1838,6 +1846,7 @@ f3: push 1
     c_{f3} & \defeq ((\rwx,\glob),\mathtt{f3}-\olf,\mathtt{3f},\mathtt{f3}) \\
     c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_\stk,\start_\stk-1) \\
     c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
+    c_\link & \defeq ((\readonly,\glob),\link,\link+1,\link) \\
     \reg & \in \Regs \\
     m & \defeq \hs_{f3} \uplus 
         \hs_\flag \uplus                
@@ -1861,7 +1870,7 @@ f3: push 1
   \item $\ms_{f3}(\mathtt{f3}-\olf) = ((\readonly,\glob),\link,\link+1,\link)$, $\ms_{f3}(\mathtt{f3}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{f3}$ contains the code of $f3$.
   \item $\ms_\flag = [\flag \mapsto 0]$
   \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
-  \item $\hs_\adv$ contains a read capability for $\hs_\link$ on its first address and otherwise it consists only of code.
+  \item $\hs_\adv(\start_\adv) = c_\link$ and all other addresses of $\ms_\adv$ contain instructions.
   \end{itemize}
   if 
   \[
@@ -1876,10 +1885,113 @@ f3: push 1
 \lau{proof using scall lemma}
 Assume the premises of the lemma.
 Now define 
+  \begin{align*}
+    W = \;& [0 \mapsto \iota_{\malloc,0}] \\
+          & [1 \mapsto \iota^\sta (\perma,\ms_\flag \uplus \ms_{f2})]\\
+          & [2 \mapsto \iota^\sta (\perma,\ms_\link)]\\
+          & [3 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]\\
+  \end{align*}
+Further define
 \[
-  W = [0 ]
+\ms' = \ms_\flag \uplus \ms_{f2} \uplus \ms_\link \uplus \ms_\adv
 \]
+If we can show 
+\begin{equation}
+\label{eq:f3-obs1}
+  \npair[n+1]{(\reg\update{\pcreg}{c_{f3}}\update{r_\stk}{c_\stk},\ms_{\malloc} \uplus \ms' \uplus \ms_{\adv} \uplus \ms_\stk)} \in \observations(W),
+\end{equation}
+then using $\ms_{\var{frame}}$ as the frame and $m'$ as the resulting memory, we get that $m' = \ms'' \uplus \ms_r \uplus \ms_{\var{frame}}$ for some $\ms'$ and $\ms_r$ s.t. $\heapSat[1]{\ms''}{W}$. Region $1$ guarantees that the flag is unchanged, so we have
+\[
+  m'(\flag) = 0
+\]
+So SFTS \ref{eq:f3-obs1}. To do so, we use Lemma \ref{lem:anti-red-obs}. By assumption, we have part of the execution, so we know
+\[
+  (\reg\update{\pcreg}{c_{f3}}\update{r_\stk}{c_\stk},m) \step[i] (\reg',\ms' \uplus [\start_\stk \mapsto 1] \uplus \ms_\stk|_{\start_stk+1,\addrend_\stk} \uplus \ms_f),
+\]
+where
+\[
+  \lookingat{(\reg',\ms')}{\scall{r}{[]}{[]}}{c_{\var{next}}}
+\]
+where $c_{\var{next}}$ is $c_{f3}$ adjusted to point to the next instruction. Further we have \pointstostack{\reg'}{[\start_\stk \mapsto 1]}{\ms_\stk |_{\start_stk+1,\addrend_\stk}} and $i$ is a suitable number of steps.
+
+To show
+\[
+  \npair[n-i]{(\reg',\ms' \uplus [\start_\stk \mapsto 1] \uplus \ms_\stk |_{\start_stk+1,\addrend_\stk}} \in \observations(W)
+\]
+We use Lemma~\ref{lem:scall-works} which requires us to show
+\begin{enumproof}
+  \item $\memSat[n-i]{\ms'}{W}$ \\
+    Partition as follows:
+    \begin{enumproof}
+      \item $\ms_\malloc$: governed by $\iota_{\malloc,0}$, use malloc specification.
+      \item $\ms_\flag \uplus \ms_{f2}$: governed by island 1, only this memory segment is accepted.
+      \item $\ms_\link$: governed by island 2, only this memory segment is accepted.
+      \item $\ms_\adv$:\\
+        let $n' < n$ be given and show
+        \[
+          \npair[n']{\ms_\adv} \in H^\pwl_{\start_\adv,\addrend_\adv}\;1\;\xi^{-1}(W)
+        \]
+        this is trivial except for showing
+        \[
+          \npair[n'-1]{c_\link} \in \stdvr(W)
+        \]
+        amounts to showing
+        \[
+          \npair[n'-1]{\link,\link+1} \in \readCond{}(\glob)(W)
+        \]
+        which follows from
+        \begin{enumproof}
+          \item $\npair[n'-1]{c_\adv} \in \stdvr(W)$: \label{item:f3:adv1}\\
+            We will show
+            \begin{equation}
+              \label{eq:f3:adv-in-stder}
+              \forall W' \futurestr W \ldotp \npair{c_\adv} \in \stdvr(W')
+            \end{equation}
+            which will give us \ref{item:f3:adv1} using downwards closure.
+
+            Let $W' \futurestr W$ be given and show
+            \[
+              \npair{(\start_\malloc,\addrend_\malloc,\start_\malloc+\olf)} \in \entryCond{}(\glob)(W')
+            \]
+            to this end let $W'' \futurestr W'$ and $n' < n$ be given and show
+            \[
+              \npair[n']{\updatePcPerm{c_\adv}} \in \stder(W'')
+            \]
+            This follows from the FTLR if we can show
+            \[
+              \npair[n']{\start_\malloc,\addrend_\malloc} \in \readCond{}(\glob)(W'')
+            \]
+            $\iota^{\nwl,p}_{\start_\adv,\addrend_\adv}$ governs the adversary, so the result follows from Lemma~\ref{lem:nwlp-subset-pwl}.
+          \item $\npair[n'-1]{c_\malloc} \in \stdvr(W)$\\
+            Follows from the malloc specification.
+            \lau{I don't think this is actually the case at the moment. I guess we either need to show this based on the specification or just require it.}
+        \end{enumproof}
+    \end{enumproof}
+  \item Hyp-Callee\\
+    Assume
+    \begin{itemize}
+    \item $\ms_\stk |_{\start_stk+1,\addrend_\stk} = \ms_{\mathit{act}} \uplus \ms_{\mathit{unused}}$
+    \item $W' = \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk\uplus\ms_{\mathit{act}}),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}'))]$
+    \item $\memSat[n-1]{\ms''}{W'}$
+    \item $\reg' \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}'}$ unused}$
+    \item $\forall a \in \dom(\ms_{\var{unused}}') \ldotp \ms''(a) = 0$
+    \item $\reg'= \reg_0[\pcreg\mapsto\updatePcPerm{\reg(r)},
+      \overline{r_{\mathit{arg}}} \mapsto \reg(\overline{r_{\mathit{arg}}}),r_0
+      \mapsto c_{\mathit{ret}}, r_\stk \mapsto \_, r \mapsto \reg(r)]$ 
+    \item $(n,c_{\mathit{ret}}) \in \stdvr(W')$
+    \end{itemize}
+    where $\ms_{\mathit{act}}$ is the on stack activation code for this $\mathtt{scall}$.
+  \item Hyp-Cont\\
+    % TODO
+\end{enumproof}
+
+
 \end{proof}
+
+
+
+
+
 \begin{proof}[Proof of Lemma~\ref{lem:correctness-f3}]
   \lau{This proof does not use scall lemma}
   This proof goes like the proof of Lemma~\ref{lem:correctness-f2} except for item \ref{f2:c-prp}
@@ -2694,6 +2806,7 @@ Static region used for parts of memory that should not change.
 \end{definition}
 
 \begin{lemma}[$\mathtt{scall}$ works]
+  \label{lem:scall-works}
   If
   \begin{itemize}
   \item $\heapSat[\ms]{n}{W}$ 
@@ -2703,9 +2816,8 @@ Static region used for parts of memory that should not change.
   \item $\reg \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}$ unused}$
   \item[Hyp-Callee] If
     \begin{itemize}
-    \item $\ms_{\mathit{unused}}'' = \ms_{\mathit{act}}
-      \uplus \ms_{\mathit{unused}}'$,
-    \item $\dom(\ms_{\mathit{unused}}'') = \dom(\ms_{\mathit{unused}})$
+    \item $\dom(\ms_{\mathit{unused}}) = \dom(\ms_{\mathit{act}}
+      \uplus \ms_{\mathit{unused}}')$,
     \item $W' =
       \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk\uplus\ms_{\mathit{act}}),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}'))]$,
     \item $\memSat[n-1]{\ms''}{W'}$
@@ -2751,6 +2863,7 @@ Static region used for parts of memory that should not change.
 \end{proof}
 
 \begin{lemma}[Anti-reduction for $\observations$]
+\label{lem:anti-red-obs}
   \begin{align*}
     & \forall n,i,\reg, \reg', \ms, \ms', \ms_r, W \ldotp\\
     & \quad (\forall \ms_f \ldotp (\reg,\ms \uplus \ms_r \uplus \ms_f) \step[i] (\reg',\ms' \uplus \ms_r \uplus \ms_f)) \land \npair[n-i]{(\reg',\ms')} \in \observations(W) \\
