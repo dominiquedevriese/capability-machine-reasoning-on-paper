@@ -1880,6 +1880,25 @@ f3: push 1
     m'(\flag) = 0
   \]  
 \end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:correctness-f3} (high-level description)]
+Executing $f2$ until just after the jump in the first scall brings us to a configuration where the stack contains $1$ followed by some activation code followed by all zeros. The $\pcreg$-register contains an executable adversary capability, register $r_0$ contains a protected return pointer - that is a local enter capability for the execution code, and the $r_\stk$ contains a capability for the cleared part of the stack.
+
+At this point we can define a world with permanent regions
+\begin{itemize}
+\item fixing the assertion flag, the code of $f2$, and the linking table.
+\item the initial malloc region
+\item a $\iota^{\nwl,p}$ region
+\end{itemize}
+and temporary regions
+\begin{itemize}
+\item a region fixing the private part of the stack
+\item a $\iota^\pwl$ region for the rest of the stack 
+\end{itemize}
+From the FTLR, we get that in any future world of $W$, the adversary capability and its executable counter part is in the expression relation and thus safe to execute in suitable configurations. If the configuration we consider right now is suitable, then the execution produces a memory where the permanent invariants of $W$ are kept which means that the flag is $1$.
+
+To argue that the configuration is suitable, we need to argue that invoking the continuation produces an admissable result. As the continuation is a $\local$ capability, we take a public future world of $W$. In this public world, the private part of the stack remains the same as before the jump, so when we reach the assertion it succeeds and execution continues. At the point of the jump in the second scall, the stack contains $2$ instead of $1$, but otherwise essentially the same. Here we again use that it is safe to execute the adversary and that the continuation in this case halts immediately in a configuration where the assertion flag must be $1$.
+\end{proof}
+
 \begin{proof}[Proof of Lemma~\ref{lem:correctness-f3}]
 \lau{proof using scall lemma}
 Assume the premises of the lemma.
@@ -2883,7 +2902,7 @@ Static region used for parts of memory that should not change.
 \begin{lemma}[Stack capability in value relation]
   \label{lem:stack-cap-vr}
   \begin{align*}
-    & \pointstostack{\reg}{\ms'}{\ms} \land \\
+    & \pointstostack{\reg}{\emptyset}{\ms} \land \\
     & (\exists r \ldotp W(r) = \iota^\pwl (\dom(\ms))) \\
     & \quad \Rightarrow \reg(r_\stk) \in \stdvr(W)
   \end{align*}
