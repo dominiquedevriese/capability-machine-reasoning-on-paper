@@ -1924,17 +1924,17 @@ then using $\ms_{\var{frame}}$ as the frame and $m'$ as the resulting memory, we
 \]
 So SFTS \ref{eq:f3-obs1}. To do so, we use Lemma \ref{lem:anti-red-obs}. By assumption, we have part of the execution, so we know
 \[
-  (\reg\update{\pcreg}{c_{f3}}\update{r_\stk}{c_\stk},m) \step[i] (\reg',\ms' \uplus [\start_\stk \mapsto 1] \uplus \ms_\stk|_{\start_stk+1,\addrend_\stk} \uplus \ms_f),
+  (\reg\update{\pcreg}{c_{f3}}\update{r_\stk}{c_\stk},m) \step[i] (\reg',\ms' \uplus [\start_\stk \mapsto 1] \uplus \ms_\stk|_{\start_\stk+1,\addrend_\stk} \uplus \ms_f),
 \]
 where
 \[
   \lookingat{(\reg',\ms')}{\scall{r}{[]}{[]}}{c_{\var{next}}}
 \]
-where $c_{\var{next}}$ is $c_{f3}$ adjusted to point to the next instruction. Further we have \pointstostack{\reg'}{[\start_\stk \mapsto 1]}{\ms_\stk |_{\start_stk+1,\addrend_\stk}} and $i$ is a suitable number of steps.
+where $c_{\var{next}}$ is $c_{f3}$ adjusted to point to the next instruction. Further we have \pointstostack{\reg'}{[\start_\stk \mapsto 1]}{\ms_\stk |_{\start_\stk+1,\addrend_\stk}} and $i$ is a suitable number of steps.
 
 To show
 \[
-  \npair[n-i]{(\reg',\ms' \uplus [\start_\stk \mapsto 1] \uplus \ms_\stk |_{\start_stk+1,\addrend_\stk}} \in \observations(W)
+  \npair[n-i]{(\reg',\ms' \uplus [\start_\stk \mapsto 1] \uplus \ms_\stk |_{\start_\stk+1,\addrend_\stk}} \in \observations(W)
 \]
 We use Lemma~\ref{lem:scall-works} which requires us to show
 \begin{enumproof}
@@ -1988,7 +1988,7 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
   \item Hyp-Callee\\
     Assume
     \begin{itemize}
-    \item $\dom(\ms_\stk |_{\start_stk+1,\addrend_\stk}) = \dom(\ms_{\mathit{act}} \uplus \ms_{\mathit{unused}})$
+    \item $\dom(\ms_\stk |_{\start_\stk+1,\addrend_\stk}) = \dom(\ms_{\mathit{act}} \uplus \ms_{\mathit{unused}}')$
     \item $W' = \revokeTemp{W}[\iota^{\sta}(\temp,[\start_\stk \mapsto 1]\uplus\ms_{\mathit{act}}),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}'))]$
     \item $\memSat[n-i-1]{\ms''}{W'}$
     \item $\reg'' \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}'}$ unused}$
@@ -2015,11 +2015,103 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
       \npair[n-i-1]{(\ms'',\reg'')} \in \observations(W')
     \]
   \item Hyp-Cont\\
-    % TODO
-\end{enumproof}
-
-
+    Assume:
+    \begin{itemize}
+    \item $n' \leq n-i-2$
+    \item $W'' \futurewk \revokeTemp{W}[\iota^{\sta}(\temp,[\start_\stk \mapsto 1])[\iota^\sta(\temp,\ms_{\mathit{unused}}'')]$
+    \item $\memSat[n']{\ms''}{\revokeTemp{W''}}$ 
+    \item for all $r$, we have that:
+      \begin{equation*}
+        \reg''(r)
+        \begin{cases}
+          = c_{\mathit{next}} &\text{ if } r = \pcreg\\
+          \in \stdvr(W'') &\text{ if $\reg''(r)$ is a global capability and } r \not\in \{\pcreg, r_\stk\}
+        \end{cases}
+      \end{equation*}
+    \item $\reg'' \text{ points to stack with $[\start_\stk \mapsto 1]$ used and $\ms_{\mathit{unused}}''$ unused}$ for some $\ms_{\mathit{unused}}''$
+    \end{itemize}
+    and show
+    \begin{enumproof}
+    \item $(\reg'',\ms'' \uplus [\start_\stk \mapsto 1] \uplus \ms_{\var{unused}}'') \in \observations(\revokeTemp{W''})$\\
+      As $W'' \futurestr W$, we know that the program, assertion flag, and linking table remain unchanged in $\ms''$. Given some frame $\ms_f'$, then the execution proceeds by first suceeding the assertion and then pushing 2 to the stack:
+      \[
+        (\reg'',\ms'' \uplus [\start_\stk \mapsto 1] \uplus \ms_{\var{unused}}'' \uplus \ms_f') \step[k] (\reg^{(3)},\ms'' \uplus [\start_\stk \mapsto 2] \uplus \ms_{\var{unused}}'' \uplus \ms_f')
+      \]
+      where 
+      \begin{itemize}
+      \item \lookingat{(\reg^{(3)},\ms'')}{\mathtt{scall}r([],[])}{c_{\var{next}}'}
+      \item \pointstostack{\reg^{(3)}}{[\start \mapsto 2]}{\ms_{\var{unused}}''}
+      \item $\reg^{(3)}(r) = c_\adv$
+      \end{itemize}
+      By Lemma~\ref{lem:anti-red-obs} it suffices to show
+      \begin{enumproof}
+      \item $\npair[n''-k]{(\reg^{(3)},\ms'' \uplus [\start_\stk \mapsto 2] \uplus \ms_{\var{unused}}'')} \in \observations(\revokeTemp{W''})$\\
+        Show this using Lemma~\ref{lem:scall-works}. So show:
+        \begin{enumproof}
+          \item $\memSat[n''-k]{\ms''}{\revokeTemp{W''}}$ is satisfied by one of the first Hyp-cont assumptions.
+          \item Hyp-Callee\\
+            Assume:
+            \begin{itemize}
+            \item $\dom(\ms_{\mathit{unused}}'') = \dom(\ms_{\mathit{act}}' \uplus \ms_{\mathit{unused}}^{(3)})$
+            \item $W^{(3)} = \revokeTemp{W''}[\iota^{\sta}(\temp,[\start_\stk \mapsto 2]\uplus\ms_{\mathit{act}}'),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}^{(3)}))]$
+            \item $\memSat[n''-k-1]{\ms^{(3)}}{W^{(3)}}$
+            \item $\reg^{(4)} \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}^{(3)}}$ unused}$
+            \item $\forall a \in \dom(\ms_{\var{unused}}^{(3)}) \ldotp \ms^{(3)}(a) = 0$
+            \item $\reg^{(4)}= \reg_0[\pcreg\mapsto\updatePcPerm{c_\adv},r_0 \mapsto c_{\mathit{ret}}', r_\stk \mapsto \_, r \mapsto c_\adv]$ 
+            \item $(n''-k-1,c_{\mathit{ret}}') \in \stdvr(W')$
+            \end{itemize}
+            This argument is almost identical to the one we just did for the first call:\\
+            Using the FTLR, we get $\npair[n-i-1]{\updatePcPerm{c_\adv}} \in \stder(W^{(3)})$. Which we use with
+            \begin{enumproof}
+              \item $\memSat[n''-k-1]{\ms^{(3)}}{W^{(3)}}$: By assumption.
+              \item $\npair[n''-k-1]{\reg^{(4)}}$: Show:
+                \begin{enumproof}
+                  \item $\npair[n''-k-1]{c_\adv} \in \stdvr(W^{(3)})$ by \ref{eq:f3:adv-in-stder}.
+                  \item $\npair[n''-k-1]{c_{\mathit{ret}}'}$ by assumption.
+                  \item $\npair[n''-k-1]{\reg^{(4)}(r_\stk)}$ by Lemma~\ref{lem:stack-cap-vr}.
+                \end{enumproof}
+            \end{enumproof}
+            to get
+            \[
+              \npair[n''-k-1]{(\reg^{(4)},\ms^{(3)})} \in \observations(W^{(3)})
+            \]
+          \item Hyp-Cont\\
+            Assume
+            \begin{itemize}
+            \item $n^{(3)} \leq n''-k-2$
+            \item $W^{(3)} \futurewk \revokeTemp{W''}[\iota^{\sta}(\temp,\ms_\stk)][\iota^\sta(\temp,\ms_{\mathit{unused}}^{(3)})]$
+            \item $\memSat[n^{(3)}]{\ms^{(3)}}{\revokeTemp{W^{(3)}}}$ 
+            \item for all $r$, we have that:
+              \begin{equation*}
+                \reg^{(4)}(r)
+                \begin{cases}
+                  = c_{\mathit{next}} &\text{ if } r = \pcreg\\
+                  \in \stdvr(W'') &\text{ if $\reg^{(4)}(r)$ is a global capability and } r \not\in \{\pcreg, r_\stk\}
+                \end{cases}
+              \end{equation*}
+            \item $\reg' \text{ points to stack with $[\start_\stk \mapsto 2]$ used and $\ms_{\mathit{unused}}^{(3)}$ unused}$ for some $\ms_{\mathit{unused}}^{(3)}$
+            \end{itemize}
+            and show
+            \[
+              (n^{(3)}, (\reg^{(3)},\ms^{(3)} \uplus [\start_\stk \mapsto 2] \uplus \ms_{\var{unused}}^{(3)})) \in \observations(\revokeTemp{W^{(3)}})
+            \]
+            To this end let $\ms_f''$, $m''$, and $j \leq n^{(3)}$ be given and assume
+            \[
+              (\reg^{(3)},\ms^{(3)} \uplus [\start_\stk \mapsto 2] \uplus \ms_{\var{unused}}^{(3)} \uplus \ms_f'') \step[j] (\halted,m'')
+            \]
+            As the execution halts immediately, 
+            \[
+              m'' = \ms^{(3)} \uplus [\start_\stk \mapsto 2] \uplus \ms_{\var{unused}}^{(3)} \uplus \ms_f''
+            \]
+            By assumption we had $\memSat[n^{(3)}]{\ms^{(3)}}{\revokeTemp{W^{(3)}}}$ and the frame is unchanged, so we can split the memory as desired.
+        \end{enumproof}
+      \end{enumproof}
+    \end{enumproof}
+  \end{enumproof}
 \end{proof}
+
+
+
 \begin{proof}[Proof of Lemma~\ref{lem:correctness-f3}]
   \lau{This proof does not use scall lemma}
   This proof goes like the proof of Lemma~\ref{lem:correctness-f2} except for item \ref{f2:c-prp}
@@ -2856,11 +2948,12 @@ Static region used for parts of memory that should not change.
       \mapsto c_{\mathit{ret}}, r_\stk \mapsto \_, r \mapsto \reg(r)]$ 
     \item $(n,c_{\mathit{ret}}) \in \stdvr(W')$
     \end{itemize}
+
     then we have that $(n-1,(\reg',\ms'')) \in \observations(W')$
   \item[Hyp-Cont] If
     \begin{itemize}
     \item $n' \leq n-2$
-    \item $W'' \futurewk \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk)][\iota^\sta(\temp,\ms_{\mathit{unsused}}'')]$
+    \item $W'' \futurewk \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk)][\iota^\sta(\temp,\ms_{\mathit{unused}}'')]$
     \item $\memSat[n']{\ms''}{\revokeTemp{W''}}$ 
     \item for all $r$, we have that:
       \begin{equation*}
@@ -2871,9 +2964,8 @@ Static region used for parts of memory that should not change.
           \in \stdvr(W'') &\text{ if $\reg'(r)$ is a global capability and } r \not\in \{\pcreg,\overline{r_{\mathit{priv}}}, r_\stk\} %revokeTemp here?
         \end{cases}
       \end{equation*}
-    \item $\reg \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}''$ unused}$ for some $\ms_{\mathit{unused}}''$
+    \item $\reg' \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}''$ unused}$ for some $\ms_{\mathit{unused}}''$
     \end{itemize}
-\lau{Try to extract the ``private stack'' part, so it does not become a proof obligation in the proof that applies this lemma.}
 
     then we have that $(n', (\reg',\ms'' \uplus \ms_\stk \uplus \ms_{\var{unused}}'')) \in \observations(\revokeTemp{W''})$
   \end{itemize}
@@ -2904,7 +2996,7 @@ Static region used for parts of memory that should not change.
   \begin{align*}
     & \pointstostack{\reg}{\emptyset}{\ms} \land \\
     & (\exists r \ldotp W(r) = \iota^\pwl (\dom(\ms))) \\
-    & \quad \Rightarrow \reg(r_\stk) \in \stdvr(W)
+    & \quad \Rightarrow \npair{\reg(r_\stk)} \in \stdvr(W)
   \end{align*}
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:stack-cap-vr}]
