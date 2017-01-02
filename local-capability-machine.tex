@@ -1811,6 +1811,7 @@ let f = fun adv =>
               In this example \texttt{let l = 1 in} allocates a new local capability \texttt{l} with read-write permissions. Assuming \texttt{adv} has no access to capabilities with permit write local, they cannot store \texttt{l} and thus change its value in the second call.
 
 \subsection{Simple well-bracketedness/local capability example}
+\begin{comment}
 \begin{verbatim}
 let f = fun adv =>
           let x = 1 in
@@ -1822,7 +1823,7 @@ let f = fun adv =>
 \end{verbatim}
               A sensible calling scheme uses local capabilities for the continuation capability passed to the callee. In the above example, if \texttt{adv} can store the continuation, then 
               \texttt{adv} can invoke it during the second call and thus force the assertion to fail. We expect this program to either not terminate or terminate in a failed state (not caused by the assertion) or terminate with the result 0.
-\lau{The above program and text are from before we introduced macros. They can be deleted when we have gotten used to the style of the new programs. }
+            \end{comment}
 
 \begin{verbatim}
 f3: push 1
@@ -1835,6 +1836,7 @@ f3: push 1
     scall r1([],[])
 3f: halt
 \end{verbatim}
+The assertion of $f3$ may seem a bit awkward because it is between two calls. If an adversary could capture the protected return pointer from the first call and save it until the second call, then the adversary could jump to it again. At this point the top of the stack would be 2, so when the execution reaches the assertion, it would fail. However, the producted return pointer is passed as a local capability, so the only place the adversary can store it is on the stack. The adversary loses control of the stack when control is returned to $f3$ where the $\mathtt{scall}$ makes sure to sanitise the stack and register file before control is passed back to the adversary. In other words, the adversary has no way to capture the continuation which makes the above safe and well-bracketed.
 
 \begin{lemma}[Correctness lemma for \texttt{f3}]
   \label{lem:correctness-f3}
@@ -1894,9 +1896,9 @@ and temporary regions
 \item a region fixing the private part of the stack
 \item a $\iota^\pwl$ region for the rest of the stack 
 \end{itemize}
-From the FTLR, we get that in any future world of $W$, the adversary capability and its executable counter part is in the expression relation and thus safe to execute in suitable configurations. If the configuration we consider right now is suitable, then the execution produces a memory where the permanent invariants of $W$ are kept which means that the flag is $1$.
+From the FTLR, we get that in any future world of $W$, the adversary capability and its executable counter part is in the expression relation and thus safe to execute in suitable configurations. If the configuration we consider right now is suitable, then the execution produces a memory where the permanent invariants of $W$ are kept which means that the flag is $0$.
 
-To argue that the configuration is suitable, we need to argue that invoking the continuation produces an admissable result. As the continuation is a $\local$ capability, we take a public future world of $W$. In this public world, the private part of the stack remains the same as before the jump, so when we reach the assertion it succeeds and execution continues. At the point of the jump in the second scall, the stack contains $2$ instead of $1$, but otherwise essentially the same. Here we again use that it is safe to execute the adversary and that the continuation in this case halts immediately in a configuration where the assertion flag must be $1$.
+To argue that the configuration is suitable, we need to argue that invoking the continuation produces an admissable result. As the continuation is a $\local$ capability, we take a public future world of $W$. In this public world, the private part of the stack remains the same as before the jump, so when we reach the assertion it succeeds and execution continues. At the point of the jump in the second scall, the stack contains $2$ instead of $1$, but otherwise essentially the same. Here we again use that it is safe to execute the adversary and that the continuation in this case halts immediately in a configuration where the assertion flag must be $0$.
 \end{proof}
 
 \begin{proof}[Proof of Lemma~\ref{lem:correctness-f3}]
@@ -1918,28 +1920,28 @@ If we can show
 \label{eq:f3-obs1}
   \npair[n+1]{(\reg\update{\pcreg}{c_{f3}}\update{r_\stk}{c_\stk},\ms_{\malloc} \uplus \ms' \uplus \ms_{\adv} \uplus \ms_\stk)} \in \observations(W),
 \end{equation}
-then using $\ms_{\var{frame}}$ as the frame and $m'$ as the resulting memory, we get that $m' = \ms'' \uplus \ms_r \uplus \ms_{\var{frame}}$ for some $\ms'$ and $\ms_r$ s.t. $\heapSat[1]{\ms''}{W}$. Region $1$ guarantees that the flag is unchanged, so we have
+then using $\ms_{\var{frame}}$ as the frame and $m'$ as the resulting memory, we get that $m' = \ms'' \uplus \ms_r \uplus \ms_{\var{frame}}$ for some $\ms'$ and $\ms_r$ s.t. $\heapSat[1]{\ms''}{W}$. Region $1$ guarantees that the assertion flag is unchanged, so we have
 \[
   m'(\flag) = 0
 \]
-So SFTS \ref{eq:f3-obs1}. To do so, we use Lemma \ref{lem:anti-red-obs}. By assumption, we have part of the execution, so we know
+So SFTS \ref{eq:f3-obs1}. To do so, we use Lemma \ref{lem:anti-red-obs}. Let $\ms_f$ be given. The execution proceeds as follows:
 \[
-  (\reg\update{\pcreg}{c_{f3}}\update{r_\stk}{c_\stk},m) \step[i] (\reg',\ms' \uplus [\start_\stk \mapsto 1] \uplus \ms_\stk|_{\start_\stk+1,\addrend_\stk} \uplus \ms_f),
+  (\reg\update{\pcreg}{c_{f3}}\update{r_\stk}{c_\stk},\ms' \uplus \ms_\stk \uplus \ms_f) \step[i] (\reg',\ms' \uplus [\start_\stk \mapsto 1] \uplus \ms_\stk|_{\start_\stk+1,\addrend_\stk} \uplus \ms_f),
 \]
 where
 \[
   \lookingat{(\reg',\ms')}{\scall{r}{[]}{[]}}{c_{\var{next}}}
 \]
-where $c_{\var{next}}$ is $c_{f3}$ adjusted to point to the next instruction. Further we have \pointstostack{\reg'}{[\start_\stk \mapsto 1]}{\ms_\stk |_{\start_\stk+1,\addrend_\stk}} and $i$ is a suitable number of steps.
+where $c_{\var{next}}$ is $c_{f3}$ adjusted to point to the next instruction, namely \texttt{pop r1}. Further we have \pointstostack{\reg'}{[\start_\stk \mapsto 1]}{\ms_\stk |_{\start_\stk+1,\addrend_\stk}} and $i$ is a suitable number of steps.
 
 To show
 \[
-  \npair[n-i]{(\reg',\ms' \uplus [\start_\stk \mapsto 1] \uplus \ms_\stk |_{\start_\stk+1,\addrend_\stk}} \in \observations(W)
+  \npair[n-i]{(\reg',\ms' \uplus [\start_\stk \mapsto 1] \uplus \ms_\stk |_{\start_\stk+1,\addrend_\stk})} \in \observations(W)
 \]
 We use Lemma~\ref{lem:scall-works} which requires us to show
 \begin{enumproof}
   \item $\memSat[n-i]{\ms'}{W}$ \\
-    Partition as follows:
+    Partition $\ms'$ as follows:
     \begin{enumproof}
       \item $\ms_\malloc$: governed by $\iota_{\malloc,0}$, use malloc specification.
       \item $\ms_\flag \uplus \ms_{f2}$: governed by island 1, only this memory segment is accepted.
@@ -1969,7 +1971,7 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
 
             Let $W' \futurestr W$ be given and show
             \[
-              \npair{(\start_\malloc,\addrend_\malloc,\start_\malloc+\olf)} \in \entryCond{}(\glob)(W')
+              \npair{(\start_\adv,\addrend_\adv,\start_\adv+\olf)} \in \entryCond{}(\glob)(W')
             \]
             to this end let $W'' \futurestr W'$ and $n' < n$ be given and show
             \[
@@ -1977,12 +1979,12 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
             \]
             This follows from the FTLR if we can show
             \[
-              \npair[n']{\start_\malloc,\addrend_\malloc} \in \readCond{}(\glob)(W'')
+              \npair[n']{\start_\adv,\addrend_\adv} \in \readCond{}(\glob)(W'')
             \]
             $\iota^{\nwl,p}_{\start_\adv,\addrend_\adv}$ governs the adversary, so the result follows from Lemma~\ref{lem:nwlp-subset-pwl}.
           \item $\npair[n'-1]{c_\malloc} \in \stdvr(W)$\\
             Follows from the malloc specification.
-            \lau{I don't think this is actually the case at the moment. I guess we either need to show this based on the specification or just require it.}
+            \lau{I don't think this is actually the case at the moment. I guess we either need to show this based on the specification or just require it in the specification.}
         \end{enumproof}
     \end{enumproof}
   \item Hyp-Callee\\
@@ -1996,7 +1998,7 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
     \item $\reg''= \reg_0[\pcreg\mapsto\updatePcPerm{\reg'(r)},r_0 \mapsto c_{\mathit{ret}}, r_\stk \mapsto \_, r \mapsto \reg'(r)]$ 
     \item $\npair[n-i-1]{c_{\mathit{ret}}} \in \stdvr(W')$
     \end{itemize}
-    for some $\ms_{\mathit{act}}$, $\ms_{\mathit{unused}}$, $\ms'$, $\reg''$, $c_{\mathit{ret}}$.
+    for some $\ms_{\mathit{act}}$, $\ms_{\mathit{unused}}$, $\ms''$, $\reg''$, $c_{\mathit{ret}}$.
     
     Using the FTLR, we get $\npair[n-i-1]{\updatePcPerm{c_\adv}} \in \stder(W')$, from
     \begin{enumproof}
@@ -2033,7 +2035,7 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
     and show
     \begin{enumproof}
     \item $(\reg'',\ms'' \uplus [\start_\stk \mapsto 1] \uplus \ms_{\var{unused}}'') \in \observations(\revokeTemp{W''})$\\
-      As $W'' \futurestr W$, we know that the program, assertion flag, and linking table remain unchanged in $\ms''$. Given some frame $\ms_f'$, then the execution proceeds by first suceeding the assertion and then pushing 2 to the stack:
+      As $W'' \futurestr W$, we know that the program, assertion flag, and linking table remain unchanged in $\ms''$. Given some frame $\ms_f'$, then the execution proceeds by first succeeding the assertion and then pushing 2 to the stack:
       \[
         (\reg'',\ms'' \uplus [\start_\stk \mapsto 1] \uplus \ms_{\var{unused}}'' \uplus \ms_f') \step[k] (\reg^{(3)},\ms'' \uplus [\start_\stk \mapsto 2] \uplus \ms_{\var{unused}}'' \uplus \ms_f')
       \]
@@ -2046,7 +2048,7 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
       By Lemma~\ref{lem:anti-red-obs} it suffices to show
       \begin{enumproof}
       \item $\npair[n''-k]{(\reg^{(3)},\ms'' \uplus [\start_\stk \mapsto 2] \uplus \ms_{\var{unused}}'')} \in \observations(\revokeTemp{W''})$\\
-        Show this using Lemma~\ref{lem:scall-works}. So show:
+        Show this using Lemma~\ref{lem:scall-works}. Show:
         \begin{enumproof}
           \item $\memSat[n''-k]{\ms''}{\revokeTemp{W''}}$ is satisfied by one of the first Hyp-cont assumptions.
           \item Hyp-Callee\\
@@ -2055,7 +2057,7 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
             \item $\dom(\ms_{\mathit{unused}}'') = \dom(\ms_{\mathit{act}}' \uplus \ms_{\mathit{unused}}^{(3)})$
             \item $W^{(3)} = \revokeTemp{W''}[\iota^{\sta}(\temp,[\start_\stk \mapsto 2]\uplus\ms_{\mathit{act}}'),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}^{(3)}))]$
             \item $\memSat[n''-k-1]{\ms^{(3)}}{W^{(3)}}$
-            \item $\reg^{(4)} \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}^{(3)}}$ unused}$
+            \item $\reg^{(4)} \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}}^{(3)}$ unused}$
             \item $\forall a \in \dom(\ms_{\var{unused}}^{(3)}) \ldotp \ms^{(3)}(a) = 0$
             \item $\reg^{(4)}= \reg_0[\pcreg\mapsto\updatePcPerm{c_\adv},r_0 \mapsto c_{\mathit{ret}}', r_\stk \mapsto \_, r \mapsto c_\adv]$ 
             \item $(n''-k-1,c_{\mathit{ret}}') \in \stdvr(W')$
@@ -2085,7 +2087,7 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
               \begin{equation*}
                 \reg^{(4)}(r)
                 \begin{cases}
-                  = c_{\mathit{next}} &\text{ if } r = \pcreg\\
+                  = c_{\mathit{next}}' &\text{ if } r = \pcreg\\
                   \in \stdvr(W'') &\text{ if $\reg^{(4)}(r)$ is a global capability and } r \not\in \{\pcreg, r_\stk\}
                 \end{cases}
               \end{equation*}
