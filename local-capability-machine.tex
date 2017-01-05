@@ -40,6 +40,7 @@
 %\usepackage[displaymath,floats,graphics,textmath,footnotes]{preview}
 
 \declaretheorem[numbered=yes,name=Lemma,qed=$\blacksquare$]{lemma}
+\declaretheorem[numbered=yes,name=Theorem,qed=$\blacksquare$]{theorem}
 \declaretheorem[numbered=yes,name=Definition,qed=$\blacksquare$]{definition}
 \declaretheorem[numbered=yes,name=Specification,qed=$\blacksquare$]{specification}
 
@@ -177,6 +178,8 @@
 
 % World operations
 \newcommand{\future}{\mathbin{\sqsupseteq}}
+\newcommand{\pub}{\var{pub}}
+\newcommand{\priv}{\var{priv}}
 \newcommand{\futurewk}{\mathbin{\sqsupseteq}^{\var{pub}}}
 \newcommand{\futurestr}{\mathbin{\sqsupseteq}^{\var{priv}}}
 \newcommand{\heapSat}[3][\heap]{#1 :_{#2} #3}
@@ -219,6 +222,7 @@
 \newcommand{\Globals}{\plaindom{Global}}
 
 \newcommand{\Rel}{\plaindom{Rel}}
+\newcommand{\Rels}{\plaindom{Rels}}
 \newcommand{\States}{\plaindom{State}}
 \newcommand{\RegionNames}{\plaindom{RegionName}}
 \newcommand{\Regions}{\plaindom{Region}}
@@ -2348,10 +2352,11 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
   For all $n \in \nats$
   let
   \begin{align*}
-    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
+    c_{\var{adv}} & \defeq ((\rwx,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
     c_{g1} & \defeq ((\entry,\glob),\mathtt{g1}-\olf,\mathtt{4f},\mathtt{g1}) \\
     c_\stk & \defeq ((\rwlx,\local),\start_\stk,\addrend_\stk,\start_\stk-1) \\
     c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
+    c_\link & \defeq ((\readonly,\glob),\link,\link,\link) \\
     m & \defeq \hs_{g1} \uplus 
         \ms_\flag \uplus                
         \ms_\link \uplus 
@@ -2374,7 +2379,7 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
   \item $\ms_{g1}(\mathtt{g1}-\olf) = ((\readonly,\glob),\link,\link,\link)$, $\ms_{g1}(\mathtt{g1}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{g1}$ contains the code of $g1$ immediately followed by the code of $f4$.
   \item $\ms_\flag = [\flag \mapsto 0]$
   \item $\ms_{\var{link}} = [\link \mapsto c_\malloc]$
-  \item $\hs_\adv$ contains a read-write capability for $\hs_\link$ on its first address and otherwise it consists only of instruction.
+  \item $\hs_\adv(\start_\adv) = c_\link$ and all other addresses of $\ms_\adv$ contain instructions.
   \end{itemize}
   if 
   \[
@@ -2385,25 +2390,89 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
     m'(\flag) = 0
   \]  
 \end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:correctness-g1} (using scall)]
+  Let $n$ be given and make the assumptions of the lemma. Define
+  \begin{align*}
+    W = & [0 \mapsto \iota^\sta (\perma,\ms_{g1} \uplus \ms_\flag)]\\
+        & [1 \mapsto \iota^\sta (\perma,\ms_\link)]\\
+        & [2 \mapsto \iota^\pwl_{\start_\stk, \addrend_\stk}]\\
+        & [3 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]\\
+        & [4 \mapsto \iota_{\malloc,0}]
+  \end{align*}
+  and
+  \[
+    \ms = \ms_{g1} \uplus 
+          \ms_\flag \uplus                
+          \ms_\link \uplus 
+          \ms_\adv \uplus 
+          \ms_\malloc 
+  \]
+  If we can show
+  \begin{equation}
+    \label{eq:f4:start-conf-in-obs}
+        \npair{(\reg_0\update{\pcreg}{c_\adv}\update{r_\stk}{c_\stk}\update{r_1}{c_{g1}},\ms \uplus \ms_\stk)} \in \observations(W)
+  \end{equation}
+  then we are done. The termination assumption gives us that part of $m$ satisfies a private future world of $W$. Region 1 is permanent, so
+  \[
+    m(\flag) = 0
+  \]
+  So we need to show \ref{eq:f4:start-conf-in-obs}. 
+  To this end use the FTLR to show $\npair{c_\adv} \in \stder(W)$, so show
+  \begin{enumproof}
+    \item $\npair{(\start_\adv,\addrend_\adv)} \in \readCond{}(\glob)(W)$\\
+      %TODO
+    \item $\npair{(\start_\adv,\addrend_\adv)} \in \writeCond{}(\iota^\nwl,\glob)(W)$\\
+      %TODO
+  \end{enumproof}
+  in conclusion $\npair{c_\adv} \in \stder(W)$. We get \ref{eq:f4:start-conf-in-obs} if we show the following
+  \begin{enumproof}[resume]
+    \item $\memSat{\ms \uplus \ms_\stk}{W}$\\
+      %TODO
+    \item $\npair{\reg_0\update{r_\stk}{c_\stk}\update{r_1}{c_{g1}}} \in \stdrr(W)$\\
+      This amounts to showing
+      \begin{enumproof}
+        \item $\npair{c_\stk} \in \stdvr(W)$ \\
+          % TODO
+        \item $\npair{c_{g1}} \in \stdvr(W)$ \\
+          Let $n_1 < n$ and $W_1 \futurestr W$ and show
+          \[
+            \npair[n_1]{\updatePcPerm{c_{g1}}} \in \stder(W_1)
+          \]
+          To this end assume $n_2 \leq n_1$, $\memSat[n_2]{\ms_1}{W_1}$, and $\npair[n_2]{\reg_1} \in \stdrr(W_1)$ and show
+          \[
+            \npair[n']{(\reg_1\update{\pcreg}{\updatePcPerm{c_{g1}}},\ms_1} \in \observations(W_1)
+          \]
+          %TODO
+      \end{enumproof}
+  \end{enumproof}
+
+\end{proof}
+
+
+
+
+
+
+
 \begin{proof}[Proof of Lemma~\ref{lem:correctness-g1}]
   Let $n$ be given and make the remaining assumptions of the lemma. Define
   \begin{align*}
     W = & [0 \mapsto \iota^\sta (\perma,\ms_{g1})]\\
         & [1 \mapsto \iota^\sta (\perma,\ms_\flag)]\\
         & [2 \mapsto \iota^\sta (\perma,\ms_\link)]\\
-        & [3 \mapsto \iota^\pwl]\\
+        & [3 \mapsto \iota^\pwl_{\start_\stk, \addrend_\stk}]\\ 
         & [4 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}] \\
         & [5 \mapsto \iota_{\malloc,0}]
   \end{align*}
   \[
     \ms = \ms_{g1} \uplus 
-    \ms_\flag \uplus                
-    \ms_\link \uplus 
-    \ms_\adv \uplus 
-    \ms_\malloc \uplus 
-    \ms_\stk
+          \ms_\flag \uplus                
+          \ms_\link \uplus 
+          \ms_\adv \uplus 
+          \ms_\malloc \uplus 
+          \ms_\stk
   \]
-  and use the FTLR on $c_\adv$ (possible due to lemma~\ref{lem:nwlp-subset-pwl} and the chose world). From this, we get
+  and use the FTLR on $c_\adv$ (possible due to lemma~\ref{lem:nwlp-subset-pwl} and the chosen world). From this, we get
   \[
     \npair[n+1]{c_\adv} \in \stder(W).
   \]
@@ -2624,15 +2693,44 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
 
 \section{Logical Relation'}
 \subsection{Worlds}
-Assume $\Worstr$ and $\Worwk$ are preordered \cofes{} and $\xi_{\var{wk}}$ and $\xi_{\var{str}}$ are isomorphisms such that
+Assume a sufficiently large set of states $\States$ that at least contains the states used in this document.
+\begin{definition}
+  \[
+   \Rels = \{\Phi_\pub \times \Phi \in \powerset{\States^2}\times \powerset{\States^2} \mid \Phi_\pub, \phi \text{ is reflexive and transitive and } \Phi_\pub \subseteq \Phi \}
+  \]
+\end{definition}
+\begin{lemma}
+There exists $\Worstr$ and $\Worwk$ are preordered \cofes{} and $\xi_{\var{wk}}$ and $\xi_{\var{str}}$ are isomorphisms such that
 \begin{align*}
   \xi_{\var{wk}} :   \Worwk \cong \blater (\nats \finparfun (   & \{\revoked\} + \\
-                                                                & \{\temp\} \times \States \times \Rel \times (\States \fun (\Worwk \monnefun \UPred{\HeapSegments})) + \\
-                                                                & \{\perma\} \times \States \times \Rel \times (\States \fun (\Worstr \monnefun \UPred{\HeapSegments})))_{\future_{\var{wk}}}) \\ \\
+                                                                & \{\temp\} \times \States \times \Rels \times (\States \fun (\Worwk \monnefun \UPred{\HeapSegments})) + \\
+                                                                & \{\perma\} \times \States \times \Rels \times (\States \fun (\Worstr \monnefun \UPred{\HeapSegments})),\future_{\var{wk}})) \\ \\
   \xi_{\var{str}} :   \Worstr \cong \blater (\nats \finparfun ( & \{\revoked\} + \\
-                                                                & \{\temp\} \times \States \times \Rel \times (\States \fun (\Worwk \monnefun \UPred{\HeapSegments})) + \\
-                                                                & \{\perma\} \times \States \times \Rel \times (\States \fun (\Worstr \monnefun \UPred{\HeapSegments})))_{\future_{\var{str}}})
+                                                                & \{\temp\} \times \States \times \Rels \times (\States \fun (\Worwk \monnefun \UPred{\HeapSegments})) + \\
+                                                                & \{\perma\} \times \States \times \Rels \times (\States \fun (\Worstr \monnefun \UPred{\HeapSegments})),\future_{\var{str}}))
 \end{align*}
+\end{lemma}
+
+\begin{theorem}
+  There exists a \cofe{} $\Wor$ and preorders $\futurestr$ and $\futurewk$ such that $(\Wor,\futurestr)$ and $(\Wor,\futurewk)$ are preordered \cofes{} and there exists an isomorphism $\xi$ such that
+  \begin{align*}
+    \xi : \Wor \cong \blater (\nats \finparfun ( & \{\revoked\} + \\
+                                          & \{\temp\} \times \States \times \Rels \times (\States \fun (\Worwk \monnefun \UPred{\HeapSegments})) + \\
+                                          & \{\perma\} \times \States \times \Rels \times (\States \fun (\Worstr \monnefun \UPred{\HeapSegments}))))
+  \end{align*}
+ and for $W, W' \in \Wor$
+ \[
+   W \futurestr W' \Leftrightarrow \xi(W) \futurestr \xi(W')
+ \]
+and
+ \[
+   W \futurewk W' \Leftrightarrow \xi(W) \futurewk \xi(W')
+ \]
+\end{theorem}
+
+
+
+
 We now define the regions to be
 \begin{align*}
   \Regions = & \{\revoked\} \uplus \\
@@ -2729,7 +2827,7 @@ Standard regions for when writing locally is permitted:
   &H^\pwl_{\start,\addrend}\; s \; \hat{W} \defeq \left\{\npair{\hs} \middle|
     \begin{aligned}
       &\dom(\hs) = [\start,\addrend] \land \\
-      &\forall \addr \in [\start,\addrend] \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\xi_{\var{wk}}(\hat{W}))
+      &\forall \addr \in [\start,\addrend] \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W}))
     \end{aligned}
         \right\}
 \end{align*}
@@ -2759,7 +2857,7 @@ Standard regions for when write local is not allowed:
     \begin{aligned}
       &\dom(\hs) = [\start,\addrend] \land \\
       &\forall \addr \in [\start,\addrend] \ldotp \\
-      &\quad \npair[n-1]{\hs(\addr)} \in \stdvr(\revokeTemp{\xistr(\hat{W})})
+      &\quad \npair[n-1]{\hs(\addr)} \in \stdvr(\revokeTemp{\xi(\hat{W})})
     \end{aligned}
         \right\}
 \end{align*}
