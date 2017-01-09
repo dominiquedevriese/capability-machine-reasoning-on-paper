@@ -132,6 +132,8 @@
 \newcommand{\cnst}{\var{cnst}}
 \newcommand{\olf}{\var{offsetLinkFlag}}
 \newcommand{\prp}{\var{prp}}
+\newcommand{\env}{\var{env}}
+\newcommand{\cls}{\var{cls}}
 
 % Memory projections
 \newcommand{\plainproj}[1]{\mathrm{#1}}
@@ -320,7 +322,7 @@
 \newcommand{\pointstostack}[3]{\ensuremath{#1} \text{ points to stack with } \ensuremath{#2} \text{ used and } \ensuremath{#3} \text{ unused}}
 
 % Macros
-\newcommand{\scall}[3]{\mathtt{scall} \; #1(#2,#3)}
+\newcommand{\scall}[3]{\mathtt{scall} \; #1([#2],[#3])}
 
 
 \begin{document}
@@ -1951,7 +1953,7 @@ So SFTS \ref{eq:f3-obs1}. To do so, we use Lemma \ref{lem:anti-red-obs}. Let $\m
 \]
 where
 \[
-  \lookingat{(\reg',\ms')}{\scall{r}{[]}{[]}}{c_{\var{next}}}
+  \lookingat{(\reg',\ms')}{\scall{r}{}{}}{c_{\var{next}}}
 \]
 where $c_{\var{next}}$ is $c_{f3}$ adjusted to point to the next instruction, namely \texttt{pop r1}. Further we have \pointstostack{\reg'}{[\start_\stk \mapsto 1]}{\ms_\stk |_{\start_\stk+1,\addrend_\stk}} and $i$ is a suitable number of steps.
 
@@ -2440,9 +2442,93 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
           \]
           To this end assume $n_2 \leq n_1$, $\memSat[n_2]{\ms_1}{W_1}$, and $\npair[n_2]{\reg_1} \in \stdrr(W_1)$ and show
           \[
-            \npair[n']{(\reg_1\update{\pcreg}{\updatePcPerm{c_{g1}}},\ms_1} \in \observations(W_1)
+            \npair[n_2]{(\reg_1\update{\pcreg}{\updatePcPerm{c_{g1}}},\ms_1)} \in \observations(W_1)
           \]
-          %TODO
+          %TODO elaborate on what happens here using anti reduction lemma and malloc spec.
+          Use Lemma~\ref{lem:anti-red-obs}, so let $\ms_f'$ be given, then
+          \[
+            (\reg_1\update{\pcreg}{\updatePcPerm{c_{g1}}},\ms_1 \uplus \ms_f') \step[i] (\reg_2,\ms_2 \uplus \ms_\malloc' \uplus \ms_\env \uplus \ms_x \uplus \ms_\cls \uplus \ms_f')
+          \]
+          for some $i$. Where
+          \begin{itemize}
+          \item $\memSat[n_2-i]{\ms_2 \uplus \ms_\malloc'}{W_1\update{4}{\iota_\malloc}} $
+          \item $\iota_\malloc \futurewk \iota_{\malloc,0}$
+          \item $\ms_x = [x \mapsto 0]$
+          \item $c_x = ((\rwx,\glob),x,x,x)$
+          \item $\ms_\env = [\env \mapsto c_x]$
+          \item $c_\env = ((\rwx,\glob,\env,\env,\env))$
+          \item $c_{f4}$ is $c_{g1}$ updated to point at $f4$.
+          \item $\ms_\cls$ contains $c_\env$, the $c_{f4}$, and the activation code.
+          \item $c_\cls$ is a global enter capability for $\ms_\cls$ pointing to the activation code.
+          \item $\reg_2 = reg_0\update{\pcreg}{\updatePcPerm{\reg_1(r_0)}}\update{r_0}{\reg_1(r_0)}\update{r_1}{c_\cls}$
+          \end{itemize}
+          For world
+          \[
+            W_2 = W_1\update{4}{\iota_\malloc}\update{i_1}{\iota^\sta (\perm,\ms^\env \uplus \ms^\cls)}\iota{i_2}{\iota_x}
+          \]
+          where $i_1,i_2\not\in\dom(W_1)$ and $i_1 \neq i_2$ and $\iota_x$ is defined as
+          \begin{align*}
+            \iota_x   & = (\perm, 0, \phi_\pub, \phi, H_x) \\
+            \phi_\pub & = \{(0,1)\}^* \\
+            \phi      & = (1,0) \union \phi_\pub \\
+            H_x \; s \; \hat{W} & = \{\npair{\ms} \mid \ms(x) = s \land n > 0 \} \uplus \{\npair[0]{\ms}\}
+          \end{align*}
+          % TODO show $\iota_x$ is a region.
+          show
+          \begin{equation}
+            \label{eq:g1-obs-to-show}
+            \npair[n_2-i]{(\reg_2,\ms_2 \uplus \ms_\malloc' \uplus \ms_\env \uplus \ms_x \uplus \ms_\cls)} \in \observations(W_2)
+          \end{equation}
+          If $\reg_1(r_0).\perm \not\in \{\entry, \exec, \rwx, \rwlx\}$, then the execution fails after the jump and \label{eq:g1-obs-to-show} is thus trivially true.
+
+          If $\reg_1(r_0).\perm \in \{\entry, \exec, \rwx, \rwlx\}$, then either $\execCond{}$ or $\entryCond{}$ holds for the capability in $\reg_1(r_0)$. Now use $W_2 \futurewk W_1$ with the approriate condition to get 
+          \[
+            \npair[n_2-i]{\updatePcPerm{\reg_1(r_0)}} \in \stder(W_2)
+          \]
+          which in turn gives us \ref{eq:g1-obs-to-show} if we can show the following
+          \begin{enumproof}
+            \item $\memSat[n_2-i]{\ms_2 \uplus \ms_\malloc' \uplus \ms_\env \uplus \ms_x \uplus \ms_\cls}{W_2}$
+              % TODO follows from \ms_1 heap sat and the new regions.
+            \item $\npair[n_2-i]{\reg_2} \in \stdrr$ \\
+              Amounts to showing
+              \begin{enumproof}
+                \item $\npair[n_2-i]{\reg_2(r_0)} \in \stdvr(W_2)$ by assumption $\npair[n_2]{\reg_1} \in \stdrr(W_1)$ and $\stdvr$ monotonicity wrt. $\futurewk$
+                \item $\npair[n_2-i]{c_\cls} \in \stdvr(W_2)$ \\
+                  Let $n_3 < n_2 - i$ and $W_3 \futurestr W_2$ be given and show
+                  \[
+                    \npair[n_3]{\updatePcPerm{c_\cls}} \in \stder(W_3)
+                  \]
+                  To this and let $n_4 \leq n_3$, $\memSat[n_4]{\ms_3}{W_3}$, and $\npair[n_4]{\reg_3} \in \stdrr(W_3)$ and show
+                  \begin{equation}
+                    \label{eq:g1-c-cls-obs}
+                    \npair[n_4]{(reg_3\update{\pcreg}{\updatePcPerm{c_\cls}},\ms_3)} \in \observations(W_3)
+                  \end{equation}
+                  Let $\ms_3^p$ and $\ms_3^t$ be memory segments such that $\ms_3 = \ms_3^p \uplus \ms_3^t$ and $\memSat[n_4]{\ms_3^p}{\revokeTemp{W}_3}$ (using Lemma~\ref{lem:priv-mono-like2})
+
+                  Use Lemma~\ref{lem:anti-red-obs}, let $\ms_f''$ be given and take $\ms_r$ to be the part of $\ms_3^t$ that $\reg_3(r_\stk)$ does not govern. By the operational semantics, we know\footnote{the execution may fail, but then the confifuration is trivially in the observation relation.}
+                  \[
+                    (reg_3\update{\pcreg}{\updatePcPerm{c_\cls}},\ms_3^p \uplus \ms_3^t \uplus \ms_f'') \step[j] (\reg_4,\ms_4 \uplus \ms_3^t \uplus \ms_f'')
+                  \]
+                  where
+                  \begin{itemize}
+                  \item \lookingat{reg_4,\ms_4}{\scall{r_1}{}{r_0,r_1,r_\env}}{c_{\var{next}}}
+                    \begin{itemize}
+                    \item $c_{\var{next}}$ is the capability pointing to the next instruction.
+                    \end{itemize}
+                  \item \pointstostack{\reg_4}{\emptyset}{\ms_{\var{unused}}}
+                    \begin{itemize}
+                    \item \texttt{prepstack} did not fail, so the capability must be $\rwlx$ and follow the stack convention.
+                    \end{itemize}
+                  \item $\reg_3(r_0)$ is a $\glob$ capability.
+                    \begin{itemize}
+                    \item \texttt{reqglob} did not fail
+                    \end{itemize}
+                  \item $\ms_4(x) = 0$
+                  \item $\reg_3(r_\env) = c_\env$
+                  \end{itemize}
+                  region $i_2$ (the $\iota_x$ region) can be in either state $0$ or $1$, so to make sure it is in state $0$, we use a private transition. So let $W_4$ be $\revokeTemp{W_3}$ with region $i_2$ in state $0$.
+              \end{enumproof}
+          \end{enumproof}
       \end{enumproof}
   \end{enumproof}
 
@@ -3047,7 +3133,7 @@ Static region used for parts of memory that should not change.
   \label{lem:scall-works}
   If
   \begin{itemize}
-  \item $\heapSat[\ms]{n}{W}$ 
+  \item $\heapSat[\ms]{n}{\revokeTemp{W}}$ 
   \item $(\reg,\ms) \text{ is looking at }
     \mathtt{scall}(r(\overline{r_{\mathit{arg}}},
     \overline{r_{\mathit{priv}}})) \text{ followed by } c_{\mathit{next}}$
@@ -3085,7 +3171,7 @@ Static region used for parts of memory that should not change.
     \item $\reg' \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}''$ unused}$ for some $\ms_{\mathit{unused}}''$
     \end{itemize}
 
-    then we have that $(n', (\reg',\ms'' \uplus \ms_\stk \uplus \ms_{\var{unused}}'')) \in \observations(\revokeTemp{W''})$
+    then we have that $(n', (\reg',\ms'' \uplus \ms_\stk \uplus \ms_{\var{unused}}'')) \in \observations(W'')$
   \end{itemize}
   Then 
   \begin{itemize}
@@ -3103,8 +3189,8 @@ Static region used for parts of memory that should not change.
 \begin{lemma}[Anti-reduction for $\observations$]
 \label{lem:anti-red-obs}
   \begin{align*}
-    & \forall n,i,\reg, \reg', \ms, \ms', \ms_r, W \ldotp\\
-    & \quad (\forall \ms_f \ldotp (\reg,\ms \uplus \ms_r \uplus \ms_f) \step[i] (\reg',\ms' \uplus \ms_r \uplus \ms_f)) \land \npair[n-i]{(\reg',\ms')} \in \observations(W) \\
+    & \forall n,i,\reg, \reg', \ms, \ms', \ms_r, W, W' \ldotp\\
+    & \quad (\forall \ms_f \ldotp (\reg,\ms \uplus \ms_r \uplus \ms_f) \step[i] (\reg',\ms' \uplus \ms_r \uplus \ms_f)) \land \npair[n-i]{(\reg',\ms')} \in \observations(W') \land W' \futurestr W \\
     & \qquad \Rightarrow \npair{(\reg,\ms \uplus \ms_r)} \in \observations(W)
   \end{align*}
 \end{lemma}
@@ -3305,27 +3391,6 @@ We expect the following lemmas to hold true:
 \end{proof}
 \lau{$a \leq b$ that the interpretation is not empty.}
 
-\begin{lemma}
-  Say the instructions for \texttt{scall} $r([r_{j_1},\dots,r_{j_n}],[r_{k_1},\dots, r_{k_m}])$ are $i_0,\dots,i_l$, then
-  \begin{align*}
-    & m = \ms \uplus \ms_\stk \uplus \ms_f \\
-    & \memSat{\ms \uplus \ms_\stk}{W}
-    & \npair{\reg[\pc \mapsto c_{\var{scall}}][r_\stk \mapsto c_\stk]} \in \stdrr(W) \\
-    & \ms_\stk = m | _{\start_\stk,\addrend_\stk} \\
-    & c_\stk = ((\rwlx,\gl),\start_\stk,\addrend_\stk,\addr) \\
-    & \start_\stk-1 \leq \addr \land \start_\stk \leq \addrend_\stk \land \addr \leq \addrend_\stk \\
-    & c_{\var{scall}} = ((\perm,\gl)\start,\addrend,\addr) \\
-    & \perm \in \{\exec, \rwx, \rwlx\} \\
-    & \addrend - \addr \leq l  \\
-    & \ms(\addr) = i_0, \dots, \ms(\addr+l) = \mathtt{jmp r}
-    & (\reg[\pc \mapsto c_{\var{scall}}][r_\stk \mapsto c_\stk],m) \step[i'] (\reg_0[r_{k_1} \mapsto \reg(r_{k_1})]\dots[r_{k_m} \mapsto \reg(r_{k_m})][\pc \mapsto c_{\var{scall}}'][r_\stk \mapsto c_\stk'],m) \\
-    & c_{\var{scall}}'.\mathrm{a} = \addr+l \\
-    & \quad \Rightarrow \\
-    & \qquad \exists \ms_\stk', \ms', \ms_r \ldotp \\
-    & \qquad \quad W' = \revokeTemp{W}[\var{rn}_1\mapsto\iota^\sta(\temp, )][\var{rn}_2 \mapsto \iota^\pwl] \\
-    & \qquad \quad \memSat[n-i']{\ms_\stk'\uplus \ms'}{W'}
-  \end{align*}
-\end{lemma}
 
 \section{Other examples and applications}
 \label{sec:other_apps}
