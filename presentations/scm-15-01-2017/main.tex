@@ -1,4 +1,4 @@
-\documentclass{beamer}
+\documentclass[handout]{beamer}
 
 \usepackage[utf8]{inputenc}
 
@@ -29,15 +29,11 @@
 
 \usepackage{appendix}
 
-\usepackage{enumitem}
-\newlist{enumproof}{enumerate}{10}
-\setlist[enumproof]{label*=\arabic*.}
-
 \usepackage{tikz}
 \usepackage{multirow,bigdelim}
 
 %% make latex preview-mode work with natbib...
-%\usepackage[displaymath,floats,graphics,textmath,footnotes]{preview}
+% \usepackage[displaymath,floats,graphics,textmath,footnotes]{preview}
 
 
 \newcommand{\forcenewline}{$\phantom{v}$\\}
@@ -248,8 +244,8 @@
 \newcommand{\npair}[2][n]{\left(#1,#2 \right)}
 
 % Reference register/memory
-\newcommand{\refreg}[1]{\lfloor #1 \rfloor}
-\newcommand{\refheap}[1]{\langle #1 \rangle_m}
+\newcommand{\refreg}[1]{#1}
+\newcommand{\refheap}[1]{#1}
 
 % Instructions
 % No arguments
@@ -336,7 +332,7 @@
 \title{Enforcing Well-Bracketed Control Flow on a Capability Machine using Local Capabilities}
 \author{Lau Skorstengaard\inst{1} \and Dominique Devriese\inst{2} \and Lars Birkedal\inst{1}}
 \institute{\inst{1}Aarhus University \and \inst{2}KU Leuven}
-\date{SCM, January 15, 2016}
+\date{SCM, January 15, 2017}
 
 
 \begin{document}
@@ -346,38 +342,128 @@
 \begin{frame}
   \frametitle{Why capability machines?}
   \begin{itemize}
-  \item CHERI
-  \item Cheap compartmentalisation
   \item Interesting compilation target
-    % Compeling target for high-level language compilation
-  \item C-like calling convention
-  \item How do we formally reason about it
-    % One can program anything?
+    \begin{itemize}
+    \item C-like calling convention
+    \item Enforcement of well-bracketed calls
+    \end{itemize}
+  \item Subject of systems research
+    \begin{itemize}
+    \item CHERI
+    \item How do we formally reason about it
+      % One can program anything?
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+% Gradually introduce system
+\begin{frame}
+  \frametitle{Memory capabilities}
+  \begin{itemize}
+  \item Assembly language that uses capabilities instead of pointers
+  \item Capabilities $(\perm,\start,\addrend,\addr)$
+    \begin{itemize}
+    \item Permission e.g.\ read, write, execute
+    \item Range of authority
+    \item Pointer
+    \end{itemize}
+  \item Capability aware instructions enforce capability permissions
+  \end{itemize}
+  \begin{mathpar}
+    \inferrule{
+      \only<2->{\var{w} = \memreg(r_2)}
+      \only<1>{\phantom{\var{w} = \memreg(r_2)}} \\
+      % 
+      \only<3->{\memreg(r_1) = (\perm,\start,\addrend,\addr)}
+      \only<1-2>{\phantom{\memreg(r_1) = (\perm,\start,\addrend,\addr)}}\\
+      % 
+      \only<4->{\perm \in \{\readwrite, \rwx \}} 
+      \only<1-3>{\phantom{\perm \in \{\readwrite, \rwx \} }} \\
+      % 
+      \only<5->{\start \leq \addr \leq \addrend} 
+      \only<1-4>{\phantom{\start \leq \addr \leq \addrend}}
+    }
+    {\sem{\store{\refreg{r_1}}{\refheap{r_2}}}(\Phi) = 
+      \only<2->{\updateHeap{\only<2>{r_1}\only<3->{\addr}}{\var{w}}}
+      \only<1>{\phantom{\updateHeap{\only<2>{r_1}\only<3->{\addr}}{\var{w}}}}
+    }
+  \end{mathpar}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Enter capabilities}
+  % No way to control how execute capabilities are used
+  %   - Needed for distrusting parties to set up interface.
+  %   - One might try to start execution from an arbitrary address.
+  % From the M-machine
+  \begin{itemize}
+    \item Enter capability:
+      \begin{itemize}
+      \item Becomes executable when jumped to
+      \item Only way to use it
+      % Cannot read from it, write to it, or manipulate it to point to a new address.
+    \end{itemize}
+    \item Modularisation
+      % Execution must start at the address pointed to.
+      %  - We only need to make sure that execution does the right thing starting from one address rather than all in the range of authority.
+    \item Security boundaries
+      % Enter capabilities can be seen as a way to set up and cross security boundaries. 
+      % When one jumps to an enter capability, then control is lost.
   \end{itemize}
 \end{frame}
 
 \begin{frame}
-  \frametitle{What are capability machines?}
-  %Permissions
-  % - enter (like scall)
-
-  %Temporal revocation - local/global pwl/nwl 
-  %  Temporal information flow control
-\end{frame}
-
-\begin{frame}
-  \frametitle{Formalisation highlights}
+  \frametitle{Local capabilities}
+  % Capabilities are irrevocable.
+  % - when a capability is passed to an adversary, then we have to assume that they keep it indefinitly
+  % If we want to ensure well-bracketedness, we cannot allow an adversary to capture return capabilities.
+  % From CHERI
   \begin{itemize}
-  \item Simplified
-  \item Capabilities
+  \item Temporal information-flow control
+  \item Capabilities extended with a \emph{local} tag and a \emph{permit write local} permission ($\var{wl}$)
+    % We call a non-local capability global
+  \item local capabilities can only be written through a permit write local capability
   \end{itemize}
+  \begin{mathpar}
+    \inferrule{
+      \var{w} = \memreg(r_2)\\
+      % 
+      \memreg(r_1) = \stdcap\\
+      % 
+      \perm \in \{\readwrite, \rwx, \only<1>{\phantom{\rwl, \rwlx}} \only<2->{\rwl, \rwlx} \}\\
+      % 
+      \start \leq \addr \leq \addrend\\
+      % 
+      \only<3->{w=((\_,\local),\_,\_,\_) \only<4->{\Rightarrow \perm \in \{\rwl,\rwlx \}} }
+      \only<1-3>{\phantom{\only<1-2>{w=((\_,\local),\_,\_,\_) }\Rightarrow \perm \in \{\rwl,\rwlx \}} }
+    }
+    {\sem{\store{\refreg{r_1}}{\refheap{r_2}}}(\Phi) = 
+      \updateHeap{\addr}{\var{w}}
+    }
+  \end{mathpar}
 \end{frame}
 
 \begin{frame}
-  \frame{Operational semantics}
+  \frametitle{Enforcing well-bracketedness}
   \begin{itemize}
-    \item Capability aware instructions 
-    \item Operational semantics of store
+  \item Stack
+    \begin{itemize}
+    \item local $\rwlx$-capability
+    \item Only place one can store local capabilities
+      % Used to store local state
+      % When control is transfered, 
+    \end{itemize}
+  \item Calling convention
+    \begin{itemize}
+    \item Clear part of the stack the callee gains control over
+    \item Clear non-argument registers 
+      % Makes sure that local capabilities are not passed between calls
+    \end{itemize}
+  \item Callbacks
+    \begin{itemize}
+    \item Callbacks must be global
+      % Prevents caller from restoring stack capability and thus accessing our private stack
+    \end{itemize}
   \end{itemize}
 \end{frame}
 
@@ -390,15 +476,16 @@
     \item Local state encapsulated
     \item enter capability
     \end{itemize}
-  \item 
-  \end{itemize}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Worlds}
-  \begin{itemize}
-    % recursive, validity depends on the rest of the memory, same as other settings
-    % revocable regions - calling convention, stack reusage
+  \item ``Awkward'' %Well-bracketedness, not awkward, only mention, why is well-bracketedness difficult
+    \begin{itemize}
+    \item Well-bracketedness
+    \item Stack as local capability
+      \begin{itemize}
+      \item Execute code on stack
+      \end{itemize}
+    \item Return pointer as local
+    \item Global call-back
+    \end{itemize}
   \end{itemize}
 \end{frame}
 
@@ -410,10 +497,23 @@
 \end{frame}
 
 \begin{frame}
-  \frametitle{Fundamental theorem of logical relations}
+  \frametitle{Worlds}
   \begin{itemize}
-    \item 
+  \item
+    % recursive, validity depends on the rest of the memory, same as other settings
+    % revocable regions - calling convention, stack reusage
   \end{itemize}
 \end{frame}
+
+\begin{frame}
+  \frametitle{Fundamental theorem of logical relations}
+  \begin{itemize}
+  \item 
+  \end{itemize}
+\end{frame}
+
+% Backup slides:
+% Awkward example (proof? why did I write proof?)
+% 
 
 \end{document}
