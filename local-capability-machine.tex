@@ -134,6 +134,8 @@
 \newcommand{\prp}{\var{prp}}
 \newcommand{\env}{\var{env}}
 \newcommand{\cls}{\var{cls}}
+\newcommand{\unused}{\var{unused}}
+
 
 % Memory projections
 \newcommand{\plainproj}[1]{\mathrm{#1}}
@@ -2064,7 +2066,7 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
       \]
       where 
       \begin{itemize}
-      \item \lookingat{(\reg^{(3)},\ms'')}{\mathtt{scall}r([],[])}{c_{\var{next}}'}
+      \item \lookingat{(\reg^{(3)},\ms'')}{\mathtt{scall}\;r([],[])}{c_{\var{next}}'}
       \item \pointstostack{\reg^{(3)}}{[\start \mapsto 2]}{\ms_{\var{unused}}''}
       \item $\reg^{(3)}(r) = c_\adv$
       \end{itemize}
@@ -2489,7 +2491,7 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
           \begin{enumproof}
             \item $\memSat[n_2-i]{\ms_2 \uplus \ms_\malloc' \uplus \ms_\env \uplus \ms_x \uplus \ms_\cls}{W_2}$
               % TODO follows from \ms_1 heap sat and the new regions.
-            \item $\npair[n_2-i]{\reg_2} \in \stdrr$ \\
+            \item $\npair[n_2-i]{\reg_2} \in \stdrr(W_2)$ \\
               Amounts to showing
               \begin{enumproof}
                 \item $\npair[n_2-i]{\reg_2(r_0)} \in \stdvr(W_2)$ by assumption $\npair[n_2]{\reg_1} \in \stdrr(W_1)$ and $\stdvr$ monotonicity wrt. $\futurewk$
@@ -2503,7 +2505,7 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
                     \label{eq:g1-c-cls-obs}
                     \npair[n_4]{(reg_3\update{\pcreg}{\updatePcPerm{c_\cls}},\ms_3)} \in \observations(W_3)
                   \end{equation}
-                  Let $\ms_3^p$ and $\ms_3^t$ be memory segments such that $\ms_3 = \ms_3^p \uplus \ms_3^t$ and $\memSat[n_4]{\ms_3^p}{\revokeTemp{W}_3}$ (using Lemma~\ref{lem:priv-mono-like2})
+                  Let $\ms_3^p$ and $\ms_3^t$ be memory segments such that $\ms_3 = \ms_3^p \uplus \ms_3^t$ and $\memSat[n_4]{\ms_3^p}{\revokeTemp{W_3}}$ (using Lemma~\ref{lem:priv-mono-like2})
 
                   Use Lemma~\ref{lem:anti-red-obs}, let $\ms_f''$ be given and take $\ms_r$ to be the part of $\ms_3^t$ that $\reg_3(r_\stk)$ does not govern. By the operational semantics, we know\footnote{the execution may fail, but then the confifuration is trivially in the observation relation.}
                   \[
@@ -2511,7 +2513,7 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
                   \]
                   where
                   \begin{itemize}
-                  \item \lookingat{reg_4,\ms_4}{\scall{r_1}{}{r_0,r_1,r_\env}}{c_{\var{next}}}
+                  \item \lookingat{(reg_4,\ms_4)}{\scall{r_1}{}{r_0,r_1,r_\env}}{c_{\var{next}}}
                     \begin{itemize}
                     \item $c_{\var{next}}$ is the capability pointing to the next instruction.
                     \end{itemize}
@@ -2519,17 +2521,82 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
                     \begin{itemize}
                     \item \texttt{prepstack} did not fail, so the capability must be $\rwlx$ and follow the stack convention.
                     \end{itemize}
-                  \item $\reg_3(r_0)$ is a $\glob$ capability.
+                  \item $\reg_3(r_1)$ is a $\glob$ capability.
                     \begin{itemize}
                     \item \texttt{reqglob} did not fail
                     \end{itemize}
                   \item $\ms_4(x) = 0$
                   \item $\reg_3(r_\env) = c_\env$
                   \end{itemize}
-                  region $i_2$ (the $\iota_x$ region) can be in either state $0$ or $1$, so to make sure it is in state $0$, we use a private transition. So let $W_4$ be $\revokeTemp{W_3}$ with region $i_2$ in state $0$.
+                  region $i_2$ (the $\iota_x$ region) can be in either state $0$ or $1$, so to make sure it is in state $0$, we use a private transition. So let $W_4$ be $\revokeTemp{W_3}$ with region $i_2$ in state $0$. We then have
+                  \[
+                    \memSat[n_4-j]{\ms_4}{W_4}
+                  \]
+                  Now we can use Lemma~\ref{lem:scall-works} to show:
+                  \[
+                    \npair[n_4-j]{(\reg_4,\ms_4 \uplus \ms_3^t)} \in \observations(W_4)
+                  \]
+                  \begin{enumproof}
+                    \item $\memSat[n_4-j]{\ms_4}{\revokeTemp{W_4}}$: follows from $W_4 = \revokeTemp{W_4}$
+                    \item Hyp-Callee\\
+                      We know $\npair[n_4]{\reg_3(r_1)} \in \stdvr(W_3)$. If this is not a capability that becomes executable when jumped to, then the execution fails, so the register memory segment pair is trivially in the observation relation. If it is executable, then either the $\execCond{}$ or the $\entryCond{}$ holds for appropriate values. We also know that it is a global capability, so we can use it with private future worlds. We have $W_5 = \revokeTemp{W_4}[\iota^\sta (\temp,\emptyset)][\iota^\pwl(\dom(\ms_\unused))] \futurestr W_3$, so by the conditions, we have
+                      \[
+                        \npair[n_4-j]{\updatePcPerm{reg_3(r_1)}} \in \observations(W_5)
+                      \]
+                      Now it suffices to show
+                      \begin{enumproof}
+                        \item $\memSat[n_4-j-1]{\ms_5}{W_5}$ for some $\ms_5$ which is one of the assumptions of Hyp-Callee.
+                        \item $\npair[n_4-j-1]{\reg_5} \in \stdrr(W_5)$ where $\reg_5$ is as described in the \texttt{scall} lemma Hyp-callee premise.\\
+                          Amounts to showing:\lau{too deply nested for environments}\\
+                          1) $\npair[n_4-j-1]{\reg_3(r_1)} \in \stdvr(W_5)$, use Lemma~\ref{lem:stdvr-glob-priv-mono} with $\npair[n_4-j-1]{\reg_3(r_1)} \in \stdvr(W_3)$, the capability is global, and $W_5 \futurestr W_3$.
+
+                          2) The protected return pointer is in the value relation by Hyp-callee assumption, and the stack capability is handled by lemma~\ref{lem:stack-cap-vr}.
+                      \end{enumproof}
+                      which gives us
+                      \[
+                        \npair[n_4-j-1]{(\reg_5,\ms_5)} \in \observations(W_5)
+                      \]
+                    \item Hyp-Cont\\
+                      Assume
+                      \begin{itemize}
+                      \item $n_5 \leq n_4-j-2$
+                      \item $W_6 \futurewk W_5$ (as defined in the Hyp-Callee case).
+                      \item $\memSat[n_4]{\ms_6}{\revokeTemp{W_6}}$
+                      \item $\reg_6(\pcreg) = c_{\var{next}}$, $\reg_6(r_0) = \reg_3(r_0)$, $\reg_6(r_1) = \reg_3(r_1)$, $\reg(r_\env) = c_\env$
+                      \item \pointstostack{\reg_6}{\emptyset}{\ms_\unused'}
+                      \end{itemize}
+                      Use the $\observations$-anti-reduction lemma (Lemma~\ref{lem:anti-red-obs}) followed by the \texttt{scall} lemma (Lemma~\ref{lem:scall-works}). Given $\ms_f'''$, we know by the operational semantics and the fact that the program hasn't changed that
+                      \[
+                        (\reg_6,\ms_6 \uplus \ms_\unused''' \uplus \ms_f''') \step[k] (\reg_7,\ms_6\update{x}{1} \uplus \ms_\unused'' \uplus \ms_f''')
+                      \]
+                      where
+                      \begin{itemize}
+                      \item \lookingat{(\reg_7,\ms_6\update{x}{1})}{\mathtt{scall}\;r([],[r_0,r_\env])}{c_{\var{next}}'}\\
+                        $c_{\var{next}}'$ is the current $\pcreg$ capability but looking at \texttt{load} $r_1$ $x$.
+                      \item $\reg_7(r_0,r_1,r_\env,r_\stk) = \reg_6(r_0,r_1,r_\env,r_\stk)$
+                      \end{itemize}
+                      In $\revokeTemp{W_6}$, we don't know which state the $\iota_x$ region is in, but state $1$ is reachable via a public transition, so let $W_7$ be $\revokeTemp{W_6}$ with region $i_2$ in state $1$. It follows easily that
+                      \[
+                        \memSat[n_4-k]{\ms_6\update{x}{1}}{W_7}
+                      \]
+                      We continue the proof in item \ref{item:proof-cont}
+                  \end{enumproof}
               \end{enumproof}
           \end{enumproof}
       \end{enumproof}
+      \item \label{item:proof-cont} At this point, we apply the \texttt{scall} lemma, to get
+        \[
+          \npair[n_4-k]{(\reg_7,\ms_6\update{x}{1} \uplus \ms_\unused'')} \in \observations(W_7)
+        \]
+        show
+        \begin{enumproof}
+          \item $\memSat[n_4-k]{\ms_6\update{x}{1}}{\revokeTemp{W_7}}$, follows from $W_7= \revokeTemp{W_7}$.
+          \item Hyp-Callee
+            % Use that it is the same $r_1$
+            % TODO
+          \item Hyp-Cont
+            
+        \end{enumproof}
   \end{enumproof}
 
 \end{proof}
@@ -3107,7 +3174,7 @@ Static region used for parts of memory that should not change.
 \subsection{Lemmas}
 
 \begin{theorem}[Fundamental theorem of logical relations]
-
+\lau{do we want the FTLR to also talk about everything that is trivially in the FTLR.}
   \label{thm:ftlr}
   For all $n$, $\perm$, $\start$, $\addrend$, $\addr$, $\gl$, $W$  \\
   if
@@ -3363,6 +3430,7 @@ We expect the following lemmas to hold true:
 
 \subsubsection{Value relation}
 \begin{lemma}[Global capabilities monotone wrt $\futurestr$]
+  \label{lem:stdvr-glob-priv-mono}
   \begin{align*}
     & \forall n, \perm, \start, \addrend, \addr, W \ldotp \\
     & \quad  \npair{\stdcap[(\perm,\glob)]} \in \stdvr(W) \\
