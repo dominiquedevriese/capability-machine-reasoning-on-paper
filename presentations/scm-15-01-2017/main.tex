@@ -339,6 +339,7 @@
 \begin{frame}
   \titlepage
 \end{frame}
+
 \begin{frame}
   \frametitle{Why capability machines?}
   \begin{itemize}
@@ -350,20 +351,39 @@
   \item Subject of systems research
     \begin{itemize}
     \item CHERI
-    \item How do we formally reason about it
-      % One can program anything?
+    % How do we formally reason about it
+    % - One can program anything?
     \end{itemize}
   \end{itemize}
+  % The Gap (Derek talk)
 \end{frame}
+
+% A frame for an outline of the talk?
+\begin{comment}
+\begin{frame}
+  \frametitle{Talk outline}
+  \begin{itemize}
+  \item Capability sytem
+  \item Enforcing well-bracketedness
+  \item Semantic model
+  \end{itemize}
+\end{frame}
+\end{comment}
 
 % Gradually introduce system
 \begin{frame}
   \frametitle{Memory capabilities}
+  Challenge:
+  \begin{itemize}
+  \item Low-level machines provide no means to enforce fine-grained access control.
+    % To some extend, you can try to access any memory location you please. (whether or not you are supposed to)
+  \end{itemize}
+  Solution:
   \begin{itemize}
   \item Assembly language that uses capabilities instead of pointers
   \item Capabilities $(\perm,\start,\addrend,\addr)$
     \begin{itemize}
-    \item Permission e.g.\ read, write, execute
+    \item Permission e.g.\ read ($r$), write ($w$), execute ($x$)
     \item Range of authority
     \item Pointer
     \end{itemize}
@@ -392,37 +412,47 @@
 
 \begin{frame}
   \frametitle{Enter capabilities}
-  % No way to control how execute capabilities are used
-  %   - Needed for distrusting parties to set up interface.
-  %   - One might try to start execution from an arbitrary address.
-  % From the M-machine
+  Challenge:
   \begin{itemize}
-    \item Enter capability:
-      \begin{itemize}
-      \item Becomes executable when jumped to
-      \item Only way to use it
+    \item Execute capabilities allow for execution at an arbitrary point in the range of authority.
+  \end{itemize}
+  % No way to control how execute capabilities are used
+  % - Needed for distrusting parties to set up interface.
+  % - One might try to start execution from an arbitrary address.
+  % From the M-machine
+  Solution:
+  \begin{itemize}
+  \item Enter capability:
+    \begin{itemize}
+    \item Becomes executable when jumped to
+    \item Only way to use it
       % Cannot read from it, write to it, or manipulate it to point to a new address.
     \end{itemize}
-    \item Modularisation
-      % Execution must start at the address pointed to.
-      %  - We only need to make sure that execution does the right thing starting from one address rather than all in the range of authority.
-    \item Security boundaries
-      % Enter capabilities can be seen as a way to set up and cross security boundaries. 
-      % When one jumps to an enter capability, then control is lost.
+  \item Security boundaries
+    % Enter capabilities can be seen as a way to set up and cross security boundaries. 
+    % When one jumps to an enter capability, then control is lost.
+  \item Modularisation
+    % Execution must start at the address pointed to.
+    % - We only need to make sure that execution does the right thing starting from one address rather than all in the range of authority.
   \end{itemize}
 \end{frame}
 
 \begin{frame}
   \frametitle{Local capabilities}
+  Challenge:
+  \begin{itemize}
+  \item Capabilities are irrevocable. 
+  \end{itemize}
   % Capabilities are irrevocable.
   % - when a capability is passed to an adversary, then we have to assume that they keep it indefinitly
   % If we want to ensure well-bracketedness, we cannot allow an adversary to capture return capabilities.
   % From CHERI
+  Solution:
   \begin{itemize}
   \item Temporal information-flow control
   \item Capabilities extended with a \emph{local} tag and a \emph{permit write local} permission ($\var{wl}$)
     % We call a non-local capability global
-  \item local capabilities can only be written through a permit write local capability
+  \item Local capabilities can only be written through a permit write local capability
   \end{itemize}
   \begin{mathpar}
     \inferrule{
@@ -449,9 +479,11 @@
   \item Stack
     \begin{itemize}
     \item local $\rwlx$-capability
+      % Important that there are NO global rwlx capabilities
+      % would undermine the temporal revocation provided by local capabilities.
     \item Only place one can store local capabilities
       % Used to store local state
-      % When control is transfered, 
+      % (Used in calling convention to store "private" registers content, return address in program, stack capability, and  initial restoration code)
     \end{itemize}
   \item Calling convention
     \begin{itemize}
@@ -465,8 +497,16 @@
       % Prevents caller from restoring stack capability and thus accessing our private stack
     \end{itemize}
   \end{itemize}
+  \begin{itemize}
+  \item Using the above techniques, we can faithfully translate high-level well-bracketedness examples from the litterature and prove well-bracketedness.
+    % e.g. the awkward example
+  \end{itemize}
 \end{frame}
 
+
+\begin{comment}
+% I already have well-bracketedness.
+% The question is whether I want the ticket dispenser and compartmentalisation
 \begin{frame}
   \frametitle{Examples}
   \begin{itemize}
@@ -488,18 +528,36 @@
     \end{itemize}
   \end{itemize}
 \end{frame}
+\end{comment}
+
 
 \begin{frame}
   \frametitle{Logical relation}
   \begin{itemize}
   \item Semantic model of well-behaved programs 
+  % \item Combines known techniques from high-level languages in a novel way
+  %   What to say here?
+  \item Captures the safe behaviour of the system
+    \begin{itemize}
+    \item e.g., no global permit write local capabilities
+    \end{itemize}
   \end{itemize}
 \end{frame}
 
 \begin{frame}
+  % Add a figure illustrating this or replace this with a figure
   \frametitle{Worlds}
   \begin{itemize}
-  \item
+  \item The world defines a permanent view and a temporary view of the memory
+  \item The temporary view can be revoked
+  \item The permanent view present in any future world
+    \begin{itemize}
+    \item Local and global capabilities can depend on this part of the memory
+    \end{itemize}
+  \item The temporary view may be revoked in a future world 
+    \begin{itemize}
+    \item Global capabilities cannot depend on the temporary view
+    \end{itemize}
     % recursive, validity depends on the rest of the memory, same as other settings
     % revocable regions - calling convention, stack reusage
   \end{itemize}
@@ -507,10 +565,23 @@
 
 \begin{frame}
   \frametitle{Fundamental theorem of logical relations}
+  \begin{theorem}[FTLR (essence)]
+    All capabilities but global $\rwlx$- and $\rwl$-capabilities can safely be used for execution.
+    % As mentioned previously, we do not want global rwlx capabilities in the system because they undermine the temporal information flow provided by local capabilities
+  \end{theorem}
   \begin{itemize}
   \item 
   \end{itemize}
 \end{frame}
+
+\begin{frame}
+  \frametitle{Questions/discussion}
+\end{frame}
+
+% Slide with other contributions:
+%  - Compartmentalisation and encapsulation of local state
+%  - Novel take on biothorgonality
+
 
 % Backup slides:
 % Awkward example (proof? why did I write proof?)
