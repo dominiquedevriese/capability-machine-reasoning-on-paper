@@ -367,14 +367,11 @@
 % domi: yes, I think this is very useful!
 \begin{frame}
   \frametitle{Talk outline}
-  \begin{itemize}
-  \item Capability sytem
-  \item Enforcing well-bracketedness
-  \item Semantic model
-  \end{itemize}
+  \tableofcontents
 \end{frame}
 % \end{comment}
 
+\section{A simple capability machine}
 % Gradually introduce system
 \begin{frame}
   \frametitle{Memory capabilities}
@@ -384,9 +381,9 @@
     % To some extend, you can try to access any memory location you please. (whether or not you are supposed to)
   \end{itemize}
   Solution:
-    \todo{Mention ``tagged memory''?}
   \begin{itemize}
   \item Assembly language that uses capabilities instead of pointers
+  \item Tagged memory
   \item Capabilities $(\perm,\start,\addrend,\addr)$
     \begin{itemize}
     \item Permission e.g.\ read ($r$), write ($w$), execute ($x$)
@@ -410,8 +407,8 @@
       \only<1-4>{\phantom{\start \leq \addr \leq \addrend}}
     }
     {\sem{\store{\refreg{r_1}}{\refheap{r_2}}}(\Phi) = 
-      \only<2->{\updateHeap{\only<2>{r_1}\only<3->{\addr}}{\var{w}}}
-      \only<1>{\phantom{\updateHeap{\only<2>{r_1}\only<3->{\addr}}{\var{w}}}}
+      \only<2->{\updateHeap{\only<2>{?}\only<3->{\addr}}{\var{w}}}
+      \only<1>{\phantom{\updateHeap{\only<2>{?}\only<3->{\addr}}{\var{w}}}}
     }
   \end{mathpar}
 \end{frame}
@@ -420,22 +417,22 @@
   \frametitle{Enter capabilities}
   Challenge:
   \begin{itemize}
-    \item Execute capabilities allow for execution at an arbitrary point in the
-      range of authority.\todo{and they are transparent, i.e. no encapsulation
-        of local state}
+  \item Execute capabilities provide no encapsulation: how can we give the
+    callee more authority than caller?
   \end{itemize}
   % No way to control how execute capabilities are used
   % - Needed for distrusting parties to set up interface.
   % - One might try to start execution from an arbitrary address.
   % From the M-machine
-  Solution:
+  Solution (from M-Machine):
   \begin{itemize}
   \item Enter capability:
     \begin{itemize}
-    \item Becomes executable when jumped to
-    \item Only way to use it
+    \item Completely opaque, you can only jump to it
+    \item Becomes rx when jumped to
       % Cannot read from it, write to it, or manipulate it to point to a new address.
     \end{itemize}
+  \item $\sim$ encapsulated closure
   \item Security boundaries
     % Enter capabilities can be seen as a way to set up and cross security boundaries. 
     % When one jumps to an enter capability, then control is lost.
@@ -457,10 +454,11 @@
   % From CHERI
   Solution:
   \begin{itemize}
-  \item Temporal information-flow control
+  \item Local capabilities (form of temporal information-flow control)
   \item Capabilities extended with a \emph{local} tag and a \emph{permit write local} permission ($\var{wl}$)
     % We call a non-local capability global
-  \item Local capabilities can only be written through a permit write local capability
+  \item Local capabilities can only be written to memory through a wl capability
+  \item (to make it useful:) wl-capabilities must be local themselves
   \end{itemize}
   \begin{mathpar}
     \inferrule{
@@ -481,46 +479,45 @@
   \end{mathpar}
 \end{frame}
 
+\section{Applications}
+\subsection{Enforcing well-bracketedness}
 \begin{frame}
-  \frametitle{Enforcing well-bracketedness}
-  \todo{mention (``without a trusted stack'')?}
-  \todo{mention return pointers}
-  \todo{emphasize the non-obvious points (callbacks must be global and clear
-    part of the stack the callee gains control over)}
+  \frametitle{Enforcing well-bracketedness (without a trusted stack)}
+  Basic Idea:
   \begin{itemize}
-  \item Stack
-    \begin{itemize}
-    \item local $\rwlx$-capability
+  \item Stack pointer as local $\rwlx$-capability
       % Important that there are NO global rwlx capabilities
       % would undermine the temporal revocation provided by local capabilities.
+    \begin{itemize} 
     \item Only place one can store local capabilities
       % Used to store local state
       % (Used in calling convention to store "private" registers content, return address in program, stack capability, and  initial restoration code)
     \end{itemize}
-  \item Calling convention
-    \begin{itemize}
-    \item Clear part of the stack the callee gains control over
-    \item Clear non-argument registers 
-      % Makes sure that local capabilities are not passed between calls
-    \end{itemize}
-  \item Callbacks
-    \begin{itemize}
-    \item Callbacks must be global
-      % Prevents caller from restoring stack capability and thus accessing our private stack
-    \end{itemize}
+  \item Return pointer as local $\entry$-capability
   \end{itemize}
+
+  Many details to get right:
   \begin{itemize}
-  \item Using the above techniques, we can faithfully translate high-level well-bracketedness examples from the literature and prove well-bracketedness.
-    % e.g. the awkward example
+  \item Clear non-argument registers upon invocations
+      % Makes sure that local capabilities are not passed between calls
+  \item Clear part of the stack the callee gains control over
+  \item Adversary callbacks must be global
+  \end{itemize}
+  
+  Results:
+  \begin{itemize}
+  \item Provably enforce well-bracketed control flow and local state
+    encapsulation, without a trusted stack!
+  \item (Even with a trusted stack, some points above still needed.)
   \end{itemize}
 \end{frame}
 
-
 \begin{comment}
+\subsection{Other Examples}
 % I already have well-bracketedness.
 % The question is whether I want the ticket dispenser and compartmentalisation
 \begin{frame}
-  \frametitle{Examples}
+  \frametitle{More Examples}
   \begin{itemize}
   \item Ticket dispenser
     \begin{itemize}
@@ -543,11 +540,67 @@
 \end{comment}
 
 
+\section{Logical Relation}
+\subsection{Kripke Worlds}
+\begin{frame}
+  % Add a figure illustrating this or replace this with a figure
+  \frametitle{Kripke Worlds}
+  {\tiny
+  \begin{align*}
+    \Wor &\approx \mathrm{Island}^*\\
+    \mathrm{Island} \mathbin{::=}&\revoked\\
+    \mid\ &(\temp, s, (\phi_\pub,\phi), H ) &\text{ with } H \in \States \fun (\Wor \monwknefun \UPred{\HeapSegments}) \\
+         \mid\ &(\perma, s, (\phi_\pub,\phi), H) &\text{ with }  H \in \States \fun (\Wor \monstrnefun \UPred{\HeapSegments})))
+  \end{align*}}
+
+  \begin{itemize}
+  \item Recursive Kripke world
+  \item Regions model evolvable invariants (protocols) on memory
+    \begin{itemize}
+    \item State machines with public and private transitions
+    \end{itemize}
+  \item Regions are \emph{permanent} or \emph{temporary}
+    \begin{itemize}
+    \item Permanent regions remain present in any future world
+      \begin{itemize}
+      \item Local and global capabilities can depend on this part of the memory
+      \end{itemize}
+    \item Temporary regions may be revoked in private future worlds
+      \begin{itemize}
+      \item Global capabilities cannot depend on temporary regions
+      \end{itemize}
+    \end{itemize}
+    % recursive, validity depends on the rest of the memory, same as other settings
+    % revocable regions - calling convention, stack reusage
+  \end{itemize}
+\end{frame}
+
+\subsection{Logical Relation}
 \begin{frame}
   \frametitle{Logical relation}
-  \todo{I would try to show a few crucial parts (e.g. the value relation as a
-    big union, with one case shown in detail, the observation and expression relation)}
-  \todo{Show worlds first?}
+  \begin{align*}
+    \stdvr(W)\defeq &\begin{aligned}[t]
+        & \{ \npair{i} \mid i \in \ints \} \\
+        & \union \left\{
+          \begin{multlined}
+            \npair{\stdcap[(\readonly,\gl)] } \mid \\
+             \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)
+          \end{multlined}
+\right\} \\
+        &\union \cdots
+      \end{aligned}\\
+    \stdrr(W) \defeq & 
+                    \begin{aligned}[t]
+                      \{ \npair{\reg} \mid & \;\forall r \in \RegName \setminus \{\pcreg\} \ldotp  \npair{\reg(r)} \in \stdvr(W) \}
+                    \end{aligned}\\
+                    % 
+    \stder(W) \defeq &  \left\{ \npair{\pc} \mid 
+                    \begin{multlined}
+                      \forall n' \leq n, \npair[n']{\reg} \in \stdrr(W), \heapSat[\hs]{n'}{W} \ldotp \\
+                       \npair[n']{(\reg\update{\pcreg}{\pc},\hs)} \in \observations(W)
+                    \end{multlined} \right\}
+  \end{align*}
+
   \begin{itemize}
   \item Semantic model of well-behaved programs 
   % \item Combines known techniques from high-level languages in a novel way
@@ -560,35 +613,66 @@
   \end{itemize}
 \end{frame}
 
+\subsection{Properties}
 \begin{frame}
-  % Add a figure illustrating this or replace this with a figure
-  \frametitle{Worlds}
-  \begin{itemize}
-  \item The world defines a permanent view and a temporary view of the memory
-  \item The temporary view can be revoked
-  \item The permanent view present in any future world
+  \frametitle{Interesting properties}
+  
+  \begin{lemma}[Revoke temporary memory satisfaction]
+    If $\heapSat[\hs]{n}{W}$, then $\hs = \hs' \uplus \hs_r$ and
+    $\heapSat[\hs']{n}{\revokeTemp{W}}$
+  \end{lemma}
+
+  \begin{lemma}[Double monotonicity of value relation]
     \begin{itemize}
-    \item Local and global capabilities can depend on this part of the memory
+    \item If $\npair{w} \in \stdvr(W)$ and $W' \futurewk W$ then $\npair{w} \in
+      \stdvr(W')$.
+    \item If $\npair{w} \in \stdvr(W)$ and $W' \futurestr W$ and $w$ is
+      not a local capability, then $\npair{w} \in \stdvr(W')$.
     \end{itemize}
-  \item The temporary view may be revoked in a future world 
-    \begin{itemize}
-    \item Global capabilities cannot depend on the temporary view
-    \end{itemize}
-    % recursive, validity depends on the rest of the memory, same as other settings
-    % revocable regions - calling convention, stack reusage
-  \end{itemize}
-  \todo{mention public/private transitions}
+  \end{lemma}
+
 \end{frame}
 
 \begin{frame}
   \frametitle{Fundamental theorem of logical relations}
   \begin{theorem}[FTLR (essence)]
-    All capabilities but global $\rwlx$- and $\rwl$-capabilities can safely be used for execution.
+    If \[
+      \perm = \exec \land \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)
+    \]
+    (or similarly for $\rwx$ and $\rwlx$),\\
+    then
+    \[
+      \npair{((\perm,\gl),\start,\addrend,\addr)} \in \stder(W)
+    \]
     % As mentioned previously, we do not want global rwlx capabilities in the system because they undermine the temporal information flow provided by local capabilities
-    \todo{I would show the technical statement.}
   \end{theorem}
   \begin{itemize}
-  \item 
+  \item General statement of the guarantees provided by the capability machine.
+  \item Intuitively: any program is safe as long as it only has access to safe values.
+  \end{itemize}
+\end{frame}
+
+\section{Conclusion}
+
+\begin{frame}
+  \frametitle{Conclusion}
+
+  \begin{itemize}
+  \item Reasoning about a capability machine
+    \begin{itemize}
+    \item Logical relation with some interesting novel aspects
+      \begin{itemize}
+      \item single orthogonal closure
+      \item local capabilities require public/private future worlds, used in new
+        way
+      \end{itemize}
+    \end{itemize}
+  \item Provably enforce well-bracketed control flow using (just) local
+    capabilities
+    \begin{itemize}
+    \item Several details to get right
+    \item Requires memory clearing instruction! (even with trusted stack)
+    \end{itemize}
   \end{itemize}
 \end{frame}
 
