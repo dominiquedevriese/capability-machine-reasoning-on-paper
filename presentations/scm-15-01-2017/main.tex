@@ -1,4 +1,4 @@
-\documentclass[handout]{beamer}
+\documentclass{beamer}
 
 \usepackage[utf8]{inputenc}
 
@@ -291,6 +291,7 @@
 \newcommand{\readwritel}{\plainperm{rwl}}
 \newcommand{\rwl}{\readwritel}
 \newcommand{\rwlx}{\plainperm{rwlx}}
+\newcommand{\writeloc}{\plainperm{wl}}
 
 % Global/local
 \newcommand{\local}{\plainperm{local}}
@@ -352,6 +353,7 @@
     \item C-like calling convention
     \item Enforcement of well-bracketed calls
     \end{itemize}
+    
   \item Subject of systems research
     \begin{itemize}
     \item CHERI
@@ -362,14 +364,10 @@
   % The Gap (Derek talk)
 \end{frame}
 
-% A frame for an outline of the talk?
-% \begin{comment}
-% domi: yes, I think this is very useful!
 \begin{frame}
   \frametitle{Talk outline}
   \tableofcontents
 \end{frame}
-% \end{comment}
 
 \section{A simple capability machine}
 % Gradually introduce system
@@ -380,35 +378,37 @@
   \item Low-level machines provide no means to enforce fine-grained access control.
     % To some extend, you can try to access any memory location you please. (whether or not you are supposed to)
   \end{itemize}
+  \pause
   Solution:
-  \begin{itemize}
+  \begin{itemize}[<+->]
   \item Assembly language that uses capabilities instead of pointers
   \item Tagged memory
   \item Capabilities $(\perm,\start,\addrend,\addr)$
     \begin{itemize}
-    \item Permission e.g.\ read ($r$), write ($w$), execute ($x$)
-    \item Range of authority
-    \item Pointer
+    \item<3-> Permission e.g.\ read ($r$), write ($w$), execute ($x$)
+    \item<3-> Range of authority
+    \item<3-> Pointer
     \end{itemize}
+    % Capabilities are tagged and the tag is tracked throughout execution
   \item Capability aware instructions enforce capability permissions
   \end{itemize}
   \begin{mathpar}
     \inferrule{
-      \only<2->{\var{w} = \memreg(r_2)}
-      \only<1>{\phantom{\var{w} = \memreg(r_2)}} \\
+      \only<6->{\var{w} = \memreg(r_2)}
+      \only<5>{\phantom{\var{w} = \memreg(r_2)}} \\
       % 
-      \only<3->{\memreg(r_1) = (\perm,\start,\addrend,\addr)}
-      \only<1-2>{\phantom{\memreg(r_1) = (\perm,\start,\addrend,\addr)}}\\
+      \only<7->{\memreg(r_1) = (\perm,\start,\addrend,\addr)}
+      \only<5-6>{\phantom{\memreg(r_1) = (\perm,\start,\addrend,\addr)}}\\
       % 
-      \only<4->{\perm \in \{\readwrite, \rwx \}} 
-      \only<1-3>{\phantom{\perm \in \{\readwrite, \rwx \} }} \\
+      \only<8->{\perm \in \{\readwrite, \rwx \}} 
+      \only<5-7>{\phantom{\perm \in \{\readwrite, \rwx \} }} \\
       % 
-      \only<5->{\start \leq \addr \leq \addrend} 
-      \only<1-4>{\phantom{\start \leq \addr \leq \addrend}}
+      \only<9->{\start \leq \addr \leq \addrend} 
+      \only<5-8>{\phantom{\start \leq \addr \leq \addrend}}
     }
     {\sem{\store{\refreg{r_1}}{\refheap{r_2}}}(\Phi) = 
-      \only<2->{\updateHeap{\only<2>{?}\only<3->{\addr}}{\var{w}}}
-      \only<1>{\phantom{\updateHeap{\only<2>{?}\only<3->{\addr}}{\var{w}}}}
+      \only<6->{\updateHeap{\only<2>{?}\only<3->{\addr}}{\var{w}}}
+      \only<5>{\phantom{\updateHeap{\only<2>{?}\only<3->{\addr}}{\var{w}}}}
     }
   \end{mathpar}
 \end{frame}
@@ -452,13 +452,13 @@
   % - when a capability is passed to an adversary, then we have to assume that they keep it indefinitly
   % If we want to ensure well-bracketedness, we cannot allow an adversary to capture return capabilities.
   % From CHERI
-  Solution:
+  Solution (from CHERI):
   \begin{itemize}
   \item Local capabilities (form of temporal information-flow control)
-  \item Capabilities extended with a \emph{local} tag and a \emph{permit write local} permission ($\var{wl}$)
+  \item Capabilities extended with a \emph{local} tag and a \emph{permit write local} permission ($\writeloc$)
     % We call a non-local capability global
-  \item Local capabilities can only be written to memory through a wl capability
-  \item (to make it useful:) wl-capabilities must be local themselves
+  \item Local capabilities can only be written to memory through a $\writeloc$ capability
+  \item (to make it useful:) $\writeloc$-capabilities must be local themselves
   \end{itemize}
   \begin{mathpar}
     \inferrule{
@@ -545,14 +545,38 @@
 \begin{frame}
   % Add a figure illustrating this or replace this with a figure
   \frametitle{Kripke Worlds}
+  \begin{overprint}
+    \onslide<1>
+    \includegraphics{Worlds/w1.eps}
+    \onslide<2>
+    \includegraphics{Worlds/w2.eps}
+    \onslide<3>
+    \includegraphics{Worlds/w3.eps}
+    \onslide<4>
+    \includegraphics{Worlds/w4.eps}
+    \onslide<5>
+    \includegraphics{Worlds/w5.eps}
+    \onslide<6>
+    \includegraphics{Worlds/w6.eps}
+    \onslide<7>
+    \includegraphics{Worlds/w7.eps}
+    \onslide<8>
+    \includegraphics{Worlds/w8.eps}
+    \onslide<9>
+    \includegraphics{Worlds/w9.eps}
+    \onslide<10>
+    \includegraphics{Worlds/w10.eps}
+    \onslide<11>
+    \includegraphics{Worlds/w11.eps}
+
+  \end{overprint}
   {\tiny
   \begin{align*}
-    \Wor &\approx \mathrm{Island}^*\\
-    \mathrm{Island} \mathbin{::=}&\revoked\\
+    \Wor &\approx \mathrm{Region}^*\\
+    \mathrm{Region} \mathbin{::=}&\revoked\\
     \mid\ &(\temp, s, (\phi_\pub,\phi), H ) &\text{ with } H \in \States \fun (\Wor \monwknefun \UPred{\HeapSegments}) \\
-         \mid\ &(\perma, s, (\phi_\pub,\phi), H) &\text{ with }  H \in \States \fun (\Wor \monstrnefun \UPred{\HeapSegments})))
+         \mid\ &(\perma, s, (\phi_\pub,\phi), H) &\text{ with }  H \in \States \fun (\Wor \monstrnefun \UPred{\HeapSegments})
   \end{align*}}
-
   \begin{itemize}
   \item Recursive Kripke world
   \item Regions model evolvable invariants (protocols) on memory
@@ -594,7 +618,7 @@
                       \{ \npair{\reg} \mid & \;\forall r \in \RegName \setminus \{\pcreg\} \ldotp  \npair{\reg(r)} \in \stdvr(W) \}
                     \end{aligned}\\
                     % 
-    \stder(W) \defeq &  \left\{ \npair{\pc} \mid 
+    \stder(W) \defeq &  \left\{ \npair{\pc} \middle| 
                     \begin{multlined}
                       \forall n' \leq n, \npair[n']{\reg} \in \stdrr(W), \heapSat[\hs]{n'}{W} \ldotp \\
                        \npair[n']{(\reg\update{\pcreg}{\pc},\hs)} \in \observations(W)
@@ -603,11 +627,12 @@
 
   \begin{itemize}
   \item Semantic model of well-behaved programs 
+  \item Uses PL techniques known from high-level languages
   % \item Combines known techniques from high-level languages in a novel way
   %   What to say here?
   \item Captures the safe behaviour of the system
     \begin{itemize}
-    \item e.g., no global permit write local capabilities
+    \item e.g., no global permit-write-local capabilities
     \item (unary logical relation)
     \end{itemize}
   \end{itemize}
@@ -630,7 +655,6 @@
       not a local capability, then $\npair{w} \in \stdvr(W')$.
     \end{itemize}
   \end{lemma}
-
 \end{frame}
 
 \begin{frame}
