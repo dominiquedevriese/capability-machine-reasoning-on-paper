@@ -392,23 +392,24 @@
     % Capabilities are tagged and the tag is tracked throughout execution
   \item Capability aware instructions enforce capability permissions
   \end{itemize}
+  \onslide<5->
   \begin{mathpar}
     \inferrule{
       \only<6->{\var{w} = \memreg(r_2)}
-      \only<5>{\phantom{\var{w} = \memreg(r_2)}} \\
+      \only<1-5>{\phantom{\var{w} = \memreg(r_2)}} \\
       % 
       \only<7->{\memreg(r_1) = (\perm,\start,\addrend,\addr)}
-      \only<5-6>{\phantom{\memreg(r_1) = (\perm,\start,\addrend,\addr)}}\\
+      \only<1-6>{\phantom{\memreg(r_1) = (\perm,\start,\addrend,\addr)}}\\
       % 
       \only<8->{\perm \in \{\readwrite, \rwx \}} 
-      \only<5-7>{\phantom{\perm \in \{\readwrite, \rwx \} }} \\
+      \only<1-7>{\phantom{\perm \in \{\readwrite, \rwx \} }} \\
       % 
       \only<9->{\start \leq \addr \leq \addrend} 
-      \only<5-8>{\phantom{\start \leq \addr \leq \addrend}}
+      \only<1-8>{\phantom{\start \leq \addr \leq \addrend}}
     }
     {\sem{\store{\refreg{r_1}}{\refheap{r_2}}}(\Phi) = 
-      \only<6->{\updateHeap{\only<2>{?}\only<3->{\addr}}{\var{w}}}
-      \only<5>{\phantom{\updateHeap{\only<2>{?}\only<3->{\addr}}{\var{w}}}}
+      \only<6->{\updateHeap{\only<6>{?}\only<7->{\addr}}{\var{w}}}
+      \only<1-5>{\phantom{\updateHeap{\only<1-6>{?}\only<7->{\addr}}{\var{w}}}}
     }
   \end{mathpar}
 \end{frame}
@@ -420,6 +421,7 @@
   \item Execute capabilities provide no encapsulation: how can we give the
     callee more authority than caller?
   \end{itemize}
+  \pause
   % No way to control how execute capabilities are used
   % - Needed for distrusting parties to set up interface.
   % - One might try to start execution from an arbitrary address.
@@ -452,6 +454,7 @@
   % - when a capability is passed to an adversary, then we have to assume that they keep it indefinitly
   % If we want to ensure well-bracketedness, we cannot allow an adversary to capture return capabilities.
   % From CHERI
+  \pause
   Solution (from CHERI):
   \begin{itemize}
   \item Local capabilities (form of temporal information-flow control)
@@ -460,18 +463,19 @@
   \item Local capabilities can only be written to memory through a $\writeloc$ capability
   \item (to make it useful:) $\writeloc$-capabilities must be local themselves
   \end{itemize}
+  \pause
   \begin{mathpar}
     \inferrule{
       \var{w} = \memreg(r_2)\\
       % 
       \memreg(r_1) = \stdcap\\
       % 
-      \perm \in \{\readwrite, \rwx, \only<1>{\phantom{\rwl, \rwlx}} \only<2->{\rwl, \rwlx} \}\\
+      \perm \in \{\readwrite, \rwx, \only<1-3>{\phantom{\rwl, \rwlx}} \only<4->{\rwl, \rwlx} \}\\
       % 
       \start \leq \addr \leq \addrend\\
       % 
-      \only<3->{w=((\_,\local),\_,\_,\_) \only<4->{\Rightarrow \perm \in \{\rwl,\rwlx \}} }
-      \only<1-3>{\phantom{\only<1-2>{w=((\_,\local),\_,\_,\_) }\Rightarrow \perm \in \{\rwl,\rwlx \}} }
+      \only<5->{w=((\_,\local),\_,\_,\_) \only<6->{\Rightarrow \perm \in \{\rwl,\rwlx \}} }
+      \only<1-5>{\phantom{\only<1-4>{w=((\_,\local),\_,\_,\_) }\Rightarrow \perm \in \{\rwl,\rwlx \}} }
     }
     {\sem{\store{\refreg{r_1}}{\refheap{r_2}}}(\Phi) = 
       \updateHeap{\addr}{\var{w}}
@@ -483,8 +487,11 @@
 \subsection{Enforcing well-bracketedness}
 \begin{frame}
   \frametitle{Enforcing well-bracketedness (without a trusted stack)}
+  \pause
+  % If continuations can be captured, then we cannot have well-bracketed calls (e.g. call/cc)
   Basic Idea:
   \begin{itemize}
+  \item Return pointer as local $\entry$-capability
   \item Stack pointer as local $\rwlx$-capability
       % Important that there are NO global rwlx capabilities
       % would undermine the temporal revocation provided by local capabilities.
@@ -493,9 +500,8 @@
       % Used to store local state
       % (Used in calling convention to store "private" registers content, return address in program, stack capability, and  initial restoration code)
     \end{itemize}
-  \item Return pointer as local $\entry$-capability
   \end{itemize}
-
+  \pause
   Many details to get right:
   \begin{itemize}
   \item Clear non-argument registers upon invocations
@@ -503,7 +509,7 @@
   \item Clear part of the stack the callee gains control over
   \item Adversary callbacks must be global
   \end{itemize}
-  
+  \pause
   Results:
   \begin{itemize}
   \item Provably enforce well-bracketed control flow and local state
@@ -550,62 +556,69 @@
     \includegraphics{Worlds/w1.eps}
     \onslide<2>
     \includegraphics{Worlds/w2.eps}
-    \onslide<3>
+    \onslide<3-4>
     \includegraphics{Worlds/w3.eps}
-    \onslide<4>
-    \includegraphics{Worlds/w4.eps}
     \onslide<5>
-    \includegraphics{Worlds/w5.eps}
+    \includegraphics{Worlds/w4.eps}
     \onslide<6>
-    \includegraphics{Worlds/w6.eps}
+    \includegraphics{Worlds/w5.eps}
     \onslide<7>
-    \includegraphics{Worlds/w7.eps}
+    \includegraphics{Worlds/w6.eps}
     \onslide<8>
-    \includegraphics{Worlds/w8.eps}
+    \includegraphics{Worlds/w7.eps}
     \onslide<9>
-    \includegraphics{Worlds/w9.eps}
+    \includegraphics{Worlds/w8.eps}
     \onslide<10>
-    \includegraphics{Worlds/w10.eps}
+    \includegraphics{Worlds/w9.eps}
     \onslide<11>
+    \includegraphics{Worlds/w10.eps}
+    \onslide<12>
     \includegraphics{Worlds/w11.eps}
-
   \end{overprint}
+%\center{\rule{0.5\textwidth}{0.4pt}}
+  \begin{overprint}
+    \onslide<1-3>
     \begin{itemize}
     \item Recursive Kripke world
+      \begin{itemize}
+      \item Collection of regions
+      \end{itemize}
     \item Regions model evolvable invariants (protocols) on memory
       \begin{itemize}
       \item State machines with public and private transitions
       \end{itemize}
-    \item Regions are \emph{permanent} or \emph{temporary}
-      \begin{itemize}
-      \item Permanent regions remain present in any future world
-        \begin{itemize}
-        \item Local and global capabilities can depend on this part of the memory
-        \end{itemize}
-      \item Temporary regions may be revoked in private future worlds
-        \begin{itemize}
-        \item Global capabilities cannot depend on temporary regions
-        \end{itemize}
-      \end{itemize}
-      % recursive, validity depends on the rest of the memory, same as other settings
-      % revocable regions - calling convention, stack reusage
+    \item<3-> Worlds can be extended with regions
     \end{itemize}
+    \onslide<4-7>
+    Challenge: we want to reuse memory e.g., on the stack
+      \begin{itemize}
+      \item \emph{Permanent} regions, remain present in any future world
+      \item \emph{Temporary} regions, may be revoked in private future worlds
+      \item \onslide<6-7>{\emph{Revoked} regions}
+      \end{itemize}
+    \onslide<8->
+    Relation to locap capabilities
+    \begin{itemize}
+    \item<9-> Local capabilities
+      \begin{itemize}
+      \item Can depend on temporary and permanent regions
+      \end{itemize}
+    \item<10-> Global capabilities
+      \begin{itemize}
+      \item Can \emph{only} depen on permanent regions
+      \end{itemize}
+    \end{itemize}
+  \end{overprint}
 \end{frame}
-\begin{comment}
-    {\tiny
-      \begin{align*}
-        \Wor &\approx \mathrm{Region}^*\\
-        \mathrm{Region} \mathbin{::=}&\revoked\\
-        \mid\ &(\temp, s, (\phi_\pub,\phi), H ) &\text{ with } H \in \States \fun (\Wor \monwknefun \UPred{\HeapSegments}) \\
-        \mid\ &(\perma, s, (\phi_\pub,\phi), H) &\text{ with }  H \in \States \fun (\Wor \monstrnefun \UPred{\HeapSegments})
-      \end{align*}}
-  \end{comment}
+
+
 
 
 \subsection{Logical Relation}
 \begin{frame}
   \frametitle{Logical relation}
   \begin{align*}
+\onslide<2->{
     \stdvr(W)\defeq &\begin{aligned}[t]
         & \{ \npair{i} \mid i \in \ints \} \\
         & \union \left\{
@@ -615,29 +628,35 @@
           \end{multlined}
 \right\} \\
         &\union \cdots
-      \end{aligned}\\
+      \end{aligned} \\
+      % 
+}
+\onslide<4->{
     \stdrr(W) \defeq & 
                     \begin{aligned}[t]
                       \{ \npair{\reg} \mid & \;\forall r \in \RegName \setminus \{\pcreg\} \ldotp  \npair{\reg(r)} \in \stdvr(W) \}
                     \end{aligned}\\
+}
                     % 
+\onslide<3->{
     \stder(W) \defeq &  \left\{ \npair{\pc} \middle| 
                     \begin{multlined}
                       \forall n' \leq n, \npair[n']{\reg} \in \stdrr(W), \heapSat[\hs]{n'}{W} \ldotp \\
                        \npair[n']{(\reg\update{\pcreg}{\pc},\hs)} \in \observations(W)
                     \end{multlined} \right\}
+}
   \end{align*}
 
   \begin{itemize}
-  \item Semantic model of well-behaved programs 
-  \item Uses PL techniques known from high-level languages
+  \item<1-> Semantic model of well-behaved programs 
+  \item<1-> Captures the safe behaviour of the system
+    \begin{itemize}
+    \item<1-> e.g., no global permit-write-local capabilities
+    \item<1-> (unary logical relation)
+    \end{itemize}
+  \item<5-> Uses PL techniques known from high-level languages
   % \item Combines known techniques from high-level languages in a novel way
   %   What to say here?
-  \item Captures the safe behaviour of the system
-    \begin{itemize}
-    \item e.g., no global permit-write-local capabilities
-    \item (unary logical relation)
-    \end{itemize}
   \end{itemize}
 \end{frame}
 
@@ -649,7 +668,7 @@
     If $\heapSat[\hs]{n}{W}$, then $\hs = \hs' \uplus \hs_r$ and
     $\heapSat[\hs']{n}{\revokeTemp{W}}$
   \end{lemma}
-
+  \pause
   \begin{lemma}[Double monotonicity of value relation]
     \begin{itemize}
     \item If $\npair{w} \in \stdvr(W)$ and $W' \futurewk W$ then $\npair{w} \in
@@ -662,7 +681,7 @@
 
 \begin{frame}
   \frametitle{Fundamental theorem of logical relations}
-  \begin{theorem}[FTLR (essence)]
+  \begin{theorem}[FTLR]
     If \[
       \perm = \exec \land \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)
     \]
@@ -705,6 +724,17 @@
 
 \begin{frame}
   \frametitle{Questions/discussion}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Recursive domain equation (simplified)}
+    {\tiny
+      \begin{align*}
+        \Wor &\approx \mathrm{Region}^*\\
+        \mathrm{Region} \mathbin{::=}&\revoked\\
+        \mid\ &(\temp, s, (\phi_\pub,\phi), H ) &\text{ with } H \in \States \fun (\Wor \monwknefun \UPred{\HeapSegments}) \\
+        \mid\ &(\perma, s, (\phi_\pub,\phi), H) &\text{ with }  H \in \States \fun (\Wor \monstrnefun \UPred{\HeapSegments})
+      \end{align*}}
 \end{frame}
 
 % Slide with other contributions:
