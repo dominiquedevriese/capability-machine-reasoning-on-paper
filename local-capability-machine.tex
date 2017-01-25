@@ -14,6 +14,7 @@
 \usepackage{verbatim}
 \usepackage{mathpartir}
 \usepackage{listings}
+\usepackage{hyperref}
 \lstset{
   basicstyle=\ttfamily,
   columns=fullflexible,
@@ -135,6 +136,7 @@
 \newcommand{\env}{\var{env}}
 \newcommand{\cls}{\var{cls}}
 \newcommand{\unused}{\var{unused}}
+\newcommand{\act}{\var{act}}
 
 
 % Memory projections
@@ -331,6 +333,9 @@
 \begin{flushright}
   \today
 \end{flushright}
+
+\tableofcontents
+
 \section{Domains and Notation}
 
 \begin{align*}
@@ -938,9 +943,9 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
                 \begin{description}
                 \item[Allocate memory for variable environment]
                 \item[Store register contents to environment]
-                \item[Allocate memory for record with environment capability, code capability, and acitvation code]
+                \item[Allocate memory for record with environment capability, code capability, and activation code]
                 \item[Store capabilities and activation code to record]
-                \item[Restrict the capability for the ``clojure pair'' to an enter capability]
+                \item[Restrict the capability for the ``closure pair'' to an enter capability]
                 \item[Activation code:] \forcenewline
                   \begin{itemize}
                   \item Load the environment capability to a designated register
@@ -952,9 +957,9 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
                 \begin{description}
                 \item[Allocate memory for variable environment] Have malloc allocate a piece of memory of size $n$ (the size of the variable environment). 
                 \item[Store register contents to environment] Store the contents of each of the registers $r_1,\dots,r_n$ to the newly allocated memory.
-                \item[Allocate memory for record with environment capability, code capability, and acitvation code] Allocate a new piece of memory with room for a capability for the environment.
+                \item[Allocate memory for record with environment capability, code capability, and activation code] Allocate a new piece of memory with room for a capability for the environment.
                 \item[Store capabilities and activation code to record] Store the environment capability and code capability in the record followed by the activation code. 
-                \item[Restrict the capability for the ``clojure pair'' to an enter capability] Adjust the capability to point to the start of the acitvation code and restrict it to a global enter-capability.
+                \item[Restrict the capability for the ``clojure pair'' to an enter capability] Adjust the capability to point to the start of the activation code and restrict it to a global enter-capability.
                 \item[Activation code:] \forcenewline
                   \begin{itemize}
                   \item Load the environment capability to a designated register.
@@ -1364,7 +1369,6 @@ f1: malloc r_l 1
                   m'(\flag) = 0
                 \]  
               \end{lemma}
-
               \begin{proof}[Proof of Lemma~\ref{lem:correctness-f1}]
                 Let $n$ be given and assume the premises in the lemma.  Consider the following part of the execution:
                 \[
@@ -2525,7 +2529,7 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
                   \end{equation}
                   Let $\ms_3^p$ and $\ms_3^t$ be memory segments such that $\ms_3 = \ms_3^p \uplus \ms_3^t$ and $\memSat[n_4]{\ms_3^p}{\revokeTemp{W_3}}$ (using Lemma~\ref{lem:priv-mono-like2})
 
-                  Use Lemma~\ref{lem:anti-red-obs}, let $\ms_f''$ be given and take $\ms_r$ to be the part of $\ms_3^t$ that $\reg_3(r_\stk)$ does not govern. By the operational semantics, we know\footnote{the execution may fail, but then the confifuration is trivially in the observation relation.}
+                  Use Lemma~\ref{lem:anti-red-obs}, let $\ms_f''$ be given and take $\ms_r$ to be the part of $\ms_3^t$ that $\reg_3(r_\stk)$ does not govern. By the operational semantics, we know\footnote{the execution may fail, but then the configuration is trivially in the observation relation.}
                   \[
                     (reg_3\update{\pcreg}{\updatePcPerm{c_\cls}},\ms_3^p \uplus \ms_3^t \uplus \ms_f'') \step[j] (\reg_4,\ms_4 \uplus \ms_3^t \uplus \ms_f'')
                   \]
@@ -2552,14 +2556,15 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
                   \]
                   Now we can use Lemma~\ref{lem:scall-works} to show:
                   \[
-                    \npair[n_4-j]{(\reg_4,\ms_4 \uplus \ms_3^t)} \in \observations(W_4)
+                    \npair[n_4-j]{(\reg_4,\ms_4 \uplus \ms_r \uplus \emptyset \uplus \ms_\unused)} \in \observations(W_4)
                   \]
+                  where $\ms_r$ is the local frame of the \texttt{scall} lemma.
                   \begin{enumproof}
                     \item $\memSat[n_4-j]{\ms_4}{\revokeTemp{W_4}}$: follows from $W_4 = \revokeTemp{W_4}$
                     \item Hyp-Callee\\
-                      We know $\npair[n_4]{\reg_3(r_1)} \in \stdvr(W_3)$. If this is not a capability that becomes executable when jumped to, then the execution fails, so the register memory segment pair is trivially in the observation relation. If it is executable, then either the $\execCond{}$ or the $\entryCond{}$ holds for appropriate values. We also know that it is a global capability, so we can use it with private future worlds. We have $W_5 = \revokeTemp{W_4}[\iota^\sta (\temp,\emptyset)][\iota^\pwl(\dom(\ms_\unused))] \futurestr W_3$, so by the conditions, we have
+                      We know $\npair[n_4]{\reg_3(r_1)} \in \stdvr(W_3)$. If this is not a capability that becomes executable when jumped to, then the execution fails, so the register memory segment pair is trivially in the observation relation. If it is executable, then either the $\execCond{}$ or the $\entryCond{}$ holds for appropriate values. We also know that it is a global capability, so we can use it with private future worlds. We have $W_5 = \revokeTemp{W_4}[\iota^\sta (\temp,\emptyset \uplus \ms_\act),\iota^\pwl(\dom(\ms_\unused')),\iota^\sta(\temp,\ms_f)] \futurestr W_3$, for some $\ms_\act$ and $\ms_\unused'$. By the execute/enter condition, we have
                       \[
-                        \npair[n_4-j]{\updatePcPerm{reg_3(r_1)}} \in \observations(W_5)
+                        \npair[n_4-j]{\updatePcPerm{reg_3(r_1)}} \in \stder(W_5)
                       \]
                       Now it suffices to show
                       \begin{enumproof}
@@ -2578,14 +2583,18 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
                       Assume
                       \begin{itemize}
                       \item $n_5 \leq n_4-j-2$
-                      \item $W_6 \futurewk W_5$ (as defined in the Hyp-Callee case).
-                      \item $\memSat[n_4]{\ms_6}{\revokeTemp{W_6}}$
+                      \item $W_6 \futurewk \revokeTemp{W_4}[\iota^\sta (\temp,\emptyset \uplus \ms_\act),\iota^\pwl(\dom(\ms_\unused'')),\iota^\sta(\temp,\ms_f)]$ 
+                      \item $\memSat[n_5]{\ms_6}{\revokeTemp{W_6}}$
                       \item $\reg_6(\pcreg) = c_{\var{next}}$, $\reg_6(r_0) = \reg_3(r_0)$, $\reg_6(r_1) = \reg_3(r_1)$, $\reg(r_\env) = c_\env$
-                      \item \pointstostack{\reg_6}{\emptyset}{\ms_\unused'}
+                      \item \pointstostack{\reg_6}{\emptyset}{\ms_\unused''}
                       \end{itemize}
+                      Show 
+                      \[
+                        \npair[n_5]{(\reg_6,\ms_6 \uplus \ms_r \uplus \emptyset \uplus \ms_\unused'')} \in \observations(W_6)
+                      \]
                       Use the $\observations$-anti-reduction lemma (Lemma~\ref{lem:anti-red-obs}) followed by the \texttt{scall} lemma (Lemma~\ref{lem:scall-works}). Given $\ms_f'''$, we know by the operational semantics and the fact that the program hasn't changed that
                       \[
-                        (\reg_6,\ms_6 \uplus \ms_\unused''' \uplus \ms_f''') \step[k] (\reg_7,\ms_6\update{x}{1} \uplus \ms_\unused'' \uplus \ms_f''')
+                        (\reg_6,\ms_6 \uplus \ms_r \uplus \ms_\unused'' \uplus \ms_f''') \step[k] (\reg_7,\ms_6\update{x}{1} \uplus \ms_r \uplus \ms_\unused'' \uplus \ms_f''')
                       \]
                       where
                       \begin{itemize}
@@ -2595,7 +2604,7 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
                       \end{itemize}
                       In $\revokeTemp{W_6}$, we don't know which state the $\iota_x$ region is in, but state $1$ is reachable via a public transition, so let $W_7$ be $\revokeTemp{W_6}$ with region $i_2$ in state $1$. It follows easily that
                       \[
-                        \memSat[n_4-k]{\ms_6\update{x}{1}}{W_7}
+                        \memSat[n_5-k]{\ms_6\update{x}{1}}{W_7}
                       \]
                       We continue the proof in item \ref{item:proof-cont}
                   \end{enumproof}
@@ -2604,17 +2613,131 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
       \end{enumproof}
       \item \label{item:proof-cont} At this point, we apply the \texttt{scall} lemma, to get
         \[
-          \npair[n_4-k]{(\reg_7,\ms_6\update{x}{1} \uplus \ms_\unused'')} \in \observations(W_7)
+          \npair[n_5-k]{(\reg_7,\ms_6\update{x}{1} \uplus \ms_r \uplus \ms_\unused''')} \in \observations(W_7)
         \]
         show
         \begin{enumproof}
-          \item $\memSat[n_4-k]{\ms_6\update{x}{1}}{\revokeTemp{W_7}}$, follows from $W_7= \revokeTemp{W_7}$.
+          \item $\memSat[n_5-k]{\ms_6\update{x}{1}}{\revokeTemp{W_7}}$, follows from $W_7= \revokeTemp{W_7}$.
           \item Hyp-Callee
             % Use that it is the same $r_1$
             % TODO
-          \item Hyp-Cont
-            % From c_stk in val rel of W_3 get that W_3 must have iota pwl region.
-            % 
+          \item Hyp-Cont\\
+            Assume:
+            \begin{itemize}
+            \item $n_6 \leq n_5-k-2$
+            \item $W_8 \futurewk \revokeTemp{W_7}[\iota^{\sta}(\temp,\ms_\act)][\iota^\sta(\temp,\ms_{\mathit{unused}}^{(5)})][\iota^\sta(\temp,\ms_r)]$
+            \item $\memSat[n_6]{\ms_7}{\revokeTemp{W_8}}$ 
+            \item $\reg_8(r_0,r_\env) = \reg_7(r_0,r_\env)$
+            \item $\reg_8(\pcreg) = c_{\var{next}}'$
+            \item $\reg_8 \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}}^{(6)}$ unused}$ for some $\ms_{\mathit{unused}}^{(6)}$
+            \end{itemize}
+            Show:
+            \[
+              \npair[n_6]{(\reg_8,\ms_7 \uplus \ms_r \uplus \emptyset \uplus \ms_\unused^{(5)})} \in \observations(W_8)
+            \]
+            Use Lemma~\ref{lem:anti-red-obs}. Let $\ms_f^{(4)}$ be given, then
+            \[
+              (\reg_8,\ms_7 \uplus \ms_r \uplus \emptyset \uplus \ms_\unused^{(5)} \uplus \ms_f^{(4)}) \step[l] (reg_9,\ms_7 \uplus \ms_r \uplus \emptyset \uplus \ms_0 \uplus \ms_f^{(4)})
+            \]
+            where
+            \begin{itemize}
+            \item $\reg_9(\pcreg) = \updatePcPerm{\reg_3(r_0)}$ (note $\reg_8(r_0) = \reg_3(r_0)$)
+            \item $\reg_9(r_0) = reg_3(r_0)$
+            \item For all $r \not\in \{\pcreg,r_0\}$, $\reg_9(r) = 0$.
+            \item $\dom(\ms_0) = \dom(\ms_\unused^{(5)})$ and $\forall a \in \dom(\ms_0) \ldotp \ms_0(a) = 0$
+            \end{itemize}
+            The execution proceeds as above because $\iota_x$ in $W_8$ is in state $1$, so $\ms_7(x) = 1$ which causes the assertion to succeed. Subsequently the stack and most of the registers are cleared.
+
+            Now take $W_{10}$ to be $W_9$ with all the regions in $\dom(\erase{W_3}{\temp})$ reinstated. Now we show the following:
+            \begin{enumproof}
+            \item $W_{10} \futurewk W_3$ \label{g1:w10futwkw3}\\
+              We have
+              \[
+                \forall r \in \dom(W_3) \ldotp W_3 = W_{10}
+              \]
+              if the region was permanent in $W_3$, then it is there because $W_{10} \futurestr W_3$. If it was temporary, then it is there because it was just reinstated. If it was revoked in $W_3$, then it is still there because the only reinstated island were the temporary ones in $W_3$.
+
+              All the future worlds we have been given have been public, so the regions can only have made public transitions. In $W_3$ region $\iota_x$ is in state 0 or 1. In $W_{10}$ region $\iota_x$ is in state 1. State 1 can be reached from 0 and 1 using a public transition, so the $\iota_x$ in $W_{10}$ is a public future region of the $\iota_x$ in $W_3$.
+
+              In other words, all the regions in $W_3$ have only taken public transitions compared to the corresponding regions in $W_{10}$.
+
+            \item $\memSat[n_6-l]{\ms_7 \uplus \ms_r \uplus \emptyset \uplus \ms_0}{W_{10}}$ \label{g1:memsatw10}\\
+              First notice that from %TODO write more about why this is the case. Lemma?
+              \begin{itemize}
+              \item $\npair[n_4]{\reg_3} \in \stdrr(W_3)$
+              \item $\memSat[n_4]{\ms_3}{W_3}$
+              \item $\reg(r_\stk).\perm = \rwlx$
+              \end{itemize}
+              we get that there exists a region, $r_{\adv \stk}$ in $W_3$ such that
+              \[
+                W_3(r_{\adv \stk}) = \iota_{\stk_a,\stk_b}^\pwl
+              \]
+              and $\dom(\ms_\unused) \subseteq [\stk_a,\stk_b]$. Now take $\ms_{\adv \stk} = \ms_r|_{[\stk_a,\stk_b]}$ (notice this not all of $[\stk_a,\stk_b]$ is in the domain of $\ms_r$).
+              We know
+              \begin{equation}
+                \label{eq:g1:ms7heapsat}
+                \memSat[n_6]{\ms_7}{\revokeTemp{W_8}}
+              \end{equation}
+              and
+              \begin{equation}
+                \label{eq:g1:ms3heapsat}
+                \memSat[n_4]{\ms_3}{W_3}
+              \end{equation}
+              which gives us two partitions say $P_8$ and $P_3$ respectively. Now define the partition $P$ as follows:
+              \[
+                P(r) =
+                \begin{cases}
+                  P_8(r) & r \in \dom(\erase{W_8}{\perma}) \\
+                  \ms_{\adv \stk} \uplus \ms_0 & r = r_{\adv \stk}\\
+                  P_3(r) & \text{otherwise}
+                \end{cases}
+              \]
+              Now let $r \in \active{W}$, $n_7 < n_6 - l$, and $W(r) = (\_,s,\_,\_,H)$ and show
+              \[
+                \npair[n_7]{P(r)} \in H(s)(\xi^{-1}(W_{10})).
+              \]
+              Consider the following cases
+              \begin{enumproof}
+                \item $r \in \dom(\erase{W_8}{\perma})$ \\
+                  Use \ref{eq:g1:ms7heapsat}, the fact that $W_{10} \futurestr \revokeTemp{W_8}$ and that permanent regions respect future private world.
+                \item $r = r_{\adv \stk}$ \\
+                  In this case we know the region is $\iota^\pwl_{\stk_a,\stk_b}$, so we need to show
+                  \[
+                    \npair[n_7]{\ms_{\adv \stk} \uplus \ms_0} \in H^\pwl_{\stk_a,\stk_b}(1)(\xi^{-1}(W_{10}))
+                  \]
+                  which amounts to showing
+                  \[
+                    \forall a \in \dom(\ms_0) \ldotp  \npair[n_7-1]{\ms_0(a)} \in \stdvr(W_{10}),
+                  \]
+                  which is trivial, and
+                  \[
+                    \forall a \in \dom(\ms_{\adv \stk}) \ldotp \npair[n_7-1]{\ms_{\adv \stk}(a)} \in \stdvr(W_{10})
+                  \]
+                  here we use that \ref{eq:g1:ms3heapsat} entails
+                  \[
+                    \forall a \in \dom(\ms_{\adv \stk}) \ldotp \npair[n_4-1]{\ms_{\adv \stk}(a)} \in \stdvr(W_3)
+                  \]
+                  and the fact that $\stdvr$ is monotone w.r.t $\futurewk$, $W_{10} \futurewk W_3$, and $\stdvr(W_{10})$ is downwardsclosed.
+                \item otherwise \\
+                  Use \ref{eq:g1:ms3heapsat}, $W_{10} \futurewk W_3$, and the fact that for a temporary region $H(s)$ is monotone w.r.t. $\futurewk$.
+              \end{enumproof}
+              
+            \item $\npair[n_6-l]{\reg_9} \in \stdrr(W_{10})$ \label{g1:reg9stdrr}\\
+              Most registers are cleared. The only interesting register is $r_0$, so show:
+              \[
+                \npair[n_6-l]{\reg_9(r_0)}\in \stdvr(W_{10})
+              \]
+              This follows from $\reg_9(r_0) = \reg_3(r_0)$, $\npair[n_4]{\reg_3} \in \stdrr(W_3)$, $\stdvr$ monotone w.r.t $\futurewk$, $W_{10} \futurewk W_3$.
+            \end{enumproof}
+            As we were using Lemma~\ref{lem:anti-red-obs}, we need to show
+            \[
+              \npair[n_6-l]{(reg_9,\ms_7 \uplus \ms_r \uplus \emptyset \uplus \ms_0)} \in \observations(W_{10})
+            \]
+            To this end the use $\reg_3(r_0) = \reg_9(r_0)$ and $\npair[n_4]{\reg_3(r_0)} \in \stdvr1(W_3)$. Assuming that $\reg_9(r_0).\perm \in \{\entry,\exec,\rwx,\rwlx \}$ (if this is not the case, then it is trivial to show the above as the execution fails), then either the $\execCond{}$ or the $\entryCond{}$ hold for approriate values. Now use that $n_6-l < n_4$ and $W_{10} \futurewk W_3$ (\ref{g1:w10futwkw3})\footnote{We don't know whether the capability is local or global, but it does not matter as we have a public future world relation between the two worlds.} to get
+            \[
+              \npair[n_6-l]{\updatePcPerm{\reg_9(r_0)}} \in \stder(W_{10})
+            \]
+            now using \ref{g1:memsatw10} and \ref{g1:reg9stdrr}, we get the desired result.
         \end{enumproof}
   \end{enumproof}
 
@@ -2863,7 +2986,7 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
 \end{lemma}
 
 
-\section{Logical Relation'}
+\section{Logical Relation}
 \subsection{Worlds}
 Assume a sufficiently large set of states $\States$ that at least contains the states used in this document.
 \begin{definition}
@@ -2880,7 +3003,7 @@ There exists $\Worstr$ and $\Worwk$ are preordered \cofes{} and $\xi_\pub$ and $
   \xi_\pub :   \Worwk \cong \blater (\nats \finparfun (   & \{\revoked\} + \\
                                                                 & \{\temp\} \times \States \times \Rels \times (\States \fun (\Worwk \monnefun \UPred{\HeapSegments})) + \\
                                                                 & \{\perma\} \times \States \times \Rels \times (\States \fun (\Worstr \monnefun \UPred{\HeapSegments})),\future_\priv)) \\ \\
-  \xi_\priv :   \Worstr \cong \blater (\nats \finparfun ( & \{\revoked\} + \\
+  \xi_\priv :   \Worstr \cong \blater (\nats \finparfun ( & \{\revoked\} \times \States \times \Rels \times (\States \fun (\Wor \monwknefun \UPred{\HeapSegments})) + \\
                                                                 & \{\temp\} \times \States \times \Rels \times (\States \fun (\Worwk \monnefun \UPred{\HeapSegments})) + \\
                                                                 & \{\perma\} \times \States \times \Rels \times (\States \fun (\Worstr \monnefun \UPred{\HeapSegments})),\future_\priv))
 \end{align*}
@@ -2890,7 +3013,7 @@ There exists $\Worstr$ and $\Worwk$ are preordered \cofes{} and $\xi_\pub$ and $
 \begin{theorem}
   There exists a \cofe{} $\Wor$ and preorders $\futurestr$ and $\futurewk$ such that $(\Wor,\futurestr)$ and $(\Wor,\futurewk)$ are preordered \cofes{} and there exists an isomorphism $\xi$ such that
   \begin{align*}
-    \xi : \Wor \cong \blater (\nats \finparfun ( & \{\revoked\} + \\
+    \xi : \Wor \cong \blater (\nats \finparfun ( & \{\revoked\}  + \\
                                           & \{\temp\} \times \States \times \Rels \times (\States \fun (\Wor \monwknefun \UPred{\HeapSegments})) + \\
                                           & \{\perma\} \times \States \times \Rels \times (\States \fun (\Wor \monstrnefun \UPred{\HeapSegments}))))
   \end{align*}
@@ -2916,7 +3039,7 @@ And the worlds are
 \[
   \Worlds = \RegionNames \finparfun \Regions
 \]
-Where $\RegionNames = \nats$.
+where $\RegionNames = \nats$.
 
 The two \emph{private future} region relations satisfies the following properties:
 \begin{mathpar}
@@ -2925,10 +3048,10 @@ The two \emph{private future} region relations satisfies the following propertie
   {  (v,s',\phi_\pub',\phi',H') \futurestr (v',s,\phi_\pub,\phi,H) }
   \and
   \inferrule{ }
-  { \revoked \futurestr \revoked }
-  \and
-  \inferrule{ }
   { \revoked \futurestr (\temp,s,\phi_\pub,\phi,H) }
+  \and
+  \inferrule{ r \in \Regions }
+  { r \futurestr \revoked }
 \end{mathpar}
 The two \emph{public future} region relations satisfies the following properties:
 \begin{mathpar}
@@ -2960,7 +3083,7 @@ Erase all but a set of views:
   \end{cases}
 \end{align*}
 
-Define the function $\active{}$ as follows
+Define the function $\activeReg{\cdot}$ as follows
 \begin{align*}
   \activeReg{} & : \Worlds \fun 2^\RegionNames \\
   \activeReg{W} & \defeq \dom(\erase{W}{\perma,\temp})
@@ -3005,6 +3128,7 @@ Standard regions for when writing locally is permitted:
         \right\}
 \end{align*}
 \lau{What is the reason to have the ``view'' always be $\temp$? It seems like it does not play well with the read condition if it is always $\temp$.}
+\dominique{The comment immediately above is outdated, right?}
 Revoking all temporary regions:
 \begin{align*}
   \revokeTemp{} & : \Worlds \fun \Worlds \\
@@ -3252,7 +3376,8 @@ Static region used for parts of memory that should not change.
   \label{lem:scall-works}
   If
   \begin{itemize}
-  \item $\heapSat[\ms]{n}{\revokeTemp{W}}$ 
+  \item $\memSat[n]{\ms}{\revokeTemp{W}}$ 
+  \item $\dom(\ms_f) \cap (\dom(\ms_\stk \uplus \ms_{\mathit{unused}} \uplus \ms)) = \emptyset$
   \item $(\reg,\ms) \text{ is looking at }
     \mathtt{scall}(r(\overline{r_{\mathit{arg}}},
     \overline{r_{\mathit{priv}}})) \text{ followed by } c_{\mathit{next}}$
@@ -3262,9 +3387,9 @@ Static region used for parts of memory that should not change.
     \item $\dom(\ms_{\mathit{unused}}) = \dom(\ms_{\mathit{act}}
       \uplus \ms_{\mathit{unused}}')$,
     \item $W' =
-      \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk\uplus\ms_{\mathit{act}}),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}'))]$,
+      \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk\uplus\ms_{\mathit{act}}),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}')),\iota^\sta (\temp,\ms_f)]$,
     \item $\memSat[n-1]{\ms''}{W'}$
-    \item $\reg' \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}'}$ unused}$
+    \item $\reg' \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}}'$ unused}$
     \item $\forall a \in \dom(\ms_{\var{unused}}') \ldotp \ms''(a) = 0$
     \item $\reg'= \reg_0[\pcreg\mapsto\updatePcPerm{\reg(r)},
       \overline{r_{\mathit{arg}}} \mapsto \reg(\overline{r_{\mathit{arg}}}),r_0
@@ -3276,7 +3401,7 @@ Static region used for parts of memory that should not change.
   \item[Hyp-Cont] If
     \begin{itemize}
     \item $n' \leq n-2$
-    \item $W'' \futurewk \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk)][\iota^\sta(\temp,\ms_{\mathit{unused}}'')]$
+    \item $W'' \futurewk \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk\uplus \ms_\act)][\iota^\sta(\temp,\ms_{\mathit{unused}}'')][\iota^\sta(\temp,\ms_f)]$
     \item $\memSat[n']{\ms''}{\revokeTemp{W''}}$ 
     \item for all $r$, we have that:
       \begin{equation*}
@@ -3290,11 +3415,11 @@ Static region used for parts of memory that should not change.
     \item $\reg' \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}''$ unused}$ for some $\ms_{\mathit{unused}}''$
     \end{itemize}
 
-    then we have that $(n', (\reg',\ms'' \uplus \ms_\stk \uplus \ms_{\var{unused}}'')) \in \observations(W'')$
+    then we have that $(n', (\reg',\ms'' \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{unused}}'')) \in \observations(W'')$
   \end{itemize}
   Then 
   \begin{itemize}
-    \item $(\reg,\ms \uplus \ms_\stk \uplus \ms_{\var{unused}}) \in \observations(W)$
+    \item $(\reg,\ms \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{unused}}) \in \observations(W)$
   \end{itemize}
 
   % Note: $k_{\mathit{act-rec}}$ is the (standard) size of an activation record (2
@@ -3491,6 +3616,8 @@ We expect the following lemmas to hold true:
     \xi (W')  =& [0 \mapsto \iota^\pwl_{\start,\addrend}]  \\ 
               & [1 \mapsto \revoked] 
   \end{align*}
+  \dominique{The above still needs updating now that revoked regions remember
+    what they used to look like.}
   For these two worlds, we have $\xi(W') \futurestr \xi(W)$ and from mono.\ of $\xi^{-1}$, we have $W' \futurestr W$. Now define the following memory segment:
   \[
     \ms = [\start \mapsto ((\readonly,\local),b,b,b), \start+1 \mapsto 0, \dots , \addrend \mapsto 0]
