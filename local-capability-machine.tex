@@ -336,7 +336,8 @@
 
 \tableofcontents
 
-\section{Domains and Notation}
+\section{Capability Machine Definition and Operational Semantics}
+\subsection{Domains and Notation}
 
 \begin{align*}
   \Addrs &::= \nats\\
@@ -474,7 +475,7 @@ Further define $\reg_0 \in \Regs$ such that
   \forall r \in \RegName \ldotp \reg_0(r) = 0
 \]
 
-\subsection*{Semantics}
+\subsection{Operational Semantics}
 Assume a $\decode$ function that decodes words to instructions:
 \begin{align*}
   \decode &:\Words \fun \Instrs
@@ -489,6 +490,8 @@ Further, assume an inverse function, $\decodePermPair{}$, that decodes permissio
 \[
   \decodePermPair{} : \ints \fun (\Perms \times \Globals)
 \]
+
+We define the operational semantics as follows:
 \begin{align*}
   \Phi & \rightarrow \sem{\decode(\memheap(\addr))}(\Phi) & &                                   
                                                               \arraycolsep=0pt
@@ -3270,11 +3273,11 @@ Now define the value relation as follows:
                              \{ \npair{(\reg,\hs)} \mid
                              \begin{aligned}[t]
                                & \forall \ms_f, \heap', i \leq n \ldotp \\
-                               & \quad(\reg,\hs \uplus \ms_f) \step[i] (\halted,\heap')  \\
+                               & \quad(\reg,\hs \uplus \ms_f) \step[i] (\halted,\Phi)  \\
                                & \qquad \Rightarrow
                                \begin{aligned}[t]
                                  & \exists W' \futurestr W \ldotp\exists \hs_r, \hs' \ldotp\\
-                                 & \quad \heap' = \hs' \uplus \hs_r \uplus \ms_f \land \\ 
+                                 & \quad \memheap[\Phi] = \hs' \uplus \hs_r \uplus \ms_f \land \\ 
                                  & \quad \heapSat[\hs']{n-i}{W'} \}
                                \end{aligned}
                              \end{aligned}
@@ -3360,40 +3363,208 @@ Static region used for parts of memory that should not change.
   Now use $\ms_r \uplus \ms_{\var{rev}}$ as the ``revoked'' memory, $\ms''$ as the memory that satisfies some invariants, and $W_3$ as the desired world, then \ref{ass:anti-red-mem-split} gives us the split and by downwards closure \ref{ass:anti-red-mem-sat} gives us the desired memory satisfaction.
 \end{proof}
 
+\subsubsection{Standard regions}
+\begin{lemma}
+  \label{lem:nwl-subset-pwl}
+  \begin{align*}
+    & \forall n \in \nats\ldotp \forall \addr, \addrend \in \Addrs \ldotp \forall v \in \{\perma, \temp\} \ldotp \\
+    & \quad \iota^\nwl_{\start,\addrend} (v) \nsubsim \iota^\pwl_{\start,\addrend}(v)
+  \end{align*}
+\end{lemma}
+\begin{lemma}
+  \label{lem:nwlp-subset-pwl}
+  \begin{align*}
+    & \forall n \in \nats\ldotp \forall \addr, \addrend \in \Addrs \ldotp \forall v \in \{\perma, \temp\} \ldotp \\
+    & \quad \iota^{\nwl,p}_{\start,\addrend} (v) \nsubsim \iota^\pwl_{\start,\addrend}(v)
+  \end{align*}
+\end{lemma}
+
+\begin{lemma}
+  \label{lem:pwl-nsim-view}
+  \begin{align*}
+    & \forall n \in \nats \ldotp \forall \start, \addrend, b \in \Addrs \ldotp \forall \iota \in \Regions \\
+    & \iota \nsim \iota^\pwl_{\start,\addrend} \land \start \leq \addrend \Rightarrow \iota \nequal \iota^\pwl_{\start,\addrend}
+  \end{align*}
+\end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:pwl-nsim-view}]
+  For $n = 0$ it is trivial, so assume $n > 0$.
+  Say $\iota = (v,s,\phi_{\var{pub}},\phi,H)$, then by $\nsim$, we know $s = 1$, $\phi_{\var{pub}} \equiv \phi \equiv =$, and $H = H^\pwl_{\start,\addrend}$. It remains to show that $v=\temp$. To do so, we show that it cannot be the case that $v=\perma$. If $v = \perma$, then $H$ must be monotone with respect to $\futurestr$. If we can show that this is not the case, then for $\iota$ to be a region it must be the case that $v \neq \perma$ and thus $v = \temp$.
+
+  To this end let $b\not\in[\start,\addrend]$ and define the worlds:
+  \begin{align*}
+    \xi (W)  =& [0 \mapsto \iota^\pwl_{\start,\addrend}]  \\ 
+              & [1 \mapsto \iota^\pwl_{b,b}] \\
+    \xi (W')  =& [0 \mapsto \iota^\pwl_{\start,\addrend}]  \\ 
+              & [1 \mapsto \revoked] 
+  \end{align*}
+  For these two worlds, we have $\xi(W') \futurestr \xi(W)$ and from mono.\ of $\xi^{-1}$, we have $W' \futurestr W$. Now define the following memory segment:
+  \[
+    \ms = [\start \mapsto ((\readonly,\local),b,b,b), \start+1 \mapsto 0, \dots , \addrend \mapsto 0]
+  \]
+  It is the case that
+  \[
+    \npair{\ms} \in H \; 1 \; W
+  \]
+  but
+  \[
+    \npair{\ms} \not\in H \; 1 \; W'
+  \]
+  as it is not the case that \lau{what if $n=1$? Need to figure out when exactly this holds}
+  \[
+    \npair[n-1]{((\readonly,\local),b,b,b)} \in \stdvr(\xi(W')).
+  \]
+  The only other option that remains is $v=\temp$.
+\end{proof}
+\lau{$a \leq b$ that the interpretation is not empty.}
+
+\subsubsection{Permission based conditions}
+\begin{lemma}
+  \label{lem:wc-pwl-implies-wc-nwl}
+  \[
+    \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\local)(W) \Rightarrow \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\local)(W)
+  \]
+\end{lemma}
+\begin{proof}[Proof of lemma~\ref{lem:wc-pwl-implies-wc-nwl}]
+  Follows from Lemma~\ref{lem:nwlp-subset-pwl}.
+\end{proof}
+
+\begin{lemma}[$\mathit{readCondition}$ monotone w.r.t $\futurewk$]
+  \label{lem:readcond-mono-pub}
+  \[
+    \forall W' \futurewk W \ldotp \npair{\start,\addrend} \in \readCond{}(\gl)(W) \Rightarrow \npair{\start,\addrend} \in \readCond{}(\gl)(W')
+  \]
+\end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:readcond-mono-pub}]
+  % TODO
+\end{proof}
+
+\begin{lemma}[$\mathit{readCondition}$ downwards-closed]
+  \label{lem:readcond-dc}
+  \[
+    \forall n' \leq n \ldotp \npair[n]{\start,\addrend} \in \readCond{}(\gl)(W) \Rightarrow \npair[n']{\start,\addrend} \in \readCond{}(\gl)(W)
+  \]
+\end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:readcond-dc}]
+  % TODO
+\end{proof}
+
+\begin{lemma}[$\mathit{writeCondition}$ monotone w.r.t $\futurewk$]
+  \label{lem:writecond-mono-pub}
+  \[
+    \forall W' \futurewk W \ldotp \forall \iota \in \{\iota^\pwl,\iota^\nwl,\iota^{(\nwl,p)}\} \npair{\start,\addrend} \in \writeCond{}(\iota,\gl)(W) \Rightarrow \npair{\start,\addrend} \in \writeCond{}(\iota,\gl)(W')
+  \]
+\end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:writecond-mono-pub}]
+  % TODO
+\end{proof}
+
+\begin{lemma}[$\mathit{writeCondition}$ downwards-closed]
+  \label{lem:writecond-dc}
+  For all $n' \leq n$, $\iota \in
+  \{\iota^\pwl,\iota^\nwl,\iota^{(\nwl,p)}\}$,
+  If $\npair{\start,\addrend} \in
+    \writeCond{}(\iota,\gl)(W)$
+  then 
+    $\npair[n']{\start,\addrend} \in \writeCond{}(\iota,\gl)(W)$
+\end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:writecond-dc}]
+  % TODO
+\end{proof}
+
 \subsubsection{Fundamental theorem of logical relations}
 
+\begin{lemma}[Fundamental theorem proof helper lemma]
+  \label{lem:ftlr-induction-helper}
+  For all $n$, $\perm$, $\start$, $\addrend$, $\addr$, $\gl$, $W$  \\
+  If one of the following holds:
+  \begin{itemize}
+  \item \[
+      \begin{gathered}
+        \perm = \exec \land\\
+        \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)
+      \end{gathered}
+    \]
+  \item \[
+      \begin{gathered}
+        \perm = \rwx \land \\
+        \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land\\
+        \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W)
+      \end{gathered}
+    \]
+  \item \[
+      \begin{gathered}
+        \perm = \rwlx \land\\
+        \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land\\
+        \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W),
+      \end{gathered}
+    \]
+  \end{itemize}
+  and
+  \begin{itemize}
+  \item $\npair[n]{\reg}\in \stdrr(W)$
+  \item $\heapSat[\hs]{n}{W}$
+  \item $i \leq n$
+  \item $(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus \ms_f) \step[i] (\halted,\Phi)$
+  \end{itemize}
+  
+  Then $\exists W' \futurestr W$, $\hs_r$, $\hs' \ldotp$
+  $\memheap[\Phi] = \hs' \uplus \hs_r \uplus \ms_f$ and $\heapSat[\hs']{n-i}{W'}$
+\end{lemma}
+\begin{proof}
+  \begin{enumproof}
+  \item By induction on $n$. In other words, assume that the theorem already
+    holds for all $n' < n$.
+  \item The case that $i = 0$ is impossible, since
+    $(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus
+    \ms_f)\neq (\halted,\Phi)$ for any $\Phi$. Assume w.l.o.g. that $i = 1+i'$
+  \item 
+  \end{enumproof}
+\end{proof}
+
 \begin{theorem}[Fundamental theorem of logical relations]
-\lau{do we want the FTLR to also talk about everything that is trivially in the FTLR.}
   \label{thm:ftlr}
   For all $n$, $\perm$, $\start$, $\addrend$, $\addr$, $\gl$, $W$  \\
-  if
-  \[
-    \begin{gathered}
-      \perm = \exec \land\\
-      \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)
-    \end{gathered}
-  \]
-  or
-  \[
-    \begin{gathered}
-      \perm = \rwx \land \\ 
-      \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land\\
-      \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W)
-    \end{gathered}
-  \]
-  or
-  \[
-    \begin{gathered}
-      \perm = \rwlx \land\\ 
-      \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land\\ 
-      \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W),
-    \end{gathered}
-  \]
+  If one of the following holds:
+  \begin{itemize}
+  \item \[
+      \begin{gathered}
+        \perm = \exec \land\\
+        \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)
+      \end{gathered}
+    \]
+  \item \[
+      \begin{gathered}
+        \perm = \rwx \land \\
+        \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land\\
+        \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W)
+      \end{gathered}
+    \]
+  \item \[
+      \begin{gathered}
+        \perm = \rwlx \land\\
+        \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land\\
+        \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W),
+      \end{gathered}
+    \]
+  \end{itemize}
   then
   \[
     \npair{((\perm,\gl),\start,\addrend,\addr)} \in \stder(W)
   \]
 \end{theorem}
+\begin{proof}
+  \begin{enumproof}
+  \item Assume: $n' \leq n$, $\npair[n']{\reg}\in \stdrr(W)$, $\heapSat[\hs]{n'}{W}$.\\
+    Suffices: $\npair[n']{(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs)}\in\observations(W)$.\\
+    By: definition of $\stder(W)$.
+  \item Assume: $\ms_f$, $\heap'$, $i \leq n'$, $(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus \ms_f) \step[i] (\halted,\Phi)$,\\
+    Suffices: $\exists W' \futurestr W$, $\hs_r$, $\hs' \ldotp$
+    $\memheap[\Phi] = \hs' \uplus \hs_r \uplus \ms_f$ and $\heapSat[\hs']{n'-i}{W'}$\\
+    By: definition of $\observations(W)$ \label{suff-after-eval}
+  \item This follows by Lemma~\ref{lem:ftlr-induction-helper} using
+    Lemmas~\ref{lem:readcond-dc} and~\ref{lem:writecond-dc}.
+  \end{enumproof}
+\end{proof}
 
 \subsubsection{Scall macro-instruction correctness}
 \begin{definition}
@@ -3744,111 +3915,6 @@ We expect the following lemmas to hold true:
     & \qquad \Rightarrow \npair{\stdcap[(\perm,\glob)]} \in \stdvr(\wrev{W}) 
   \end{align*}
 \end{lemma}
-
-\subsubsection{Standard regions}
-\begin{lemma}
-  \label{lem:nwl-subset-pwl}
-  \begin{align*}
-    & \forall n \in \nats\ldotp \forall \addr, \addrend \in \Addrs \ldotp \forall v \in \{\perma, \temp\} \ldotp \\
-    & \quad \iota^\nwl_{\start,\addrend} (v) \nsubsim \iota^\pwl_{\start,\addrend}(v)
-  \end{align*}
-\end{lemma}
-\begin{lemma}
-  \label{lem:nwlp-subset-pwl}
-  \begin{align*}
-    & \forall n \in \nats\ldotp \forall \addr, \addrend \in \Addrs \ldotp \forall v \in \{\perma, \temp\} \ldotp \\
-    & \quad \iota^{\nwl,p}_{\start,\addrend} (v) \nsubsim \iota^\pwl_{\start,\addrend}(v)
-  \end{align*}
-\end{lemma}
-
-\begin{lemma}
-  \label{lem:pwl-nsim-view}
-  \begin{align*}
-    & \forall n \in \nats \ldotp \forall \start, \addrend, b \in \Addrs \ldotp \forall \iota \in \Regions \\
-    & \iota \nsim \iota^\pwl_{\start,\addrend} \land \start \leq \addrend \Rightarrow \iota \nequal \iota^\pwl_{\start,\addrend}
-  \end{align*}
-\end{lemma}
-\begin{proof}[Proof of Lemma~\ref{lem:pwl-nsim-view}]
-  For $n = 0$ it is trivial, so assume $n > 0$.
-  Say $\iota = (v,s,\phi_{\var{pub}},\phi,H)$, then by $\nsim$, we know $s = 1$, $\phi_{\var{pub}} \equiv \phi \equiv =$, and $H = H^\pwl_{\start,\addrend}$. It remains to show that $v=\temp$. To do so, we show that it cannot be the case that $v=\perma$. If $v = \perma$, then $H$ must be monotone with respect to $\futurestr$. If we can show that this is not the case, then for $\iota$ to be a region it must be the case that $v \neq \perma$ and thus $v = \temp$.
-
-  To this end let $b\not\in[\start,\addrend]$ and define the worlds:
-  \begin{align*}
-    \xi (W)  =& [0 \mapsto \iota^\pwl_{\start,\addrend}]  \\ 
-              & [1 \mapsto \iota^\pwl_{b,b}] \\
-    \xi (W')  =& [0 \mapsto \iota^\pwl_{\start,\addrend}]  \\ 
-              & [1 \mapsto \revoked] 
-  \end{align*}
-  For these two worlds, we have $\xi(W') \futurestr \xi(W)$ and from mono.\ of $\xi^{-1}$, we have $W' \futurestr W$. Now define the following memory segment:
-  \[
-    \ms = [\start \mapsto ((\readonly,\local),b,b,b), \start+1 \mapsto 0, \dots , \addrend \mapsto 0]
-  \]
-  It is the case that
-  \[
-    \npair{\ms} \in H \; 1 \; W
-  \]
-  but
-  \[
-    \npair{\ms} \not\in H \; 1 \; W'
-  \]
-  as it is not the case that \lau{what if $n=1$? Need to figure out when exactly this holds}
-  \[
-    \npair[n-1]{((\readonly,\local),b,b,b)} \in \stdvr(\xi(W')).
-  \]
-  The only other option that remains is $v=\temp$.
-\end{proof}
-\lau{$a \leq b$ that the interpretation is not empty.}
-
-\subsubsection*{Permission based conditions}
-\begin{lemma}
-  \label{lem:wc-pwl-implies-wc-nwl}
-  \[
-    \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\local)(W) \Rightarrow \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\local)(W)
-  \]
-\end{lemma}
-\begin{proof}[Proof of lemma~\ref{lem:wc-pwl-implies-wc-nwl}]
-  Follows from Lemma~\ref{lem:nwlp-subset-pwl}.
-\end{proof}
-
-\begin{lemma}[$\mathit{readCondition}$ monotone w.r.t $\futurewk$]
-  \label{lem:readcond-mono-pub}
-  \[
-    \forall W' \futurewk W \ldotp \npair{\start,\addrend} \in \readCond{}(\gl)(W) \Rightarrow \npair{\start,\addrend} \in \readCond{}(\gl)(W')
-  \]
-\end{lemma}
-\begin{proof}[Proof of Lemma~\ref{lem:readcond-mono-pub}]
-  % TODO
-\end{proof}
-
-\begin{lemma}[$\mathit{readCondition}$ downwards-closed]
-  \label{lem:readcond-dc}
-  \[
-    \forall n' \leq n \ldotp \npair[n]{\start,\addrend} \in \readCond{}(\gl)(W) \Rightarrow \npair[n']{\start,\addrend} \in \readCond{}(\gl)(W)
-  \]
-\end{lemma}
-\begin{proof}[Proof of Lemma~\ref{lem:readcond-dc}]
-  % TODO
-\end{proof}
-
-\begin{lemma}[$\mathit{writeCondition}$ monotone w.r.t $\futurewk$]
-  \label{lem:writecond-mono-pub}
-  \[
-    \forall W' \futurewk W \ldotp \forall \iota \in \{\iota^\pwl,\iota^\nwl,\iota^{(\nwl,p)}\} \npair{\start,\addrend} \in \writeCond{}(\iota,\gl)(W) \Rightarrow \npair{\start,\addrend} \in \writeCond{}(\iota,\gl)(W')
-  \]
-\end{lemma}
-\begin{proof}[Proof of Lemma~\ref{lem:writecond-mono-pub}]
-  % TODO
-\end{proof}
-
-\begin{lemma}[$\mathit{writeCondition}$ downwards-closed]
-  \label{lem:writecond-mono-pub}
-  \[
-    \forall n' \leq \ldotp \forall \iota \in \{\iota^\pwl,\iota^\nwl,\iota^{(\nwl,p)}\} \npair{\start,\addrend} \in \writeCond{}(\iota,\gl)(W) \Rightarrow \npair[n']{\start,\addrend} \in \writeCond{}(\iota,\gl)(W)
-  \]
-\end{lemma}
-\begin{proof}[Proof of Lemma~\ref{lem:writecond-dc}]
-  % TODO
-\end{proof}
 
 \section{Other examples and applications}
 \label{sec:other_apps}
