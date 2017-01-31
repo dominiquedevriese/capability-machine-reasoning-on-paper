@@ -803,6 +803,7 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
                 \]
               \end{specification}
               In the specification above $\iota_\malloc'$ is a future region of the initial region that governs malloc.
+              \lau{What about $c_\malloc$ and the value relation? Do we add this to the specification or try to prove it based on the specification?}
 
               \section{Macros}
               In order to write readable example programs, we provide macros (macro-instructions) that can be implemented in terms of the instruction set given in the formalisation.
@@ -2410,6 +2411,7 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
   \item $\ms_\flag = [\flag \mapsto 0]$
   \item $\ms_{\var{link}} = [\link \mapsto c_\malloc]$
   \item $\hs_\adv(\start_\adv) = c_\link$ and all other addresses of $\ms_\adv$ contain instructions.
+  \item $\forall a \in \dom(\ms_\stk) \ldotp \ms_\stk(a) = 0$ %This condition could be weakened to \memSat{\ms_\stk}{[\iota^\pwl(\dom(\ms_\stk))]}
   \end{itemize}
   if 
   \[
@@ -2420,14 +2422,15 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
     m'(\flag) = 0
   \]  
 \end{lemma}
+%
 \begin{proof}[Proof of Lemma~\ref{lem:correctness-g1} (using \texttt{scall} lemma)]
   Let $n$ be given and make the assumptions of the lemma. Define
   \begin{align*}
-    W = & [0 \mapsto \iota^\sta (\perma,\ms_{g1} \uplus \ms_\flag)]\\
-        & [1 \mapsto \iota^\sta (\perma,\ms_\link)]\\
+    W = & [0 \mapsto \iota_{\malloc,0}]\\
+        & [1 \mapsto \iota^{\sta,u} (\perma,\ms_\link)]\\
         & [2 \mapsto \iota^\pwl_{\start_\stk, \addrend_\stk}]\\
         & [3 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]\\
-        & [4 \mapsto \iota_{\malloc,0}]
+        & [4 \mapsto \iota^\sta (\perma,\ms_{g1} \uplus \ms_\flag)]
   \end{align*}
   and
   \[
@@ -2442,22 +2445,67 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
     \label{eq:f4:start-conf-in-obs}
         \npair{(\reg_0\update{\pcreg}{c_\adv}\update{r_\stk}{c_\stk}\update{r_1}{c_{g1}},\ms \uplus \ms_\stk)} \in \observations(W)
   \end{equation}
-  then we are done. The termination assumption gives us that part of $m$ satisfies a private future world of $W$. Region 1 is permanent, so
+  then, the termination assumption gives us that part of $m$ satisfies a private future world of $W$. Region 4 is permanent, so
   \[
     m(\flag) = 0
   \]
-  So we need to show \ref{eq:f4:start-conf-in-obs}. 
+  So it suffices to show \ref{eq:f4:start-conf-in-obs}. 
   To this end use the FTLR to show $\npair{c_\adv} \in \stder(W)$, so show
   \begin{enumproof}
     \item $\npair{(\start_\adv,\addrend_\adv)} \in \readCond{}(\glob)(W)$\\
-      %TODO
+      Simple using region $3$ in $W$.
     \item $\npair{(\start_\adv,\addrend_\adv)} \in \writeCond{}(\iota^\nwl,\glob)(W)$\\
-      %TODO
+      Simple using region $3$ in $W$.
   \end{enumproof}
   in conclusion $\npair{c_\adv} \in \stder(W)$. We get \ref{eq:f4:start-conf-in-obs} if we show the following
   \begin{enumproof}[resume]
     \item $\memSat{\ms \uplus \ms_\stk}{W}$\\
-      %TODO
+      \begin{enumproof}
+        \item $\memSat{\ms_{g1} \uplus \ms_\flag}{[4 \mapsto \iota^\sta (\perma,\ms_{g1} \uplus \ms_\flag)]}$ \\
+          Lemma~\ref{lem:mem-sat-static}.
+        \item $\memSat{\ms_\stk}{[2 \mapsto \iota^\pwl_{\start_\stk,\addrend_\stk}]}$\\
+          Lemma~\ref{lem:mem-sat-data-only-std-regions} and assumption that $\ms_\stk$ is all 0.
+        \item $\memSat{\ms_{\malloc} \uplus \ms_\link \uplus \ms_\adv}{[0 \mapsto \iota_{\malloc,0}][1 \mapsto \iota^{\sta,u} (\perma,\ms_\link)][3 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]}$\\
+          For convenience define
+          \[
+            W_{\var{mini}} = [0 \mapsto \iota_{\malloc,0}][1 \mapsto \iota^{\sta,u} (\perma,\ms_\link)][3 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]
+          \]
+          Partitioning the memory segment in the components of the disjoint union, and given $n' < n$, the $\malloc$ part follows from assumption $\memSat{\ms_\malloc}{[0 \mapsto \iota_{\malloc,0}]}$ and the $\malloc$ specification.
+
+          The memory link amounts to showing:
+          \[
+            \npair[n']{\ms_\link} \in H^{\sta,u}(\ms_\link)(1)(\xi^{-1}(W_{\var{mini}}))
+          \]
+          which in turn amounts to showing
+          \[
+            \npair[n'-1] \in \stdvr(W_{\var{mini}})
+          \]
+          which is indeed the case. \lau{We need to add a reason here! Is this part of the specification of malloc?}
+
+          Showing
+          \[
+            \npair[n']{\ms_\adv} \in H^\sta_{\start_\adv,\addrend_\adv}(1)(\xi^{-1}(W_{\var{mini}}))
+          \]
+          is a bit more involved. It amounts to 
+          \[
+            \forall \addr \in \dom(\ms_\adv) \ldotp \npair[n'-1]{\ms_\adv(\addr)} \in \stdvr(W_{\var{mini}})
+          \]
+          which in turn is trivial for everything but
+          \[
+            \npair[n'-1]{c_\link} \in \stdvr(W_{\var{mini}})
+          \]
+          This amounts to showing
+          \[
+            \npair[n'-1]{(\link,\link)} \in \readCond{}(\glob)(W_{\var{mini}})
+          \]
+          which amounts to
+          \[
+            \iota^{\sta,u} (\perma,\ms_\link) \nsubsim[n'-2] \iota^\pwl_{\link,\link}
+          \]
+          which follows from Lemma~\ref{lem:stau-subset-pwl}          
+      \end{enumproof}
+      Using Lemma~\ref{lem:disj-mem-sat} repeatedly with the above gives the desired memory satisfaction.
+
     \item $\npair{\reg_0\update{r_\stk}{c_\stk}\update{r_1}{c_{g1}}} \in \stdrr(W)$\\
       This amounts to showing
       \begin{enumproof}
@@ -3175,9 +3223,9 @@ $\localityReg(\local,W)$ are the regions that local capabilities may govern - th
 We need a notion of subset between regions that is almost $n$-subset, but not quite. The only difference is that the view part of a region is diregarded. Define ``semi $n$-subset'' and ``semi $n$-supset'' as:
 \lau{ Using normal the canonical $n$-subset gave some technical problems in the proofs. For instance, it was not possible to have a global read capability for a region governed by a permanent standard region. The issue was that $\iota^\pwl$ is always $\temp$ which gave some issues in the read and write conditions when they used $\iota^\pwl$. Another option was to be more explicit, but we opted for this more elegant(?) solution. }
 \begin{mathpar}
-  \inferrule{(s,H) = (s',H) \\
+  \inferrule{(s,\phi_\pub,\phi) = (s',\phi_\pub',\phi') \\
     \forall \hat{W} \ldotp H \; s \; \hat{W} \nsubeq H' \; s' \; \hat{W} }
-  { (v,s,\phi,H) \nsubsim (v',s',\phi',H')}
+  { (v,s,\phi_\pub,\phi,H) \nsubsim (v',s',\phi_\pub',\phi',H')}
 \end{mathpar}
 
 \subsection{The logical relation}
@@ -3312,10 +3360,23 @@ Static region used for parts of memory that should not change.
   H^\sta \; \ms \; s \; \hat{W} = & \{\npair{\ms} \mid n > 0 \} \union \{\npair[0]{\ms'} \mid \ms' \in \Mems \}
 \end{align*}
 
+Static region used for parts of memory that should not change and where you pass control to untrusted code.
+\begin{align*}
+  \iota^{\sta,u} (v,\ms) &= (v,1,=,=,H^{\sta,u}\;\ms)\\
+  H^\sta \; \ms \; s \; \hat{W} = & \{\npair{\ms} \mid n > 0 \} \union \{\npair[0]{\ms'} \mid \ms' \in \Mems \}
+\end{align*}
+
 \begin{align*}
   \iota^\cnst (v,n) &= (v,1,=,=,H^\cnst\;n)\\
-  H^\cnst \; n \; s \; \hat{W} = & \{\npair{\ms} \mid n > 0 \Rightarrow \forall a \in \dom(\ms)\ldotp \ms(a) = n \}
+  H^\cnst \; n \; s \; \hat{W} = \left\{\npair{\ms'} \middle|
+    \begin{aligned}
+      &\ms' = \ms \\
+      &\forall \addr \in \dom(\ms) \ldotp \npair[n-1]{\ms(\addr)} \in \stdvr(\xi(\hat{W}))
+    \end{aligned}
+        \right\}
 \end{align*}
+
+
 
 \subsection{Lemmas}
 
@@ -3369,15 +3430,23 @@ Static region used for parts of memory that should not change.
 \begin{lemma}
   \label{lem:nwl-subset-pwl}
   \begin{align*}
-    & \forall n \in \nats\ldotp \forall \addr, \addrend \in \Addrs \ldotp \forall v \in \{\perma, \temp\} \ldotp \\
-    & \quad \iota^\nwl_{\start,\addrend} (v) \nsubsim \iota^\pwl_{\start,\addrend}(v)
+    & \forall n \in \nats\ldotp \forall \addr, \addrend \in \Addrs \ldotp  \\
+    & \quad \iota^\nwl_{\start,\addrend} \nsubsim \iota^\pwl_{\start,\addrend}
   \end{align*}
 \end{lemma}
 \begin{lemma}
   \label{lem:nwlp-subset-pwl}
   \begin{align*}
+    & \forall n \in \nats\ldotp \forall \addr, \addrend \in \Addrs \ldotp  \\
+    & \quad \iota^{\nwl,p}_{\start,\addrend}  \nsubsim \iota^\pwl_{\start,\addrend}
+  \end{align*}
+\end{lemma}
+\begin{lemma}
+  \label{lem:stau-subset-pwl}
+  \begin{align*}
     & \forall n \in \nats\ldotp \forall \addr, \addrend \in \Addrs \ldotp \forall v \in \{\perma, \temp\} \ldotp \\
-    & \quad \iota^{\nwl,p}_{\start,\addrend} (v) \nsubsim \iota^\pwl_{\start,\addrend}(v)
+    & \quad \dom(\ms) = [\star,\addrend] \Rightarrow \\
+    & \qquad \iota^{\sta,u}_{\start,\addrend}(v,\ms) \nsubsim \iota^\pwl_{\start,\addrend}
   \end{align*}
 \end{lemma}
 
