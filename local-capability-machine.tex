@@ -348,7 +348,7 @@
   \ExecConfs  &::= \Regs \times \Heaps \\
   \Globals & ::= \{\glob, \local \} \\
   \Caps  &::= (\Perms \times \Globals) \times \Addrs \times (\Addrs + \{ \infty \}) \times \Addrs\\
-  \Confs &::= \ExecConfs + \{\failed \} + \halted \times \ExecConfs \\
+  \Confs &::= \ExecConfs + \{\failed \} + \halted \times \Heaps \\
   \HeapSegments &::= \Addrs \parfun \Words
 \end{align*}
 Local capabilities have been added by adding a new domain $\Globals$ which represents whether a capability is local or global. There are two new permissions $\readwritel$ and $\rwlx$ that permits writing local capabilities. They are otherwise the same as their non-''permit write local'' counterparts.
@@ -3274,11 +3274,11 @@ Now define the value relation as follows:
                              \{ \npair{(\reg,\hs)} \mid
                              \begin{aligned}[t]
                                & \forall \ms_f, \heap', i \leq n \ldotp \\
-                               & \quad(\reg,\hs \uplus \ms_f) \step[i] (\halted,\Phi)  \\
+                               & \quad(\reg,\hs \uplus \ms_f) \step[i] (\halted,\heap')  \\
                                & \qquad \Rightarrow
                                \begin{aligned}[t]
                                  & \exists W' \futurestr W \ldotp\exists \hs_r, \hs' \ldotp\\
-                                 & \quad \memheap[\Phi] = \hs' \uplus \hs_r \uplus \ms_f \land \\ 
+                                 & \quad \heap' = \hs' \uplus \hs_r \uplus \ms_f \land \\ 
                                  & \quad \heapSat[\hs']{n-i}{W'} \}
                                \end{aligned}
                              \end{aligned}
@@ -3421,8 +3421,13 @@ Static region used for parts of memory that should not change.
 \subsubsection{Permission based conditions}
 \begin{lemma}
   \label{lem:wc-pwl-implies-wc-nwl}
+  If
   \[
-    \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\local)(W) \Rightarrow \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\local)(W)
+    \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\local)(W)
+  \]
+  then
+  \[
+    \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\local)(W)
   \]
 \end{lemma}
 \begin{proof}[Proof of lemma~\ref{lem:wc-pwl-implies-wc-nwl}]
@@ -3431,8 +3436,14 @@ Static region used for parts of memory that should not change.
 
 \begin{lemma}[$\mathit{readCondition}$ monotone w.r.t $\futurewk$]
   \label{lem:readcond-mono-pub}
+  If
+  \begin{itemize}
+  \item $W' \futurewk W$
+  \item $\npair{\start,\addrend} \in \readCond{}(\gl)(W)$
+  \end{itemize}
+  then
   \[
-    \forall W' \futurewk W \ldotp \npair{\start,\addrend} \in \readCond{}(\gl)(W) \Rightarrow \npair{\start,\addrend} \in \readCond{}(\gl)(W')
+    \npair{\start,\addrend} \in \readCond{}(\gl)(W')
   \]
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:readcond-mono-pub}]
@@ -3441,8 +3452,14 @@ Static region used for parts of memory that should not change.
 
 \begin{lemma}[$\mathit{readCondition}$ downwards-closed]
   \label{lem:readcond-dc}
+  If
+  \begin{itemize}
+  \item $ n' \leq n$
+  \item $\npair[n]{\start,\addrend} \in \readCond{}(\gl)(W)$
+  \end{itemize}
+  then
   \[
-    \forall n' \leq n \ldotp \npair[n]{\start,\addrend} \in \readCond{}(\gl)(W) \Rightarrow \npair[n']{\start,\addrend} \in \readCond{}(\gl)(W)
+    \npair[n']{\start,\addrend} \in \readCond{}(\gl)(W)
   \]
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:readcond-dc}]
@@ -3451,8 +3468,15 @@ Static region used for parts of memory that should not change.
 
 \begin{lemma}[$\mathit{writeCondition}$ monotone w.r.t $\futurewk$]
   \label{lem:writecond-mono-pub}
+  If
+  \begin{itemize}
+  \item $W' \futurewk W$
+  \item $\iota \in \{\iota^\pwl,\iota^\nwl,\iota^{(\nwl,p)}\}$
+  \item $\npair{\start,\addrend} \in \writeCond{}(\iota,\gl)(W)$
+  \end{itemize}
+  then
   \[
-    \forall W' \futurewk W \ldotp \forall \iota \in \{\iota^\pwl,\iota^\nwl,\iota^{(\nwl,p)}\} \npair{\start,\addrend} \in \writeCond{}(\iota,\gl)(W) \Rightarrow \npair{\start,\addrend} \in \writeCond{}(\iota,\gl)(W')
+    \npair{\start,\addrend}\in \writeCond{}(\iota,\gl)(W')
   \]
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:writecond-mono-pub}]
@@ -3461,12 +3485,15 @@ Static region used for parts of memory that should not change.
 
 \begin{lemma}[$\mathit{writeCondition}$ downwards-closed]
   \label{lem:writecond-dc}
-  For all $n' \leq n$, $\iota \in
-  \{\iota^\pwl,\iota^\nwl,\iota^{(\nwl,p)}\}$,
-  If $\npair{\start,\addrend} \in
-    \writeCond{}(\iota,\gl)(W)$
+  \begin{itemize}
+  \item $n' \leq n$
+  \item $\iota \in \{\iota^\pwl,\iota^\nwl,\iota^{(\nwl,p)}\}$
+  \item $\npair{\start,\addrend} \in \writeCond{}(\iota,\gl)(W)$
+  \end{itemize}
   then 
-    $\npair[n']{\start,\addrend} \in \writeCond{}(\iota,\gl)(W)$
+  \[
+    \npair[n']{\start,\addrend} \in \writeCond{}(\iota,\gl)(W)
+  \]
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:writecond-dc}]
   % TODO
@@ -3658,8 +3685,8 @@ Static region used for parts of memory that should not change.
   \item $\memSat[n]{\ms}{\revokeTemp{W}}$ 
   \item $\dom(\ms_f) \cap (\dom(\ms_\stk \uplus \ms_{\mathit{unused}} \uplus \ms)) = \emptyset$
   \item $(\reg,\ms) \text{ is looking at }
-    \mathtt{scall}(r(\overline{r_{\mathit{arg}}},
-    \overline{r_{\mathit{priv}}})) \text{ followed by } c_{\mathit{next}}$
+    \mathtt{scall}\;r(\overline{r_{\mathit{arg}}},
+    \overline{r_{\mathit{priv}}}) \text{ followed by } c_{\mathit{next}}$
   \item $\reg \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}$ unused}$
   \item[Hyp-Callee] If
     \begin{itemize}
@@ -3706,45 +3733,46 @@ Static region used for parts of memory that should not change.
   % the standard return instructions).
 \end{lemma}
 \begin{proof}
-  Assume $n$ is sufficiently large to execute all the steps up to and including the jump of $\scall{r}{\overline{r_{\var{arg}}}}{\overline{r_{\var{priv}}}}$. If this is not the case, then given any frame the execution will not halt successfully fast enough.
+  Assume $n$ is sufficiently large to execute all the steps up to and including the jump of $\mathtt{scall}\; r(\overline{r_{\var{arg}}},\overline{r_{\var{priv}}})$. If this is not the case, then in any given memory frame the execution will not halt successfully fast enough.
 
   Further assume
   \begin{enumproof}
   \item $\memSat[n]{\ms}{\revokeTemp{W}}$ \label{pf:scall-works:mem-sat-ms}
   \item $\dom(\ms_f) \cap (\dom(\ms_\stk \uplus \ms_{\mathit{unused}} \uplus \ms)) = \emptyset$
   \item $(\reg,\ms) \text{ is looking at }
-    \mathtt{scall}(r(\overline{r_{\mathit{arg}}},
-    \overline{r_{\mathit{priv}}})) \text{ followed by } c_{\mathit{next}}$
+    \mathtt{scall}\;r(\overline{r_{\mathit{arg}}},
+    \overline{r_{\mathit{priv}}}) \text{ followed by } c_{\mathit{next}}$
   \item $\reg \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}$ unused}$
   \item Hyp-Callee \label{pf:scall-works:item:Hyp-Callee}
   \item Hyp-Cont\label{pf:scall-works:item:Hyp-Cont}
   \end{enumproof}
   Now we wish to apply Lemma~\ref{lem:anti-red-obs}. To this end let $\ms_{\var{frame}}$ be given. Executing the \texttt{scall} gives us
   \[
-    (\reg,\ms \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{unused}} \uplus \ms_f) \step[i] (\reg_1,\ms \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{act}} \uplus \ms_\unused' \uplus \ms_{\var{frame}})
+    (\reg,\ms \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{unused}} \uplus \ms_{\var{frame}}) \step[i] (\reg_1,\ms \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{act}} \uplus \ms_\unused' \uplus \ms_{\var{frame}})
   \]
   where
   \begin{enumproof}[resume]
   \item $i \leq n$
   \item $\ms_\act$ contains activation record, $\reg(\overline{r_{\var{priv}}})$, the code return capability, and the full stack capability ($\reg(r_\stk)$ with the pointer adjusted).
-  \item $\forall a \in \dom(\ms_\unused') \ldotp \ms_\unused(a) = 0$
-  \item $\dom(\ms_\unused) = \dom(\ms_\act \uplus \ms_\unused)$
-  \item $\reg'(r_0) = c_{\var{ret}} = ((\entry,\local),\_,\_,\_)$ where the range of authority is the same as $\reg(r_\stk)$ and it points to the first instruction of the activation code.
-  \item \pointstostack{\reg'}{\emptyset}{\ms_\unused'}
-  \item $\reg'(\pcreg) = \updatePcPerm{\reg(\pcreg)}$ 
-  \item $\reg'(r) = \reg(r)$
-  \item $\reg'(\overline{r_{\var{args}}}) = \reg(\overline{r_{\var{args}}})$
-  \item $\forall r' \in \RegName \setminus \{\pcreg, r_\stk, r, \overline{r_{\var{args}}} \}$
+  \item $\forall a \in \dom(\ms_\unused') \ldotp \ms_\unused'(a) = 0$
+  \item $\dom(\ms_\unused) = \dom(\ms_\act \uplus \ms_\unused')$
+  \item $\reg_1(r_0) = c_{\var{ret}} = ((\entry,\local),\_,\_,\_)$ where the range of authority is the same as $\reg(r_\stk)$ and it points to the first instruction of the activation code. 
+    % TODO Illustrate this part of the heap better
+  \item \pointstostack{\reg_1}{\emptyset}{\ms_\unused'} \label{pf:scall-works:item:points-to-empty-and-unusedp}
+  \item $\reg_1(\pcreg) = \updatePcPerm{\reg(\pcreg)}$ 
+  \item $\reg_1(r) = \reg(r)$
+  \item $\reg_1(\overline{r_{\var{args}}}) = \reg(\overline{r_{\var{args}}})$
+  \item $\forall r' \in \RegName \setminus \{\pcreg, r_\stk, r, \overline{r_{\var{args}}} \} \ldotp \reg_1(r') = 0$
   \end{enumproof}
   In order to use Lemma~\ref{lem:anti-red-obs}, we now need to show
   \[
-    \npair[n_1]{(\reg_1,\ms \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{act}} \uplus \ms_\unused')} \in \observations{W_1}
+    \npair[n_1]{(\reg_1,\ms \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{act}} \uplus \ms_\unused')} \in \observations(W_1)
   \]
   where
   \[
     W_1 = \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk\uplus\ms_{\mathit{act}} \uplus \ms_f),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}'))]
   \]
-  to this end use Hyp-Callee (\ref{pf:scall-works:Hyp-Callee}). To use this everything is satisfied directly by assumptions but the following:
+  to this end use Hyp-Callee (\ref{pf:scall-works:item:Hyp-Callee}). To use this everything is satisfied directly by assumptions but the following:
   \begin{enumproof}[resume]
     \item $\memSat[n-1]{\ms \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{act}} \uplus \ms_\unused'}{W_1}$\\
       Here we apply Lemma~\ref{lem:disj-mem-sat}. By assumption~\ref{pf:scall-works:mem-sat-ms} we have $\memSat[n]{\ms}{\revokeTemp{W}}$. So it suffices to show
@@ -3753,27 +3781,7 @@ Static region used for parts of memory that should not change.
       \]
       This turns out to be trivial as $\ms_f$, $\ms_\stk$, and $\ms_{\var{act}}$ match the static region. $\ms_\unused'$ is all zeroes, to it trivially satisfies the $\iota^\pwl$ region.
     \item $\npair[n-1]{\reg'(r_\stk)} \in \stdvr(W_1)$ \\
-      Say $\dom(\reg'(r_\stk))=[\start_\stk,\addrend_\stk$. This amounts to showing
-      \begin{enumproof}
-      \item $\npair[n-1]{(\start_\stk, \addrend_\stk)} \in \readCond{}(\local)(W)$ \label{pf:scall-works:readcond-stack}\\
-        This amounts to showing 
-        \[
-          \iota^\pwl_{\start_\stk, \addrend_\stk} \nsubsim[n-1] \iota^\pwl_{\start_\stk, \addrend_\stk}
-        \]
-        which is indeed the case.
-      \item $\npair[n-1]{(\start_\stk, \addrend_\stk)} \in \writeCond{}(\iota^\pwl,\local)(W)$ \label{pf:scall-works:writecond-stack}\\
-        This amounts to showing 
-        \[
-          \iota^\pwl_{\start_\stk, \addrend_\stk} \nsupsim[n-1] \iota^\pwl_{\start_\stk, \addrend_\stk}
-        \]
-        which is indeed the case.
-      \item $\npair[n-1]{(\rwlx,\start_\stk, \addrend_\stk)} \in \execCond{}(\local)(W)$\\
-        Using \ref{pf:scall-works:writecond-stack} and \ref{pf:scall-works:readcond-stack}, we can use Lemma~\ref{lem:stack-exec-cond-help}.
-      \item $\npair[n-1]{(\rwx,\start_\stk, \addrend_\stk)} \in \execCond{}(\local)(W)$\\
-        Using \ref{pf:scall-works:writecond-stack} and \ref{pf:scall-works:readcond-stack}, we can use Lemma~\ref{lem:stack-exec-cond-help}.
-      \item $\npair[n-1]{(\exec,\start_\stk, \addrend_\stk)} \in \execCond{}(\local)(W)$\\
-        Using \ref{pf:scall-works:writecond-stack} and \ref{pf:scall-works:readcond-stack}, we can use Lemma~\ref{lem:stack-exec-cond-help}.
-      \end{enumproof}
+      Use Lemma~\ref{lem:stack-cap-vr} with \ref{pf:scall-works:item:points-to-empty-and-unusedp} and that $W_1$ has region $\iota^{\pwl}(\dom(\ms_{\mathit{unused}}')$.
     \item $\npair[n-1]{c_{\var{ret}}} \in \stdvr(W_1)$
       % TODO
   \end{enumproof}
@@ -3809,23 +3817,23 @@ Consider each of the three cases for $\perm$:
   \item $\perm = \rwlx$\\
     In this case $\iota= \iota^\pwl$. If we use the FTLR (Theorem~\ref{thm:ftlr}), then we are done. It suffices to show:
     \begin{enumproof}
-      \item $\npair[n']{(\start,\addrend) \readCond{}(\local)(W')}$ \\
+      \item $\npair[n']{(\start,\addrend)} \in \readCond{}(\local)(W')$ \\
         Follows from Lemma~\ref{lem:readcond-mono-pub}, Lemma~\ref{lem:readcond-dc}, and assumption~\ref{pf:stack-exec:ass:readcond}.
-      \item $\npair[n']{(\start,\addrend) \writeCond{}(\iota^\pwl,\local)(W')}$\\
+      \item $\npair[n']{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\local)(W')$\\
         Follows from Lemma~\ref{lem:writecond-mono-pub}, Lemma~\ref{lem:readcond-dc}, and assumption~\ref{pf:stack-exec:ass:writecond}.
     \end{enumproof}
   \item $\perm = \exec$\\
     In this case $\iota= \iota^\nwl$. If we use the FTLR (Theorem~\ref{thm:ftlr}), then we are done. It suffices to show:
     \begin{enumproof}
-      \item $\npair[n']{(\start,\addrend) \readCond{}(\local)(W')}$ \\
+      \item $\npair[n']{(\start,\addrend)} \in \readCond{}(\local)(W')$ \\
         Follows from Lemma~\ref{lem:readcond-mono-pub}, Lemma~\ref{lem:readcond-dc}, and assumption~\ref{pf:stack-exec:ass:readcond}.
-      \item $\npair[n']{(\start,\addrend) \writeCond{}(\iota^\nwl,\local)(W')}$\\
+      \item $\npair[n']{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\local)(W')$\\
         Follows from Lemma~\ref{lem:wc-pwl-implies-wc-nwl}, Lemma~\ref{lem:writecond-mono-pub}, Lemma~\ref{lem:readcond-dc}, and assumption~\ref{pf:stack-exec:ass:writecond}.
     \end{enumproof}
   \item $\perm = \rwx$\\
     In this case $\iota= \iota^\nwl$. If we use the FTLR (Theorem~\ref{thm:ftlr}), then we are done. It suffices to show:
     \begin{enumproof}
-      \item $\npair[n']{(\start,\addrend) \readCond{}(\local)(W')}$ \\
+      \item $\npair[n']{(\start,\addrend)} \in \readCond{}(\local)(W')$ \\
         Follows from Lemma~\ref{lem:readcond-mono-pub}, Lemma~\ref{lem:readcond-dc}, and assumption~\ref{pf:stack-exec:ass:readcond}.
       \end{enumproof}
 \end{enumproof}
@@ -3833,11 +3841,15 @@ Consider each of the three cases for $\perm$:
 
 \begin{lemma}[Stack capability in value relation]
   \label{lem:stack-cap-vr}
-  \begin{align*}
-    & \pointstostack{\reg}{\emptyset}{\ms} \land \\
-    & (\exists r \ldotp W(r) = \iota^\pwl (\dom(\ms))) \\
-    & \quad \Rightarrow \npair{\reg(r_\stk)} \in \stdvr(W)
-  \end{align*}
+  If
+  \begin{itemize}
+  \item \pointstostack{\reg}{\emptyset}{\ms}
+  \item $\exists r \ldotp W(r) = \iota^\pwl (\dom(\ms))$
+  \end{itemize}
+  then
+  \[
+    \npair{\reg(r_\stk)} \in \stdvr(W)
+  \]
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:stack-cap-vr}]
   Say 
@@ -3858,21 +3870,12 @@ Consider each of the three cases for $\perm$:
         \iota^\pwl (\dom(\ms)) \nsupsim \iota^\pwl_{\start,\addrend}
       \]
       which is true as they are even equal.
-    \item $\npair{(\rwlx,\start,\addrend)} \in \execCond{}(\local)(W)$ : \label{pf:stack-cap-exec}\\
-      Let $n' < n$, $W' \futurewk W$, and $a\in \dom(\start,\addrend)$ be given and show
-      \[
-        \npair[n']{((\rwlx,\local),\start,\addrend,a)} \in \stder(W')
-      \]
-      to this end use the FTLR. To do so, we need to show
-      \begin{itemize}
-        \item $\npair[n']{(\start,\addrend)} \in \readCond{}(\local)(W')$
-        \item $\npair[n']{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\local)(W')$
-      \end{itemize}
-      As we are considering a public future world, some region still contains $\iota^\pwl (\dom(\ms))$, so it is the same argument as \ref{pf:stack-cap-read} and \ref{pf:stack-cap-write}, respectively.
-    \item $\npair{(\rwx,\start,\addrend)} \in \execCond{}(\local)(W)$ : \\
-      Same argument as \ref{pf:stack-cap-exec}, but also use \ref{lem:nwl-subset-pwl}.
-    \item $\npair{(\exec,\start,\addrend)} \in \execCond{}(\local)(W)$
-      Same argument as \ref{pf:stack-cap-exec}.
+      \item $\npair{(\rwlx,\start_\stk, \addrend_\stk)} \in \execCond{}(\local)(W)$\\
+        Using \ref{pf:stack-cap-write} and \ref{pf:stack-cap-read}, we can use Lemma~\ref{lem:stack-exec-cond-help}.
+      \item $\npair{(\rwx,\start_\stk, \addrend_\stk)} \in \execCond{}(\local)(W)$\\
+        Using \ref{pf:stack-cap-write} and \ref{pf:stack-cap-read}, we can use Lemma~\ref{lem:stack-exec-cond-help}.
+      \item $\npair{(\exec,\start_\stk, \addrend_\stk)} \in \execCond{}(\local)(W)$\\
+        Using \ref{pf:stack-cap-read} and \ref{pf:stack-cap-write}, we can use Lemma~\ref{lem:stack-exec-cond-help}.
   \end{enumproof}
 \end{proof}
 
