@@ -467,7 +467,7 @@ Words and instructions:
                  \gete{\lv}{\lv} \mid
                  \geta{\lv}{\lv} \mid \\
            &   & \fail \mid
-                 \halt \mid 
+                 \halt 
   \end{array}
 \]
 Further define $\reg_0 \in \Regs$ such that
@@ -480,6 +480,7 @@ Assume a $\decode$ function that decodes words to instructions:
 \begin{align*}
   \decode &:\Words \fun \Instrs
 \end{align*}
+\dominique{mention that it is a simplification to take decode total?}
 Assume an $\encodePerm$, $\encodeLoc$, and $\encodePermPair$ function that encodes a permissions, locality, and permission pair, respectively, as an integer:
 \begin{align*}
   \encodePerm &: \Perms \fun \ints \\
@@ -3471,6 +3472,16 @@ Static region used for parts of memory that should not change.
   % TODO
 \end{proof}
 
+\subsubsection{LR Sanity lemmas}
+
+\begin{lemma}[Heap satisfaction downwards closure]
+  \label{heap-sat-dc}
+  \begin{align*}
+    &\forall \hs, n' \leq n, W \ldotp \\
+    &\quad \heapSat[\hs]{n}{W} \Rightarrow \heapSat[\hs]{n'}{W}
+  \end{align*}
+\end{lemma} 
+
 \subsubsection{Fundamental theorem of logical relations}
 
 \begin{lemma}[Fundamental theorem proof helper lemma]
@@ -3514,10 +3525,60 @@ Static region used for parts of memory that should not change.
   \begin{enumproof}
   \item By induction on $n$. In other words, assume that the theorem already
     holds for all $n' < n$.
-  \item The case that $i = 0$ is impossible, since
+  \item $i \neq 0$, since
     $(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus
-    \ms_f)\neq (\halted,\Phi)$ for any $\Phi$. Assume w.l.o.g. that $i = 1+i'$
-  \item 
+    \ms_f)\neq (\halted,\Phi)$ for any $\Phi$. \\
+    Therefore, assume w.l.o.g. that $i = 1+i'$,
+    \begin{equation*}
+      (\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus \ms_f) \step \var{conf'} \step[i'] (\halted,\Phi)
+    \end{equation*}
+  \item $\start \leq \addr \leq \addrend$, $\perm \in \{ \exec,\rwx, \rwlx \}$
+    and $\var{conf'} =
+    \sem{\decode(\memheap(\addr))}((\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs
+    \uplus \ms_f))$\\
+    By definition of
+    $(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus \ms_f)
+    \step \var{conf'}$, using the fact that $\var{conf'} \neq \failed$ (since it
+    is not possible that $\failed \step[i'] (\halted,\Phi)$)
+  \item We do a case analysis on
+    $\memheap(a)$
+    \begin{enumproof}
+    \item Case $\memheap(a) = \jmp{\lv}$:
+    \item Case $\memheap(a) = \jnz{\lv}{\rv}$:
+    \item Case $\memheap(a) = \move{\lv}{\rv}$:
+    \item Case $\memheap(a) = \load{\lv}{\hv}$:
+    \item Case $\memheap(a) = \store{\hv}{\rv}$:
+    \item Case $\memheap(a) = \plus{\lv}{\rv}{\rv}$:
+    \item Case $\memheap(a) = \lea{\lv}{\rv}$:
+    \item Case $\memheap(a) = \restricttwo{\lv}{\rv}$:
+    \item Case $\memheap(a) = \subseg{\lv}{\rv}{\rv}$:
+    \item Case $\memheap(a) = \isptr{\lv}{\rv}$:
+    \item Case $\memheap(a) = \getp{\lv}{\lv}$:
+    \item Case $\memheap(a) = \getl{\lv}{\lv}$:
+    \item Case $\memheap(a) = \getb{\lv}{\lv}$:
+    \item Case $\memheap(a) = \gete{\lv}{\lv}$:
+    \item Case $\memheap(a) = \geta{\lv}{\lv}$:
+    \item Case $\memheap(a) = \fail$: Contradiction, since then
+      $\sem{\decode(\memheap(\addr))}((\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs
+      \uplus \ms_f)) = \failed$, so we have that $\failed \step[i']
+      (\halted,\Phi)$ which is not possible.
+    \item Case $\memheap(a) = \halt$:
+    \end{enumproof}
+    \begin{enumproof}
+    \item
+      $\sem{\decode(\memheap(\addr))}((\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs
+      \uplus \ms_f)) = (\halted, (\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs
+      \uplus \ms_f))$\\
+      By definition of $\sem{\cdot}$
+    \item Then $i' = 0$ and $\Phi =
+      (\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus
+      \ms_f)$. Follows from $(\halted,
+      (\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus
+      \ms_f)) \step[i'] (\halted,\Phi)$
+    \item For $W' = W$, $\ms_r = \emptyset$ and $\ms' = \ms$, we have that
+      $\memheap[\Phi] = \hs' \uplus \hs_r \uplus \ms_f$ and
+      $\heapSat[\hs']{n-1}{W'}$ (using Lemma~\ref{heap-sat-dc}).
+    \end{enumproof}
   \end{enumproof}
 \end{proof}
 
@@ -3817,12 +3878,6 @@ Consider each of the three cases for $\perm$:
 
 \subsubsection{Memory Segment Satisfaction}
 We expect the following lemmas to hold true:
-\begin{lemma}[Downwards closure]
-  \begin{align*}
-    &\forall \hs, n' \leq n, W \ldotp \\
-    &\quad \heapSat[\hs]{n}{W} \Rightarrow \heapSat[\hs]{n'}{W}
-  \end{align*}
-\end{lemma} 
 
 %   \lau{This is not true! If the new region is active and does not accept the empty memory, then it is no longer possible to make a satisfactory partition of the heap.}
 %   \dominique{I agree. World satisfaction for heaps is not monotonous and it
