@@ -3870,8 +3870,8 @@ Static region used for parts of memory that should not change and where you pass
   TODO
 \end{proof}
 
-\begin{lemma}[Fundamental theorem proof helper lemma]
-  \label{lem:ftlr-induction-helper}
+\begin{theorem}[Fundamental theorem of logical relations]
+  \label{thm:ftlr}
   For all $n$, $\perm$, $\start$, $\addrend$, $\addr$, $\gl$, $W$  \\
   If one of the following holds:
   \begin{itemize}
@@ -3896,20 +3896,20 @@ Static region used for parts of memory that should not change and where you pass
       \end{gathered}
     \]
   \end{itemize}
-  and
-  \begin{enumproof}
-  \item $\npair[n]{\reg}\in \stdrr(W)$
-  \item $\heapSat[\hs]{n}{W}$
-  \item $i \leq n$
-  \item $\Phi = (\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus \ms_f)$
-  \item $\Phi \step[i] (\halted,\Phi')$
-  \end{enumproof}
-  
-  Then $\exists W' \futurestr W$, $\hs_r$, $\hs' \ldotp$
-  $\memheap[\Phi'] = \hs' \uplus \hs_r \uplus \ms_f$ and $\heapSat[\hs']{n-i}{W'}$
-\end{lemma}
+  then
+  \[
+    \npair{((\perm,\gl),\start,\addrend,\addr)} \in \stder(W)
+  \]
+\end{theorem}
 \begin{proof}
   \begin{enumproof}
+  \item Assume: $n' \leq n$, $\npair[n']{\reg}\in \stdrr(W)$, $\heapSat[\hs]{n'}{W}$.\\
+    Suffices: $\npair[n']{(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs)}\in\observations(W)$.\\
+    By: definition of $\stder(W)$.
+  \item Assume: $\ms_f$, $\heap'$, $i \leq n'$, $(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus \ms_f) \step[i] (\halted,\Phi)$,\\
+    Suffices: $\exists W' \futurestr W$, $\hs_r$, $\hs' \ldotp$
+    $\memheap[\Phi] = \hs' \uplus \hs_r \uplus \ms_f$ and $\heapSat[\hs']{n'-i}{W'}$\\
+    By: definition of $\observations(W)$ \label{suff-after-eval}
   \item By induction on $n$. In other words, assume that the theorem already
     holds for all $n' < n$.
   \item $i \neq 0$, since
@@ -3921,6 +3921,28 @@ Static region used for parts of memory that should not change and where you pass
     \end{equation*}
   \item $n > 0$, since otherwise $i = 0$ (because $i \leq n$) and this is
     impossible by the previous point.
+  \item $\npair{\memreg(\pcreg)}\in\stdvr(W)$. \label{step:ftlr-pc-vr}
+    Proof:
+    \begin{enumproof}
+    \item Assume: $\perm' \in \{\exec,\rwx,\rwlx\}$ with $\perm'
+      \sqsubseteq\perm$\\
+      Suffices: $\npair{(\perm',\start,\addrend)}\in\execCond{g}(W)$\\
+      By: the definition of $\stdvr(\cdot)$ using the assumptions
+    \item Assume: $n'<n$, $W'\future W$, $\addr' \in [\start,\addrend]$, $\gl
+      = \local \Rightarrow \future = \futurewk$,
+      $\gl=\glob\Rightarrow\future = \futurestr$.\\
+      Suffices: $\npair[n']{((\perm,\gl),\start,\addrend,\addr')} \in
+      \stder(W')$.
+      By: definition of $\execCond{g}(W)$
+    \item By induction, using the assumptions and Lemmas~\ref{lem:readcond-dc}
+      and~\ref{lem:writecond-dc}.
+    \end{enumproof}
+  \item For all $r \in \RegName$, $\npair[n]{\memreg(r)}\in\stdvr(W)$. \label{step:ftlr-reg-rr}
+    \begin{enumproof}
+    \item Case $r \neq \pcreg$: follows from $\npair[n]{\reg}\in \stdrr(W)$ by
+      definition of $\stdrr(W)$.
+    \item Case $r = \pcreg$: by step~\ref{step:ftlr-pc-vr}.
+    \end{enumproof}
   \item By inspection of the definitions of $\Phi\step \var{conf'}$ and
     $\sem{\decode(\memheap(\addr))}$ and $\updatePcPerm{\cdot}$ and
     $\stdUpdatePc{\cdot}$, it is easy to see that one of the following cases
@@ -4014,7 +4036,7 @@ Static region used for parts of memory that should not change and where you pass
         $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows by
         Lemmas~\ref{lem:conds-load-suffice} and~\ref{lem:stdvr-dc} using the
         fact that $\heapSat[\memheap]{n}{W}$ and $\npair{\memreg(r_2)}\in\stdvr(W)$
-        which follows from $\npair{\memreg}\in\stdrr(W)$ by definition.
+        which we have from step~\ref{step:ftlr-reg-rr}.
       \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r_1) =
         ((\perm',\gl'),\start',\addrend',\addr')$ and $\perm' \neq \entry$ and
         $\var{c} = ((\perm',\gl'),\start',\addrend',\addr' + n)$ for some $n \in
@@ -4022,7 +4044,7 @@ Static region used for parts of memory that should not change and where you pass
         $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows by
         Lemmas~\ref{lem:conds-lea-suffice} and~\ref{lem:stdvr-dc} using the
         fact that $\npair{\memreg(r_1)}\in\stdvr(W)$
-        which follows from $\npair{\memreg}\in\stdrr(W)$ by definition.
+        which we have from step~\ref{step:ftlr-reg-rr}.
       \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r) =
         ((\perm',\gl'),\start',\addrend',\addr')$ and $(\perm'',\gl'')\sqsubseteq
         (\perm',\gl')$ and $c = ((\perm'',\gl''),\start',\addrend',\addr')$: \\
@@ -4030,8 +4052,7 @@ Static region used for parts of memory that should not change and where you pass
         Lemmas~\ref{lem:conds-restrict-suffice} and~\ref{lem:stdvr-dc} using the
         fact that $\npair{\memreg(r)}\in\stdvr(W)$
         which follows from $\npair{\memreg}\in\stdrr(W)$ by
-        definition\dominique{this does not follow if $r = \pcreg$, similar
-          problem in other cases}.
+        definition.
       \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r) =
         ((\perm',\gl'),\start',\addrend',\addr')$ and $\start' \leq \start''$ and
         $\addrend'' \leq \addrend'$ and $c =
@@ -4043,51 +4064,6 @@ Static region used for parts of memory that should not change and where you pass
       \end{enumproof}
     \item $\npair[n-1]{\memreg[\Phi'](\pcreg)} \in \stder(W)$: TODO
     \end{enumproof}
-  \end{enumproof}
-\end{proof}
-
-\begin{theorem}[Fundamental theorem of logical relations]
-  \label{thm:ftlr}
-  For all $n$, $\perm$, $\start$, $\addrend$, $\addr$, $\gl$, $W$  \\
-  If one of the following holds:
-  \begin{itemize}
-  \item \[
-      \begin{gathered}
-        \perm = \exec \land\\
-        \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)
-      \end{gathered}
-    \]
-  \item \[
-      \begin{gathered}
-        \perm = \rwx \land \\
-        \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land\\
-        \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W)
-      \end{gathered}
-    \]
-  \item \[
-      \begin{gathered}
-        \perm = \rwlx \land\\
-        \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land\\
-        \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W),
-      \end{gathered}
-    \]
-  \end{itemize}
-  then
-  \[
-    \npair{((\perm,\gl),\start,\addrend,\addr)} \in \stder(W)
-  \]
-\end{theorem}
-\begin{proof}
-  \begin{enumproof}
-  \item Assume: $n' \leq n$, $\npair[n']{\reg}\in \stdrr(W)$, $\heapSat[\hs]{n'}{W}$.\\
-    Suffices: $\npair[n']{(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs)}\in\observations(W)$.\\
-    By: definition of $\stder(W)$.
-  \item Assume: $\ms_f$, $\heap'$, $i \leq n'$, $(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus \ms_f) \step[i] (\halted,\Phi)$,\\
-    Suffices: $\exists W' \futurestr W$, $\hs_r$, $\hs' \ldotp$
-    $\memheap[\Phi] = \hs' \uplus \hs_r \uplus \ms_f$ and $\heapSat[\hs']{n'-i}{W'}$\\
-    By: definition of $\observations(W)$ \label{suff-after-eval}
-  \item This follows by Lemma~\ref{lem:ftlr-induction-helper} using
-    Lemmas~\ref{lem:readcond-dc} and~\ref{lem:writecond-dc}.
   \end{enumproof}
 \end{proof}
 
