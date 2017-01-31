@@ -3325,7 +3325,7 @@ Static region used for parts of memory that should not change.
     & \forall n, n',i,\reg, \reg', \ms, \ms', \ms_r, W, W' \ldotp\\
     & \quad n' \geq n - i \land W' \futurestr W \land \\
     & \quad (\forall \ms_f \ldotp (\reg,\ms \uplus \ms_r \uplus \ms_f) \step[i] (\reg',\ms' \uplus \ms_r \uplus \ms_f)) \land \\
-    & \quad \npair[n-i]{(\reg',\ms')} \in \observations(W') \\
+    & \quad \npair[n']{(\reg',\ms')} \in \observations(W') \\
     & \qquad \Rightarrow \npair{(\reg,\ms \uplus \ms_r)} \in \observations(W)
   \end{align*}
 \end{lemma}
@@ -3646,7 +3646,7 @@ Static region used for parts of memory that should not change.
   \item[Hyp-Cont] If
     \begin{itemize}
     \item $n' \leq n-2$
-    \item $W'' \futurewk \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk\uplus \ms_\act \uplus \ms_f),\iota^\sta(\temp,\ms_{\mathit{unused}}'')]$
+    \item $W'' \futurewk \revokeTemp{W}$
     \item $\memSat[n']{\ms''}{\revokeTemp{W''}}$ 
     \item for all $r$, we have that:
       \begin{equation*}
@@ -3654,7 +3654,7 @@ Static region used for parts of memory that should not change.
         \begin{cases}
           = c_{\mathit{next}} &\text{ if } r = \pcreg\\
           = \reg(r)&\text{ if } r \in \overline{r_{\mathit{priv}}}\\
-          \in \stdvr(W'') &\text{ if $\reg'(r)$ is a global capability and } r \not\in \{\pcreg,\overline{r_{\mathit{priv}}}, r_\stk\} %revokeTemp here?
+          \in \stdvr(\revokeTemp{W''}) &\text{ if $\reg'(r)$ is a global capability and } r \not\in \{\pcreg,\overline{r_{\mathit{priv}}}, r_\stk\}
         \end{cases}
       \end{equation*}
     \item $\reg' \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}''$ unused}$ for some $\ms_{\mathit{unused}}''$
@@ -3721,8 +3721,85 @@ Static region used for parts of memory that should not change.
       This turns out to be trivial as $\ms_f$, $\ms_\stk$, and $\ms_{\var{act}}$ match the static region. $\ms_\unused'$ is all zeroes, to it trivially satisfies the $\iota^\pwl$ region.
     \item $\npair[n-1]{\reg'(r_\stk)} \in \stdvr(W_1)$ \\
       Use Lemma~\ref{lem:stack-cap-vr} with \ref{pf:scall-works:item:points-to-empty-and-unusedp} and that $W_1$ has region $\iota^{\pwl}(\dom(\ms_{\mathit{unused}}')$.
-    \item $\npair[n-1]{c_{\var{ret}}} \in \stdvr(W_1)$
-      % TODO
+    \item $\npair[n-1]{c_{\var{ret}}} \in \stdvr(W_1)$ \\
+      To this end let 
+      \begin{enumproof}
+        \item $n' < n-1$ \label{pf:scall-works:np-n1}
+        \item $W_2 \futurewk W_1$ \label{pf:scall-works:w2-futurewk-w1}
+      \end{enumproof}
+      be given and show
+      \[
+        \npair[n']{\updatePcPerm{c_{\var{ret}}}} \in \stder(W_2)
+      \]
+      To this assume 
+      \begin{enumproof}[resume]
+        \item $n'' \leq n'$
+        \item $\npair[n'']{\reg_2} \in \stdrr(W_2)$ \label{pf:scall-worsk:reg2-reg-rel}
+        \item $\memSat[n'']{\ms'}{W_2}$ \label{pf:scall-works:w2-memsat}
+      \end{enumproof}
+      be given and show
+      \begin{equation}
+        \label{pf:scall-works:obsw2}
+        \npair[n'']{(\reg_2\update{\pcreg}{\updatePcPerm{c_{\var{ret}}}},\ms')} \in \observations(W_2)
+      \end{equation}
+
+      From \ref{pf:scall-works:w2-futurewk-w1} and \ref{pf:scall-works:w2-memsat}, we can deduce that the memory can be split in the following way:
+      \[
+        \ms' = \ms'' \uplus \ms_r \uplus \ms_\stk \uplus \ms_\act \uplus \ms_\unused'' \uplus \ms_f
+      \]
+      where $\ms''$ is the "permanent" part of memory we get from Lemma~\ref{lem:priv-mono-like}, $\ms_r$ is the part "revoked" of memory from the same lemma that is not otherwise specified, and $\dom(\ms_\unused') = \dom(\ms_\unused'')$. From Lemma~\ref{lem:priv-mono-like} we also get
+      \begin{enumproof}[resume]
+        \item $\memSat[n'']{\ms''}{\revokeTemp{W_2}}$ \label{pf:scall-works:rt-w2-memsat}
+      \end{enumproof}
+
+      Assume $n''$ is large enough to execute the rest of the \texttt{scall} instructions. If $n''$ is not large enough, then \ref{pf:scall-works:obsw2} is trivial to show. To show \ref{pf:scall-works:obsw2} apply Lemma~\ref{lem:anti-red-obs} again where $\ms_r$ is the revoked part. Let $\ms_{\var{frame}}'$ be given, the execution until just after the \texttt{scall} proceeds as follows:
+      \[
+        (\reg_2\update{\pcreg}{\updatePcPerm{c_{\var{ret}}}},\ms' \uplus \ms_{var{frame}}') \step[j] (\reg_3,\ms' \uplus \ms_{\var{frame}}')
+      \]
+      where
+      \begin{enumproof}[resume]
+      \item \label{pf:scall-works:reg3-contents}
+        \[
+          \reg_3(r) =
+          \begin{cases}
+            c_{\var{next}} & r = \pcreg \\
+            c_\stk & r = r_\stk \\
+            \reg(r) & r \in \{\overline{r_{\var{priv}}} \}\\
+            \reg_2(r) & \text{ otherwise}
+          \end{cases}
+        \]
+        \item \pointstostack{\reg_3}{\ms_\stk}{\ms_\act \uplus \ms_\unused''} \label{pf:scall-works:reg3-stack}
+      \end{enumproof}
+      
+      At this point, we use Hyp-Cont (\ref{pf:scall-works:item:Hyp-Cont}) to show the observation predicate condition of Lemma~\ref{lem:anti-red-obs}:
+      \[
+        \npair[n'']{(reg_3,\ms'' \uplus \ms_\stk \uplus \ms_\act \uplus \ms_\unused'' \uplus \ms_f)} \in \observations(W_2)
+      \]
+      which 
+      \begin{itemize}
+      \item $n'' \leq n-2$ \\
+        Follows from (\ref{pf:scall-works:np-n1})
+      \item $W_2 \futurewk \revokeTemp{W}$ \\
+        We have 
+        \[
+          W_1 \futurewk \revokeTemp{W}
+        \]
+        and assumption \ref{pf:scall-works:w2-futurewk-w1} we get this by transitivity of $\futurewk$.
+      \item $\memSat[n'']{\ms''}{\revokeTemp{W_2}}$ \\
+        Exactly \ref{pf:scall-works:rt-w2-memsat}.        
+      \item for all $r$, we have that:
+        \begin{equation*}
+          \reg_3(r)
+          \begin{cases}
+            = c_{\mathit{next}} &\text{ if } r = \pcreg\\
+            = \reg(r)&\text{ if } r \in \overline{r_{\mathit{priv}}}\\
+            \in \stdvr(\revokeTemp{W_2}) &\text{ if $\reg_3(r)$ is a global capability and } r \not\in \{\pcreg,\overline{r_{\mathit{priv}}}, r_\stk\} %revokeTemp here?
+          \end{cases}
+        \end{equation*}\\
+        The two first cases follows from \ref{pf:scall-works:reg3-contents}. The third follow from assumption \ref{pf:scall-worsk:reg2-reg-rel} and \ref{lem:stdvr-glob-priv-mono}.
+      \item $\reg' \text{ points to stack with $\ms_\stk$ used and $\ms_\act \uplus \ms_{\mathit{unused}}''$ unused}$\\
+        Exactly \ref{pf:scall-works:reg3-stack}.
+      \end{itemize}
   \end{enumproof}
 \end{proof}
 
