@@ -37,8 +37,8 @@
 \usepackage{tikz}
 \usepackage{multirow,bigdelim}
 
-%make latex preview-mode work with natbib...
-\usepackage[displaymath,floats,graphics,textmath,footnotes]{preview}
+% %make latex preview-mode work with natbib...
+% \usepackage[displaymath,floats,graphics,textmath,footnotes]{preview}
 
 \declaretheorem[numbered=yes,name=Lemma,qed=$\blacksquare$]{lemma}
 \declaretheorem[numbered=yes,name=Theorem,qed=$\blacksquare$]{theorem}
@@ -3990,7 +3990,7 @@ Static region used for parts of memory that should not change and where you pass
       $\memheap[\Phi'] = \hs' \uplus \hs_r \uplus \ms_f$ and
       $\heapSat[\hs']{n-1}{W'}$ (using Lemma~\ref{lem:heap-sat-dc}).
     \end{enumproof}
-  \item Case $\var{conf'} = \Phi'$, and additionally, one of the following
+  \item Case $\var{conf'} = \updateReg[\Phi']{\pcreg}{\var{newPc}}$, and additionally, one of the following
     holds:
     \begin{itemize}
     \item $\memheap[\Phi'] = \memheap[\Phi]$
@@ -4002,13 +4002,11 @@ Static region used for parts of memory that should not change and where you pass
     \end{itemize}
     and also one of the following holds:
     \begin{itemize}
-    \item $\memreg[\Phi'](\pcreg) = \updatePcPerm{\memreg(\lv)}$
-    \item $\memreg[\Phi'](\pcreg) = \var{newPc}$ and $\var{newPc} =
-      ((\perm,\gl),\start,\addrend,\addr + 1)$
-      \dominique{This is wrong: the semantics allow, for example, a move into
-        the PC, after which the new pc is increased by one}
+    \item $\var{newPc}= \updatePcPerm{\memreg(\lv)}$
+    \item $\var{newPc} = ((\perm',\gl'),\start',\addrend',\addr' + 1)$ and
+      $\memreg[\Phi'](\pcreg) = ((\perm',\gl'),\start',\addrend',\addr')$
     \end{itemize}
-    and finally, for all $r \in (\RegName \setminus \{\pcreg\})$, one of the following
+    and finally, for all $r \in \RegName$, one of the following
     holds:
     \begin{itemize}
     \item $\memreg[\Phi'](r) = \memreg[\Phi](r)$
@@ -4047,15 +4045,11 @@ Static region used for parts of memory that should not change and where you pass
         $\npair{\memreg(r_2)}\in\stdvr(W)$ which follows from
         $\npair{\memreg}\in\stdrr(W)$ by definition.
       \end{enumproof}
-    \item $\npair[n-1]{\memreg[\Phi']}\in\stdrr(W)$.
+    \item For all $r \in \RegName$, $\npair[n-1]{\memreg[\Phi'](r)}\in\stdvr(W)$.
       \begin{enumproof}
-      \item Assume: $r \in \RegName\setminus\{\pcreg\}$.\\
-        Suffices: $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$.\\
-        By: definition of $\stdrr{\cdot}$
       \item Case $\memreg[\Phi'](r) = \memreg[\Phi](r)$:
         $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows from
-        $\npair{\memreg}\in\stdrr(W)$ by definition of $\stdrr(\cdot)$ using
-        Lemma~\ref{lem:stdvr-dc}.
+        Step~\ref{step:ftlr-reg-rr} using Lemma~\ref{lem:stdvr-dc}.
       \item $\memreg[\Phi'](r) = n$ for some $n \in \ints$.
         $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows by definition of
         $\stdvr(\cdot)$
@@ -4064,9 +4058,9 @@ Static region used for parts of memory that should not change and where you pass
         $\readAllowed{\perm'}$ and $\withinBounds{\var{c}}$ and $\var{w} =
         \memheap(\addr')$:\\
         $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows by
-        Lemmas~\ref{lem:conds-load-suffice} and~\ref{lem:stdvr-dc} using the
-        fact that $\heapSat[\memheap]{n}{W}$ and $\npair{\memreg(r_2)}\in\stdvr(W)$
-        which we have from step~\ref{step:ftlr-reg-rr}.
+        Lemmas~\ref{lem:conds-load-suffice} using the fact that
+        $\heapSat[\memheap]{n}{W}$ and $\npair{\memreg(r_2)}\in\stdvr(W)$ which
+        we have from step~\ref{step:ftlr-reg-rr}.
       \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r_1) =
         ((\perm',\gl'),\start',\addrend',\addr')$ and $\perm' \neq \entry$ and
         $\var{c} = ((\perm',\gl'),\start',\addrend',\addr' + n)$ for some $n \in
@@ -4092,7 +4086,26 @@ Static region used for parts of memory that should not change and where you pass
         fact that $\npair{\memreg(r)}\in\stdvr(W)$
         which follows from $\npair{\memreg}\in\stdrr(W)$ by definition.
       \end{enumproof}
-    \item $\npair[n-1]{\memreg[\Phi'](\pcreg)} \in \stder(W)$: TODO
+    \item $\npair[n-1]{\memreg[\Phi']}\in\stdrr(W)$: Follows from the previous
+      point by definition of $\stdrr(W)$.
+    \item $\npair[n-1]{\var{newPc}} \in \stder(W)$:
+      \begin{enumproof}
+      \item Case $\var{newPc}= \updatePcPerm{\memreg(\lv)}$: We distinguish the
+        following cases:
+        \begin{enumproof}
+        \item Case $\memreg(\lv) = ((\entry,\gl'),\start',\addrend',\addr')$:
+          \begin{enumproof}
+          \item $\npair[n-1]{\memreg(\lv)} \in \stdvr(W)$.  Follows from
+            Step~\ref{step:ftlr-reg-rr} using Lemma~\ref{lem:stdvr-dc}.
+          \item $\npair[n-1]{(\start',\addrend',addr') \in
+              \entryCond{\gl'}(W)}$. By definition of $\stdvr(W)$ from the
+            previous point.
+          \item 
+          \end{enumproof}
+        \end{enumproof}
+      \item Case $\var{newPc} = ((\perm',\gl'),\start',\addrend',\addr' + 1)$ and
+        $\memreg[\Phi'](\pcreg) = ((\perm',\gl'),\start',\addrend',\addr')$: TODO
+      \end{enumproof}
     \end{enumproof}
   \end{enumproof}
 \end{proof}
