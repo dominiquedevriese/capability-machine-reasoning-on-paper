@@ -37,8 +37,8 @@
 \usepackage{tikz}
 \usepackage{multirow,bigdelim}
 
-%% make latex preview-mode work with natbib...
-%\usepackage[displaymath,floats,graphics,textmath,footnotes]{preview}
+% %make latex preview-mode work with natbib...
+% \usepackage[displaymath,floats,graphics,textmath,footnotes]{preview}
 
 \declaretheorem[numbered=yes,name=Lemma,qed=$\blacksquare$]{lemma}
 \declaretheorem[numbered=yes,name=Theorem,qed=$\blacksquare$]{theorem}
@@ -777,6 +777,7 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
                 $c_\malloc$ satisfies the specification for malloc iff
                 \[  
                   \begin{aligned}
+                    &c_\malloc = ((\entry,\_),\_,\_,\_) \land\\
                     &\exists \iota_{\malloc,0} \ldotp \\
                     &\quad (\forall \iota' \futurestr \iota_{\malloc,0} \ldotp \forall W,i \ldotp W(i)=\iota' \Rightarrow \iota'.H (\iota'.s) (W) = \iota'.H (\iota'.s) ([i \mapsto W(i)]) ) \; \land \\
                     &\quad \iota_{\malloc,0}.v = \perma \; \land \\
@@ -788,7 +789,7 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
                     &\qquad \quad \memreg(r_1) = \size \land \\
                     &\qquad \quad \size \geq 0 \land \\
                     &\qquad \quad \memreg(r_0) = (p,b,e,a) \land \\
-                    &\qquad \quad \memreg(\pcreg) = c_\malloc \\ %and this needs to change with ABI.
+                    &\qquad \quad \memreg(\pcreg) = \updatePcPerm{c_\malloc} \\ %and this needs to change with ABI.
                     &\qquad \quad \Rightarrow \\
                     &\qquad \qquad\exists \Phi' \in \ExecConfs \ldotp \exists \ms_{\var{footprint}}', \ms_{\var{alloc}} \in \HeapSegments\ldotp\\
                     &\qquad \qquad \quad \exists j \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \exists \iota_\malloc' \in \Regions \ldotp \\
@@ -3594,7 +3595,6 @@ Static region used for parts of memory that should not change and where you pass
   $\readCond{}(\glob)(W)$ picks a $\perma$ region from $W$. $\perma$ regions are persistent over $\futurestr$, so we can use the region that the assumption gives us.
 \end{proof}
 
-
 \begin{lemma}[$\mathit{readCondition}$ downwards-closed]
   \label{lem:readcond-dc}
   If
@@ -3784,106 +3784,128 @@ Static region used for parts of memory that should not change and where you pass
   \end{align*}
 \end{lemma} 
 
+\subsubsection{Malloc safe to pass to adversary}
+\label{sec:malloc-valrel}
+
+\begin{lemma}[Malloc is safe to pass to adversary]
+  If $W(r) = \iota$ with $\iota \futurestr \iota_{\malloc,0}$, then
+  $\npair{c_\malloc} \in \stdvr(W)$ for all $n$.
+\end{lemma}
+\begin{proof}
+  TODO
+\end{proof}
+
 \subsubsection{Fundamental theorem of logical relations}
 
-\begin{lemma}[Fundamental theorem proof helper lemma]
-  \label{lem:ftlr-induction-helper}
-  For all $n$, $\perm$, $\start$, $\addrend$, $\addr$, $\gl$, $W$  \\
-  If one of the following holds:
-  \begin{itemize}
-  \item \[
-      \begin{gathered}
-        \perm = \exec \land\\
-        \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)
-      \end{gathered}
-    \]
-  \item \[
-      \begin{gathered}
-        \perm = \rwx \land \\
-        \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land\\
-        \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W)
-      \end{gathered}
-    \]
-  \item \[
-      \begin{gathered}
-        \perm = \rwlx \land\\
-        \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land\\
-        \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W),
-      \end{gathered}
-    \]
-  \end{itemize}
-  and
-  \begin{itemize}
-  \item $\npair[n]{\reg}\in \stdrr(W)$
-  \item $\heapSat[\hs]{n}{W}$
-  \item $i \leq n$
-  \item $(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus \ms_f) \step[i] (\halted,\Phi)$
-  \end{itemize}
-  
-  Then $\exists W' \futurestr W$, $\hs_r$, $\hs' \ldotp$
-  $\memheap[\Phi] = \hs' \uplus \hs_r \uplus \ms_f$ and $\heapSat[\hs']{n-i}{W'}$
+\begin{lemma}[Conditions for load instruction are sufficient]
+  \label{lem:conds-load-suffice}
+  \item $\heapSat[\memheap]{n}{W}$
+  \item $\var{c} = ((\perm,\gl),\start,\addrend,\addr)$
+  \item $\npair{c}\in\stdvr(W)$
+  \item $\readAllowed{\perm}$ 
+  \item $\withinBounds{\var{c}}$
+  then $\npair[n-1]{\memheap(\addr)} \in \stdvr(W)$
 \end{lemma}
 \begin{proof}
   \begin{enumproof}
-  \item By induction on $n$. In other words, assume that the theorem already
-    holds for all $n' < n$.
-  \item $i \neq 0$, since
-    $(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus
-    \ms_f)\neq (\halted,\Phi)$ for any $\Phi$. \\
-    Therefore, assume w.l.o.g. that $i = 1+i'$,
-    \begin{equation*}
-      (\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus \ms_f) \step \var{conf'} \step[i'] (\halted,\Phi)
-    \end{equation*}
-  \item $\start \leq \addr \leq \addrend$, $\perm \in \{ \exec,\rwx, \rwlx \}$
-    and $\var{conf'} =
-    \sem{\decode(\memheap(\addr))}((\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs
-    \uplus \ms_f))$\\
-    By definition of
-    $(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus \ms_f)
-    \step \var{conf'}$, using the fact that $\var{conf'} \neq \failed$ (since it
-    is not possible that $\failed \step[i'] (\halted,\Phi)$)
-  \item We do a case analysis on
-    $\memheap(a)$
-    \begin{enumproof}
-    \item Case $\memheap(a) = \jmp{\lv}$:
-    \item Case $\memheap(a) = \jnz{\lv}{\rv}$:
-    \item Case $\memheap(a) = \move{\lv}{\rv}$:
-    \item Case $\memheap(a) = \load{\lv}{\hv}$:
-    \item Case $\memheap(a) = \store{\hv}{\rv}$:
-    \item Case $\memheap(a) = \plus{\lv}{\rv}{\rv}$:
-    \item Case $\memheap(a) = \lea{\lv}{\rv}$:
-    \item Case $\memheap(a) = \restricttwo{\lv}{\rv}$:
-    \item Case $\memheap(a) = \subseg{\lv}{\rv}{\rv}$:
-    \item Case $\memheap(a) = \isptr{\lv}{\rv}$:
-    \item Case $\memheap(a) = \getp{\lv}{\lv}$:
-    \item Case $\memheap(a) = \getl{\lv}{\lv}$:
-    \item Case $\memheap(a) = \getb{\lv}{\lv}$:
-    \item Case $\memheap(a) = \gete{\lv}{\lv}$:
-    \item Case $\memheap(a) = \geta{\lv}{\lv}$:
-    \item Case $\memheap(a) = \fail$: Contradiction, since then
-      $\sem{\decode(\memheap(\addr))}((\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs
-      \uplus \ms_f)) = \failed$, so we have that $\failed \step[i']
-      (\halted,\Phi)$ which is not possible.
-    \item Case $\memheap(a) = \halt$:
-      \begin{enumproof}
-      \item
-        $\sem{\decode(\memheap(\addr))}((\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs
-        \uplus \ms_f)) = (\halted, (\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs
-        \uplus \ms_f))$\\
-        By definition of $\sem{\cdot}$
-      \item Then $i' = 0$ and $\Phi =
-        (\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus
-        \ms_f)$. Follows from $(\halted,
-        (\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus
-        \ms_f)) \step[i'] (\halted,\Phi)$
-      \item For $W' = W$, $\ms_r = \emptyset$ and $\ms' = \ms$, we have that
-        $\memheap[\Phi] = \hs' \uplus \hs_r \uplus \ms_f$ and
-        $\heapSat[\hs']{n-1}{W'}$ (using Lemma~\ref{heap-sat-dc}).
-      \end{enumproof}
-    \end{enumproof}
+  \item $\npair{(\start,\addrend)} \in \readCond{\gl}(W)$: follows by
+    definition of $\stdvr{\cdot}$ from $\npair{c}\in\stdvr(W)$.
+  \item $\exists r \in \var{localityReg}(g,W)$, $[\start',\addrend'] \supseteq
+    [\start,\addrend] \ldotp$ $W(r)\nsubsim[n-1]
+    \iota_{\start',\addrend'}^\pwl$. By definition of $\readCond{\gl}(W)$. \label{step:unfold-readCond}
+  \item $\exists P : \activeReg{W} \rightarrow \HeapSegments \ldotp
+    \memSatPar{\memheap}{W}{P}$. By definition of $\heapSat[\memheap]{n}{W}$.
+  \item $\memheap = \biguplus_{r\in\activeReg{W}}P(r)$ and $\forall r \in
+    \activeReg{W}$, $n'<n \ldotp$ $\exists H,s \ldotp$ $W(r) = (\_,s,\_,\_,H)$
+    and $\npair[n']{P(r)} \in H(s)(\xi^{-1}(W))$. By definition of
+    $\memSatPar{\memheap}{W}{P}$. \label{step:unfold-phi-sat-part}
+  \item $r \in \var{localityReg}(g,W)\subseteq \activeReg{W}$. By definition of
+    $\var{localityReg}(\cdot)$ and $\activeReg{\cdot}$.
+  \item $\exists H,s \ldotp$ $W(r) = (\_,s,\_,\_,H)$
+    and $\npair[n-1]{P(r)} \in H(s)(\xi^{-1}(W))$.
+    By specializing the result from
+    Step~\ref{step:unfold-phi-sat-part} to the $r$ from
+    Step~\ref{step:unfold-readCond} and $n' = n-1$.
+  \item $\npair[n-1]{P(r)} \in H^\pwl_{\start',\addrend'}(s)(\xi^{-1}(W))$.
+    Follows by combining $\npair[n-1]{P(r)} \in H(s)(\xi^{-1}(W))$ with
+    $W(r)\nsubsim[n-1] \iota_{\start',\addrend'}^\pwl$ from Step~\ref{step:unfold-readCond}.
+  \item $\dom(P(r)) = [\start',\addrend']$ and for all $\addr' \in
+    [\start',\addrend']\ldotp$
+    $\npair[n-2]{P(r)(\addr')}\in\stdvr(\xi(\xi^{-1}(W)))$.
+  \item $\addr \in [\start,\addrend]\subseteq[\start',\addrend']$. By combining
+    $\withinBounds{c}$ with the fact that $[\start',\addrend'] \supseteq
+    [\start,\addrend] \ldotp$ from Step~\ref{step:unfold-readCond}.
+  \item In particular, we get: $\memheap(\addr) = P(r)(\addr)$ and
+    $\npair[n-2]{P(r)(\addr)}\in\stdvr(W)$.
+    \dominique{TODO: Make sure we lose only one step in the definitions!}
   \end{enumproof}
 \end{proof}
 
+ \begin{lemma}[Conditions for lea instruction are sufficient]
+   \label{lem:conds-lea-suffice}
+   If
+   \begin{itemize}
+   \item $\npair{((\perm,\gl),\start,\addrend,\addr)}\in\stdvr(W)$
+   \item $\perm \neq \entry$
+   \end{itemize}
+ 
+   then $\npair{((\perm,\gl),\start,\addrend,\addr')} \in \stdvr(W)$
+ \end{lemma}
+ \begin{proof}
+   Follows by inspection of the cases in the definition of $\stdvr(W)$: $a$ is
+   ignored in all cases except where $\perm = \entry$.
+ \end{proof}
+ 
+ \begin{lemma}[Conditions for restrict instruction are sufficient]
+   \label{lem:conds-restrict-suffice}
+   If
+   \begin{itemize}
+   \item $\npair{((\perm,\gl),\start,\addrend,\addr)}\in\stdvr(W)$
+   \item $(\perm',\gl')\sqsubseteq (\perm,\gl)$
+   \end{itemize}
+ 
+   then  $\npair{((\perm',\gl'),\start,\addrend,\addr)}\in \stdvr(W)$
+ \end{lemma}
+ \begin{proof}
+   TODO
+ \end{proof}
+ 
+ \begin{lemma}[Conditions for subseg instruction are sufficient]
+   \label{lem:conds-subseg-suffice}
+   If
+   \begin{itemize}
+   \item $\npair{((\perm',\gl'),\start',\addrend',\addr')} \in \stdvr(W)$
+   \item $\start' \leq \start''$
+   \item $\addrend'' \leq \addrend'$
+   \end{itemize}
+ 
+   then $\npair{((\perm',\gl'),\start'',\addrend'',\addr')} \in \stdvr(W)$
+ \end{lemma}
+ \begin{proof}
+   TODO
+ \end{proof}
+ 
+ 
+ \begin{lemma}[Conditions for store instruction are sufficient]
+   \label{lem:conds-store-suff}
+   If 
+   \begin{itemize}
+   \item $\heapSat[m]{n}{W}$
+   \item $((\perm,\gl),\start,\addrend,\addr) = c$
+   \item $\npair{c}\in\stdvr(W)$
+   \item $\writeAllowed{\perm}$
+   \item $\withinBounds{\var{c}}$
+   \item $\npair{\var{w}}\in\stdvr(W)$
+   \item if $\var{w} = ((\_,\local),\_,\_,\_)$, then $\perm \in
+     \{\rwlx,\readwritel \}$
+   \end{itemize}
+ 
+   then $\heapSat[{m\update{\addr}{\var{w}}}]{n}{W}$
+ \end{lemma}
+ \begin{proof}
+   TODO
+ \end{proof}
+  
 \begin{theorem}[Fundamental theorem of logical relations]
   \label{thm:ftlr}
   For all $n$, $\perm$, $\start$, $\addrend$, $\addr$, $\gl$, $W$  \\
@@ -3924,8 +3946,173 @@ Static region used for parts of memory that should not change and where you pass
     Suffices: $\exists W' \futurestr W$, $\hs_r$, $\hs' \ldotp$
     $\memheap[\Phi] = \hs' \uplus \hs_r \uplus \ms_f$ and $\heapSat[\hs']{n'-i}{W'}$\\
     By: definition of $\observations(W)$ \label{suff-after-eval}
-  \item This follows by Lemma~\ref{lem:ftlr-induction-helper} using
-    Lemmas~\ref{lem:readcond-dc} and~\ref{lem:writecond-dc}.
+  \item By induction on $n$. In other words, assume that the theorem already
+    holds for all $n' < n$.
+  \item $i \neq 0$, since
+    $(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus
+    \ms_f)\neq (\halted,\Phi')$ for any $\Phi'$. \\
+    Therefore, assume w.l.o.g. that $i = 1+i'$,
+    \begin{equation*}
+      \Phi \step \var{conf'} \step[i'] (\halted,\Phi')
+    \end{equation*}
+  \item $n > 0$, since otherwise $i = 0$ (because $i \leq n$) and this is
+    impossible by the previous point.
+  \item $\npair{\memreg(\pcreg)}\in\stdvr(W)$. \label{step:ftlr-pc-vr}
+    Proof:
+    \begin{enumproof}
+    \item Assume: $\perm' \in \{\exec,\rwx,\rwlx\}$ with $\perm'
+      \sqsubseteq\perm$\\
+      Suffices: $\npair{(\perm',\start,\addrend)}\in\execCond{g}(W)$\\
+      By: the definition of $\stdvr(\cdot)$ using the assumptions
+    \item Assume: $n'<n$, $W'\future W$, $\addr' \in [\start,\addrend]$, $\gl
+      = \local \Rightarrow \future = \futurewk$,
+      $\gl=\glob\Rightarrow\future = \futurestr$.\\
+      Suffices: $\npair[n']{((\perm,\gl),\start,\addrend,\addr')} \in
+      \stder(W')$.
+      By: definition of $\execCond{g}(W)$
+    \item By induction, using the assumptions and Lemmas~\ref{lem:readcond-dc}
+      and~\ref{lem:writecond-dc}.
+    \end{enumproof}
+  \item For all $r \in \RegName$, $\npair[n]{\memreg(r)}\in\stdvr(W)$. \label{step:ftlr-reg-rr}
+    \begin{enumproof}
+    \item Case $r \neq \pcreg$: follows from $\npair[n]{\reg}\in \stdrr(W)$ by
+      definition of $\stdrr(W)$.
+    \item Case $r = \pcreg$: by step~\ref{step:ftlr-pc-vr}.
+    \end{enumproof}
+  \item By inspection of the definitions of $\Phi\step \var{conf'}$ and
+    $\sem{\decode(\memheap(\addr))}$ and $\updatePcPerm{\cdot}$ and
+    $\stdUpdatePc{\cdot}$, it is easy to see that one of the following cases
+    must hold:
+  \item Case $\var{conf'} = \failed$: contradiction, since it is not possible
+    that $\failed \step[i'] (\halted,\Phi)$. 
+  \item Case $\var{conf'} = (\halted,\Phi)$:
+    \begin{enumproof}
+    \item Then $i' = 0$ and $\Phi' =
+      \Phi$\\
+      Follows from $(\halted,
+      (\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus
+      \ms_f)) \step[i'] (\halted,\Phi)$
+    \item For $W' = W$, $\ms_r = \emptyset$ and $\ms' = \ms$, we have that
+      $\memheap[\Phi'] = \hs' \uplus \hs_r \uplus \ms_f$ and
+      $\heapSat[\hs']{n-1}{W'}$ (using Lemma~\ref{lem:heap-sat-dc}).
+    \end{enumproof}
+  \item Case $\var{conf'} = \updateReg[\Phi']{\pcreg}{\var{newPc}}$, and additionally, one of the following
+    holds:
+    \begin{itemize}
+    \item $\memheap[\Phi'] = \memheap[\Phi]$
+    \item $\memheap[\Phi'] = \memheap[\Phi]\update{\addr'}{\var{w}}$, with
+      $\memreg[\Phi](r_1) = ((\perm',\gl'),\start',\addrend',\addr') = c$ and
+      $\writeAllowed{\perm'}$ and $\withinBounds{\var{c}}$ and $\var{w} =
+      \memreg(r_2)$ and if $\var{w} = ((\_,\local),\_,\_,\_)$, then $\perm' \in
+      \{\rwlx,\readwritel \}$
+    \end{itemize}
+    and also one of the following holds:
+    \begin{itemize}
+    \item $\var{newPc}= \updatePcPerm{\memreg(\lv)}$
+    \item $\var{newPc} = ((\perm',\gl'),\start',\addrend',\addr' + 1)$ and
+      $\memreg[\Phi'](\pcreg) = ((\perm',\gl'),\start',\addrend',\addr')$
+    \end{itemize}
+    and finally, for all $r \in \RegName$, one of the following
+    holds:
+    \begin{itemize}
+    \item $\memreg[\Phi'](r) = \memreg[\Phi](r)$
+    \item $\memreg[\Phi'](r) = n$ for some $n \in \ints$
+    \item $\memreg[\Phi'](r) = \var{w}$ and $\memreg(r_2) =
+      ((\perm',\gl'),\start',\addrend',\addr') = \var{c}$ and
+      $\readAllowed{\perm'}$ and $\withinBounds{\var{c}}$ and $\var{w} =
+      \memheap(\addr')$
+    \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r_1) =
+      ((\perm',\gl'),\start',\addrend',\addr')$ and $\perm' \neq \entry$ and
+      $\var{c} = ((\perm',\gl'),\start',\addrend',\addr' + n)$ for some $n \in
+      \ints$
+    \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r) =
+      ((\perm',\gl'),\start',\addrend',\addr')$ and $(\perm'',\gl'')\sqsubseteq
+      (\perm',\gl')$ and $c = ((\perm'',\gl''),\start',\addrend',\addr')$
+    \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r) =
+      ((\perm',\gl'),\start',\addrend',\addr')$ and $\start' \leq \start''$ and
+      $\addrend'' \leq \addrend'$ and $c =
+      ((\perm',\gl'),\start'',\addrend'',\addr')$
+    \end{itemize}
+    In this case, we have:
+    \begin{enumproof}
+    \item $\heapSat[{\memheap[\Phi']}]{n-1}{W}$.
+      \begin{enumproof}
+      \item Case $\memheap[\Phi'] = \memheap[\Phi]$:
+        $\heapSat[{\memheap[\Phi']}]{n-1}{W}$ follows by Lemma~\ref{lem:heap-sat-dc}.
+      \item Case $\memheap[\Phi'] = \memheap[\Phi]\update{\addr'}{\var{w}}$,
+        with $\memreg[\Phi](r_1) = ((\perm',\gl'),\start',\addrend',\addr') = c$
+        and $\writeAllowed{\perm'}$ and $\withinBounds{\var{c}}$ and $\var{w} =
+        \memreg(r_2)$ and if $\var{w} = ((\_,\local),\_,\_,\_)$, then $\perm'
+        \in \{\rwlx,\readwritel \}$.\\
+        $\heapSat[{\memheap[\Phi']}]{n-1}{W}$ follows by
+        Lemmas~\ref{lem:conds-store-suff} and~\ref{lem:heap-sat-dc} using the
+        fact that $\heapSat[\memheap]{n}{W}$ and
+        $\npair{\memreg(r_1)}\in\stdvr(W)$ and
+        $\npair{\memreg(r_2)}\in\stdvr(W)$ which follows from
+        $\npair{\memreg}\in\stdrr(W)$ by definition.
+      \end{enumproof}
+    \item For all $r \in \RegName$, $\npair[n-1]{\memreg[\Phi'](r)}\in\stdvr(W)$.
+      \begin{enumproof}
+      \item Case $\memreg[\Phi'](r) = \memreg[\Phi](r)$:
+        $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows from
+        Step~\ref{step:ftlr-reg-rr} using Lemma~\ref{lem:stdvr-dc}.
+      \item $\memreg[\Phi'](r) = n$ for some $n \in \ints$.
+        $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows by definition of
+        $\stdvr(\cdot)$
+      \item $\memreg[\Phi'](r) = \var{w}$ and $\memreg(r_2) =
+        ((\perm',\gl'),\start',\addrend',\addr') = \var{c}$ and
+        $\readAllowed{\perm'}$ and $\withinBounds{\var{c}}$ and $\var{w} =
+        \memheap(\addr')$:\\
+        $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows by
+        Lemmas~\ref{lem:conds-load-suffice} using the fact that
+        $\heapSat[\memheap]{n}{W}$ and $\npair{\memreg(r_2)}\in\stdvr(W)$ which
+        we have from step~\ref{step:ftlr-reg-rr}.
+      \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r_1) =
+        ((\perm',\gl'),\start',\addrend',\addr')$ and $\perm' \neq \entry$ and
+        $\var{c} = ((\perm',\gl'),\start',\addrend',\addr' + n)$ for some $n \in
+        \ints$: \\
+        $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows by
+        Lemmas~\ref{lem:conds-lea-suffice} and~\ref{lem:stdvr-dc} using the
+        fact that $\npair{\memreg(r_1)}\in\stdvr(W)$
+        which we have from step~\ref{step:ftlr-reg-rr}.
+      \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r) =
+        ((\perm',\gl'),\start',\addrend',\addr')$ and $(\perm'',\gl'')\sqsubseteq
+        (\perm',\gl')$ and $c = ((\perm'',\gl''),\start',\addrend',\addr')$: \\
+        $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows by
+        Lemmas~\ref{lem:conds-restrict-suffice} and~\ref{lem:stdvr-dc} using the
+        fact that $\npair{\memreg(r)}\in\stdvr(W)$
+        which follows from $\npair{\memreg}\in\stdrr(W)$ by
+        definition.
+      \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r) =
+        ((\perm',\gl'),\start',\addrend',\addr')$ and $\start' \leq \start''$ and
+        $\addrend'' \leq \addrend'$ and $c =
+        ((\perm',\gl'),\start'',\addrend'',\addr')$: \\
+        $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows by
+        Lemmas~\ref{lem:conds-subseg-suffice} and~\ref{lem:stdvr-dc} using the
+        fact that $\npair{\memreg(r)}\in\stdvr(W)$
+        which follows from $\npair{\memreg}\in\stdrr(W)$ by definition.
+      \end{enumproof}
+    \item $\npair[n-1]{\memreg[\Phi']}\in\stdrr(W)$: Follows from the previous
+      point by definition of $\stdrr(W)$.
+    \item $\npair[n-1]{\var{newPc}} \in \stder(W)$:
+      \begin{enumproof}
+      \item Case $\var{newPc}= \updatePcPerm{\memreg(\lv)}$: We distinguish the
+        following cases:
+        \begin{enumproof}
+        \item Case $\memreg(\lv) = ((\entry,\gl'),\start',\addrend',\addr')$:
+          \begin{enumproof}
+          \item $\npair[n-1]{\memreg(\lv)} \in \stdvr(W)$.  Follows from
+            Step~\ref{step:ftlr-reg-rr} using Lemma~\ref{lem:stdvr-dc}.
+          \item $\npair[n-1]{(\start',\addrend',addr') \in
+              \entryCond{\gl'}(W)}$. By definition of $\stdvr(W)$ from the
+            previous point.
+          \item 
+          \end{enumproof}
+        \end{enumproof}
+      \item Case $\var{newPc} = ((\perm',\gl'),\start',\addrend',\addr' + 1)$ and
+        $\memreg[\Phi'](\pcreg) = ((\perm',\gl'),\start',\addrend',\addr')$: TODO
+      \end{enumproof}
+    \end{enumproof}
   \end{enumproof}
 \end{proof}
 
