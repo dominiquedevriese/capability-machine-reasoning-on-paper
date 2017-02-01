@@ -3793,16 +3793,46 @@ Static region used for parts of memory that should not change and where you pass
   If
   \begin{itemize}
   \item $\heapSat[\memheap]{n}{W}$
-  \item $\var{c} = ((\perm',\gl'),\start',\addrend',\addr')$
+  \item $\var{c} = ((\perm,\gl),\start,\addrend,\addr)$
   \item $\npair{c}\in\stdvr(W)$
-  \item $\readAllowed{\perm'}$ 
+  \item $\readAllowed{\perm}$ 
   \item $\withinBounds{\var{c}}$
   \end{itemize}
 
-  then $\npair{\memheap(\addr')} \in \stdvr(W)$
+  then $\npair[n-1]{\memheap(\addr)} \in \stdvr(W)$
 \end{lemma}
 \begin{proof}
-  TODO
+  \begin{enumproof}
+  \item $\npair{(\start,\addrend)} \in \readCond{\gl}(W)$: follows by
+    definition of $\stdvr{\cdot}$ from $\npair{c}\in\stdvr(W)$.
+  \item $\exists r \in \var{localityReg}(g,W)$, $[\start',\addrend'] \supseteq
+    [\start,\addrend] \ldotp$ $W(r)\nsubsim[n-1]
+    \iota_{\start',\addrend'}^\pwl$. By definition of $\readCond{\gl}(W)$. \label{step:unfold-readCond}
+  \item $\exists P : \activeReg{W} \rightarrow \HeapSegments \ldotp
+    \memSatPar{\memheap}{W}{P}$. By definition of $\heapSat[\memheap]{n}{W}$.
+  \item $\memheap = \biguplus_{r\in\activeReg{W}}P(r)$ and $\forall r \in
+    \activeReg{W}$, $n'<n \ldotp$ $\exists H,s \ldotp$ $W(r) = (\_,s,\_,\_,H)$
+    and $\npair[n']{P(r)} \in H(s)(\xi^{-1}(W))$. By definition of
+    $\memSatPar{\memheap}{W}{P}$. \label{step:unfold-phi-sat-part}
+  \item $r \in \var{localityReg}(g,W)\subseteq \activeReg{W}$. By definition of
+    $\var{localityReg}(\cdot)$ and $\activeReg{\cdot}$.
+  \item $\exists H,s \ldotp$ $W(r) = (\_,s,\_,\_,H)$
+    and $\npair[n-1]{P(r)} \in H(s)(\xi^{-1}(W))$.
+    By specializing the result from
+    Step~\ref{step:unfold-phi-sat-part} to the $r$ from
+    Step~\ref{step:unfold-readCond} and $n' = n-1$.
+  \item $\npair[n-1]{P(r)} \in H^\pwl_{\start',\addrend'}(s)(\xi^{-1}(W))$.
+    Follows by combining $\npair[n-1]{P(r)} \in H(s)(\xi^{-1}(W))$ with
+    $W(r)\nsubsim[n-1] \iota_{\start',\addrend'}^\pwl$ from Step~\ref{step:unfold-readCond}.
+  \item $\dom(P(r)) = [\start',\addrend']$ and for all $\addr' \in
+    [\start',\addrend']\ldotp$
+    $\npair[n-2]{P(r)(\addr')}\in\stdvr(\xi(\xi^{-1}(W)))$.
+  \item $\addr \in [\start,\addrend]\subseteq[\start',\addrend']$. By combining
+    $\withinBounds(c)$ with the fact that $[\start',\addrend'] \supseteq
+    [\start,\addrend] \ldotp$ from Step~\ref{step:unfold-readCond}.
+  \item In particular, we get: $\memheap(\addr) = P(r)(\addr)$ and
+    $\npair[n-2]{P(r)(\addr)}\in\stdvr(W)$.
+  \end{enumproof}
 \end{proof}
 
 \begin{lemma}[Conditions for lea instruction are sufficient]
