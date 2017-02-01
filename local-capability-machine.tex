@@ -3102,7 +3102,7 @@ The two \emph{private future} region relations satisfies the following propertie
 \begin{mathpar}
   \inferrule{  (s,s') \in \phi \\
     (v,\phi_\pub,\phi,H) = (v',\phi_\pub',\phi',H')}
-  {  (v,s',\phi_\pub',\phi',H') \futurestr (v',s,\phi_\pub,\phi,H) }
+  {  (v',s',\phi_\pub',\phi',H') \futurestr (v,s,\phi_\pub,\phi,H) }
   \and
   \inferrule{ r \in \Regions }
   { r \futurestr (\temp,s,\phi_\pub,\phi,H) }
@@ -3114,13 +3114,13 @@ The two \emph{public future} region relations satisfies the following properties
 \begin{mathpar}
   \inferrule{  (s,s') \in \phi_\pub \\
     (v,\phi_\pub,\phi,H) = (v',\phi_\pub',\phi',H')}
-  {  (v,s',\phi_\pub',\phi',H') \futurewk (v',s,\phi_\pub,\phi,H) }
-  \and
-  \inferrule{ }
-  { \revoked \futurewk \revoked }
+  {  (v',s',\phi_\pub',\phi',H') \futurewk (v,s,\phi_\pub,\phi,H) }
   \and
   \inferrule{ (\temp,s,\phi_\pub,\phi,H) \in \Regions }
   { (\temp,s,\phi_\pub,\phi,H) \futurewk \revoked }
+  \and
+  \inferrule{ }
+  { \revoked \futurewk \revoked }
 \end{mathpar}
 
 The two future world relations satisfy the following properties: They allow for any extension of the current world and all existing worlds are allowed to move to an appropriate future region. That is
@@ -3434,8 +3434,82 @@ Static region used for parts of memory that should not change and where you pass
 \end{proof}
 
 \subsubsection{Standard regions}
+\begin{lemma}
+  \label{lem:revoketemp-readcond}
+  If
+  \[
+    \npair{(\start,\addrend)} \in \readCond{}(\gl)(\revokeTemp{W})
+  \]
+  then
+  \[
+    \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)
+  \]
+\end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:revoketemp-readcond}]
+  \[
+    \npair{(\start,\addrend)} \in \readCond{}(\gl)(\revokeTemp{W})
+  \]
+  Gives $r \in \localityReg(\gl,\revokeTemp{W})$ such that
+  \[
+    \forall [\start',\addrend'] \subseteq [\start,\addrend] \ldotp \revokeTemp{W}(r) \nsubsim[n-1] \iota^\pwl_{[\start',\addrend']}
+  \]
+  Notice $\revokeTemp{W}(r)$ is a $\perma$ region, so $\revokeTemp{W}(r) = W(r)$. Using $r$ as witness, the result is immidiate.
+\end{proof}
 
 \begin{lemma}
+  \label{lem:revoketemp-writecond}
+  If
+  \[
+    \npair{(\start,\addrend)} \in \writeCond{}(\iota,\gl)(\revokeTemp{W})
+  \]
+  then
+  \[
+    \npair{(\start,\addrend)} \in \writeCond{}(\iota,\gl)(W)
+  \]
+\end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:revoketemp-writecond}]
+  \[
+    \npair{(\start,\addrend)} \in \writeCond{}(\iota,\gl)(\revokeTemp{W})
+  \]
+  Gives $r \in \localityReg(\gl,\revokeTemp{W})$ such that
+  \[
+    \forall [\start',\addrend'] \subseteq [\start,\addrend] \ldotp \revokeTemp{W}(r) \nsupsim[n-1] \iota_{[\start',\addrend']}
+  \]
+  Notice $\revokeTemp{W}(r)$ is a $\perma$ region, so $\revokeTemp{W}(r) = W(r)$. Using $r$ as witness, the result is immidiate.
+\end{proof}
+
+\begin{lemma}
+  \label{lem:revoketemp-execcond}
+  If
+  \begin{itemize}
+  \item $\npair{(\perm,\start,\addrend)} \in \execCond{}(\gl)(\revokeTemp{W})$
+  \end{itemize}
+  then
+  \[
+    \npair{(\perm,\start,\addrend)} \in \execCond{}(\gl)(W)
+  \]
+\end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:revoketemp-execcond}]
+  Use Lemma~\ref{lem:rt-w-pub-future-w}.
+\end{proof}
+
+\begin{lemma}
+  \label{lem:revoketemp-entercond}
+  If
+  \begin{itemize}
+  \item $\npair{(\addr,\start,\addrend)} \in \execCond{}(\gl)(\revokeTemp{W})$
+  \end{itemize}
+  then
+  \[
+    \npair{(\addr,\start,\addrend)} \in \execCond{}(\gl)(W)
+  \]
+\end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:revoketemp-entercond}]
+    Use Lemma~\ref{lem:rt-w-pub-future-w}.
+\end{proof}
+
+\begin{lemma}
+  \label{lem:revoketemp-vr-implies-vr}
   If
   \[
     \npair{w} \in \stdvr(\revokeTemp{W})
@@ -3445,39 +3519,76 @@ Static region used for parts of memory that should not change and where you pass
     \npair{w} \in \stdvr(W)
   \]
 \end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:revoketemp-vr-implies-vr}]
+  Follows from Lemma~\ref{lem:revoketemp-readcond}, Lemma~\ref{lem:revoketemp-writecond}, Lemma~\ref{lem:revoketemp-execcond}, and Lemma~\ref{lem:revoketemp-entercond}.
+\end{proof}
+
+\begin{lemma}
+  \label{lem:hwnl-nsubset-hpwl}
+  \[
+    H^\nwl_{\start,\addrend} \; s\; \hat{W} \nsubseteq H^\pwl_{\start,\addrend} \; s\; \hat{W}
+  \]
+\end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:hwnl-nsubset-hpwl}]
+  Let
+  \[
+    \npair{\ms} \in H^\nwl_{\start,\addrend} \; s\; \hat{W}
+  \]
+  and show
+  \[
+    \npair{\ms} \in H^\pwl_{\start,\addrend} \; s\; \hat{W}
+  \]
+  From the assumption, we get $\dom(\ms) = [\start,\addrend]$. We further need to show
+  \[
+    \forall \addr \in \dom(\ms) \ldotp \npair[n-1]{\ms(\addr)} \in \stdvr(\xi(\hat{W}))
+  \]
+  Given $\addr$, we know from the assumption that
+  \[
+    \npair[n-1]{\ms(\addr)} \in \stdvr(\revokeTemp{\xi(\hat{W})})
+  \]
+  Now the desired reulst follows from Lemma~\ref{lem:revoketemp-vr-implies-vr}.
+\end{proof}
 
 \begin{lemma}
   \label{lem:nwl-subset-pwl}
   \begin{align*}
-    & \forall n \in \nats\ldotp \forall \addr, \addrend \in \Addrs \ldotp  \\
+    & \forall n \in \nats\ldotp \forall \start, \addrend \in \Addrs \ldotp  \\
     & \quad \iota^\nwl_{\start,\addrend} \nsubsim \iota^\pwl_{\start,\addrend}
   \end{align*}
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:nwl-subset-pwl}]
-  
+  Let $n$, $\start$, $\addrend$ be given and show
+  \[
+    \iota^\nwl_{\start,\addrend} \nsubsim \iota^\pwl_{\start,\addrend}
+  \]
+  They agree on the state and transition systems, so given $\hat{W}$ it suffices to show
+  \[
+    H^\nwl_{\start,\addrend} \; 1\; \hat{W} \nsubseteq H^\pwl_{\start,\addrend} \; 1\; \hat{W}  
+  \]
+  which is true by Lemma~\ref{lem:hwnl-nsubset-hpwl}.
 \end{proof}
 
 \begin{lemma}
   \label{lem:nwlp-subset-pwl}
   \begin{align*}
-    & \forall n \in \nats\ldotp \forall \addr, \addrend \in \Addrs \ldotp  \\
+    & \forall n \in \nats\ldotp \forall \start, \addrend \in \Addrs \ldotp  \\
     & \quad \iota^{\nwl,p}_{\start,\addrend}  \nsubsim \iota^\pwl_{\start,\addrend}
   \end{align*}
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:nwlp-subset-pwl}]
-  
+  Follows from Lemma~\ref{lem:hwnl-nsubset-hpwl}.
 \end{proof}
 
 \begin{lemma}
   \label{lem:stau-subset-pwl}
   \begin{align*}
-    & \forall n \in \nats\ldotp \forall \addr, \addrend \in \Addrs \ldotp \forall v \in \{\perma, \temp\} \ldotp \\
-    & \quad \dom(\ms) = [\star,\addrend] \Rightarrow \\
+    & \forall n \in \nats\ldotp \forall \start, \addrend \in \Addrs \ldotp \forall v \in \{\perma, \temp\} \ldotp \\
+    & \quad \dom(\ms) = [\start,\addrend] \Rightarrow \\
     & \qquad \iota^{\sta,u}_{\start,\addrend}(v,\ms) \nsubsim \iota^\pwl_{\start,\addrend}
   \end{align*}
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:stau-subset-pwl}]
-  
+  Essentially the same as the proof of Lemma~\ref{lem:nwl-subset-pwl} and Lemma~\ref{lem:hwnl-nsubset-hpwl}.
 \end{proof}
 
 \begin{lemma}
@@ -4467,6 +4578,20 @@ We expect the following lemmas to hold true:
 \end{lemma}
 
 \subsubsection{Future worlds}
+\begin{lemma}[World public future world of revoked world]
+  \label{lem:rt-w-pub-future-w}
+  \[
+    \forall W \ldotp \revokeTemp{W} \futurewk W
+  \]
+\end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:rt-w-pub-future-w}]
+  For all $r$ where $W(r) = (\temp,s,\phi_\pub,\phi,H)$, we have $\revokeTemp{W} = \revoked$. By the public future region relation we have
+  \[
+    W(r) = (\temp,s,\phi_\pub,\phi,H) \futurewk \revokeTemp{W}(r) = \revoked
+  \]
+  all other regions remain unchanged, so this follows by reflexivity of the public future region relation.
+\end{proof}
+
 \begin{lemma}
   For all $W$, $W'$, and $W''$
   \begin{itemize}
@@ -4769,3 +4894,7 @@ capabilities, albeit in a JavaScript-like lambda calculus.
 
 \end{document}
 \grid
+
+
+
+
