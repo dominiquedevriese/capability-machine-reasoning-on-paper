@@ -3389,6 +3389,20 @@ Static region used for parts of memory that should not change and where you pass
 
 \subsubsection{Antireduction for the observation relation}
 
+\begin{lemma}[Failing terms are in $\observations$ and $\stder$]
+  \label{lem:failed-obs-stder}
+  If $(\reg,\ms\uplus\ms_f) \step[*] \failed$ for all $\ms_f$, then
+  $\npair{(\reg,\ms)} \in \observations(W)$ for any $W$.
+
+  If $(\reg\update{\pcreg}{\word},\ms) \step[*] \failed$ for all $\reg, \ms$,
+  then $\npair{\word} \in \stder(W)$ for any $W$.
+\end{lemma}
+\begin{proof}
+  Follows from the definitions of $\observations(W)$ and $\stder(W)$ using an
+  (omitted) determinacy result. \dominique{at least state the result
+    somewhere?}
+\end{proof}
+
 \begin{lemma}[Anti-reduction for $\observations$]
 \label{lem:anti-red-obs}
   \begin{align*}
@@ -4024,6 +4038,8 @@ Static region used for parts of memory that should not change and where you pass
 \end{theorem}
 \begin{proof}
   \begin{enumproof}
+  \item By induction on $n$. In other words, assume that the theorem already
+    holds for all $n' < n$.
   \item Assume: $n' \leq n$, $\npair[n']{\reg}\in \stdrr(W)$, $\heapSat[\hs]{n'}{W}$.\\
     Suffices: $\npair[n']{(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs)}\in\observations(W)$.\\
     By: definition of $\stder(W)$.
@@ -4031,36 +4047,34 @@ Static region used for parts of memory that should not change and where you pass
     Suffices: $\exists W' \futurestr W$, $\hs_r$, $\hs' \ldotp$
     $\memheap[\Phi] = \hs' \uplus \hs_r \uplus \ms_f$ and $\heapSat[\hs']{n'-i}{W'}$\\
     By: definition of $\observations(W)$ \label{suff-after-eval}
-  \item By induction on $n$. In other words, assume that the theorem already
-    holds for all $n' < n$.
   \item $i \neq 0$, since
     $(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus
     \ms_f)\neq (\halted,\Phi')$ for any $\Phi'$. \\
     Therefore, assume w.l.o.g. that $i = 1+i'$,
     \begin{equation*}
       \Phi \step \var{conf'} \step[i'] (\halted,\Phi')
-    \end{equation*}
-  \item $n > 0$, since otherwise $i = 0$ (because $i \leq n$) and this is
+    \end{equation*} \label{step:ip-non-zero}
+  \item $n' > 0$, since otherwise $i = 0$ (because $i \leq n'\leq n$) and this is
     impossible by the previous point.
-  \item $\npair{\memreg(\pcreg)}\in\stdvr(W)$. \label{step:ftlr-pc-vr}
+  \item $\npair[n']{\memreg(\pcreg)}\in\stdvr(W)$. \label{step:ftlr-pc-vr}
     Proof:
     \begin{enumproof}
     \item Assume: $\perm' \in \{\exec,\rwx,\rwlx\}$ with $\perm'
       \sqsubseteq\perm$\\
-      Suffices: $\npair{(\perm',\start,\addrend)}\in\execCond{g}(W)$\\
+      Suffices: $\npair[n']{(\perm',\start,\addrend)}\in\execCond{g}(W)$\\
       By: the definition of $\stdvr(\cdot)$ using the assumptions
-    \item Assume: $n'<n$, $W'\future W$, $\addr' \in [\start,\addrend]$, $\gl
+    \item Assume: $n''<n'$, $W'\future W$, $\addr' \in [\start,\addrend]$, $\gl
       = \local \Rightarrow \future = \futurewk$,
       $\gl=\glob\Rightarrow\future = \futurestr$.\\
-      Suffices: $\npair[n']{((\perm,\gl),\start,\addrend,\addr')} \in
+      Suffices: $\npair[n'']{((\perm,\gl),\start,\addrend,\addr')} \in
       \stder(W')$.
       By: definition of $\execCond{g}(W)$
     \item By induction, using the assumptions and Lemmas~\ref{lem:readcond-dc}
       and~\ref{lem:writecond-dc}.
     \end{enumproof}
-  \item For all $r \in \RegName$, $\npair[n]{\memreg(r)}\in\stdvr(W)$. \label{step:ftlr-reg-rr}
+  \item For all $r \in \RegName$, $\npair[n']{\memreg(r)}\in\stdvr(W)$. \label{step:ftlr-reg-rr}
     \begin{enumproof}
-    \item Case $r \neq \pcreg$: follows from $\npair[n]{\reg}\in \stdrr(W)$ by
+    \item Case $r \neq \pcreg$: follows from $\npair[n']{\reg}\in \stdrr(W)$ by
       definition of $\stdrr(W)$.
     \item Case $r = \pcreg$: by step~\ref{step:ftlr-pc-vr}.
     \end{enumproof}
@@ -4079,13 +4093,13 @@ Static region used for parts of memory that should not change and where you pass
       \ms_f)) \step[i'] (\halted,\Phi)$
     \item For $W' = W$, $\ms_r = \emptyset$ and $\ms' = \ms$, we have that
       $\memheap[\Phi'] = \hs' \uplus \hs_r \uplus \ms_f$ and
-      $\heapSat[\hs']{n-1}{W'}$ (using Lemma~\ref{lem:heap-sat-dc}).
+      $\heapSat[\hs']{n'-1}{W'}$ (using Lemma~\ref{lem:heap-sat-dc}).
     \end{enumproof}
-  \item Case $\var{conf'} = \updateReg[\Phi']{\pcreg}{\var{newPc}}$, and additionally, one of the following
+  \item Case $\var{conf'} = \updateReg[\Phi'']{\pcreg}{\var{newPc}}$, and additionally, one of the following
     holds:
     \begin{itemize}
-    \item $\memheap[\Phi'] = \memheap[\Phi]$
-    \item $\memheap[\Phi'] = \memheap[\Phi]\update{\addr'}{\var{w}}$, with
+    \item $\memheap[\Phi''] = \memheap[\Phi]$
+    \item $\memheap[\Phi''] = \memheap[\Phi]\update{\addr'}{\var{w}}$, with
       $\memreg[\Phi](r_1) = ((\perm',\gl'),\start',\addrend',\addr') = c$ and
       $\writeAllowed{\perm'}$ and $\withinBounds{\var{c}}$ and $\var{w} =
       \memreg(r_2)$ and if $\var{w} = ((\_,\local),\_,\_,\_)$, then $\perm' \in
@@ -4095,108 +4109,187 @@ Static region used for parts of memory that should not change and where you pass
     \begin{itemize}
     \item $\var{newPc}= \updatePcPerm{\memreg(\lv)}$
     \item $\var{newPc} = ((\perm',\gl'),\start',\addrend',\addr' + 1)$ and
-      $\memreg[\Phi'](\pcreg) = ((\perm',\gl'),\start',\addrend',\addr')$
+      $\memreg[\Phi''](\pcreg) = ((\perm',\gl'),\start',\addrend',\addr')$
     \end{itemize}
     and finally, for all $r \in \RegName$, one of the following
     holds:
     \begin{itemize}
-    \item $\memreg[\Phi'](r) = \memreg[\Phi](r)$
-    \item $\memreg[\Phi'](r) = n$ for some $n \in \ints$
-    \item $\memreg[\Phi'](r) = \var{w}$ and $\memreg(r_2) =
+    \item $\memreg[\Phi''](r) = \memreg[\Phi](r)$
+    \item $\memreg[\Phi''](r) = z$ for some $z \in \ints$
+    \item $\memreg[\Phi''](r) = \var{w}$ and $\memreg(r_2) =
       ((\perm',\gl'),\start',\addrend',\addr') = \var{c}$ and
       $\readAllowed{\perm'}$ and $\withinBounds{\var{c}}$ and $\var{w} =
       \memheap(\addr')$
-    \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r_1) =
+    \item $\memreg[\Phi''](r) = \var{c}$ and $\memreg(r_1) =
       ((\perm',\gl'),\start',\addrend',\addr')$ and $\perm' \neq \entry$ and
-      $\var{c} = ((\perm',\gl'),\start',\addrend',\addr' + n)$ for some $n \in
+      $\var{c} = ((\perm',\gl'),\start',\addrend',\addr' + z)$ for some $z \in
       \ints$
-    \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r) =
+    \item $\memreg[\Phi''](r) = \var{c}$ and $\memreg(r) =
       ((\perm',\gl'),\start',\addrend',\addr')$ and $(\perm'',\gl'')\sqsubseteq
       (\perm',\gl')$ and $c = ((\perm'',\gl''),\start',\addrend',\addr')$
-    \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r) =
+    \item $\memreg[\Phi''](r) = \var{c}$ and $\memreg(r) =
       ((\perm',\gl'),\start',\addrend',\addr')$ and $\start' \leq \start''$ and
       $\addrend'' \leq \addrend'$ and $c =
       ((\perm',\gl'),\start'',\addrend'',\addr')$
     \end{itemize}
     In this case, we have:
     \begin{enumproof}
-    \item $\heapSat[{\memheap[\Phi']}]{n-1}{W}$.
+    \item $\heapSat[{\memheap[\Phi'']}]{n'-1}{W}$.
       \begin{enumproof}
-      \item Case $\memheap[\Phi'] = \memheap[\Phi]$:
-        $\heapSat[{\memheap[\Phi']}]{n-1}{W}$ follows by Lemma~\ref{lem:heap-sat-dc}.
-      \item Case $\memheap[\Phi'] = \memheap[\Phi]\update{\addr'}{\var{w}}$,
+      \item Case $\memheap[\Phi''] = \memheap[\Phi]$:
+        $\heapSat[{\memheap[\Phi'']}]{n'-1}{W}$ follows by Lemma~\ref{lem:heap-sat-dc}.
+      \item Case $\memheap[\Phi''] = \memheap[\Phi]\update{\addr'}{\var{w}}$,
         with $\memreg[\Phi](r_1) = ((\perm',\gl'),\start',\addrend',\addr') = c$
         and $\writeAllowed{\perm'}$ and $\withinBounds{\var{c}}$ and $\var{w} =
         \memreg(r_2)$ and if $\var{w} = ((\_,\local),\_,\_,\_)$, then $\perm'
         \in \{\rwlx,\readwritel \}$.\\
-        $\heapSat[{\memheap[\Phi']}]{n-1}{W}$ follows by
+        $\heapSat[{\memheap[\Phi'']}]{n'-1}{W}$ follows by
         Lemmas~\ref{lem:conds-store-suff} and~\ref{lem:heap-sat-dc} using the
-        fact that $\heapSat[\memheap]{n}{W}$ and
-        $\npair{\memreg(r_1)}\in\stdvr(W)$ and
-        $\npair{\memreg(r_2)}\in\stdvr(W)$ which follows from
-        $\npair{\memreg}\in\stdrr(W)$ by definition.
+        fact that $\heapSat[\memheap]{n'}{W}$ and
+        $\npair[n']{\memreg(r_1)}\in\stdvr(W)$ and
+        $\npair[n']{\memreg(r_2)}\in\stdvr(W)$ which follows from
+        $\npair[n']{\memreg}\in\stdrr(W)$ by definition.
       \end{enumproof}
-    \item For all $r \in \RegName$, $\npair[n-1]{\memreg[\Phi'](r)}\in\stdvr(W)$.
+    \item For all $r \in \RegName$, $\npair[n'-1]{\memreg[\Phi''](r)}\in\stdvr(W)$.\label{step:phip-regs-stdvr}
       \begin{enumproof}
-      \item Case $\memreg[\Phi'](r) = \memreg[\Phi](r)$:
-        $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows from
+      \item Case $\memreg[\Phi''](r) = \memreg[\Phi](r)$:
+        $\npair[n'-1]{\memreg[\Phi''](r)} \in \stdvr(W)$ follows from
         Step~\ref{step:ftlr-reg-rr} using Lemma~\ref{lem:stdvr-dc}.
-      \item $\memreg[\Phi'](r) = n$ for some $n \in \ints$.
-        $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows by definition of
+      \item $\memreg[\Phi''](r) = z$ for some $z \in \ints$.
+        $\npair[n'-1]{\memreg[\Phi''](r)} \in \stdvr(W)$ follows by definition of
         $\stdvr(\cdot)$
-      \item $\memreg[\Phi'](r) = \var{w}$ and $\memreg(r_2) =
+      \item $\memreg[\Phi''](r) = \var{w}$ and $\memreg(r_2) =
         ((\perm',\gl'),\start',\addrend',\addr') = \var{c}$ and
         $\readAllowed{\perm'}$ and $\withinBounds{\var{c}}$ and $\var{w} =
         \memheap(\addr')$:\\
-        $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows by
+        $\npair[n'-1]{\memreg[\Phi''](r)} \in \stdvr(W)$ follows by
         Lemmas~\ref{lem:conds-load-suffice} using the fact that
-        $\heapSat[\memheap]{n}{W}$ and $\npair{\memreg(r_2)}\in\stdvr(W)$ which
+        $\heapSat[\memheap]{n'}{W}$ and $\npair[n']{\memreg(r_2)}\in\stdvr(W)$ which
         we have from step~\ref{step:ftlr-reg-rr}.
-      \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r_1) =
+      \item $\memreg[\Phi''](r) = \var{c}$ and $\memreg(r_1) =
         ((\perm',\gl'),\start',\addrend',\addr')$ and $\perm' \neq \entry$ and
-        $\var{c} = ((\perm',\gl'),\start',\addrend',\addr' + n)$ for some $n \in
+        $\var{c} = ((\perm',\gl'),\start',\addrend',\addr' + z)$ for some $z \in
         \ints$: \\
-        $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows by
+        $\npair[n'-1]{\memreg[\Phi''](r)} \in \stdvr(W)$ follows by
         Lemmas~\ref{lem:conds-lea-suffice} and~\ref{lem:stdvr-dc} using the
-        fact that $\npair{\memreg(r_1)}\in\stdvr(W)$
+        fact that $\npair[n']{\memreg(r_1)}\in\stdvr(W)$
         which we have from step~\ref{step:ftlr-reg-rr}.
-      \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r) =
+      \item $\memreg[\Phi''](r) = \var{c}$ and $\memreg(r) =
         ((\perm',\gl'),\start',\addrend',\addr')$ and $(\perm'',\gl'')\sqsubseteq
         (\perm',\gl')$ and $c = ((\perm'',\gl''),\start',\addrend',\addr')$: \\
-        $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows by
+        $\npair[n'-1]{\memreg[\Phi''](r)} \in \stdvr(W)$ follows by
         Lemmas~\ref{lem:conds-restrict-suffice} and~\ref{lem:stdvr-dc} using the
-        fact that $\npair{\memreg(r)}\in\stdvr(W)$
-        which follows from $\npair{\memreg}\in\stdrr(W)$ by
+        fact that $\npair[n']{\memreg(r)}\in\stdvr(W)$
+        which follows from $\npair[n']{\memreg}\in\stdrr(W)$ by
         definition.
-      \item $\memreg[\Phi'](r) = \var{c}$ and $\memreg(r) =
+      \item $\memreg[\Phi''](r) = \var{c}$ and $\memreg(r) =
         ((\perm',\gl'),\start',\addrend',\addr')$ and $\start' \leq \start''$ and
         $\addrend'' \leq \addrend'$ and $c =
         ((\perm',\gl'),\start'',\addrend'',\addr')$: \\
-        $\npair[n-1]{\memreg[\Phi'](r)} \in \stdvr(W)$ follows by
+        $\npair[n'-1]{\memreg[\Phi''](r)} \in \stdvr(W)$ follows by
         Lemmas~\ref{lem:conds-subseg-suffice} and~\ref{lem:stdvr-dc} using the
-        fact that $\npair{\memreg(r)}\in\stdvr(W)$
-        which follows from $\npair{\memreg}\in\stdrr(W)$ by definition.
+        fact that $\npair[n']{\memreg(r)}\in\stdvr(W)$
+        which follows from $\npair[n']{\memreg}\in\stdrr(W)$ by definition.
       \end{enumproof}
-    \item $\npair[n-1]{\memreg[\Phi']}\in\stdrr(W)$: Follows from the previous
+    \item $\npair[n'-1]{\memreg[\Phi'']}\in\stdrr(W)$: Follows from the previous
       point by definition of $\stdrr(W)$.
-    \item $\npair[n-1]{\var{newPc}} \in \stder(W)$:
+    \item $\npair[n'-1]{\var{newPc}} \in \stder(W)$:
       \begin{enumproof}
       \item Case $\var{newPc}= \updatePcPerm{\memreg(\lv)}$: We distinguish the
         following cases:
         \begin{enumproof}
         \item Case $\memreg(\lv) = ((\entry,\gl'),\start',\addrend',\addr')$:
           \begin{enumproof}
-          \item $\npair[n-1]{\memreg(\lv)} \in \stdvr(W)$.  Follows from
-            Step~\ref{step:ftlr-reg-rr} using Lemma~\ref{lem:stdvr-dc}.
-          \item $\npair[n-1]{(\start',\addrend',addr')} \in
-              \entryCond{\gl'}(W)$. By definition of $\stdvr(W)$ from the
-            previous point.
-          \item 
+          \item $\npair[n']{\memreg(\lv)} \in \stdvr(W)$.  Follows from
+            Step~\ref{step:ftlr-reg-rr}.
+          \item $\npair[n']{(\start',\addrend',addr')} \in \entryCond{\gl'}(W)$.
+            By definition of $\stdvr(W)$ from the previous point.
+          \item $\npair[n'-1]{((\exec,\gl'),\start',\addrend',\addr')} \in
+            \stder(W)$: By definition of $\entryCond{\cdot}$ and taking $n' =
+            n'-1$ and $W' = W$
+          \item $\updatePcPerm{\memreg(\lv)} =
+            ((\exec,\gl'),\start',\addrend',\addr')$: by definition of $\updatePcPerm{\cdot}$.
+          \end{enumproof}
+        \item Case $\memreg(\lv) = ((\perm',\gl'),\start',\addrend',\addr')$
+          with $\perm' \in \{\exec,\rwx,\rwlx\}$ and $\withinBounds{\memreg(\lv)}$:
+          \begin{enumproof}
+          \item $\npair[n']{\memreg(\lv)} \in \stdvr(W)$.  Follows from
+            Step~\ref{step:ftlr-reg-rr}.
+          \item $\npair[n']{(\perm',\start',\addrend',\addr')} \in \execCond{\gl'}(W)$.
+            By definition of $\stdvr(W)$ from the previous point.
+          \item $\npair[n'-1]{((\perm',\gl'),\start',\addrend',\addr')} \in
+            \stder(W)$: By definition of $\execCond{\cdot}$, taking $n' = n'-1$,
+            $W' = W$ and $\addr = \addr'$. Note that $\addr' \in
+            [\start',\addrend']$ because we have $\withinBounds{\memreg(\lv)}$.
+          \item $\updatePcPerm{\memreg(\lv)} =
+            ((\perm',\gl'),\start',\addrend',\addr')$: by definition of
+            $\updatePcPerm{\cdot}$.
+          \end{enumproof}
+        \item Case not ($\memreg(\lv) =
+          ((\entry,\gl'),\start',\addrend',\addr')$) and not ($\memreg(\lv) =
+          ((\perm',\gl'),\start',\addrend',\addr')$ with $\perm' \in
+          \{\exec,\rwx,\rwlx\}$ and $\withinBounds{\memreg(\lv)}$):
+          \begin{enumproof}
+          \item $\updatePcPerm{\memreg(\lv)} = \memreg(\lv)$: by definition of 
+            $\updatePcPerm{\cdot}$.
+          \item $(\reg\update{\pcreg}{\memreg(\lv)},\ms)\step\failed$ for any
+            $\reg$,$\ms$: by definition of the evaluation relation.
+          \item $\npair[n'-1]{\var{newPc}} \in \stder(W)$: by
+            Lemma~\ref{lem:failed-obs-stder} using the previous point.
           \end{enumproof}
         \end{enumproof}
       \item Case $\var{newPc} = ((\perm',\gl'),\start',\addrend',\addr' + 1)$ and
-        $\memreg[\Phi'](\pcreg) = ((\perm',\gl'),\start',\addrend',\addr')$: TODO
+        $\memreg[\Phi''](\pcreg) = ((\perm',\gl'),\start',\addrend',\addr')$:
+        \begin{enumproof}
+        \item Case $\perm' \in \{\exec,\rwx,\rwlx\}$ and $\start'\leq
+          \addr'+1\leq \addrend'$:
+          \begin{enumproof}
+          \item $\npair[n'-1]{\memreg[\Phi''](\pcreg)} \in \stdvr(W)$: by
+            Step~\ref{step:phip-regs-stdvr}.
+          \item $\npair[n'-1]{((\perm',\gl'),\start',\addrend',\addr' + 1)} \in \stdvr(W)$: by
+            Lemma~\ref{lem:conds-lea-suffice} from the previous point.
+          \item One of the following holds:
+            \begin{itemize}
+            \item \[
+                \begin{gathered}
+                  \perm' = \exec \land\\
+                  \npair[n'-1]{(\start',\addrend')} \in \readCond{}(\gl)(W)
+                \end{gathered}
+              \]
+            \item \[
+                \begin{gathered}
+                  \perm' = \rwx \land \\
+                  \npair[n'-1]{(\start',\addrend')} \in \readCond{}(\gl)(W) \land\\
+                  \npair[n'-1]{(\start',\addrend')} \in \writeCond{}(\iota^\nwl,\gl)(W)
+                \end{gathered}
+              \]
+            \item \[
+                \begin{gathered}
+                  \perm' = \rwlx \land\\
+                  \npair[n'-1]{(\start',\addrend')} \in \readCond{}(\gl)(W) \land\\
+                  \npair[n'-1]{(\start',\addrend')} \in \writeCond{}(\iota^\pwl,\gl)(W),
+                \end{gathered}
+              \]
+            \end{itemize}
+           This follows from the previous point by  definition of $\stdvr(W)$
+         \item $\npair[n'-1]{((\perm',\gl'),\start',\addrend',\addr' + 1)} \in
+           \stder(W)$: By the induction hypothesis of this lemma using the
+           previous point.
+          \end{enumproof}
+        \item Case not ($\perm' \in \{\exec,\rwx,\rwlx\}$ and $\start'\leq
+          \addr'+1\leq \addrend'$):
+          The result follows by Lemma~\ref{lem:failed-obs-stder}.
+        \end{enumproof}
       \end{enumproof}
+    \item
+      $\npair[n'-1]{(\memreg[\Phi'']\update{\pcreg}{\var{newPc}},\memheap[\Phi''])}\in\observations(W)$,
+      i.e. $\npair[n'-1]{\var{conf'}}\in\observations(W)$:
+      by definition of $\stder(W)$ using the above three points.
+    \item $\exists W' \futurestr W$, $\hs_r$, $\hs' \ldotp$
+      $\memheap[\Phi] = \hs' \uplus \hs_r \uplus \ms_f$ and $\heapSat[\hs']{n'-i}{W'}$\\
+      By: definition of $\observations(W)$ using the previous step and the
+      evaluation $\var{conf'}\step[i'] (\halted,\Phi')$ from
+      Step~\ref{step:ip-non-zero}.\dominique{TODO: check.  What about ms_f and other stuff.}
     \end{enumproof}
   \end{enumproof}
 \end{proof}
