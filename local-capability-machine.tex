@@ -1504,7 +1504,7 @@ f1: malloc r_l 1
                 \begin{itemize}
                 \item $\npair{(\start_{\adv},\addrend_{\adv})} \in \readCond{}(\glob)(W)$
                   \begin{itemize}
-                  \item Show: $\iota^{\nwl,p}_{\start_\adv,\addrend_\adv} \nsubsim[n-1] \iota^\pwl_{\start_\adv,\addrend_\adv}$.
+                  \item Show: $\iota^{\nwl,p}_{\start_\adv,\addrend_\adv} \nsubsim[n-1] \iota^\pwl_{\start_\adv,\addrend_\adv}$. %Lemma
                   \end{itemize}
                 \end{itemize}
                 Have
@@ -1527,9 +1527,9 @@ f1: malloc r_l 1
                       \end{enumproof}
                     \item case: $\npair[n']{\ms_\adv} \in H^\nwl_{\start_\adv,\addrend_\adv} 1 W$ \label{lem:f1-adv-mem-sat}
                       \begin{enumproof}
-                      \item Show $\forall a \in [\start_\adv,\addrend_\adv] \ldotp \npair[n'-1]{\ms(a)} \in \stdvr(\revokeTemp{W})$
-                      \item Notice: $W = \revokeTemp{W}$
+                      \item Show $\forall a \in [\start_\adv,\addrend_\adv] \ldotp \npair[n'-1]{\ms(a)} \in \stdvr(W)$
                       \end{enumproof}
+                      (non-local requirement trivial - only capability if the link one, and it is $\glob$).
                       \begin{enumproof}
                       \item $a \neq \start_\adv$ : trivial, contains instruction only.
                       \item $a = \start_\adv$: show $((\readonly,\glob),\link,\link+1,\link) \in \stdvr(W)$\\
@@ -2520,37 +2520,37 @@ In the proof of Lemma~\ref{lem:correctness-g1}, we will use the following region
           \[
             W_{\var{mini}} = [0 \mapsto \iota_{\malloc,0}][1 \mapsto \iota^{\sta,u} (\perma,\ms_\link)][3 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]
           \]
-          Partitioning the memory segment in the components of the disjoint union, and given $n' < n$, the $\malloc$ part follows from assumption $\memSat{\ms_\malloc}{[0 \mapsto \iota_{\malloc,0}]}$ and the $\malloc$ specification.
+          Partitioning the memory segment in the components of the disjoint union, the $\malloc$ part follows from assumption $\memSat{\ms_\malloc}{[0 \mapsto \iota_{\malloc,0}]}$ and the $\malloc$ specification.
 
           The memory link amounts to showing:
           \[
-            \npair[n']{\ms_\link} \in H^{\sta,u}(\ms_\link)(1)(\xi^{-1}(W_{\var{mini}}))
+            \npair[n]{\ms_\link} \in H^{\sta,u}(\ms_\link)(1)(\xi^{-1}(W_{\var{mini}}))
           \]
           which in turn amounts to showing
           \[
-            \npair[n'-1] \in \stdvr(W_{\var{mini}})
+            \npair[n-1]{c_\malloc} \in \stdvr(W_{\var{mini}})
           \]
-          which is indeed the case. \lau{We need to add a reason here! Is this part of the specification of malloc?}
+          which follows from Lemma~\ref{lem:malloc-in-vr}
 
           Showing
           \[
-            \npair[n']{\ms_\adv} \in H^\sta_{\start_\adv,\addrend_\adv}(1)(\xi^{-1}(W_{\var{mini}}))
+            \npair[n]{\ms_\adv} \in H^\sta_{\start_\adv,\addrend_\adv}(1)(\xi^{-1}(W_{\var{mini}}))
           \]
           is a bit more involved. It amounts to 
           \[
-            \forall \addr \in \dom(\ms_\adv) \ldotp \npair[n'-1]{\ms_\adv(\addr)} \in \stdvr(W_{\var{mini}})
+            \forall \addr \in \dom(\ms_\adv) \ldotp \npair[n-1]{\ms_\adv(\addr)} \in \stdvr(W_{\var{mini}})
           \]
           which in turn is trivial for everything but
           \[
-            \npair[n'-1]{c_\link} \in \stdvr(W_{\var{mini}})
+            \npair[n-1]{c_\link} \in \stdvr(W_{\var{mini}})
           \]
           This amounts to showing
           \[
-            \npair[n'-1]{(\link,\link)} \in \readCond{}(\glob)(W_{\var{mini}})
+            \npair[n-1]{(\link,\link)} \in \readCond{}(\glob)(W_{\var{mini}})
           \]
           which amounts to
           \[
-            \iota^{\sta,u} (\perma,\ms_\link) \nsubsim[n'-2] \iota^\pwl_{\link,\link}
+            \iota^{\sta,u} (\perma,\ms_\link) \nsubsim[n-2] \iota^\pwl_{\link,\link}
           \]
           which follows from Lemma~\ref{lem:stau-subset-pwl}.
       \end{enumproof}
@@ -3272,7 +3272,7 @@ Standard regions for when writing locally is permitted:
       &\dom(\hs) = [\start,\addrend] \land \\
       &\forall \addr \in [\start,\addrend] \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W}))
     \end{aligned}
-        \right\}
+        \right\} \union \{\npair[0]{\ms} \}
 \end{align*}
 Revoking all temporary regions:
 \begin{align*}
@@ -3302,7 +3302,7 @@ Standard regions for when write local is not allowed:
       &\quad \nonlocal{\ms(\addr)} \land\\ 
       &\quad \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W}))
     \end{aligned}
-        \right\}
+        \right\} \union \{\npair[0]{\ms} \}
 \end{align*}
 
 For convenience define
@@ -3462,10 +3462,10 @@ Static region used for parts of memory that should not change and where you pass
     \begin{aligned}
       &\ms' = \ms \land\\
       &\forall \addr \in \dom(\ms) \ldotp\\
-      & \quad \nonlocal{\ms(\addr)} \land \\
+      & \quad \nonlocal{\ms(\addr)} \land\\
       & \quad \npair[n-1]{\ms(\addr)} \in \stdvr(\xi(\hat{W}))
     \end{aligned}
-        \right\}
+        \right\} \union \{\npair[0]{\ms'} \mid \ms' \in \Mems \}
 \end{align*}
 
 \begin{align*}
@@ -3583,16 +3583,11 @@ Static region used for parts of memory that should not change and where you pass
     \npair{\ms} \in H^\nwl_{\start,\addrend}\; s \; \hat{W}'
   \]
   From \ref{pf:hnwl-mono:ass}, we get $\dom(\ms) = [\start,\addrend]$. Now let $\addr \in [\start,\addrend]$ be given and show
-  \[
-    \npair[n-1]{\ms(a)} \in \stdvr(\revokeTemp{\xi(\hat{W}')})
-  \]
-  %TODO
-  From Assumption~\ref{pf:hpwl-mono:ass}, we have
-  \[
-    \npair[n-1]{\ms(a)} \in \stdvr(\revokeTemp{\xi(\hat{W)}})
-  \]
-
-  now this follows from Lemma~\ref{lem:stdvr-mono-wk}, $\hat{W}' \futurewk \hat{W}$, Theorem~\ref{thm:world-existence}, and Assumption~\ref{pf:hpwl-mono:ass}.
+  \begin{enumproof}
+    \item \nonlocal{\ms(a)} \label{pf:hnwl-mono:ob1}
+    \item $\npair[n-1]{\ms(a)} \in \stdvr(\xi(\hat{W}'))$ \label{pf:hnwl-mono:ob2}
+  \end{enumproof}
+  \ref{pf:hnwl-mono:ob1} follows trivially from \label{pf:hnwl-mono:ass}. \ref{pf:hnwl-mono:ob1} follows from Assumption~\ref{pf:hpwl-mono:ass}, \ref{pf:hnwl-mono:ob1} (which we just argued), $W' \futurestr W$, and Lemma~\ref{lem:stdvr-non-loc-priv-mono}.
 \end{proof}
 
 
@@ -3601,7 +3596,7 @@ Static region used for parts of memory that should not change and where you pass
   $\iota^\nwl_{\start,\addrend}$ is a region for all $\start$ and $\addrend$.
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:iotanwl-is-a-region}]
-  % TODO
+  Follows from Lemma~\ref{lem:hnwl-mono-str} and Lemma~\ref{lem:future-pub-impl-future-priv}.
 \end{proof}
 
 \begin{lemma}
@@ -3609,7 +3604,7 @@ Static region used for parts of memory that should not change and where you pass
   $\iota^{\nwl,p}_{\start,\addrend}$ is a region for all $\start$ and $\addrend$.
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:iotanwlp-is-a-region}]
-  % TODO
+  Follows from Lemma~\ref{lem:hnwl-mono-str}.
 \end{proof}
 
 \begin{lemma}
@@ -3617,7 +3612,7 @@ Static region used for parts of memory that should not change and where you pass
   $\iota^\sta(v,\ms)$ is a region for all $v \in \{\perma, \temp\}$ and $\ms$.
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:iotasta-is-a-region}]
-  % TODO
+  $H^\sta$ does not depend on $\hat{W}$, so it is trivial to show the necessary non-expansive and monotonicity requirements.
 \end{proof}
 
 \begin{lemma}
@@ -3637,7 +3632,7 @@ Static region used for parts of memory that should not change and where you pass
   \]
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:hwnl-nsubset-hpwl}]
-  Let
+  Trivial. Let
   \[
     \npair{\ms} \in H^\nwl_{\start,\addrend} \; s\; \hat{W}
   \]
@@ -3651,9 +3646,8 @@ Static region used for parts of memory that should not change and where you pass
   \]
   Given $\addr$, we know from the assumption that
   \[
-    \npair[n-1]{\ms(\addr)} \in \stdvr(\revokeTemp{\xi(\hat{W})})
+    \npair[n-1]{\ms(\addr)} \in \stdvr(\xi(\hat{W}))
   \]
-  Now the desired reulst follows from Lemma~\ref{lem:revoketemp-vr-implies-vr}.
 \end{proof}
 
 \begin{lemma}
@@ -3683,7 +3677,7 @@ Static region used for parts of memory that should not change and where you pass
   \end{align*}
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:nwlp-subset-pwl}]
-  Follows from Lemma~\ref{lem:hwnl-nsubset-hpwl}.
+  Follows from Lemma~\ref{lem:hwnl-nsubset-hpwl} (see proof of Lemma~\ref{lem:nwl-subset-pwl}).
 \end{proof}
 
 \begin{lemma}
