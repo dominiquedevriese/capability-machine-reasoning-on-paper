@@ -4056,16 +4056,17 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
   \item $\exists P : \activeReg{W} \rightarrow \HeapSegments \ldotp
     \memSatPar{\memheap}{W}{P}$. By definition of $\heapSat[\memheap]{n}{W}$.
   \item $\memheap = \biguplus_{r\in\activeReg{W}}P(r)$ and $\forall r \in
-    \activeReg{W}$, $n'<n \ldotp$ $\exists H,s \ldotp$ $W(r) = (\_,s,\_,\_,H)$
-    and $\npair[n']{P(r)} \in H(s)(\xi^{-1}(W))$. By definition of
+    \activeReg{W}$, $\exists H,s \ldotp$ $W(r) = (\_,s,\_,\_,H)$
+    and $\npair[n]{P(r)} \in H(s)(\xi^{-1}(W))$. By definition of
     $\memSatPar{\memheap}{W}{P}$. \label{step:unfold-phi-sat-part}
   \item $r \in \var{localityReg}(g,W)\subseteq \activeReg{W}$. By definition of
     $\var{localityReg}(\cdot)$ and $\activeReg{\cdot}$.
   \item $\exists H,s \ldotp$ $W(r) = (\_,s,\_,\_,H)$
-    and $\npair[n-1]{P(r)} \in H(s)(\xi^{-1}(W))$.
+    and $\npair[n]{P(r)} \in H(s)(\xi^{-1}(W))$.
     By specializing the result from
     Step~\ref{step:unfold-phi-sat-part} to the $r$ from
-    Step~\ref{step:unfold-readCond} and $n' = n-1$.
+    Step~\ref{step:unfold-readCond}.
+    \dominique{TODO: fix what follows for the recent step-related changes...}
   \item $\npair[n-1]{P(r)} \in H^\pwl_{\start',\addrend'}(s)(\xi^{-1}(W))$.
     Follows by combining $\npair[n-1]{P(r)} \in H(s)(\xi^{-1}(W))$ with
     $W(r)\nsubsim[n-1] \iota_{\start',\addrend'}^\pwl$ from Step~\ref{step:unfold-readCond}.
@@ -4130,7 +4131,8 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
    \label{lem:conds-store-suff}
    If 
    \begin{itemize}
-   \item $\heapSat[m]{n}{W}$
+   \item $\ms = \ms' \uplus \ms_f$
+   \item $\heapSat[\ms']{n}{W}$
    \item $((\perm,\gl),\start,\addrend,\addr) = c$
    \item $\npair{c}\in\stdvr(W)$
    \item $\writeAllowed{\perm}$
@@ -4140,7 +4142,9 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
      \{\rwlx,\readwritel \}$
    \end{itemize}
  
-   then $\heapSat[{m\update{\addr}{\var{w}}}]{n}{W}$
+   then $\addr \in \dom(\ms')$ (i.e. $\ms\update{a}{w} =
+   \ms'\update{a}{w}\uplus\ms_f$) and
+   $\heapSat[{\ms'\update{\addr}{\var{w}}}]{n}{W}$
  \end{lemma}
  \begin{proof}
    TODO
@@ -4184,9 +4188,11 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
   \item Assume: $n' \leq n$, $\npair[n']{\reg}\in \stdrr(W)$, $\heapSat[\hs]{n'}{W}$.\\
     Suffices: $\npair[n']{(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs)}\in\observations(W)$.\\
     By: definition of $\stder(W)$.
-  \item Assume: $\ms_f$, $\heap'$, $i \leq n'$, $(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus \ms_f) \step[i] (\halted,\Phi)$,\\
+  \item Assume: $\ms_f$, $\heap'$, $i \leq n'$, $\Phi =
+    (\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus \ms_f)$
+    and $\Phi \step[i] (\halted,\Phi')$,\\
     Suffices: $\exists W' \futurestr W$, $\hs_r$, $\hs' \ldotp$
-    $\memheap[\Phi] = \hs' \uplus \hs_r \uplus \ms_f$ and $\heapSat[\hs']{n'-i}{W'}$\\
+    $\memheap[\Phi'] = \hs' \uplus \hs_r \uplus \ms_f$ and $\heapSat[\hs']{n'-i}{W'}$\\
     By: definition of $\observations(W)$ \label{suff-after-eval}
   \item $i \neq 0$, since
     $(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus
@@ -4195,7 +4201,7 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
     \begin{equation*}
       \Phi \step \var{conf'} \step[i'] (\halted,\Phi')
     \end{equation*} \label{step:ip-non-zero}
-  \item $n' > 0$, since otherwise $i = 0$ (because $i \leq n'\leq n$) and this is
+  \item $n \geq n' > 0$, since otherwise $i = 0$ (because $i \leq n'\leq n$) and this is
     impossible by the previous point.
   \item $\npair[n']{\memreg(\pcreg)}\in\stdvr(W)$. \label{step:ftlr-pc-vr}
     Proof:
@@ -4224,14 +4230,12 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
     $\stdUpdatePc{\cdot}$, it is easy to see that one of the following cases
     must hold:
   \item Case $\var{conf'} = \failed$: contradiction, since it is not possible
-    that $\failed \step[i'] (\halted,\Phi)$. 
+    that $\failed \step[i'] (\halted,\Phi')$. 
   \item Case $\var{conf'} = (\halted,\Phi)$:
     \begin{enumproof}
     \item Then $i' = 0$ and $\Phi' =
       \Phi$\\
-      Follows from $(\halted,
-      (\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\hs \uplus
-      \ms_f)) \step[i'] (\halted,\Phi)$
+      Follows from $(\halted, \Phi) \step[i'] (\halted,\Phi)$
     \item For $W' = W$, $\ms_r = \emptyset$ and $\ms' = \ms$, we have that
       $\memheap[\Phi'] = \hs' \uplus \hs_r \uplus \ms_f$ and
       $\heapSat[\hs']{n'-1}{W'}$ (using Lemma~\ref{lem:heap-sat-dc}).
@@ -4275,21 +4279,22 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
     \end{itemize}
     In this case, we have:
     \begin{enumproof}
-    \item $\heapSat[{\memheap[\Phi'']}]{n'-1}{W}$.
+    \item $\memheap[\Phi''] = \ms'' \uplus \ms_f$ and $\heapSat[\ms'']{n'-1}{W}$.
       \begin{enumproof}
       \item Case $\memheap[\Phi''] = \memheap[\Phi]$:
-        $\heapSat[{\memheap[\Phi'']}]{n'-1}{W}$ follows by Lemma~\ref{lem:heap-sat-dc}.
+        Then $\memheap[\Phi''] = \ms\uplus\ms_f$ and
+        $\heapSat[\ms]{n'-1}{W}$ follows by Lemma~\ref{lem:heap-sat-dc}.
       \item Case $\memheap[\Phi''] = \memheap[\Phi]\update{\addr'}{\var{w}}$,
         with $\memreg[\Phi](r_1) = ((\perm',\gl'),\start',\addrend',\addr') = c$
         and $\writeAllowed{\perm'}$ and $\withinBounds{\var{c}}$ and $\var{w} =
         \memreg(r_2)$ and if $\var{w} = ((\_,\local),\_,\_,\_)$, then $\perm'
         \in \{\rwlx,\readwritel \}$.\\
-        $\heapSat[{\memheap[\Phi'']}]{n'-1}{W}$ follows by
-        Lemmas~\ref{lem:conds-store-suff} and~\ref{lem:heap-sat-dc} using the
-        fact that $\heapSat[\memheap]{n'}{W}$ and
+        The facts that $\memheap[\Phi''] = \ms''\uplus\ms_f$ and
+        $\heapSat[\ms'']{n'-1}{W}$ follow by Lemmas~\ref{lem:conds-store-suff}
+        and~\ref{lem:heap-sat-dc} using the fact that $\heapSat[\ms]{n'}{W}$ and
         $\npair[n']{\memreg(r_1)}\in\stdvr(W)$ and
         $\npair[n']{\memreg(r_2)}\in\stdvr(W)$ which follows from
-        $\npair[n']{\memreg}\in\stdrr(W)$ by definition.
+        Step~\ref{step:ftlr-reg-rr}.
       \end{enumproof}
     \item For all $r \in \RegName$, $\npair[n'-1]{\memreg[\Phi''](r)}\in\stdvr(W)$.\label{step:phip-regs-stdvr}
       \begin{enumproof}
@@ -4423,14 +4428,13 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
         \end{enumproof}
       \end{enumproof}
     \item
-      $\npair[n'-1]{(\memreg[\Phi'']\update{\pcreg}{\var{newPc}},\memheap[\Phi''])}\in\observations(W)$,
-      i.e. $\npair[n'-1]{\var{conf'}}\in\observations(W)$:
+      $\npair[n'-1]{(\memreg[\Phi'']\update{\pcreg}{\var{newPc}},\ms'')}\in\observations(W)$:
       by definition of $\stder(W)$ using the above three points.
     \item $\exists W' \futurestr W$, $\hs_r$, $\hs' \ldotp$
-      $\memheap[\Phi] = \hs' \uplus \hs_r \uplus \ms_f$ and $\heapSat[\hs']{n'-i}{W'}$\\
+      $\memheap[\Phi'] = \hs' \uplus \hs_r \uplus \ms_f$ and $\heapSat[\hs']{n'-i}{W'}$\\
       By: definition of $\observations(W)$ using the previous step and the
       evaluation $\var{conf'}\step[i'] (\halted,\Phi')$ from
-      Step~\ref{step:ip-non-zero}.\dominique{TODO: check.  What about $ms_f$ and other stuff.}
+      Step~\ref{step:ip-non-zero}.
     \end{enumproof}
   \end{enumproof}
 \end{proof}
