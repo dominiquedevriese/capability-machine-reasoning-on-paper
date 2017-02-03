@@ -873,7 +873,7 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
                 \item [Create local enter capability for activation] Adjust the capability for the activation record to point to the beginning of the activation record and restrict it to a local enter-capability. Place this capability in $r_0$.
                 \item [Clear unused registers]
                   Clear all the register that are not $\pcreg$, $r$, $r_0$ or in $\bar{r}_{\var{args}}$.
-                \item [Jump] Jump to $r$
+                \item [Jump] Jump to register $r$
                 \item [Activation code] The activation code does the following:
                   \begin{itemize}
                   \item Move the stored ``private'' words in to their respective $\bar{r}_{\var{priv}}$ registers.
@@ -1524,17 +1524,18 @@ f1: malloc r_l 1
         \item $a = \start_\adv$: show $((\readonly,\glob),\link,\link+1,\link) \in \stdvr(W)$\\
           $\glob$ capabilities are non-local.\\
           SFTS $\iota^{\sta,u}(\perm,\ms_\link) \nsubsim[n'] \iota^\pwl_{\link,\link+1}$ which follows from Lemma~\ref{lem:stau-subset-pwl}.
-        \item $\npair[n']{\ms_\link} \in H^{\sta,u}(1)(W)$:\\
-          This boils down to showing:
-          \begin{enumproof}
-          \item $\npair[n'-1]{c_\malloc} \in \stdvr(W)$: Follows from Lemma~\ref{lem:malloc-in-vr}.
-
-          \item $\npair[n'-1]{c_\adv} \in \stdvr(W)$: for $n'' <
-            n'-1$ and $W' \futurestr W$ show:
-            \\$\npair[n'']{\updatePcPerm{c_\adv}} \in \stder(W')$.
-            Use FTLR. \label{f1:adv}
-          \end{enumproof}
         \end{enumproof}
+      \item $\npair[n']{\ms_\link} \in H^{\sta,u}(1)(W)$:\\
+        This boils down to showing:
+        \begin{enumproof}
+        \item $\npair[n'-1]{c_\malloc} \in \stdvr(W)$: Follows from Lemma~\ref{lem:malloc-in-vr}.
+
+        \item $\npair[n'-1]{c_\adv} \in \stdvr(W)$: for $n'' <
+          n'-1$ and $W' \futurestr W$ show:
+          \\$\npair[n'']{\updatePcPerm{c_\adv}} \in \stder(W')$.
+          Use FTLR. \label{f1:adv}
+        \end{enumproof}
+
       \item The last case follows from Lemma~\ref{lem:mem-sat-static}
       \end{enumproof}
     \end{enumproof}
@@ -1584,6 +1585,7 @@ f2: push 1
     c_{f2} & \defeq ((\rwx,\glob),\mathtt{f2}-\olf,\mathtt{2f},\mathtt{f2}) \\
     c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
     c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_\stk,\start_\stk-1) \\
+    c_\link & \defeq ((\readonly,\glob),\link,\link+1,\link)\\
     \reg & \in \Regs \\
     m & \defeq \hs_{f2} \uplus 
         \hs_\flag \uplus                
@@ -1595,7 +1597,7 @@ f2: push 1
   \end{align*}
   and
   \begin{itemize}
-  \item $c_\malloc$ satisfies the specification for malloc.
+  \item $c_\malloc$ satisfies the specification for malloc and $\iota_{\malloc,0}$ is the region from the specification.
   \end{itemize}
   where 
   \begin{align*}
@@ -1611,7 +1613,7 @@ f2: push 1
   \item $\ms_{f2}(\mathtt{f2}-\olf) = ((\readonly,\glob),\link,\link+1,\link)$, $\ms_{f2}(\mathtt{f2}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{f2}$ contains the code of $f2$.
   \item $\ms_\flag = [\flag \mapsto 0]$
   \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
-  \item $\hs_\adv$ is only instructions and possibly a global read-only capability for $\hs_\link$
+  \item $\hs_\adv(\start_\adv) = c_\link$ and $\forall \addr \in [\start_\adv+1,\addrend]\ldotp \ms_\adv(a) \in \ints$
   \end{itemize}
   if 
   \[
@@ -1622,6 +1624,129 @@ f2: push 1
     m'(\flag) = 0
   \]  
 \end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:correctness-f2} (using \texttt{scall} lemma)]
+    Let $n$ be given and make the assumptions of the lemma. If we can show
+    \begin{equation}
+      \label{pf:f2-sc:sfts-obs}
+      \npair{(\reg\update{\pcreg}{c_{f2}}\update{r_\stk}{c_\stk},\ms \uplus \ms_\stk)} \in \observations(W)
+    \end{equation}
+    for 
+    \[
+      \ms = \hs_{f2} \uplus 
+            \hs_\flag \uplus                
+            \ms_{\var{link}} \uplus 
+            \hs_\adv \uplus 
+            \ms_{\malloc} 
+    \]
+    and
+    \[
+      W = [0 \mapsto \iota_{\malloc,0}]
+          [1 \mapsto \iota^\sta (\perma, \ms_{f2} \uplus \ms_\flag)]
+          [2 \mapsto \iota^{\sta,u} (\perma, \ms_\link)]
+          [3 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]
+    \]
+    then we are done as we by assumption has
+    \[
+      (\reg\update{\pcreg}{c_{f2}}\update{r_\stk}{c_\stk},m) \step[n] (\halted,m')
+    \]
+    so \ref{pf:f2-sc:sfts-obs} gives us a $W' \futurestr W$ where $W'$ satisfy part of $m'$. As $\ms_\flag$ is governed by a $\perma$ region, so it is unchanged. In other words
+    \[
+      m'(\flag) = 0
+    \]
+    So it suffices to show \ref{pf:f2-sc:sfts-obs}. To this end use Lemma~\ref{lem:anti-red-obs}. Let $\ms_f$ be given, then
+  \begin{multline*}
+    (\reg\update{\pcreg}{c_{f2}}\update{r_\stk}{c_\stk},\ms \uplus \ms_\stk \uplus \ms_f) \step[k] \\
+    (\reg',\ms \uplus \ms_\stk' \uplus \ms_f)
+  \end{multline*}
+  where
+  \begin{itemize}
+  \item \lookingat{(\reg',\ms)}{\scall{r_\adv}{}{r_l}}{c_{\var{next}}}
+  \item $c_{\var{next}}$ is $c_{f2}$ that points to the instruction after the \texttt{scall}.
+  \item \pointstostack{\reg'}{[\start_\stk \mapsto 1]}{\ms_\unused}
+    \begin{itemize}
+    \item for some $\ms_\unused$ where $\ms_\stk' = [\start_\stk \mapsto 1] \uplus \ms_\unused$.
+    \end{itemize}
+  \item $\reg'(r_\adv) = c_\adv$
+  \end{itemize}
+  In order to show the observation part necessary for Lemma~\ref{lem:anti-red-obs}, we use the "\texttt{scall} works"-Lemma (Lemma~\ref{lem:scall-works}). Show the following
+  \begin{enumproof}
+  \item $\memSat{n-k}{\ms}{W}$\\
+    Use Lemma~\ref{lem:disj-mem-sat} with
+    \begin{enumproof}
+    \item $\memSat[n-k]{\ms_{f2} \uplus \ms_\flag}{[1 \mapsto \iota^\sta (\perma, \ms_{f2} \uplus \ms_\flag)]}$\\
+      Lemma~\ref{lem:mem-sat-static}
+      \item $\memSat[n-k]{\ms_\adv \uplus \ms_\malloc \uplus \ms_\link}{W_{\var{part}}}$ \\
+        where
+        \[
+          W_{\var{part}} = [0 \mapsto \iota_{\malloc,0}][2 \mapsto \iota^{\sta,u} (\perma, \ms_\link)][3 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]
+        \]
+        This amounts to
+        \begin{enumproof}
+        \item $\npair[n-k-1]{\ms_\malloc} \in H \; 1 \; W_{\var{part}}$ where $H$ is the interpretaion of the $\iota_{\malloc,0}$ region.\\
+          Follows from the malloc specification.
+        \item $\npair[n-k-1]{\ms_\adv} \in H^\nwl \; 1 \; W_{\var{part}}$\\
+          Can be shown using Lemma~\ref{lem:stau-subset-pwl}.
+        \item $\npair[n-k-1]{\ms_\link} \in H^{\sta,u} (\ms_\link) \; 1 \; W_{\var{part}}$\\
+          This amounts to showing
+          \begin{enumproof}
+            \item $\npair[n-k-2]{c_\malloc} \in \stdvr(W_{\var{part}})$
+              Follows from Lemma~\ref{lem:malloc-in-vr}.
+            \item $\npair[n-k-2]{c_\adv} \in \stdvr(W_{\var{part}})$\\
+              Follows from Theorem~\ref{thm:ftlr} using Lemma~\ref{lem:nwlp-subset-pwl}.
+          \end{enumproof}
+        \end{enumproof}
+    \end{enumproof}
+  \item Hyp-Callee\\
+    Assume
+    \begin{itemize}
+    \item $\dom(\ms_{\mathit{unused}}) = \dom(\ms_{\mathit{act}} \uplus \ms_{\mathit{unused}}')$,
+    \item $W' = \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk\uplus\ms_{\mathit{act}}),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}'))]$,
+    \item $\memSat[n-k-1]{\ms''}{W'}$
+    \item $\reg' \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}}'$ unused}$
+    \item $\reg'= \reg_0[\pcreg\mapsto\updatePcPerm{c_\adv},r_0 \mapsto c_{\mathit{ret}}, r_\stk \mapsto c_\stk, r_\adv \mapsto c_\adv]$ 
+    \item $\npair[n-k-1]{c_{\mathit{ret}}} \in \stdvr(W')$
+    \item $\npair[n-k-1]{c_\stk'} \in \stdvr(W')$
+    \end{itemize}
+    Show
+    \[
+      (n-k-1,(\reg',\ms'')) \in \observations(W')
+    \]
+    By Theorem~\ref{thm:ftlr} we get
+    \[
+      \npair[n-k-1]{\updatePcPerm{c_\adv}} \in \stder(W')
+    \]
+    getting the desired result amounts to\footnote{We have memory satisfaction by assumption and the above entails the register-file is in the register-file relation.}
+    \begin{enumproof}
+      \item $\npair[n-k-1]{c_\adv} \in \stdvr{W}$ \\
+        To this end let $n' < n-k-1$ and $W'' \futurestr W'$ be given and show
+        \[
+          \npair[n']{\updatePcPerm{c_\adv}} \in \stder(W'')
+        \]
+        Follows from Theorem~\ref{thm:ftlr} and Lemma~\ref{lem:nwlp-subset-pwl}.
+    \end{enumproof}
+  \item Hyp-Cont\\
+    Assume
+    \begin{itemize}
+    \item $n' \leq n-2$
+    \item $W'' \futurewk \revokeTemp{W}$
+    \item $\memSat[n']{\ms''}{\revokeTemp{W''}}$ 
+    \item $\reg''(\pcreg) = c_{\mathit{next}}$
+    \item $\reg'' \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}''$ unused}$ for some $\ms_{\mathit{unused}}''$
+    \end{itemize}
+    and show
+    \[
+      \npair[n']{(\reg'',\ms'' \uplus [\start_\stk \mapsto 1] \uplus \ms_{\var{unused}}'')} \in \observations(W'')
+    \]
+    From $\memSat[n']{\ms''}{\revokeTemp{W''}}$, we get that $\ms_{f2}$ is unchanged. Given a frame $\ms_f'$ and assuming $n'$ is sufficiently large, the execution continues as follows:
+    \[
+      (\reg'',\ms'' \uplus [\start_\stk \mapsto 1] \uplus \ms_{\var{unused}}'' \uplus \ms_f) \step[k] (\halted,\ms'' \uplus [\start_\stk \mapsto 1] \uplus \ms_{\var{unused}}'' \uplus \ms_f)
+    \]
+    because 1 is popped of the stack to a register, then it is compared with 1 in the assertion, so the assertion succeeds and halts immediately after.
+
+    By assumption we had $\memSat[n']{\ms''}{\revokeTemp{W''}}$ which gives us exactly the memory satisfaction required by $\observations(W'')$.
+  \end{enumproof}
+\end{proof}
+
 \begin{proof}[Proof of lemma~\ref{lem:correctness-f2}]
   Let $n$ be given and make the assumptions of the lemma. Consider the execution until just after the jump to $\adv$, i.e.,
   \begin{multline*}
@@ -4422,12 +4547,12 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
     \item $\reg' \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}}'$ unused}$
     \item $\reg'= \reg_0[\pcreg\mapsto\updatePcPerm{\reg(r)},
       \overline{r_{\mathit{arg}}} \mapsto \reg(\overline{r_{\mathit{arg}}}),r_0
-      \mapsto c_{\mathit{ret}}, r_\stk \mapsto \_, r \mapsto \reg(r)]$ 
+      \mapsto c_{\mathit{ret}}, r_\stk \mapsto c_\stk, r \mapsto \reg(r)]$ 
     \item $\npair[n-1]{c_{\mathit{ret}}} \in \stdvr(W')$
     \item $\npair[n-1]{c_\stk} \in \stdvr(W')$
     \end{itemize}
 
-    then we have that $(n-1,(\reg',\ms'')) \in \observations(W')$
+    then we have that $\npair[n-1]{(\reg',\ms'')} \in \observations(W')$
   \item[Hyp-Cont] If
     \begin{itemize}
     \item $n' \leq n-2$
@@ -4445,7 +4570,7 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
     \item $\reg' \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}''$ unused}$ for some $\ms_{\mathit{unused}}''$
     \end{itemize}
 
-    then we have that $(n', (\reg',\ms'' \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{unused}}'')) \in \observations(W'')$
+    then we have that $\npair[n']{(\reg',\ms'' \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{unused}}'')} \in \observations(W'')$
   \end{itemize}
   Then 
   \begin{itemize}
