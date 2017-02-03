@@ -624,7 +624,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                                       \text{if $\memreg(r) = \stdcap[\permp]$}\\
                                                       \quad\text{and either $\rv = n$ or $\memreg(\rv) = n$}\\
                                                       \quad\text{and in either case $n \in \ints$}\\
-                                                      \quad\text{and $\decodePermPair{n}\sqsubseteq \permp$}\\
+                                                      \quad\text{and $\decodePermPair{n}\sqsubseteq \permp$}\\ 
                                                       \quad\text{and $c = (\decodePermPair{n},\start,\addrend,\addr)$}
                                                     \end{array}\\
                                                     \failed                   & \text{otherwise}
@@ -1348,238 +1348,238 @@ f1: malloc r_l 1
 1f: halt
 \end{verbatim}
 
-              \begin{lemma}[Correctness lemma for \texttt{f1}] \forcenewline
-                \label{lem:correctness-f1}
-                For all $n \in \nats$
-                let
-                \begin{align*}
-                  c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
-                  c_{f1} & \defeq ((\rwx,\glob),\mathtt{f1}-\olf,\mathtt{1f},\mathtt{f1}) \\
-                  c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
-                  m & \defeq \hs_{f1} \uplus 
-                      \hs_\flag \uplus                
-                      \ms_{\var{link}} \uplus 
-                      \hs_\adv \uplus 
-                      \ms_{\malloc} \uplus 
-                      \hs_{\var{frame}} 
-                \end{align*}
-                and
-                \begin{itemize}
-                \item $c_\malloc$ satisfies the specification for malloc.
-                \end{itemize}
-                where 
-                \begin{align*}
-                  &\dom(\hs_{f1}) = [\mathtt{f1}-\olf,\mathtt{1f}] \\
-                  &\dom(\hs_\flag) = [\flag,\flag] \\
-                  &\dom(\ms_\link) = [\link,\link+1]\\
-                  &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
-                  &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]}
-                \end{align*}
-                and
-                \begin{itemize}
-                \item $\ms_{f1}(\mathtt{f1}-\olf) = ((\readonly,\glob),\link,\link+1,\link)$, $\ms_{f1}(\mathtt{f1}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{f1}$ contains the code of $f1$.
-                \item $\ms_\flag = [\flag \mapsto 0]$
-                \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
-                \item $\hs_\adv$ contains a global read-only capability for $\hs_\link$ on its first address. The remaining cells of the memory segment only contain instructions.
-                \end{itemize}
-                if 
-                \[
-                  (\reg_0\update{\pcreg}{c_{f1}},m) \step[n] (\halted,m'),
-                \]
-                then
-                \[
-                  m'(\flag) = 0
-                \]  
-              \end{lemma}
-              \begin{proof}[Proof of Lemma~\ref{lem:correctness-f1}]
-                Let $n$ be given and assume the premises in the lemma.  Consider the following part of the execution:
-                \[
-                  (\reg_0\update{\pcreg}{c_{f1}},m) \step[i] (\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}'}\update{r_1}{1},m)
-                \]
-                Where $c_{f1}'$ is the return address. Use the malloc specification with
-                \begin{align*}
-                  \iota_\malloc &= \iota_{\malloc,0} \\
-                  \ms_{\var{footprint}} & = \ms_\malloc \\
-                  \memreg(r_1) & = \size = 1
-                \end{align*}
-                to get 
-                \[
-                  (\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}'}\update{r_1}{1},m) \step[j] (\reg_0\update{\pcreg}{c_{f1}'}\update{r_0}{c_{f1}'}\update{r_1}{c_l},m')
-                \]
-                for some $j$ where for some $\iota_{\malloc}' \futurewk \iota_{\malloc,0}$
-                \begin{enumerate}
-                \item $m' = \hs_{f1} \uplus 
-                  \hs_\flag \uplus                
-                  \ms_{\var{link}} \uplus 
-                  \hs_\adv \uplus 
-                  \ms_l \uplus
-                  \ms_{\malloc}' \uplus 
-                  \hs_{\var{frame}} $
-                \item $\heapSat[\ms_{\malloc}']{n-j}{[0 \mapsto \iota_{\malloc}]}$ \label{f1:mallocsat}
-                \item $\dom(\hs_l) = [l,l]$
-                \item $c_l = ((\rwx,\glob),l,l,l)$ \label{test}
-                \item $\ms_l(l) = 0$
-                \end{enumerate}
-                Continue the execution to the next malloc hidden in \texttt{call}.
-                \[
-                  (\reg_0\update{\pcreg}{c_{f1}'}\update{r_0}{c_{f1}'}\update{r_1}{c_l},m')
-                  \step[k]
-                  (\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}''}\update{r_1}{\dots}\update{r_l}{c_l},m'')
-                \]
-                where
-                \begin{enumerate}[resume]
-                \item $m'' = m'[l\mapsto 1]$
-                \end{enumerate}
-                Use the malloc specification notice:
-                \begin{itemize}
-                \item $\cdots$ represents the needed size for the activation record. 
-                \item \ref{f1:mallocsat}.\ and (downwards closure) gives us the needed memory segment satisfaction.
-                \item $\ms_{\var{footprint}} =  \ms_\malloc' $
-                \end{itemize}
-                Get:
-                \[
-                  (\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}''}\update{r_1}{\dots}\update{r_l}{c_l},m'')
-                  \step[j']
-                  (\reg_0\update{\pcreg}{c_{f1}''}\update{r_0}{c_{f1}''}\update{r_1}{c_{\var{ar}}}\update{r_l}{c_l},m^{(3)})
-                \]
-                for some $j'$ where for some $[0 \mapsto \iota_{\malloc}'] \futurewk [0 \mapsto \iota_{\malloc}]$
-                \begin{enumerate}[resume]
-                \item $m'' = \hs_{f1} \uplus 
-                  \hs_\flag \uplus                
-                  \ms_{\var{link}} \uplus 
-                  \hs_\adv \uplus 
-                  \ms_{l} \uplus
-                  \ms_{\var{ar}} \uplus
-                  \ms_{\malloc}'' \uplus 
-                  \hs_{\var{frame}} $
-                \item $\heapSat[\ms_{\malloc}'']{n-j-j'}{[0 \mapsto \iota_{\malloc}']}$ \label{f1:mallocsat}
-                \item $\dom(\hs_{\var{ar}}) = [b,e]$
-                \item $c_l = ((\rwx,\glob),b,e,b)$ \label{test}
-                \item $\forall a \in [b,e] \ldotp \ms_{\var{ar}}(a) = 0$
-                \end{enumerate}
-                Continue execution until just after the jump to $\var{adv}$.
-                \[
-                  (\reg_0\update{\pcreg}{c_{f1}''}\update{r_0}{c_{f1}''}\update{r_1}{c_{\var{ar}}}\update{r_l}{c_l},m^{(3)})
-                  \step[k']
-                  (\reg_0\update{\pcreg}{\updatePcPerm{c_{\var{adv}}}}\update{r_1}{c_{\var{adv}}}\update{r_0}{c_{ar}'},m^{(3)})
-                \]
-                for some $k'$ where
-                \begin{itemize}
-                \item $m^{(3)} = \hs_{f1} \uplus 
-                  \hs_\flag \uplus                
-                  \ms_{\var{link}} \uplus 
-                  \hs_\adv \uplus 
-                  \ms_{l} \uplus
-                  \ms_{\var{ar}}' \uplus
-                  \ms_{\malloc}'' \uplus 
-                  \hs_{\var{frame}} $
-                \item $\ms_{\var{ar}}'$ contains the activation record, i.e., $c_l$, $c_{f1}^{(3)}$ (the return address in f1), and activation code.
-                \item $c_{\var{ar}}' = ((\entry,\local)b,e,b+\olf)$ where $b+\olf$ is the first address of the activation code.
-                \end{itemize}
-                Define
-                \begin{itemize}
-                \item $W = [0 \mapsto \iota_\malloc']
-                  [1 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]
-                  [2 \mapsto \iota_{f1}]
-                  [3 \mapsto \iota_{\var{ar}}]
-                  [4 \mapsto \iota_l]
-                  [5 \mapsto \iota_\flag]
-                  [5 \mapsto \iota_\link]$
-                \end{itemize}
-                \lau{Need to change this to use the new standard regions}
-                where
-                \begin{itemize}
-                \item $\iota_{f1}$, $\iota_{\var{ar}}$, $\iota_l$, $\iota_\flag$, and $\iota_\link$ are permanent islands that only accepts respectively $\ms_{f1}$, $\ms_{\var{ar}}$, $\ms_l$, $\ms_\flag$, and $\ms_\link$.
-                \end{itemize}
-                define
-                \begin{enumerate}
-                \item $\ms = \hs_{f1} \uplus 
-                  \hs_\flag \uplus                
-                  \ms_{\var{link}} \uplus 
-                  \hs_\adv \uplus 
-                  \ms_{l} \uplus
-                  \ms_{\var{ar}}' \uplus
-                  \ms_{\malloc}'' $ \label{f1:ms-disj-union}
-                \end{enumerate}
-                Use the FTLR on $\updatePcPerm{c_{\var{adv}}}$ using world $W$, so show
-                \begin{itemize}
-                \item $\npair{(\start_{\adv},\addrend_{\adv})} \in \readCond{}(\glob)(W)$
-                  \begin{itemize}
-                  \item Show: $\iota^{\nwl,p}_{\start_\adv,\addrend_\adv} \nsubsim[n] \iota^\pwl_{\start_\adv,\addrend_\adv}$: $\iota^{\nwl,p}_{\start_\adv,\addrend_\adv}
-                    \nsubsim[n] \iota^\pwl_{\start_\adv,\addrend_\adv}$: see Lemma~\ref{lem:nwlp-subset-pwl}.
-                  \end{itemize}
-                \end{itemize}
-                Have
-                \begin{enumerate}[resume]
-                \item $\npair{\updatePcPerm{c_{\var{adv}}}} \in \stder(W)$
-                \end{enumerate}
-                Let $n' = n - j - j'$ and show
-                \begin{enumproof}[resume]
-                \item $n' \leq n$
-                  \begin{enumproof}
-                  \item trivial
-                  \end{enumproof}
-                \item $\heapSat[\ms]{n'}{W}$
-                  \begin{enumproof}
-                  \item Split the memory into the disjoint unions of \ref{f1:ms-disj-union} and show:
-                    \begin{enumproof}
-                    \item case: $\npair[n']{\ms_\malloc} \in \iota_\malloc'.H (\iota_\malloc'.s) (W)$ 
-                      \begin{enumproof}
-                      \item Use $\heapSat[\ms_\malloc]{n'}{[0 \mapsto \iota_\malloc']}$ with malloc specification context independence property.
-                      \end{enumproof}
-                    \item case: $\npair[n']{\ms_\adv} \in H^\nwl_{\start_\adv,\addrend_\adv} 1 W$ \label{lem:f1-adv-mem-sat}
-                      \begin{enumproof}
-                      \item Show $\forall a \in [\start_\adv,\addrend_\adv] \ldotp \npair[n'-1]{\ms(a)} \in \stdvr(W)$
-                      \end{enumproof}
-                      (non-local requirement trivial - only capability if the link one, and it is $\glob$).
-                      \begin{enumproof}
-                      \item $a \neq \start_\adv$ : trivial, contains instruction only.
-                      \item $a = \start_\adv$: show $((\readonly,\glob),\link,\link+1,\link) \in \stdvr(W)$\\
-                        SFTS $\iota_{\link} \nsubsim[n'] \iota^\pwl_{\link,\link+1}$\\
-                        $\iota_{\link}$ accepts only $\ms_\link$, so show:
-                        \begin{enumproof}
-                        \item $\npair[n'-1]{c_\malloc} \in \stdvr(W)$: We assume
-                          this is indeed the case.\dominique{TODO: prove}
-                        \item $\npair[n'-1]{c_\adv} \in \stdvr(W)$: for $n'' <
-                          n'-1$ and $W' \futurestr W$ show:
-                          \\$\npair[n'']{\updatePcPerm{c_\adv}} \in \stdvr(W')$.
-                          Use FTLR.\dominique{no: by induction hypothesis?} \label{f1:adv}
-                        \end{enumproof}
-                      \end{enumproof}
-                    \item The remaining islands are designed to accept their designated islands.
-                    \end{enumproof}
-                  \end{enumproof}
-                \item $\npair[n']{\reg_0\update{\pcreg}{\updatePcPerm{c_{\var{adv}}}}\update{r_1}{c_{\var{adv}}}\update{r_0}{c_{ar}'}} \in \stdrr(W)$
-                  \begin{enumproof}
-                  \item case: $\npair[n']{c_{\var{adv}}} \in \stdvr(W)$
-                    \begin{enumproof}
-                    \item Similar to \ref{f1:adv}
-                    \end{enumproof}
-                  \item case: $\npair[n']{c_{\var{ar}}'} \in \stdvr(W)$.
-                    \begin{enumproof}
-                    \item Let $n'' < n'$ and $W' \futurewk W$ be given and show $\npair[n'']{\updatePcPerm{c_{\var{ar}}'}} \in \stdvr(W')$\\
-                      Let $n^{(3)} \leq n''$, $\heapSat[\ms']{n''}{W'}$, and $\npair[n^{(3)}]{\reg}$ be given\\
-                      Show: $\npair[n^{(3)}]{(\reg\update{\pcreg}{\updatePcPerm{c_{\var{ar}}'}},\ms')} \in \observations(W')$\\
-                      Assume $(\reg\update{\pcreg}{\updatePcPerm{c_{\var{ar}}'}},\ms' \uplus \ms_{\var{frame}}) \step[k''] (\halted, m')$, for some $k''$, $m'$ and $\ms_{\var{frame}}$. Due to $\heapSat[\ms']{n''}{W'}$, $\ms_{f1}$, $\ms_\flag$, $\ms_{\var{ar}}'$, and $\ms_l$ are unchanged. \\
-                      The execution loads $c_l$ to $r_l$ and jumps to $c_{f1}^{(3)}$ (the point just before the assertion). As $\ms_l = 1$, the assertion is successful and the execution halts. In other words, there were no changes to the memory.\\
-                      Use $W'$, $\ms_r = \emptyset$, and $\ms'$ to get the desired result, i.e., $m' = \ms' \uplus \ms_{\var{frame}}$ and $\heapSat[\ms']{n''-k''}{W'}$ (using downwards closure of memory satisfaction).          
-                    \end{enumproof}
-                  \item case: $\npair[n']{0} \in \stdvr(W)$
-                    \begin{enumproof}
-                    \item Trivial
-                    \end{enumproof}
-                  \end{enumproof}
-                \end{enumproof}
-                Get
-                \[
-                  \npair[n']{(\reg_0\update{\pcreg}{\updatePcPerm{c_{\var{adv}}}}\update{r_1}{c_{\var{adv}}}\update{r_0}{c_{ar}'},\ms)} \in \observations(W)
-                \]
-                By initial assumption of the lemma, the execution halts. Use $\ms_{\var{frame}}$, $m'$ and the number of steps it takes to halt to get:
-                $W' \futurestr W$, $\ms_r$ and $\ms'$ s.t. $m' = \ms_r \uplus \ms' \uplus \ms_{\var{frame}}$ and $\heapSat[\ms']{n' - \dots}{W'}$. As $\iota_\flag$ is a permanent region, we know it is still in $W'$, so $m'(\flag) = 0$.
-              \end{proof}
+\begin{lemma}[Correctness lemma for \texttt{f1}] \forcenewline
+  \label{lem:correctness-f1}
+  For all $n \in \nats$
+  let
+  \begin{align*}
+    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
+    c_{f1} & \defeq ((\rwx,\glob),\mathtt{f1}-\olf,\mathtt{1f},\mathtt{f1}) \\
+    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
+    m & \defeq \hs_{f1} \uplus 
+        \hs_\flag \uplus                
+        \ms_{\var{link}} \uplus 
+        \hs_\adv \uplus 
+        \ms_{\malloc} \uplus 
+        \hs_{\var{frame}} 
+  \end{align*}
+  and
+  \begin{itemize}
+  \item $c_\malloc$ satisfies the specification for malloc.
+  \end{itemize}
+  where 
+  \begin{align*}
+    &\dom(\hs_{f1}) = [\mathtt{f1}-\olf,\mathtt{1f}] \\
+    &\dom(\hs_\flag) = [\flag,\flag] \\
+    &\dom(\ms_\link) = [\link,\link+1]\\
+    &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
+    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]}
+  \end{align*}
+  and
+  \begin{itemize}
+  \item $\ms_{f1}(\mathtt{f1}-\olf) = ((\readonly,\glob),\link,\link+1,\link)$, $\ms_{f1}(\mathtt{f1}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{f1}$ contains the code of $f1$.
+  \item $\ms_\flag = [\flag \mapsto 0]$
+  \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
+  \item $\hs_\adv$ contains a global read-only capability for $\hs_\link$ on its first address. The remaining cells of the memory segment only contain instructions.
+  \end{itemize}
+  if 
+  \[
+    (\reg_0\update{\pcreg}{c_{f1}},m) \step[n] (\halted,m'),
+  \]
+  then
+  \[
+    m'(\flag) = 0
+  \]  
+\end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:correctness-f1}]
+  Let $n$ be given and assume the premises in the lemma.  Consider the following part of the execution:
+  \[
+    (\reg_0\update{\pcreg}{c_{f1}},m) \step[i] (\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}'}\update{r_1}{1},m)
+  \]
+  Where $c_{f1}'$ is the return address. Use the malloc specification with
+  \begin{align*}
+    \iota_\malloc &= \iota_{\malloc,0} \\
+    \ms_{\var{footprint}} & = \ms_\malloc \\
+    \memreg(r_1) & = \size = 1
+  \end{align*}
+  to get 
+  \[
+    (\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}'}\update{r_1}{1},m) \step[j] (\reg_0\update{\pcreg}{c_{f1}'}\update{r_0}{c_{f1}'}\update{r_1}{c_l},m')
+  \]
+  for some $j$ where for some $\iota_{\malloc}' \futurewk \iota_{\malloc,0}$
+  \begin{enumerate}
+  \item $m' = \hs_{f1} \uplus 
+    \hs_\flag \uplus                
+    \ms_{\var{link}} \uplus 
+    \hs_\adv \uplus 
+    \ms_l \uplus
+    \ms_{\malloc}' \uplus 
+    \hs_{\var{frame}} $
+  \item $\heapSat[\ms_{\malloc}']{n-j}{[0 \mapsto \iota_{\malloc}]}$ \label{f1:mallocsat}
+  \item $\dom(\hs_l) = [l,l]$
+  \item $c_l = ((\rwx,\glob),l,l,l)$ \label{test}
+  \item $\ms_l(l) = 0$
+  \end{enumerate}
+  Continue the execution to the next malloc hidden in \texttt{call}.
+  \[
+    (\reg_0\update{\pcreg}{c_{f1}'}\update{r_0}{c_{f1}'}\update{r_1}{c_l},m')
+    \step[k]
+    (\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}''}\update{r_1}{\dots}\update{r_l}{c_l},m'')
+  \]
+  where
+  \begin{enumerate}[resume]
+  \item $m'' = m'[l\mapsto 1]$
+  \end{enumerate}
+  Use the malloc specification notice:
+  \begin{itemize}
+  \item $\cdots$ represents the needed size for the activation record. 
+  \item \ref{f1:mallocsat}.\ and (downwards closure) gives us the needed memory segment satisfaction.
+  \item $\ms_{\var{footprint}} =  \ms_\malloc' $
+  \end{itemize}
+  Get:
+  \[
+    (\reg_0\update{\pcreg}{c_\malloc}\update{r_0}{c_{f1}''}\update{r_1}{\dots}\update{r_l}{c_l},m'')
+    \step[j']
+    (\reg_0\update{\pcreg}{c_{f1}''}\update{r_0}{c_{f1}''}\update{r_1}{c_{\var{ar}}}\update{r_l}{c_l},m^{(3)})
+  \]
+  for some $j'$ where for some $[0 \mapsto \iota_{\malloc}'] \futurewk [0 \mapsto \iota_{\malloc}]$
+  \begin{enumerate}[resume]
+  \item $m'' = \hs_{f1} \uplus 
+    \hs_\flag \uplus                
+    \ms_{\var{link}} \uplus 
+    \hs_\adv \uplus 
+    \ms_{l} \uplus
+    \ms_{\var{ar}} \uplus
+    \ms_{\malloc}'' \uplus 
+    \hs_{\var{frame}} $
+  \item $\heapSat[\ms_{\malloc}'']{n-j-j'}{[0 \mapsto \iota_{\malloc}']}$ \label{f1:mallocsat}
+  \item $\dom(\hs_{\var{ar}}) = [b,e]$
+  \item $c_l = ((\rwx,\glob),b,e,b)$ \label{test}
+  \item $\forall a \in [b,e] \ldotp \ms_{\var{ar}}(a) = 0$
+  \end{enumerate}
+  Continue execution until just after the jump to $\var{adv}$.
+  \[
+    (\reg_0\update{\pcreg}{c_{f1}''}\update{r_0}{c_{f1}''}\update{r_1}{c_{\var{ar}}}\update{r_l}{c_l},m^{(3)})
+    \step[k']
+    (\reg_0\update{\pcreg}{\updatePcPerm{c_{\var{adv}}}}\update{r_1}{c_{\var{adv}}}\update{r_0}{c_{ar}'},m^{(3)})
+  \]
+  for some $k'$ where
+  \begin{itemize}
+  \item $m^{(3)} = \hs_{f1} \uplus 
+    \hs_\flag \uplus                
+    \ms_{\var{link}} \uplus 
+    \hs_\adv \uplus 
+    \ms_{l} \uplus
+    \ms_{\var{ar}}' \uplus
+    \ms_{\malloc}'' \uplus 
+    \hs_{\var{frame}} $
+  \item $\ms_{\var{ar}}'$ contains the activation record, i.e., $c_l$, $c_{f1}^{(3)}$ (the return address in f1), and activation code.
+  \item $c_{\var{ar}}' = ((\entry,\local)b,e,b+\olf)$ where $b+\olf$ is the first address of the activation code.
+  \end{itemize}
+  Define
+  \begin{itemize}
+  \item $W = [0 \mapsto \iota_\malloc']
+    [1 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]
+    [2 \mapsto \iota_{f1}]
+    [3 \mapsto \iota_{\var{ar}}]
+    [4 \mapsto \iota_l]
+    [5 \mapsto \iota_\flag]
+    [5 \mapsto \iota_\link]$
+  \end{itemize}
+  \lau{Need to change this to use the new standard regions}
+  where
+  \begin{itemize}
+  \item $\iota_{f1}$, $\iota_{\var{ar}}$, $\iota_l$, $\iota_\flag$, and $\iota_\link$ are permanent islands that only accepts respectively $\ms_{f1}$, $\ms_{\var{ar}}$, $\ms_l$, $\ms_\flag$, and $\ms_\link$.
+  \end{itemize}
+  define
+  \begin{enumerate}
+  \item $\ms = \hs_{f1} \uplus 
+    \hs_\flag \uplus                
+    \ms_{\var{link}} \uplus 
+    \hs_\adv \uplus 
+    \ms_{l} \uplus
+    \ms_{\var{ar}}' \uplus
+    \ms_{\malloc}'' $ \label{f1:ms-disj-union}
+  \end{enumerate}
+  Use the FTLR on $\updatePcPerm{c_{\var{adv}}}$ using world $W$, so show
+  \begin{itemize}
+  \item $\npair{(\start_{\adv},\addrend_{\adv})} \in \readCond{}(\glob)(W)$
+    \begin{itemize}
+    \item Show: $\iota^{\nwl,p}_{\start_\adv,\addrend_\adv} \nsubsim[n] \iota^\pwl_{\start_\adv,\addrend_\adv}$: $\iota^{\nwl,p}_{\start_\adv,\addrend_\adv}
+      \nsubsim[n] \iota^\pwl_{\start_\adv,\addrend_\adv}$: see Lemma~\ref{lem:nwlp-subset-pwl}.
+    \end{itemize}
+  \end{itemize}
+  Have
+  \begin{enumerate}[resume]
+  \item $\npair{\updatePcPerm{c_{\var{adv}}}} \in \stder(W)$
+  \end{enumerate}
+  Let $n' = n - j - j'$ and show
+  \begin{enumproof}[resume]
+  \item $n' \leq n$
+    \begin{enumproof}
+    \item trivial
+    \end{enumproof}
+  \item $\heapSat[\ms]{n'}{W}$
+    \begin{enumproof}
+    \item Split the memory into the disjoint unions of \ref{f1:ms-disj-union} and show:
+      \begin{enumproof}
+      \item case: $\npair[n']{\ms_\malloc} \in \iota_\malloc'.H (\iota_\malloc'.s) (W)$ 
+        \begin{enumproof}
+        \item Use $\heapSat[\ms_\malloc]{n'}{[0 \mapsto \iota_\malloc']}$ with malloc specification context independence property.
+        \end{enumproof}
+      \item case: $\npair[n']{\ms_\adv} \in H^\nwl_{\start_\adv,\addrend_\adv} 1 W$ \label{lem:f1-adv-mem-sat}
+        \begin{enumproof}
+        \item Show $\forall a \in [\start_\adv,\addrend_\adv] \ldotp \npair[n'-1]{\ms(a)} \in \stdvr(W)$
+        \end{enumproof}
+        (non-local requirement trivial - only capability if the link one, and it is $\glob$).
+        \begin{enumproof}
+        \item $a \neq \start_\adv$ : trivial, contains instruction only.
+        \item $a = \start_\adv$: show $((\readonly,\glob),\link,\link+1,\link) \in \stdvr(W)$\\
+          SFTS $\iota_{\link} \nsubsim[n'] \iota^\pwl_{\link,\link+1}$\\
+          $\iota_{\link}$ accepts only $\ms_\link$, so show:
+          \begin{enumproof}
+          \item $\npair[n'-1]{c_\malloc} \in \stdvr(W)$: We assume
+            this is indeed the case.\dominique{TODO: prove}
+          \item $\npair[n'-1]{c_\adv} \in \stdvr(W)$: for $n'' <
+            n'-1$ and $W' \futurestr W$ show:
+            \\$\npair[n'']{\updatePcPerm{c_\adv}} \in \stdvr(W')$.
+            Use FTLR.\dominique{no: by induction hypothesis?} \label{f1:adv}
+          \end{enumproof}
+        \end{enumproof}
+      \item The remaining islands are designed to accept their designated islands.
+      \end{enumproof}
+    \end{enumproof}
+  \item $\npair[n']{\reg_0\update{\pcreg}{\updatePcPerm{c_{\var{adv}}}}\update{r_1}{c_{\var{adv}}}\update{r_0}{c_{ar}'}} \in \stdrr(W)$
+    \begin{enumproof}
+    \item case: $\npair[n']{c_{\var{adv}}} \in \stdvr(W)$
+      \begin{enumproof}
+      \item Similar to \ref{f1:adv}
+      \end{enumproof}
+    \item case: $\npair[n']{c_{\var{ar}}'} \in \stdvr(W)$.
+      \begin{enumproof}
+      \item Let $n'' < n'$ and $W' \futurewk W$ be given and show $\npair[n'']{\updatePcPerm{c_{\var{ar}}'}} \in \stdvr(W')$\\
+        Let $n^{(3)} \leq n''$, $\heapSat[\ms']{n''}{W'}$, and $\npair[n^{(3)}]{\reg}$ be given\\
+        Show: $\npair[n^{(3)}]{(\reg\update{\pcreg}{\updatePcPerm{c_{\var{ar}}'}},\ms')} \in \observations(W')$\\
+        Assume $(\reg\update{\pcreg}{\updatePcPerm{c_{\var{ar}}'}},\ms' \uplus \ms_{\var{frame}}) \step[k''] (\halted, m')$, for some $k''$, $m'$ and $\ms_{\var{frame}}$. Due to $\heapSat[\ms']{n''}{W'}$, $\ms_{f1}$, $\ms_\flag$, $\ms_{\var{ar}}'$, and $\ms_l$ are unchanged. \\
+        The execution loads $c_l$ to $r_l$ and jumps to $c_{f1}^{(3)}$ (the point just before the assertion). As $\ms_l = 1$, the assertion is successful and the execution halts. In other words, there were no changes to the memory.\\
+        Use $W'$, $\ms_r = \emptyset$, and $\ms'$ to get the desired result, i.e., $m' = \ms' \uplus \ms_{\var{frame}}$ and $\heapSat[\ms']{n''-k''}{W'}$ (using downwards closure of memory satisfaction).          
+      \end{enumproof}
+    \item case: $\npair[n']{0} \in \stdvr(W)$
+      \begin{enumproof}
+      \item Trivial
+      \end{enumproof}
+    \end{enumproof}
+  \end{enumproof}
+  Get
+  \[
+    \npair[n']{(\reg_0\update{\pcreg}{\updatePcPerm{c_{\var{adv}}}}\update{r_1}{c_{\var{adv}}}\update{r_0}{c_{ar}'},\ms)} \in \observations(W)
+  \]
+  By initial assumption of the lemma, the execution halts. Use $\ms_{\var{frame}}$, $m'$ and the number of steps it takes to halt to get:
+  $W' \futurestr W$, $\ms_r$ and $\ms'$ s.t. $m' = \ms_r \uplus \ms' \uplus \ms_{\var{frame}}$ and $\heapSat[\ms']{n' - \dots}{W'}$. As $\iota_\flag$ is a permanent region, we know it is still in $W'$, so $m'(\flag) = 0$.
+\end{proof}
 
 
-              Assembly program using the stack. This program assumes a $r_\stk \not\in \{\pcreg,r_0\}$ register that contains a stack capability (a local $\rwlx$-capability):
+Assembly program using the stack. This program assumes a $r_\stk \not\in \{\pcreg,r_0\}$ register that contains a stack capability (a local $\rwlx$-capability):
 \begin{verbatim}
 f2: push 1
     fetch r1 adv
