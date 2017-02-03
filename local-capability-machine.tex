@@ -648,12 +648,13 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                               \stdUpdatePc{\updateReg{r}{\var{c}}} &
                                               \arraycolsep=0pt
                                               \begin{array}[t]{l}
-                                                \text{if $\memreg(r) = \stdcap[\permp]$} \\
+                                                \text{if $\memreg(r) = \stdcap$} \\
                                                 \quad\text{and for $i \in \{1,2\}$}\\
                                                 \quad\text{$n_i = \rv_i$ or $n_i = \memreg(\rv_i)$}\\
                                                 \quad\text{and in either case $n_i \in \ints$}\\
                                                 \quad\text{and $\start \leq n_1$ and $n_2 \leq \addrend$}\\
-                                                \quad\text{and $c = (\permp,n_1,n_2,\addr)$}
+                                                \quad\text{and $\perm \neq \entry$}\\
+                                                \quad\text{and $c = ((\perm,\gl),n_1,n_2,\addr)$}
                                               \end{array} \\
                                               \failed & \text{otherwise}
                                             \end{cases}
@@ -1504,7 +1505,8 @@ f1: malloc r_l 1
                 \begin{itemize}
                 \item $\npair{(\start_{\adv},\addrend_{\adv})} \in \readCond{}(\glob)(W)$
                   \begin{itemize}
-                  \item Show: $\iota^{\nwl,p}_{\start_\adv,\addrend_\adv} \nsubsim[n-1] \iota^\pwl_{\start_\adv,\addrend_\adv}$. %Lemma
+                  \item Show: $\iota^{\nwl,p}_{\start_\adv,\addrend_\adv} \nsubsim[n] \iota^\pwl_{\start_\adv,\addrend_\adv}$: $\iota^{\nwl,p}_{\start_\adv,\addrend_\adv}
+                    \nsubsim[n] \iota^\pwl_{\start_\adv,\addrend_\adv}$: see Lemma~\ref{lem:nwlp-subset-pwl}.
                   \end{itemize}
                 \end{itemize}
                 Have
@@ -1533,11 +1535,15 @@ f1: malloc r_l 1
                       \begin{enumproof}
                       \item $a \neq \start_\adv$ : trivial, contains instruction only.
                       \item $a = \start_\adv$: show $((\readonly,\glob),\link,\link+1,\link) \in \stdvr(W)$\\
-                        SFTS $\iota_{\link} \nsubsim[n'-1] \iota^\pwl_{\link,\link+1}$\\
+                        SFTS $\iota_{\link} \nsubsim[n'] \iota^\pwl_{\link,\link+1}$\\
                         $\iota_{\link}$ accepts only $\ms_\link$, so show:
                         \begin{enumproof}
-                        \item $\npair[n'-2]{c_\malloc} \in \stdvr(W)$: We assume this is indeed the case.
-                        \item $\npair[n'-2]{c_\adv} \in \stdvr(W)$: for $n'' < n'-2$ and $W' \futurestr W$ show: \\$\npair[n'']{\updatePcPerm{c_\adv}} \in \stdvr(W')$. Use FTLR. \label{f1:adv}
+                        \item $\npair[n'-1]{c_\malloc} \in \stdvr(W)$: We assume
+                          this is indeed the case.\dominique{TODO: prove}
+                        \item $\npair[n'-1]{c_\adv} \in \stdvr(W)$: for $n'' <
+                          n'-1$ and $W' \futurestr W$ show:
+                          \\$\npair[n'']{\updatePcPerm{c_\adv}} \in \stdvr(W')$.
+                          Use FTLR.\dominique{no: by induction hypothesis?} \label{f1:adv}
                         \end{enumproof}
                       \end{enumproof}
                     \item The remaining islands are designed to accept their designated islands.
@@ -1715,7 +1721,7 @@ f2: push 1
   \]
   Which amounts to
   \[
-    \iota^{\nwl,p}_{\start_\adv,\addrend_\adv} \nsubsim[n-1] \iota^\pwl_{\start_\adv,\addrend_\adv}
+    \iota^{\nwl,p}_{\start_\adv,\addrend_\adv} \nsubsim[n] \iota^\pwl_{\start_\adv,\addrend_\adv}
   \]
   which is indeed the case by Lemma~\ref{lem:nwlp-subset-pwl}. Use this to apply the FTLR to get 
   \begin{enumproof}
@@ -1751,9 +1757,9 @@ f2: push 1
       \item $\npair{(\start_\stk'', \addrend_\stk)} \in \readCond{}(\local)(W)$ \\
         This amounts to showing 
         \[
-          \iota^\pwl_{\start_\stk'', \addrend_\stk} \nsubsim[n-1] \iota^\pwl_{\start_\stk'', \addrend_\stk}
+          \iota^\pwl_{\start_\stk'', \addrend_\stk} \nsubsim[n] \iota^\pwl_{\start_\stk'', \addrend_\stk}
         \]
-        which is indeed the case.
+        which is trivially the case.
       \item $\npair{(\start_\stk'', \addrend_\stk)} \in \writeCond{}(\iota^\pwl,\local)(W)$\\
         This amounts to showing 
         \[
@@ -1772,9 +1778,9 @@ f2: push 1
         \item $\npair[n']{\start_\stk'', \addrend_\stk} \in \readCond{}(\local)(W')$\\
           this amounts to showing
           \[
-            \iota^\pwl_{\start_\stk'', \addrend_\stk} \nsubsim[n'-1] \iota^\pwl_{\start_\stk'', \addrend_\stk}
+            \iota^\pwl_{\start_\stk'', \addrend_\stk} \nsubsim[n'] \iota^\pwl_{\start_\stk'', \addrend_\stk}
           \]
-          which is indeed the case.
+          which is trivially the case.
         \item $\npair[n']{\start_\stk'', \addrend_\stk} \in \writeCond{}(\local)(W')$ \\
           this amounts to showing
           \[
@@ -2550,7 +2556,7 @@ In the proof of Lemma~\ref{lem:correctness-g1}, we will use the following region
           \]
           which amounts to
           \[
-            \iota^{\sta,u} (\perma,\ms_\link) \nsubsim[n-2] \iota^\pwl_{\link,\link}
+            \iota^{\sta,u} (\perma,\ms_\link) \nsubsim[n-1] \iota^\pwl_{\link,\link}
           \]
           which follows from Lemma~\ref{lem:stau-subset-pwl}.
       \end{enumproof}
@@ -2969,7 +2975,7 @@ The two future world relations satisfy the following properties: They allow for 
 
 \begin{proof}[Proof of Theorem~\ref{thm:world-existence}]
   The theorem follows from a more general solution theorem for the
-  category of $P$ preordered cofe's~\cite{bizjak-note}. 
+  category of $P$ preordered \cofes, see~\cite{bizjak-note}. 
   We define two functors $F_1$ and $F_2$ from $P^{op}\times P^{op}$ to
   $P$. 
   \begin{align*}
@@ -2999,12 +3005,12 @@ The two future world relations satisfy the following properties: They allow for 
   $F_1$ and $F_2$ are defined by the properties given above.
   Note that the image of $F_1$ and $F_2$ only differ in the ordering
   relation, i.e., letting $U$ denote the forgetful functor from the
-  category of preordered cofe's to the category of cofe's, we have
+  category of preordered \cofes\ to the category of \cofes, we have
   $U \circ F_1 = U \circ F_2$.
-  From~\cite{bizjak-note} it then follows that there exists a cofe $\Wor$ and two
+  From~\cite{bizjak-note} it then follows that there exists a \cofe\ $\Wor$ and two
   preorderings $\futurestr$ and $\futurewk$ and an isomorphism $\xi$ satisfying the properties
   claimed in theorem.
-  (Here, in the proof, we have written the ordering explicitly on the cofe when
+  (Here, in the proof, we have written the ordering explicitly on the \cofe\ when
   using monotone non-expansive functions; in the theorem formulation
   we have instead annotated the arrow to indicate which ordering is used.)
 \end{proof}
@@ -3495,6 +3501,8 @@ Static region used for parts of memory that should not change and where you pass
     & \quad \dom(\ms) = [\start,\addrend] \Rightarrow \\
     & \qquad \iota^{\sta,u}_{\start,\addrend}(v,\ms) \nsubsim \iota^\pwl_{\start,\addrend}
   \end{align*}
+  \dominique{err.. shouldn't you require that $\npair{\ms(a)}\in\stdvr(W)$ for
+    all $W$.  Hm: this probably doesn't hold like that?}
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:stau-subset-pwl}]
   Essentially the same as the proof of Lemma~\ref{lem:nwl-subset-pwl} and Lemma~\ref{lem:hwnl-nsubset-hpwl}.
@@ -3600,7 +3608,7 @@ Static region used for parts of memory that should not change and where you pass
   \]
   Gives $r \in \localityReg(\gl,\revokeTemp{W})$ such that
   \[
-    \forall [\start',\addrend'] \subseteq [\start,\addrend] \ldotp \revokeTemp{W}(r) \nsubsim[n-1] \iota^\pwl_{[\start',\addrend']}
+    \forall [\start',\addrend'] \subseteq [\start,\addrend] \ldotp \revokeTemp{W}(r) \nsubsim[n] \iota^\pwl_{[\start',\addrend']}
   \]
   Notice $\revokeTemp{W}(r)$ is a $\perma$ region, so $\revokeTemp{W}(r) = W(r)$. Using $r$ as witness, the result is immediate.
 \end{proof}
@@ -3995,6 +4003,41 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
    ignored in all cases except where $\perm = \entry$.
  \end{proof}
  
+ \begin{lemma}[pwl writecond implies nwl]
+   \label{lem:pwl-writecond-implies-nwl}
+   If $\npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W)$ then
+   $\npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W) \}$.
+ \end{lemma}
+ \begin{proof}
+   \begin{enumproof}
+   \item $\exists r \in \var{localityReg}(g,W) \ldotp$ $\exists
+     [\start',\addrend'] \supseteq [\start,\addrend] \ldotp$ $W(r)\nsupsim[n-1]
+     \iota^\pwl_{\start',\addrend'}$: by definition of $\writeCond{}$.
+   \item Suffices: $W(r)\nsupsim[n-1] \iota^\nwl_{\start',\addrend'}$. By
+     definition of $\writeCond{}$
+   \item $W(r)\nsupsim[n-1] \iota^\pwl_{\start',\addrend'} \nsupsim[n-1]
+     \iota^\nwl_{\start',\addrend'}$: follows by Lemma~\ref{lem:nwl-subset-pwl}.
+   \end{enumproof}
+ \end{proof}
+ 
+ \begin{lemma}[execCond implies entryCond]
+   \label{lem:execCond-implies-entryCond}
+   If $\npair{(\exec,\start,\addrend)} \in \execCond{}(\gl)(W)$ then
+     $\npair{(\start,\addrend,\addr)} \in \entryCond{}(\gl)(W)$.
+ \end{lemma}
+ \begin{proof}
+   \begin{enumproof}
+   \item Assume: $n' < n$, $W' \future W$ where $\gl = \local \Rightarrow
+     \future = \futurewk$ and $\gl = \glob \Rightarrow \future = \futurestr$
+     \\
+     Suffices: $\npair[n']{((\exec,\gl),\start,\addrend,\addr)} \in \stder(W')$
+   \item Case $\addr \in [\start,\addrend]$: Follows from the definition of
+     $\execCond{}$.
+   \item Case $\addr \not\in[\start,\addrend]$: Follows by
+     Lemma~\ref{lem:failed-obs-stder}.
+   \end{enumproof}
+ \end{proof}
+ 
  \begin{lemma}[Conditions for restrict instruction are sufficient]
    \label{lem:conds-restrict-suffice}
    If
@@ -4006,22 +4049,33 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
    then  $\npair{((\perm',\gl'),\start,\addrend,\addr)}\in \stdvr(W)$
  \end{lemma}
  \begin{proof}
-   TODO
+   By inspection of the definition of $\stdvr(W)$, everything follows trivially
+   except the following.
+
+   \begin{enumproof}
+   \item If $\npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W)$ then
+     $\npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W)$: holds
+     by lemma~\ref{lem:pwl-writecond-implies-nwl}.
+   \item If $\npair{(\exec,\start,\addrend)} \in \execCond{}(\gl)(W)$ then
+     $\npair{(\start,\addrend,\addr)} \in \entryCond{}(\gl)(W)$.
+   \end{enumproof}
  \end{proof}
  
  \begin{lemma}[Conditions for subseg instruction are sufficient]
    \label{lem:conds-subseg-suffice}
    If
    \begin{itemize}
-   \item $\npair{((\perm',\gl'),\start',\addrend',\addr')} \in \stdvr(W)$
-   \item $\start' \leq \start''$
-   \item $\addrend'' \leq \addrend'$
+   \item $\npair{((\perm,\gl),\start,\addrend,\addr)} \in \stdvr(W)$
+   \item $\start \leq \start'$
+   \item $\addrend' \leq \addrend$
+   \item $\perm \neq \entry$
    \end{itemize}
  
-   then $\npair{((\perm',\gl'),\start'',\addrend'',\addr')} \in \stdvr(W)$
+   then $\npair{((\perm,\gl),\start',\addrend',\addr)} \in \stdvr(W)$
  \end{lemma}
  \begin{proof}
-   TODO
+   Follows easily from the definitions of $\stdvr(W)$, $\readCond{}$,
+   $\writeCond{}$, $\execCond{}$.
  \end{proof}
  
  
@@ -4173,7 +4227,7 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
     \item $\memreg[\Phi''](r) = \var{c}$ and $\memreg(r) =
       ((\perm',\gl'),\start',\addrend',\addr')$ and $\start' \leq \start''$ and
       $\addrend'' \leq \addrend'$ and $c =
-      ((\perm',\gl'),\start'',\addrend'',\addr')$
+      ((\perm',\gl'),\start'',\addrend'',\addr')$ and $\perm' \neq \entry$
     \end{itemize}
     In this case, we have:
     \begin{enumproof}
@@ -4229,7 +4283,7 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
       \item $\memreg[\Phi''](r) = \var{c}$ and $\memreg(r) =
         ((\perm',\gl'),\start',\addrend',\addr')$ and $\start' \leq \start''$ and
         $\addrend'' \leq \addrend'$ and $c =
-        ((\perm',\gl'),\start'',\addrend'',\addr')$: \\
+        ((\perm',\gl'),\start'',\addrend'',\addr')$ and $\perm' \neq \entry$: \\
         $\npair[n'-1]{\memreg[\Phi''](r)} \in \stdvr(W)$ follows by
         Lemmas~\ref{lem:conds-subseg-suffice} and~\ref{lem:stdvr-dc} using the
         fact that $\npair[n']{\memreg(r)}\in\stdvr(W)$
