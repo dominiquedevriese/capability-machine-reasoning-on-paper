@@ -1874,7 +1874,7 @@ f2: push 1
         \]
         which is trivially the case.
       \item $\npair{(\start_\stk'', \addrend_\stk)} \in \writeCond{}(\iota^\pwl,\local)(W)$\\
-        This amounts to showing 
+        Using Lemma~\ref{lem:iota-pwl-address-stratified}, this amounts to showing
         \[
           \iota^\pwl_{\start_\stk'', \addrend_\stk} \nsupsim[n-1] \iota^\pwl_{\start_\stk'', \addrend_\stk}
         \]
@@ -1895,7 +1895,7 @@ f2: push 1
           \]
           which is trivially the case.
         \item $\npair[n']{\start_\stk'', \addrend_\stk} \in \writeCond{}(\local)(W')$ \\
-          this amounts to showing
+          Using Lemma~\ref{lem:iota-pwl-address-stratified}, this amounts to showing
           \[
             \iota^\pwl_{\start_\stk'', \addrend_\stk} \nsupsim[n'-1] \iota^\pwl_{\start_\stk'', \addrend_\stk}
           \]
@@ -2624,7 +2624,8 @@ In the proof of Lemma~\ref{lem:correctness-g1}, we will use the following region
     \item $\npair{(\start_\adv,\addrend_\adv)} \in \readCond{}(\glob)(W)$\\
       Simple using region $3$ in $W$ and Lemma~\ref{lem:nwlp-subset-pwl}.
     \item $\npair{(\start_\adv,\addrend_\adv)} \in \writeCond{}(\iota^\nwl,\glob)(W)$\\
-      Simple using region $3$ in $W$.
+      Simple using region $3$ in $W$, using
+      Lemma~\ref{lem:iota-nwl-address-stratified}.
   \end{enumproof}
   in conclusion $\npair{c_\adv} \in \stder(W)$. We get \ref{eq:f4:start-conf-in-obs} if we show the following
   \begin{enumproof}[resume]
@@ -3234,13 +3235,26 @@ We need a notion of subset between regions that is almost $n$-subset, but not qu
 \subsection{The logical relation}
 The logical relation is defined by several mutual recursive definitions. In order to handle this mutual recursion and show that this definitions are well-defined, Banach's fixed-point theorem can be used. % TODO: Reference?
 We have omitted the details of this construction here, but it is done by parameterising all the definitions by the value relation.
+
+\begin{align*}
+&\iota = (v,s,\phi_\pub,\phi,H) \text{ is address-stratified iff }\\
+&\qquad\begin{multlined}
+  \forall s', \hat{W}, n, \ms, \ms' \ldotp \\
+  \npair{\ms},\npair{\ms'} \in H~ s'~ \hat{W} \Rightarrow \\
+  \dom(\ms) = \dom(\ms') \wedge \\
+  \forall \addr \in
+  \dom(\ms)\ldotp \npair{\ms\update{\addr}{\ms'(\addr)}} \in H~ s'~ \hat{W}
+\end{multlined}
+\end{align*}
+
 \begin{align*}
   & \writeCond{} : (\Regions \times \Globals) \fun \Worlds \monnefun \UPred{\Addrs^2}  \\
   & \writeCond{}(\iota,\gl)(W) =  \\
   & \quad \begin{aligned}[t]
     \{ \npair{(\start,\addrend)} \mid & \;\exists r \in \var{localityReg}(g,W) \ldotp \\
     & \;\quad \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
-    & \;\qquad W(r)\nsupsim[n-1] \iota_{\start',\addrend'} \}
+    & \;\qquad W(r)\nsupsim[n-1] \iota_{\start',\addrend'} \text{ and }\\
+    & \;\qquad W(r) \text{ is address-stratified } \}
   \end{aligned}
 \end{align*}
 
@@ -3475,6 +3489,15 @@ Static region used for parts of memory that should not change and where you pass
   Follows from Lemma~\ref{lem:hpwl-mono}.
 \end{proof}
 
+
+\begin{lemma}
+  \label{lem:iota-pwl-address-stratified}
+  $\iota^\pwl_{\start,\addrend}$ is address-stratified.
+\end{lemma}
+\begin{proof}
+  Easy unfolding of definitions.
+\end{proof}
+
 \begin{lemma}
   \label{lem:hnwl-mono-str}
   $H^\nwl_{\start,\addrend} \; s$ is monotone w.r.t $\futurestr$ for all $s \in \States$ and $\start$ and $\addrend$
@@ -3504,6 +3527,15 @@ Static region used for parts of memory that should not change and where you pass
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:iotanwl-is-a-region}]
   Follows from Lemma~\ref{lem:hnwl-mono-str} and Lemma~\ref{lem:future-pub-impl-future-priv}.
+\end{proof}
+
+
+\begin{lemma}
+  \label{lem:iota-nwl-address-stratified}
+  $\iota^\nwl_{\start,\addrend}$ is address-stratified.
+\end{lemma}
+\begin{proof}
+  Easy unfolding of definitions.
 \end{proof}
 
 \begin{lemma}
@@ -3746,6 +3778,10 @@ Static region used for parts of memory that should not change and where you pass
   \[
     \forall [\start',\addrend'] \subseteq [\start,\addrend] \ldotp \revokeTemp{W}(r) \nsupsim[n-1] \iota_{[\start',\addrend']}
   \]
+  and 
+  \begin{equation*}
+    \revokeTemp(W)(r) \text{ is address-stratified}
+  \end{equation*}
   Notice $\revokeTemp{W}(r)$ is a $\perma$ region, so $\revokeTemp{W}(r) = W(r)$. Using $r$ as witness, the result is immediate.
 \end{proof}
 
@@ -4126,7 +4162,7 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
    \begin{enumproof}
    \item $\exists r \in \var{localityReg}(g,W) \ldotp$ $\exists
      [\start',\addrend'] \supseteq [\start,\addrend] \ldotp$ $W(r)\nsupsim[n-1]
-     \iota^\pwl_{\start',\addrend'}$: by definition of $\writeCond{}$.
+     \iota^\pwl_{\start',\addrend'}$ and $W(r)$ is address-stratified: by definition of $\writeCond{}$.
    \item Suffices: $W(r)\nsupsim[n-1] \iota^\nwl_{\start',\addrend'}$. By
      definition of $\writeCond{}$
    \item $W(r)\nsupsim[n-1] \iota^\pwl_{\start',\addrend'} \nsupsim[n-1]
@@ -4213,7 +4249,43 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
    $\heapSat[{\ms'\update{\addr}{\var{w}}}]{n}{W}$
  \end{lemma}
  \begin{proof}
-   TODO
+   \begin{enumproof}
+   \item $\npair{(\start,\addrend)} \in \writeCond{}(\iota,\gl)(W)$ where $\iota
+     = \iota^\pwl$ or $\iota = \iota^\nwl$ and (if $\var{w} =
+     ((\_,\local),\_,\_,\_)$, then $\iota = \iota^\pwl$).
+
+     By definition of $\stdvr(W)$ and $\writeAllowed{}$, from
+     $\npair{c}\in\stdvr(W)$, $((\perm,\gl),\start,\addrend,\addr) = c$ and
+     $\writeAllowed{\perm}$ and the fact that (if $\var{w} =
+     ((\_,\local),\_,\_,\_)$, then $\perm \in \{\rwlx,\readwritel \}$)
+   \item $\exists r \in \var{localityReg}(\gl,W) \ldotp$ $\exists
+     [\start',\addrend'] \supseteq [\start,\addrend] \ldotp$ $W(r)\nsupsim[n-1]
+     \iota_{\start',\addrend'}$ and $W(r)$ is address-stratified. By definition
+     of $\writeCond{}$.
+   \item $\exists P : \activeReg{W} \rightarrow \HeapSegments \ldotp$
+     $\memSatPar{\ms'}{W}{P}$. By definition of $\heapSat[\ms']{n}{W}$.
+   \item $\ms' = \biguplus_{r\in\activeReg{W}}P(r)$ and $\forall r \in
+     \activeReg{W} \ldotp$ $\exists H,s \ldotp$ $W(r) = (\_,s,\_,\_,H)$ and
+     $\npair[n]{P(r)} \in H(s)(\xi^{-1}(W))$. By definition of
+     $\memSatPar{\ms'}{W}{P}$.
+   \item $\exists H,s \ldotp$ $W(r) = (\_,s,\_,\_,H)$ and
+     $\npair[n]{P(r)} \in H(s)(\xi^{-1}(W))$. By instantiating the previous
+     point to the $r$ from the $\writeCond{}$.
+   \item $\npair{w} \in \iota.H~(\iota.s)~(\xi^{-1}(W))$ by definition of
+     $\iota^\pwl$, $\iota^\nwl$ and the fact that (if $\var{w} =
+     ((\_,\local),\_,\_,\_)$, then $\iota = \iota^\pwl$).
+   \item Define $\ms'_w$ such that $\dom(\ms'_w) = [\start',\addrend']$,
+     $\ms'_w(\addr) = w$ and $\ms'_w(\addr') = 0$ for $\addr' \neq \addr$. It's
+     easy to show from the previous point that $\npair{\ms'_w} \in
+     H(s)(\xi^{-1}(W))$.
+   \item $\dom(P(r)) = \dom(\ms'_w) = [\start',\addrend'] \ni \addr$ and
+     $\npair{P(r)\update{\addr}{w}} \in H(s)(\xi^{-1}(W))$ by applying the fact
+     that $W(r)$ is address-stratified, combined with the previous point.
+   \item Define $P'(r) = P(r)\update{a}{w}$ and $P'(r') = P(r')$ for $r' \neq r$.
+   \item $\ms'\update{a}{w} = \biguplus_{r\in\activeReg{W}}
+     P'(r)$ and $\ms'\update{a}{w} :_{n,P'} W$. By definition of
+     $\memSatPar{\ms'}{W}{P}$ and the previous two points.
+   \end{enumproof}
  \end{proof}
   
 \begin{theorem}[Fundamental theorem of logical relations]
@@ -4793,7 +4865,7 @@ Consider each of the three cases for $\perm$:
       \]
       which is true as they are even equal.
     \item $\npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\local)(W)$ : \label{pf:stack-cap-write}\\
-      Amounts to
+      Using Lemma~\ref{lem:iota-pwl-address-stratified}, this amounts to
       \[
         \iota^\pwl (\dom(\ms)) \nsupsim \iota^\pwl_{\start,\addrend}
       \]
