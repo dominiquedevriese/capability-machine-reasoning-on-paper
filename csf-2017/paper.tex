@@ -37,10 +37,7 @@
 % %make latex preview-mode work with natbib...
 % \usepackage[displaymath,floats,graphics,textmath,footnotes]{preview}
 
-\declaretheorem[numbered=yes,name=Lemma,qed=$\blacksquare$]{lemma}
-\declaretheorem[numbered=yes,name=Theorem,qed=$\blacksquare$]{theorem}
-\declaretheorem[numbered=yes,name=Definition,qed=$\blacksquare$]{definition}
-\declaretheorem[numbered=yes,name=Specification,qed=$\blacksquare$]{specification}
+\newtheorem{theorem}{Theorem}
 
 \newcommand{\forcenewline}{$\phantom{v}$\\}
 \newcommand{\judgment}[2]{\paragraph{#1}\hspace{\stretch{1}}\fbox{$#2$}}
@@ -362,23 +359,29 @@ Our unary logical relation is a semantic \emph{definition}
 of which values for the
 pc / register-file / word are capability safe. 
 
-
+\emph{adversary}: It doesn't sound ``sexy'' to constantly say ``an untrusted
+piece of code'' should we adopt the convention that adversary refers
+to an unstrusted piece of code?
 
 \section{Introduction}
 \label{sec:introduction}
 \todo[inline]{See the latex comments for the next paragraphs!}
 % Possible high-level intros:
+% 0) Arms race compilers
+%
 % 1) Security guarantees vs obstacles / arms race
-Security on processors is today subject to an arms race between
-processor manufacturers and hackers. On the hacker side, a constant
-effort is put into exploiting current processor designs and
-circumventing the security measures set in place to prevent known
-exploits. On the processor manufacturer side, new security measures
-are put in place to prevent new exploits. The arms race would come to
-a grinding halt if the security meassures provided more than obstacles
-and actually provided low-level security guarantees. One kind of
-low-level machines that provide low-level security is a capability machine.
-
+\begin{comment}
+  Security on processors is today subject to an arms race between
+  processor manufacturers and hackers. On the hacker side, a constant
+  effort is put into exploiting current processor designs and
+  circumventing the security measures set in place to prevent known
+  exploits. On the processor manufacturer side, new security measures
+  are put in place to prevent new exploits. The arms race would come
+  to a grinding halt if the security meassures provided more than
+  obstacles and actually provided low-level security guarantees. One
+  kind of low-level machines that provide low-level security is a
+  capability machine.
+\end{comment}
 % 2) Fully abstract compilation
 High-level languages provide guarantees such as encapsulation of local
 state and well-bracketedness of function calls. These guarantees are
@@ -398,19 +401,28 @@ that provides some means of security guarantees is a capability machine.
 % 3) Memory access-control
 % I don't like this angle and can't find a good way to sell it.
 
+% 4) History
+% Proposals throughout history.
+% Lack of formal account of properties-guarantees.
+
 %%% a)
 % Current low-level protection coarse grained memory protection or
 % properties of high-level languages are not really enforced?
 
 % Capability machines offer fine-grained memory protection
+% Too technical
 A capability machine is a low-level machine that offers fine-grained
 memory protection.
 % Capability machines and unforgeable tokens for memory access. 
 This is done by introducing unforgeable tokens to
 the machine. These tokens are called capabillities and grant a kind of
-authority and a range of authority. We will refer to the capabilities
+authority and a range of authority. 
+% Dynamic checks encapsulation, formal model
+
+ We will refer to the capabilities
 that grant a combination of read, write, or execute permission as memory
-capabilities. Capabilities with the necessary permissions must be
+capabilities. 
+ Capabilities with the necessary permissions must be
 presented every time an instruction that manipulates the memory is
 executed.
 
@@ -431,7 +443,7 @@ an untrusted program, then we have to assume that the program keeps it
 around indefenitely. This means that we cannot reuse the piece of
 memory that the capability governs essentially creating a memory
 leak. The CHERI processor has a special kind of capabilities called
-\emph{local capabilities}\todo{reference?} that introduces a simple
+\emph{local capabilities}\todo{reference?}\ that introduces a simple
 kind of temporal information control which allows for a simple kind of
 capability revocation. This is achieved by adding a tag to every
 capability that marks it as either local or global. Local capabilities
@@ -643,31 +655,48 @@ Explain our model of linking
 LB: maybe we can present the examples informally before the logical relation and then return to them after the logical relation (to present the formal properties) ?
 
 \section{Logical relation}
+In order to be able to reason about programs running on the capability
+machine and prove properties such as well-bracketedness and
+encapsulation about them, we define a unary logical relation.
 
-\begin{itemize}
-\item Intuition
-\item Worlds
-\item Logical relation
-\item Fundamental theorem
-\item Discussion/comparison with related Dreyer-Neis-Birkedal and with Hur-Dreyer
-\end{itemize}
+% Intuition
+The logical relation is a semantic model of all the words on the
+capability machine that are definitely safe to give to an
+adversary. Whether a capability is safe to give to an adversary
+depends heavily on the contents of the memory since instructions as well
+as capabilities may reside in memory. The memory will be modeled using
+worlds. A world consists of a finite set of regions, and each region
+can be understood as a protocol describing the possible evolution of
+part of the memory. Memory changes during an
+execution since new memory can be allocated and part of the existing
+memory can change. We use two future world relations to capture
+such changes to the memory in our model.
+%
+
+\subsection{Worlds}
+For this logical relation, we use step-indexed Kripke worlds. They are
+defined by the $\Regions$ given in 
 
 
-%\begin{theorem}\label{thm:world-existence}
-  There exists a \cofe{} $\Wor$ and preorders $\futurestr$ and $\futurewk$ such that $(\Wor,\futurestr)$ and $(\Wor,\futurewk)$ are preordered \cofes{}, and there exists an isomorphism $\xi$ such that
-  {\small 
+
+\begin{theorem}\label{thm:world-existence}
+  There exists a \cofe{} $\Wor$ and preorders $\futurestr$ and
+  $\futurewk$ such that $(\Wor,\futurestr)$ and $(\Wor,\futurewk)$ are
+  preordered \cofes{}, and there exists an isomorphism $\xi$ such that
+  {\small
+    \begin{align*}              
+      \xi : \Wor & \cong \blater (\nats \finparfun \Regions)\\
+      \Regions & = \{\revoked\} \uplus \\
+                 &\hskip -2cm \{\temp\} \times \States \times \Rels \times (\States \fun (\Wor \monwknefun \UPred{\HeapSegments})) \uplus \\
+                 & \hskip -2cm \{\perma\} \times \States \times \Rels \times (\States \fun (\Wor \monstrnefun \UPred{\HeapSegments}))
+    \end{align*}
+  } and for $W, W' \in \Wor$
   \begin{align*}
-    \xi : \Wor & \cong \blater (\nats \finparfun \Regions)\\
-    \Regions & = \{\revoked\} \uplus \\
-             &\hskip -2cm \{\temp\} \times \States \times \Rels \times (\States \fun (\Wor \monwknefun \UPred{\HeapSegments})) \uplus \\
-            & \hskip -2cm \{\perma\} \times \States \times \Rels \times (\States \fun (\Wor \monstrnefun \UPred{\HeapSegments}))
- \end{align*}
- }
- and for $W, W' \in \Wor$
- \begin{align*}
-   W \futurestr W' & \Leftrightarrow \xi(W) \futurestr \xi(W')   \\
-   W \futurewk W' & \Leftrightarrow \xi(W) \futurewk \xi(W')
- \end{align*}
+    W' \futurestr W & \Leftrightarrow \xi(W') \futurestr \xi(W)   \\
+    W' \futurewk W & \Leftrightarrow \xi(W') \futurewk \xi(W)
+  \end{align*}
+\end{theorem}
+
 %Let $\iota.v$ be the projection of the view of a region.
 Worlds are finite partial maps from region names to regions,
 and region names are simply natural numbers
@@ -675,18 +704,11 @@ and region names are simply natural numbers
   \Worlds & = \RegionNames \finparfun \Regions\\
  \RegionNames & = \nats.
 \end{align*}
-The \emph{private future} region relation satisfies the following properties:
-\begin{mathpar}
-  \inferrule{  (s,s') \in \phi \\
-    (v,\phi_\pub,\phi,H) = (v',\phi_\pub',\phi',H')}
-  {  (v',s',\phi_\pub',\phi',H') \futurestr (v,s,\phi_\pub,\phi,H) }
-  \and
-  \inferrule{ r \in \Regions }
-  { r \futurestr (\temp,s,\phi_\pub,\phi,H) }
-  \and
-  \inferrule{ r \in \Regions }
-  { r \futurestr \revoked }
-\end{mathpar}
+
+
+\subsubsection{Future worlds}
+
+{\bf Public future worlds}
 The \emph{public future} region relations satisfies the following properties:
 \begin{mathpar}
   \inferrule{  (s,s') \in \phi_\pub \\
@@ -700,6 +722,22 @@ The \emph{public future} region relations satisfies the following properties:
   { \revoked \futurewk \revoked }
 \end{mathpar}
 
+{\bf Private future worlds}
+
+The \emph{private future} region relation satisfies the following properties:
+\begin{mathpar}
+  \inferrule{  (s,s') \in \phi \\
+    (v,\phi_\pub,\phi,H) = (v',\phi_\pub',\phi',H')}
+  {  (v',s',\phi_\pub',\phi',H') \futurestr (v,s,\phi_\pub,\phi,H) }
+  \and
+  \inferrule{ r \in \Regions }
+  { r \futurestr (\temp,s,\phi_\pub,\phi,H) }
+  \and
+  \inferrule{ r \in \Regions }
+  { r \futurestr \revoked }
+\end{mathpar}
+
+
 The two future world relations satisfy the following properties: They allow for any extension of the current world and all existing worlds are allowed to move to an appropriate future region. That is
 \begin{mathpar}
   \inferrule{ \dom(W') \supseteq \dom(W)\\ 
@@ -711,7 +749,12 @@ The two future world relations satisfy the following properties: They allow for 
   { W' \futurestr W }
 \end{mathpar}
 
+\subsection{Logical relation}
 
+
+\subsection{Fundamental theorem of logical relations}
+
+\subsection{Discussion/comparison with related Dreyer-Neis-Birkedal and with Hur-Dreyer}
 
 
 \section{Examples}
@@ -765,5 +808,7 @@ a trusted stack to one without
 This research was supported in part by the ModuRes Sapere Aude Advanced Grant from The Danish Council for Independent Research for the Natural Sciences (FNU).
 Dominique Devriese holds a postdoctoral fellowship from the Research Foundation - Flanders (FWO).
 
+\bibliographystyle{plainnat}
+\bibliography{references}
 \end{document}
 \grid
