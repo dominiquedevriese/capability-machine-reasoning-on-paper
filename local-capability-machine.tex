@@ -757,6 +757,17 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
 \end{align*}
 
 
+\begin{lemma}[Determinacy]
+  \label{lem:determinacy}
+  If $\Phi \step \Phi'$ and $\Phi \step \Phi''$, then $\Phi' = \Phi''$.
+  If $\Phi \step[n] \Phi'$ and $\Phi \step[n] \Phi''$, then $\Phi' = \Phi''$.
+  If $\Phi \step[n] \Phi'$ and $\Phi \step[n'] (\halted,\mem'')$, then $n \geq n'$
+  and $\Phi' \step[n'-n] (\halted,\mem'')$.
+\end{lemma}
+\begin{proof}
+  By easy inspection of the definition of the operational semantics.
+\end{proof}
+
 \section{Malloc specification}
 \newcommand{\hsfoot}{\hs_\var{footprint}}
 \newcommand{\hsframe}{\hs_\var{frame}}
@@ -803,7 +814,7 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
                     &\qquad \quad \memreg(\pcreg) = \updatePcPerm{c_\malloc} \\ %and this needs to change with ABI.
                     &\qquad \quad \Rightarrow \\
                     &\qquad \qquad\exists \Phi' \in \ExecConfs \ldotp \exists \ms_{\var{footprint}}', \ms_{\var{alloc}} \in \HeapSegments\ldotp\\
-                    &\qquad \qquad \quad \exists j \in \nats \ldotp \exists b',e'\in \Addrs \ldotp \exists \iota_\malloc' \in \Regions \ldotp \\
+                    &\qquad \qquad \quad \exists j \in \nats \ldotp j > 0 \land \exists b',e'\in \Addrs \ldotp \exists \iota_\malloc' \in \Regions \ldotp \\
                     &\qquad \qquad \qquad \Phi \step[j] \Phi' \land \\
                     &\qquad \qquad \qquad \memheap[\Phi']=\ms_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land\\
                     &\qquad \qquad \qquad \iota_{\malloc}' \futurewk \iota_\malloc \land \\
@@ -1531,10 +1542,11 @@ f1: malloc r_l 1
         \begin{enumproof}
         \item $\npair[n'-1]{c_\malloc} \in \stdvr(W)$: Follows from Lemma~\ref{lem:malloc-in-vr}.
 
-        \item $\npair[n'-1]{c_\adv} \in \stdvr(W)$: for $n'' <
-          n'-1$ and $W' \futurestr W$ show:
-          \\$\npair[n'']{\updatePcPerm{c_\adv}} \in \stder(W')$.
-          Use FTLR. \label{f1:adv}
+        \item $\npair[n'-1]{c_\adv} \in \stdvr(W)$: for $n'' < n'-1$ and $W'
+          \futurestr W$ show: \\$\npair[n'']{\updatePcPerm{c_\adv}} \in
+          \stder(W')$. Follows from Lemma~\ref{lem:safe-values-safe-invoke},
+          together with Lemma~\ref{lem:stdvr-glob-priv-mono} and the fact that
+          $c_\adv$ is non-local.  \label{f1:adv}
         \end{enumproof}
 
       \item The last case follows from Lemma~\ref{lem:mem-sat-static}
@@ -3249,7 +3261,7 @@ We have omitted the details of this construction here, but it is done by paramet
 \end{align*}
 
 \begin{align*}
-  & \writeCond{} : (\Regions \times \Globals) \fun \Worlds \monnefun \UPred{\Addrs^2}  \\
+  & \writeCond{} : (((\Addrs\times\Addrs) \fun\Regions) \times \Globals) \fun \Worlds \monnefun \UPred{\Addrs^2}  \\
   & \writeCond{}(\iota,\gl)(W) =  \\
   & \quad \begin{aligned}[t]
     \{ \npair{(\start,\addrend)} \mid & \;\exists r \in \var{localityReg}(g,W) \ldotp \\
@@ -4082,6 +4094,36 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
 \subsubsection{Malloc safe to pass to adversary}
 \label{sec:malloc-valrel}
 
+\begin{lemma}[Safe values are safe to invoke.]
+  \label{lem:safe-values-safe-invoke}
+  If $\npair[n+1]{w} \in \stdvr(W)$, then $\npair{\updatePcPerm{w}} \in \stder(W)$.
+\end{lemma}
+\begin{proof}
+  \begin{enumproof}
+  \item Case $w = \stdcap$ and $\start \leq \addr \leq \addrend$
+    and $\perm \in \{ \exec,\rwx, \rwlx \}$:
+    \begin{enumproof}
+    \item $\npair[n+1]{(\perm,\start,\addrend)}\in\execCond{\gl}(W)$.\\
+      By: definition of $\stdvr(W)$ using the fact that $\perm \in \{ \exec,\rwx, \rwlx \}$.
+    \item $\npair[n]{((\perm,\gl),\start,\addrend,\addr)} \in \stder(W)$:
+      By definition of $\execCond{}$ using the fact that $\start \leq \addr \leq \addrend$.
+    \end{enumproof}
+  \item Case $w = \stdcap$ and $\start \leq \addr \leq \addrend$
+    and $\perm = \entry$:
+    \begin{enumproof}
+    \item $\npair[n+1]{(\start,\addrend,\addr)}\in\entryCond{\gl}(W)$.\\
+      By: definition of $\stdvr(W)$ using the fact that $\perm = \entry$.
+    \item $\npair[n]{((\exec,\gl),\start,\addrend,\addr)} \in \stder(W)$:
+      By definition of $\entryCond{}$ using the fact that $\start \leq \addr \leq \addrend$.
+    \item $\updatePcPerm{w} = ((\exec,\gl),\start,\addrend,\addr)$:\\
+      By definition of $\updatePcPerm{\cdot}$
+    \end{enumproof}
+  \item Otherwise:
+    $\npair{\updatePcPerm{w}} \in \stder(W)$:\\
+    By Lemma~\ref{lem:failed-obs-stder}.
+  \end{enumproof}
+\end{proof}
+
 \begin{lemma}[Malloc is safe to pass to adversary]
   \label{lem:malloc-in-vr}
   If $W(r) \futurestr \iota_{\malloc,0}$, then
@@ -4128,20 +4170,84 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
     \begin{enumproof}
     \item Define $\var{size} = \reg(r_1)$
     \item $\exists \Phi' \in \ExecConfs, \ms_{\var{footprint}}',
-      \ms_{\var{alloc}} \in \HeapSegments, j \in \nats, b',e'\in \Addrs,
-      \iota_\malloc' \in \Regions \ldotp$
+      \ms_{\var{alloc}} \in \HeapSegments, j \in \nats, j > 0 \land b',e'\in
+      \Addrs, \iota_\malloc' \in \Regions \ldotp$
       $(\reg\update{\pcreg}{((\exec,\glob),\start,\addrend,\addr)},\ms\uplus\ms_f)
       \step[j] \Phi'$ and $\memheap[\Phi']=\ms_{\var{footprint}}' \uplus
       \hs_{\var{alloc}} \uplus \ms_{\var{frame}}$ and $\iota_{\malloc}'
-      \futurewk W'(r)$ and $\heapSat[\ms_{\var{footprint}}']{n-j}{[r \mapsto
+      \futurewk W'(r)$ and $\heapSat[\ms_{\var{footprint}}']{n''-j}{[r \mapsto
         \iota_\malloc']}$ and $\dom(\hs_{\var{alloc}}) = [b',e']$ and $\forall a
       \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0$ and $\memreg[\Phi'] =
       \memreg[\Phi]\update{\pcreg}{\updatePcPerm{w_{\var{ret}}}}\update{r_1}{((\rwx,\glob),b',e',b')}$
-      and $\var{size} - 1 = e'-b' )$.\\
-      By: the malloc specification (Specification~\ref{spec:malloc}).
+      and $\var{size} - 1 = e'-b' )$ with $w_{\var{ret}} = \memreg(r_1)$.\\
+    By: the malloc specification (Specification~\ref{spec:malloc}).
     \item Define $W'' = W'\update{r}{\iota_\malloc'}[i\mapsto
-      \iota^\nwl_{b',e'}]$ for $i \not\in\dom(W')$
-    \item \dominique{TODO}
+      \iota^\nwl_{b',e'}]$ for $i \not\in\dom(W')$. We have that $W''\futurewk
+      [r\mapsto\iota_\malloc']$ and $W'' \futurewk W'$.\\
+      By: definition of $\futurewk$ , using the fact that
+      $\iota_\malloc'\futurewk W(r)$.
+    \item $\npair[n''']{(\start',\addrend')}\in\readCond{\glob}(W'')$ for all $n'''$:\\
+      By: definition of $\readCond{}$, using the region $W''(i)$ and Lemma~\ref{lem:nwl-subset-pwl}.
+    \item $\npair[n''']{(\start',\addrend')}\in\writeCond{\iota^\nwl,\glob}(W'')$ for all $n'''$:\\
+      By: definition of $\writeCond{}$, using the region $W''(i)$.
+    \item
+      $\npair[n''']{(p,\start',\addrend')}\in\execCond{\iota^\nwl,\glob}(W'')$
+      for all $n'''$, $p \in \{\rwx,\exec\}$:\\
+      By: the definition of $\execCond{}, $ the FTLR (Theorem~\ref{thm:ftlr})
+      using Lemmas~\ref{lem:writecond-mono-priv}, \ref{lem:readcond-mono-priv}
+      and the previous two points.
+    \item $\npair[n'']{((\rwx,\glob),b',e',b')}\in\stdvr(W'')$:\\
+      By: definition of $\stdvr(W'')$ and the above three points.
+    \item
+      $\npair[n''-j]{\memreg[\Phi]\update{r_1}{((\rwx,\glob),b',e',b')}}\in\stdrr(W'')$:\\
+      By Lemma~\ref{lem:stdrr-dc}, Lemma~\ref{lem:stdrr-mono} using the fact
+      that $W''\futurewk W'$ and $\npair[n'']{\memreg}\in\stdvr(W')$, together
+      with the previous point.
+    \item $\npair[n''']{\ms_{\var{alloc}}} \in \iota^\nwl_{b',e'}.H~
+      \iota^\nwl_{b',e'}.s~ W''$ for any $n'''$:\\
+      By definition of $\iota^\nwl$, $H^\nwl$ and $\stdvr(\cdot)$ and the facts
+      that $\dom(\hs_{\var{alloc}}) = [b',e']$ and $\forall a
+      \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0$.
+    \item Define $\ms' = \left(\biguplus_{r'\in\activeReg{W'},r'\neq
+          r}P(r')\right)\uplus \ms_{\var{footprint}}'\uplus\ms_{\var{alloc}}$.
+      Then
+      $\memheap[\Phi'] = \ms' \uplus \ms_f$ and $\heapSat[\ms']{n''-j}{W''}$:\\
+      By the facts that $\memheap[\Phi']=\ms_{\var{footprint}}' \uplus
+      \hs_{\var{alloc}} \uplus \ms_{\var{frame}}$, $\ms_{\var{frame}} =
+      \left(\biguplus_{r'\in\activeReg{W'},r'\neq r}P(r')\right)\uplus\ms_f$,
+      the previous point, the facts that
+      $\heapSat[\ms_{\var{footprint}}']{n''-j}{[r \mapsto \iota_\malloc']}$ and
+      $W''\futurewk [r\mapsto\iota_\malloc']$, the facts that ($\forall r \in
+      \activeReg{W'} \ldotp$ $\exists H,s \ldotp$ $W'(r) =, (\_,s,\_,\_,H)$ and
+      $\npair[n'']{P(r)} \in H(s)(\xi^{-1}(W'))$) and $W'' \futurewk W'$ and the
+      public monotonicity and downwards closedness of all islands, and finally
+      the definition of $W''$.
+    \item $\npair[n''-j+1]{w_{\var{ret}}} \in \stdvr(W'')$:\\
+      By Lemma~\ref{lem:stdvr-mono-wk}, the fact that $W''\futurewk W'$,
+      Lemma~\ref{lem:stdvr-dc}, and teh fact that
+      $\npair[n'']{w_{\var{ret}}}\in\stdvr(W')$, which follows from
+      $w_{\var{ret}} = \memreg(r_1)$ and $\npair[n'']{\reg}\in\stdrr(W')$.
+    \item $\npair[n''-j]{\updatePcPerm{w_{\var{ret}}}} \in \stder(W'')$:\\
+      By Lemma~\ref{lem:safe-values-safe-invoke} from the previous point.
+    \item
+      $\npair[n''-j]{(\memreg[\Phi]\update{r_1}{((\rwx,\glob),b',e',b')}\update{\pcreg}{\updatePcPerm{w_{\var{ret}}}},
+        \ms')} \in \observations(W'')$:\\
+      By: definition of $\stder(W'')$, using the previous point and the facts
+      that
+      $\npair[n''-j]{\memreg[\Phi]\update{r_1}{((\rwx,\glob),b',e',b')}}\in\stdrr(W'')$,
+      $\heapSat[\ms']{n''-j}{W''}$
+    \item $i > j$ and $\Phi'\step[i-j]
+      (\halted,\mem')$.\\
+      By combining
+      $(\reg\update{\pcreg}{((\exec,\glob),\start,\addrend,\addr)},\ms\uplus\ms_f)\step[i]
+      (\halted,\mem')$ with
+      $(\reg\update{\pcreg}{((\exec,\glob),\start,\addrend,\addr)},\ms\uplus\ms_f)
+      \step[j] \Phi'$ using Lemma~\label{lem:determinacy}.
+    \item $\exists W''' \futurestr W'', \hs_r, \hs'' \ldotp$ $\heap' = \hs'' \uplus \hs_r \uplus \ms_f$ and $\heapSat[\hs'']{n-i}{W'''}$.\\
+      By: definition of $\observations(W''')$ from the two previous points.
+    \item $W''' \futurestr W'$: \\
+      By Lemma~\ref{lem:future-priv-pub-trans}, using the previous point and the fact that $W'' \futurewk
+      W'$.
     \end{enumproof}
   \item Case: $\reg(r_1)\not\in\ints \vee \reg(r_1) < 0$
     \begin{enumproof}
@@ -5075,6 +5181,7 @@ We expect the following lemmas to hold true:
 \end{proof}
 
 \begin{lemma}[Transitivity proberties between private and public future worlds]
+  \label{lem:future-priv-pub-trans}
 \[
   W'' \futurestr W' \land W' \futurewk W \Rightarrow W'' \futurestr W
 \]
@@ -5134,6 +5241,27 @@ and
 \end{proof}
 
 \subsubsection{Value relation}
+\begin{lemma}[Value relation downwards closed]
+  \label{lem:stdvr-dc}
+  \[
+    n' \leq n \land \npair{w} \in \stdvr(W) \Rightarrow \npair[n']{w} \in \stdvr(W)
+  \]
+\end{lemma}
+\begin{proof}
+  By definition of $\stdvr(W)$ using Lemma~\ref{lem:readcond-dc},
+  \ref{lem:writecond-dc}, \ref{lem:execcond-dc} and \ref{lem:entrycond-dc}.
+\end{proof}
+
+\begin{lemma}[Register relation downwards closed]
+  \label{lem:stdrr-dc}
+  \[
+    n' \leq n \land \npair{w} \in \stdrr(W) \Rightarrow \npair[n']{w} \in \stdrr(W)
+  \]
+\end{lemma}
+\begin{proof}
+  By definition of $\stdrr(W)$ using Lemma~\ref{stdvr-dc}.
+\end{proof}
+
 \begin{lemma}[Value relation monotone wrt $\futurewk$]
   \label{lem:stdvr-mono-wk}
   \[
