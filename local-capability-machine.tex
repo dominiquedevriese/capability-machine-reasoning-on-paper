@@ -786,21 +786,20 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
 \newcommand{\annotate}[2]{\multirow{#1}{\mrlen}{\scriptsize #2}}
 
               \begin{specification}[Malloc v.2]
+                \label{spec:malloc}
                 $c_\malloc$ satisfies the specification for malloc iff
                 \[  
                   \begin{aligned}
-                    &c_\malloc = ((\entry,\_),\_,\_,\_) \land\\
+                    &c_\malloc = ((\entry,\glob),\_,\_,\_) \land\\
                     &\exists \iota_{\malloc,0} \ldotp \\
-                    &\quad (\forall \iota' \futurestr \iota_{\malloc,0} \ldotp \forall W,i \ldotp W(i)=\iota' \Rightarrow \iota'.H (\iota'.s) (W) = \iota'.H (\iota'.s) ([i \mapsto W(i)]) ) \; \land \\
+                    &\quad (\forall \iota' \futurestr \iota_{\malloc,0} \ldotp \forall W,i \ldotp W(i)=\iota' \Rightarrow \iota'.H (\iota'.s) (\xi^{-1}(W)) = \iota'.H (\iota'.s) (\xi^{-1}([i \mapsto W(i)])) ) \; \land \\
                     &\quad \iota_{\malloc,0}.v = \perma \; \land \\
                     &\quad (\forall \Phi \in \ExecConfs \ldotp \forall \ms_{\var{footprint}}, \hsframe \in \HeapSegments \ldotp \\
-                    &\qquad \forall i, n, \size \in \nats \ldotp \forall b,e,a \in \Addrs\ldotp\forall p \in \Perms \ldotp \\
+                    &\qquad \forall i, n, \size \in \nats \ldotp \forall
+                    w_{\var{ret}} \in \Words \ldotp \\
                     &\qquad \quad \forall \iota_\malloc \futurestr \iota_{\malloc,0} \land \\
-                    &\qquad \quad \memheap = \ms_{\var{footprint}} \uplus \hsframe \land\\
-                    &\qquad \quad \heapSat[\ms_{\var{footprint}}]{n}{[i \mapsto \iota_\malloc]} \land \\
-                    &\qquad \quad \memreg(r_1) = \size \land \\
-                    &\qquad \quad \size \geq 0 \land \\
-                    &\qquad \quad \memreg(r_0) = (p,b,e,a) \land \\
+                    &\qquad \quad \memheap = \ms_{\var{footprint}} \uplus \hsframe \land \heapSat[\ms_{\var{footprint}}]{n}{[i \mapsto \iota_\malloc]} \land \\
+                    &\qquad \quad \memreg(r_1) = \size \land \size \geq 0 \land  \memreg(r_0) = w_{\var{ret}} \land \\
                     &\qquad \quad \memreg(\pcreg) = \updatePcPerm{c_\malloc} \\ %and this needs to change with ABI.
                     &\qquad \quad \Rightarrow \\
                     &\qquad \qquad\exists \Phi' \in \ExecConfs \ldotp \exists \ms_{\var{footprint}}', \ms_{\var{alloc}} \in \HeapSegments\ldotp\\
@@ -810,8 +809,10 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
                     &\qquad \qquad \qquad \iota_{\malloc}' \futurewk \iota_\malloc \land \\
                     &\qquad \qquad \qquad \heapSat[\ms_{\var{footprint}}']{n-j}{[i \mapsto \iota_\malloc']} \land \\
                     &\qquad \qquad \qquad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land \\
-                    &\qquad \qquad \qquad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{(p,b,e,a)}}\update{r_1}{((\rwx,\glob),b',e',b')} \land \\
-                    &\qquad \qquad \qquad \size - 1 = e'-b' )
+                    &\qquad \qquad \qquad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{w_{\var{ret}}}}\update{r_1}{((\rwx,\glob),b',e',b')} \land \\
+                    &\qquad \qquad \qquad \size - 1 = e'-b' ) \land\\
+                    &\quad (\forall \Phi \in \ExecConfs \ldotp (\memreg(r_1)
+                    \not\in \ints \vee \memreg(r_1) < 0) \land \memreg(\pcreg) = \updatePcPerm{c_\malloc} \Rightarrow \exists j \in \nats \ldotp \Phi \step[j] \failed)
                   \end{aligned}
                 \]
               \end{specification}
@@ -4083,11 +4084,75 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
 
 \begin{lemma}[Malloc is safe to pass to adversary]
   \label{lem:malloc-in-vr}
-  If $W(r) = \iota$ with $\iota \futurestr \iota_{\malloc,0}$, then
+  If $W(r) \futurestr \iota_{\malloc,0}$, then
   $\npair{c_\malloc} \in \stdvr(W)$ for all $n$.
 \end{lemma}
 \begin{proof}
-  TODO
+  \begin{enumproof}
+  \item $c_\malloc = ((\entry,\glob),\base,\addrend,\addr)$.\\
+    By: the malloc specification (Specification~\ref{spec:malloc}).
+  \item Suffices: $\npair{(\start,\addrend,\addr)}\in\entryCond{\glob}(W)$.\\
+    By definition of $\stdvr(W)$.
+  \item Assume: $n' < n$, $W'\futurestr W$.\\
+    Suffices: $\npair[n']{((\exec,\glob),\start,\addrend,\addr)} \in
+    \stder(W')$.\\
+    By: definition of the $\entryCond{}$
+  \item Assume: $n''\leq n'$,
+    $\npair[n'']{\reg}\in\stdrr(W')$, $\heapSat[\ms]{n''}{W'}$\\
+    Suffices:
+    $\npair[n'']{(\reg\update{\pcreg}{((\exec,\glob),\start,\addrend,\addr)},\ms)}\in\observations(W')$\\
+    By: definition of $\stder(W')$
+  \item Assume: $i < n''$,
+    $(\reg\update{\pcreg}{((\exec,\glob),\start,\addrend,\addr)},\ms\uplus\ms_f)\step[i]
+    (\halted,\mem')$\\
+    Suffices: $\exists W''\futurestr W',\ms_r,\ms'\ldotp$ $\mem' =
+    \ms'\uplus\ms_r\uplus\ms_f$ and $\heapSat[\ms']{n-i}{W''}$\\
+    By: definition of $\observations(W')$
+  \item $W'(r) \futurestr \iota_{\malloc,0}$\\
+    Easy from: $W'\futurestr W$ and $W(r) \futurestr \iota_{\malloc,0}$ using
+    transitivity of $\futurestr$.
+  \item $\exists P : \activeReg{W'} \rightarrow \HeapSegments \ldotp$
+    $\memSatPar[n'']{\ms}{W'}{P}$, i.e. $\hs = \biguplus_{r\in\activeReg{W'}}P(r)$ and
+    $\forall r \in \activeReg{W'} \ldotp$ $\exists H,s \ldotp$ $W'(r) =
+    (\_,s,\_,\_,H)$ and $\npair[n'']{P(r)} \in H(s)(\xi^{-1}(W'))$\\
+    By: definition of $\heapSat[\ms]{n''}{W'}$.
+  \item Define $\ms_{\var{frame}} = \left(\biguplus_{r'\in\activeReg{W'},r'\neq
+        r}P(r')\right)\uplus\ms_f$. Then $\ms\uplus\ms_f = P(r) \uplus
+    \ms_{\var{frame}}$ and $\heapSat[P(r)]{n''}{W'(r).H~(W'(r).s)~(\xi^{-1}(W'))}$.
+    Easy from the previous point.
+  \item $\heapSat[P(r)]{n''}{W'(r).H~(W'(r).s)~(\xi^{-1}([r\mapsto W'(r)]))}$, i.e.
+    $\heapSat[P(r)]{n''}{[r\mapsto W'(r)]}$.\\
+    By: the malloc specification (Specification~\ref{spec:malloc}) from the
+    previous point.
+  \item Case: $\reg(r_1) \in \ints$ and $\reg(r_1) \geq 0$
+    \begin{enumproof}
+    \item Define $\var{size} = \reg(r_1)$
+    \item $\exists \Phi' \in \ExecConfs, \ms_{\var{footprint}}',
+      \ms_{\var{alloc}} \in \HeapSegments, j \in \nats, b',e'\in \Addrs,
+      \iota_\malloc' \in \Regions \ldotp$
+      $(\reg\update{\pcreg}{((\exec,\glob),\start,\addrend,\addr)},\ms\uplus\ms_f)
+      \step[j] \Phi'$ and $\memheap[\Phi']=\ms_{\var{footprint}}' \uplus
+      \hs_{\var{alloc}} \uplus \ms_{\var{frame}}$ and $\iota_{\malloc}'
+      \futurewk W'(r)$ and $\heapSat[\ms_{\var{footprint}}']{n-j}{[r \mapsto
+        \iota_\malloc']}$ and $\dom(\hs_{\var{alloc}}) = [b',e']$ and $\forall a
+      \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0$ and $\memreg[\Phi'] =
+      \memreg[\Phi]\update{\pcreg}{\updatePcPerm{w_{\var{ret}}}}\update{r_1}{((\rwx,\glob),b',e',b')}$
+      and $\var{size} - 1 = e'-b' )$.\\
+      By: the malloc specification (Specification~\ref{spec:malloc}).
+    \item Define $W'' = W'\update{r}{\iota_\malloc'}[i\mapsto
+      \iota^\nwl_{b',e'}]$ for $i \not\in\dom(W')$
+    \item \dominique{TODO}
+    \end{enumproof}
+  \item Case: $\reg(r_1)\not\in\ints \vee \reg(r_1) < 0$
+    \begin{enumproof}
+    \item $\exists j\ldotp (\reg\update{\pcreg}{((\exec,\glob),\start,\addrend,\addr)},\ms\uplus\ms_f)\step[j]
+      \failed$\\
+      By: the malloc specification (Specification~\ref{spec:malloc}).
+    \item Contradiction with 
+      $(\reg\update{\pcreg}{((\exec,\glob),\start,\addrend,\addr)},\ms\uplus\ms_f)\step[i]
+      (\halted,\mem')$
+    \end{enumproof}
+  \end{enumproof}
 \end{proof}
 
 \subsubsection{Fundamental theorem of logical relations}
