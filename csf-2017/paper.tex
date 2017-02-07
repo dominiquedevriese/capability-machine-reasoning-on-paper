@@ -693,10 +693,12 @@ such changes to the memory in our model.
 %
 
 \subsection{Worlds}
+\todo[inline]{Find a good place to describe monotonicity of
+  interpretation function.}
 % Intuition worlds
 The worlds are step-indexed Kripke worlds. For the reader not familiar
 with these, it is sufficient to think of worlds as finite sets of
-regions.
+regions that impose protocols on the memory.
 
 % Regions intuition
 We have three types of regions: $\perma$, $\temp$, and $\revoked$. The
@@ -758,19 +760,63 @@ the worlds:
 \end{align*}
 
 \subsubsection{Future worlds}
-There are two future world relations a \emph{public future world} relation and a \emph{private future world} relation. In both future world relations, we have extension ordering, so a future world $W'$ of $W$ has at least the same regions as $W$, but it may add new regions imposing new protocols on part of the memory. The two future world relations differ in the way existing regions are allowed to evolve. In a \emph{public future region} 
+In order to model changes to memory over time, we use the future world
+relations. The future world relations model how more memory may be
+allocated but also how memory may change. How memory is allowed to
+change over time depends on the region that governs it and the future
+world relation used. The most interesting part about the future worlds
+is how it affects the regions, so we first look at the properties of
+the \emph{public future region} relation and the \emph{private future
+  region} relation. We then use these relations to describe the future
+world relations.
+
+{\bf Private future regions}
+In the private future region relation, we allow revocation of $\temp$
+regions. The regions cannot be revoked by removing them from the
+world, because we need the future world relations to be
+monotone. This is why we have the $\revoked$ region, so we have
+a region that can serve as a mask. We can, however, let any region
+serve as a mask, so in the private future region relation, we allow a
+$\temp$ region to become any valid region. As the $\revoked$ region
+serves as a mask, we let any valid region take its place in the
+private future region relation.
+
+If a $\temp$ region is not masked by a region, then it behaved like a
+$\perm$ region. The $\perma$ regions stay the same type and they are
+allowed to take a transition in the private part of the transition
+system. Which can be thought of as the memory changes according to
+some protocol.
+
+The properties of the \emph{private future region} relation are:
 \begin{mathpar}
-  \inferrule{ \dom(W') \supseteq \dom(W)\\ 
-    \forall r \in \dom(W) \ldotp W'(r) \futurewk W(r) }
-  { W' \futurewk W }
+  \inferrule{  (s,s') \in \phi \\
+    (v,\phi_\pub,\phi,H) = (v',\phi_\pub',\phi',H')}
+  {  (v',s',\phi_\pub',\phi',H') \futurestr (v,s,\phi_\pub,\phi,H) }
   \and
-  \inferrule{ \dom(W') \supseteq \dom(W)\\ 
-    \forall r \in \dom(W) \ldotp W'(r) \futurestr W(r) }
-  { W' \futurestr W }
+  \inferrule{ r \in \Regions }
+  { r \futurestr (\temp,s,\phi_\pub,\phi,H) }
+  \and
+  \inferrule{ r \in \Regions }
+  { r \futurestr \revoked }
 \end{mathpar}
 
-
 {\bf Public future regions}
+The public future regions relation has the following properties:
+% - permanent and temporary regions stay the same type
+% - public transitions
+The $\perma$ and $\temp$ regions stay the same type of region and they
+are allowed to take a transition in the public part of their
+transition systems.
+
+% - revoked regions can be reused as temporary regions
+The $\revoked$ regions can either stay $\revoked$, or they can become
+any $\temp$ region. When a region is $\revoked$ it serves as a mask
+for a revoked $\temp$ region. We use masks rather than deleting the
+region altogether for monotonicity reasons, but we might as well let a
+new $\temp$ region serve as the mask. We do not allow $\revoked$
+regions to become a $\perma$ region because we want the private future
+region relation to be able to reuse any region it has revoked.
+
 The \emph{public future} region relations satisfies the following properties:
 \begin{mathpar}
   \inferrule{  (s,s') \in \phi_\pub \\
@@ -784,22 +830,34 @@ The \emph{public future} region relations satisfies the following properties:
   { \revoked \futurewk \revoked }
 \end{mathpar}
 
-{\bf Private future regions}
-The \emph{private future} region relation satisfies the following properties:
+
+
+% The future world relation are really the ones from thm, the above
+% are properties of them.
+{\bf Future world relations}
+There are two future world relations a \emph{public future world}
+relation and a \emph{private future world} relation. In both future
+world relations, we have extension ordering, so a future world $W'$ of
+$W$ has at least the same regions as $W$, but $W'$ may have new regions
+imposing new protocols on parts of the memory. The two future world
+relations differ in the way existing regions are allowed to evolve. In
+a \emph{public future world}, the regions are allowed to evolve
+according to the \emph{public future region} relation. In a
+\emph{private future world}, the regions are allowed to evolve
+according to the \emph{private future world} relation. The future
+world relations are defined as follows:
 \begin{mathpar}
-  \inferrule{  (s,s') \in \phi \\
-    (v,\phi_\pub,\phi,H) = (v',\phi_\pub',\phi',H')}
-  {  (v',s',\phi_\pub',\phi',H') \futurestr (v,s,\phi_\pub,\phi,H) }
+  \inferrule{ \dom(W') \supseteq \dom(W)\\ 
+    \forall r \in \dom(W) \ldotp W'(r) \futurewk W(r) }
+  { W' \futurewk W }
   \and
-  \inferrule{ r \in \Regions }
-  { r \futurestr (\temp,s,\phi_\pub,\phi,H) }
-  \and
-  \inferrule{ r \in \Regions }
-  { r \futurestr \revoked }
+  \inferrule{ \dom(W') \supseteq \dom(W)\\ 
+    \forall r \in \dom(W) \ldotp W'(r) \futurestr W(r) }
+  { W' \futurestr W }
 \end{mathpar}
 
-
-The two future world relations satisfy the following properties: They allow for any extension of the current world and all existing worlds are allowed to move to an appropriate future region. That is
+% Relate to STSs for high-level languages. Have the public-private
+% transitions, but they are also used for more than this
 
 \subsection{Logical relation}
 
