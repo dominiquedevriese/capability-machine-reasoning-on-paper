@@ -14,6 +14,7 @@
 \usepackage{mathpartir}
 \usepackage{listings}
 \usepackage{hyperref}
+\usepackage{natbib}
 \lstset{
   basicstyle=\ttfamily,
   columns=fullflexible,
@@ -385,150 +386,247 @@ to an unstrusted piece of code?
 \section{Introduction}
 \label{sec:introduction}
 \todo[inline]{See the latex comments for the next paragraphs!}
-% Possible high-level intros:
-% 0) Arms race compilers
-%
-% 1) Security guarantees vs obstacles / arms race
-\begin{comment}
-  Security on processors is today subject to an arms race between
-  processor manufacturers and hackers. On the hacker side, a constant
-  effort is put into exploiting current processor designs and
-  circumventing the security measures set in place to prevent known
-  exploits. On the processor manufacturer side, new security measures
-  are put in place to prevent new exploits. The arms race would come
-  to a grinding halt if the security meassures provided more than
-  obstacles and actually provided low-level security guarantees. One
-  kind of low-level machines that provide low-level security is a
-  capability machine.
-\end{comment}
-% 2) Fully abstract compilation
-High-level languages provide guarantees such as encapsulation of local
-state and well-bracketedness of function calls. These guarantees are
-often relied upon when reasoning about the correctness and security of
-a program. High-level programs are compiled to machine code, so in
-order to rely on the correctness and security guarantees provided by
-the high-level language, it needs to be proven that the translation
-preserves these properties. Translated programs often interact with
-machine code that is not translated from the same high-level language,
-so in order to preserve the guarantees from the high-level languages,
-the low-level machine needs to provide some kind of security
-guarantees. In other words, a target of secure compilation needs to
-provide some security guarantees. Modern processors provide many
-security meassures, but very little in terms of guarantees. A machine
-that provides some means of security guarantees is a capability machine.
 
-% 3) Memory access-control
-% I don't like this angle and can't find a good way to sell it.
+Compromising software security is often based on attacks that break programming
+language properties relied on by software authors, such as control flow
+integrity, local state encapsulation etc. Commodity processors offer little
+support for defending against such attacks: they offer security primitives with
+only coarse-grained memory protection and limited compartmentalization
+scalability. As a result, defenses against attacks on control flow integrity and
+local state encapsulation necessarily rely on techniques like machine code
+rewriting (e.g.~\cite{wahbe_efficient_1993,abadi_control-flow_2005}) or
+verification (e.g.~\cite{morrisett_system_1999}), virtual machines with a native
+stack (e.g.~the JVM~\cite{lindholm_java_2014}) or
+randomization~\cite{forrest_building_1997}. Such techniques for retrofitting
+protection techniques to commodity hardware have disadvantages in terms of
+performance, complexity and/or security.
 
-% 4) History
-% Proposals throughout history.
-% Lack of formal account of properties-guarantees.
+\emph{Capability machines} are a type of processors, intended to remediate these
+limitations by presenting a better security model at the hardware
+level~\cite{Watson2015Cheri,Woodruff:2014:CCM:2665671.2665740,Carter:1994:HSF:195473.195579}.\dominique{todo:
+  more?} Such hardware tags every word (in the register file and in memory) to
+enforce a strict separation between numbers and capabilities, a kind of pointers
+carrying some kind of authority. Memory capabilities carry the authority to read
+and/or write to a range of memory locations. Additionally, the details vary but
+all capability machines offer some form of \emph{object capabilities}, which
+represent the authority to invoke a piece of code without exposing the code's
+encapsulated private state (e.g. the M-Machine's enter capabilities or CHERI's
+sealed code/data pairs). 
 
-%%% a)
-% Current low-level protection coarse grained memory protection or
-% properties of high-level languages are not really enforced?
+Unlike for commodity processors, the security primitives on capability machines
+lend themselves well to the enforcement of properties like local state
+encapsulation and control-flow integrity. Potentially, they will enable new
+compilation schemes that enforce such properties in a way that is efficient but
+also 100\% watertight (ideally evidenced by a mathematical proof, guaranteeing
+that we do not end up in a new attack-defense arms race). However, there is
+still a lot that needs to happen to attain this goal. For example, it is quite
+non-trivial to devise a compilation scheme adapted to the details of a specific
+language's notion of encapsulation (e.g. encapsulation of private member
+variables in OO languages often behaves quite differently than encapsulation of
+private state in ML-like languages). And even if such a scheme were defined, a
+formal proof depends on a formalisation of the encapsulation provided by the
+capability machine at hand.
 
-% Capability machines offer fine-grained memory protection
-% Too technical
-A capability machine is a low-level machine that offers fine-grained
-memory protection.
-% Capability machines and unforgeable tokens for memory access. 
-This is done by introducing unforgeable tokens to
-the machine. These tokens are called capabillities and grant a kind of
-authority and a range of authority. 
-% Dynamic checks encapsulation, formal model
+A similar problem is the enforcement of control-flow integrity on capability
+machines. An interesting approach is taken in CheriBSD. They drop the standard
+contiguous C stack and split it into a central, trusted shadow stack, managed by
+trusted call and return instructions\footnote{These call and return instructions
+  are implemented by CheriBSD and special support from the CHERI processor makes
+  them very fast to invoke.}, and disjoint, per-component
+stacks~\citep{Watson2015Cheri}. For preventing illegal use of stack references,
+the approach relies on \emph{local capabilities}, a type of capabilities offered
+by CHERI that can be passed over a function invocation \emph{temporarily}, for
+the duration of the invocation, and revoked afterwards. However, a lot of
+details remain to be filled in (e.g. how to combine a trusted shadow stack with
+(potentially) cross-domain function pointers in a scalable way?) and there is no
+argument that this enforcement of CFI is watertight.
 
- We will refer to the capabilities
-that grant a combination of read, write, or execute permission as memory
-capabilities. 
- Capabilities with the necessary permissions must be
-presented every time an instruction that manipulates the memory is
-executed.
+In this paper, we make progress towards the goal of efficient, provably
+watertight enforcement of encapsulation and control-flow integrity on capability
+machines.  Specifically, we make the following contributions:
+\begin{itemize}
+\item We formalise a simple but representative capability machine featuring
+  local capabilities much like CHERI's, and define its operational semantics.
+\item We define a novel stack management discipline for enforcing control-flow
+  integrity and encapsulation of local state on the stack. The discipline relies
+  solely on local capabilities (used to represent stack and return pointers) and
+  does not require OS support in the form of a trusted shadow stack or special
+  call and return instructions. It also does not require separate per-component
+  stacks and instead works with a single, fairly standard contiguous stack. It
+  supports higher-order cross-component calls (e.g. (potentially)
+  cross-component function pointers) and can be efficient assuming one
+  additional piece of processor support: an instruction for efficiently clearing
+  a range of memory.
+\item We provide a theorem (capability-safety) that is (by far) the most general
+  and powerful formulation of the guarantees offered by a capability machine.
+  The theorem also expresses the specific guarantees offered by the machine for
+  local capabilities. It is very general and not tied to a specific ABI or a
+  specific way of using the system's capabilities.
+\item The above theorem is formulated in terms of a unary step-indexed logical
+  relation with recursively defined Kripke worlds. It is inspired by one used by
+  \cite{Devriese:2016ObjCap} for capability-safety in a JavaScript-like lambda
+  calculus, but has two novel technical characteristics. The natural CPS style
+  of assembly code with return pointers as continuations is modeled using a
+  \emph{single} orthogonal closure, rather than the biorthogonal closure that
+  has been previously used for lambda calculi. Perhaps more surprisingly, we
+  show that the special nature of local capabilities can be elegantly expressed
+  using a variant of an idea that has been used by
+  \cite{Dreyer:2010:IHS:1863543.1863566} to express well-bracketedness
+  guarantees in a lambda calculus: Kripke worlds with a weak and a strong future
+  world relations. Interestingly, the two future world relations generally work
+  very similarly to Dreyer et al.'s, except that they turn up in quite a
+  different place in the logical relation.
+\item We demonstrate the power of our results by applying them to challenging
+  examples, specifically constructed to demonstrate local state encapsulation
+  and control-flow integrity guarantees in the presence of cross-component
+  function pointers. The examples demonstrate both the power of our formulation
+  of capability-safety and our stack management discipline.
+\end{itemize}
 
-Memory capabilities provide memory protection, but they do not provide
-a way to set up security domains. When you jump to an untrusted piece
-of code that is supposed to jump back to you, then you have to either
-revoke all your capabilities or pass to the piece of code you do not
-trust. This short coming can be overcome by adding something like the
-enter capability from the M-Machine\todo{add reference}. The enter
-capability is an opaque capability which can only be used for a
-jump. When jumped to it grants read and execute permission which
-allows the code that is now executing to read capabilities stored in
-memory. 
-The CHERI processor's ccall achieves a similar property\todo{Add reference}.
+% % Possible high-level intros:
+% % 0) Arms race compilers
+% %
+% % 1) Security guarantees vs obstacles / arms race
+% \begin{comment}
+%   Security on processors is today subject to an arms race between
+%   processor manufacturers and hackers. On the hacker side, a constant
+%   effort is put into exploiting current processor designs and
+%   circumventing the security measures set in place to prevent known
+%   exploits. On the processor manufacturer side, new security measures
+%   are put in place to prevent new exploits. The arms race would come
+%   to a grinding halt if the security meassures provided more than
+%   obstacles and actually provided low-level security guarantees. One
+%   kind of low-level machines that provide low-level security is a
+%   capability machine.
+% \end{comment}
+% % 2) Fully abstract compilation
+% High-level languages provide guarantees such as encapsulation of local
+% state and well-bracketedness of function calls. These guarantees are
+% often relied upon when reasoning about the correctness and security of
+% a program. High-level programs are compiled to machine code, so in
+% order to rely on the correctness and security guarantees provided by
+% the high-level language, it needs to be proven that the translation
+% preserves these properties. Translated programs often interact with
+% machine code that is not translated from the same high-level language,
+% so in order to preserve the guarantees from the high-level languages,
+% the low-level machine needs to provide some kind of security
+% guarantees. In other words, a target of secure compilation needs to
+% provide some security guarantees. Modern processors provide many
+% security meassures, but very little in terms of guarantees. A machine
+% that provides some means of security guarantees is a capability machine.
 
-Capabilities are irrevocable, so when we pass a capability has to
-an untrusted program, then we have to assume that the program keeps it
-around indefenitely. This means that we cannot reuse the piece of
-memory that the capability governs essentially creating a memory
-leak. The CHERI processor has a special kind of capabilities called
-\emph{local capabilities}\todo{reference?}\ that introduces a simple
-kind of temporal information control which allows for a simple kind of
-capability revocation. This is achieved by adding a tag to every
-capability that marks it as either local or global. Local capabilities
-can only be written through a capability with a new permission called
-\emph{permit write local}.
-% More about local capabilities.
+% % 3) Memory access-control
+% % I don't like this angle and can't find a good way to sell it.
 
-With just memory capabilities, enter capabailities, and local
-capabilities, the capability machine is very powerful and can
-enforce properties that high-level languages promise. In most
-high-level languages, we expect local state to be private and
-encapsulated. The memory capabilities make sure that local state
-cannot be accessed without a capability to do so. With the enter
-capabaility, we can regain control of local state after passing
-control to an untrusted piece of code which gives us encapsulation
-when control is passed to an untrusted program.
+% % 4) History
+% % Proposals throughout history.
+% % Lack of formal account of properties-guarantees.
 
-Many high-level languages guarantee that function function calls are
-well-bracketed. This can easily be achieved by having a trusted call
-stack. On a capability machine, it is possible to enforce well
-barcketedness without a trusted stack. When ensuring well-bracketed
-the two main challenges calls are 1) preventing storage of return
-pointers and 2) encapsulation of the local stack frame. If we don't
-have the first property, then an adversary can store the return
-capability in a call and jump to it in a later call. If the local
-stack frame is not properly encapsulated, then an adversary can break
-the well-bracketedness by jumping to a different calls return
-capability.
+% %%% a)
+% % Current low-level protection coarse grained memory protection or
+% % properties of high-level languages are not really enforced?
 
-In order to deal with the two challenges, we make sure that all return
-capabilities are local and that there are no global capabilities with
-permit write local permission. This makes sure that there is no way to
-save a return capability in persistent local state.\lau{this does not really make
-sense as the local stack frame can be seen as local state} It is,
-however, to limiting to not provide any means to store the return
-capabilities as a piece of code may need to store a return capability
-before jumping to an adversary. It is therefore needed to provide a
-local capability with permit write local permission which can be used
-as a stack. The stack should now be the only place one can store the
-return capability, but it should also be the only place one can store
-the stack capability. 
+% % Capability machines offer fine-grained memory protection
+% % Too technical
+% A capability machine is a low-level machine that offers fine-grained
+% memory protection.
+% % Capability machines and unforgeable tokens for memory access. 
+% This is done by introducing unforgeable tokens to
+% the machine. These tokens are called capabillities and grant a kind of
+% authority and a range of authority. 
+% % Dynamic checks encapsulation, formal model
 
-Using local return capabilities and putting a stack abstraction on a
-local capability permit write local capability is a good start, but as
-it turns out, it is not wnough. An adversary could do the following 
-\begin{enumerate}
-\item In a first invocation, fill the stack frame with copies of the
-  current stack capability.
-\item In a later call, the adversary may be able to load the stack
-  capability from the previous call.
-\item If we have used a larger part of the stack than in the first
-  call, then the adversary has access to part of our local stack frame.
-\end{enumerate}
+%  We will refer to the capabilities
+% that grant a combination of read, write, or execute permission as memory
+% capabilities. 
+%  Capabilities with the necessary permissions must be
+% presented every time an instruction that manipulates the memory is
+% executed.
 
-The above attack shows that it is tricky to ensure
-well-bracketedness. It raises the question whether it is possible to
-do so it is completely watertight. The attack utilized the stack, so
-it is necessary to have a trusted stack or can we do without? In
-general it raises the question, how do we reason about capability
-machines and local capabilities, so we are sure that what ever calling
-scheme we come up with actually provably ensures well-bracketed calls.
+% Memory capabilities provide memory protection, but they do not provide
+% a way to set up security domains. When you jump to an untrusted piece
+% of code that is supposed to jump back to you, then you have to either
+% revoke all your capabilities or pass to the piece of code you do not
+% trust. This short coming can be overcome by adding something like the
+% enter capability from the M-Machine\todo{add reference}. The enter
+% capability is an opaque capability which can only be used for a
+% jump. When jumped to it grants read and execute permission which
+% allows the code that is now executing to read capabilities stored in
+% memory. 
+% The CHERI processor's ccall achieves a similar property\todo{Add reference}.
 
-In the following paper, we present the following contributions
-\begin{enumerate}
-\item 
-\end{enumerate}
+% Capabilities are irrevocable, so when we pass a capability has to
+% an untrusted program, then we have to assume that the program keeps it
+% around indefenitely. This means that we cannot reuse the piece of
+% memory that the capability governs essentially creating a memory
+% leak. The CHERI processor has a special kind of capabilities called
+% \emph{local capabilities}\todo{reference?}\ that introduces a simple
+% kind of temporal information control which allows for a simple kind of
+% capability revocation. This is achieved by adding a tag to every
+% capability that marks it as either local or global. Local capabilities
+% can only be written through a capability with a new permission called
+% \emph{permit write local}.
+% % More about local capabilities.
+
+% With just memory capabilities, enter capabailities, and local
+% capabilities, the capability machine is very powerful and can
+% enforce properties that high-level languages promise. In most
+% high-level languages, we expect local state to be private and
+% encapsulated. The memory capabilities make sure that local state
+% cannot be accessed without a capability to do so. With the enter
+% capabaility, we can regain control of local state after passing
+% control to an untrusted piece of code which gives us encapsulation
+% when control is passed to an untrusted program.
+
+% Many high-level languages guarantee that function function calls are
+% well-bracketed. This can easily be achieved by having a trusted call
+% stack. On a capability machine, it is possible to enforce well
+% barcketedness without a trusted stack. When ensuring well-bracketed
+% the two main challenges calls are 1) preventing storage of return
+% pointers and 2) encapsulation of the local stack frame. If we don't
+% have the first property, then an adversary can store the return
+% capability in a call and jump to it in a later call. If the local
+% stack frame is not properly encapsulated, then an adversary can break
+% the well-bracketedness by jumping to a different calls return
+% capability.
+
+% In order to deal with the two challenges, we make sure that all return
+% capabilities are local and that there are no global capabilities with
+% permit write local permission. This makes sure that there is no way to
+% save a return capability in persistent local state.\lau{this does not really make
+% sense as the local stack frame can be seen as local state} It is,
+% however, to limiting to not provide any means to store the return
+% capabilities as a piece of code may need to store a return capability
+% before jumping to an adversary. It is therefore needed to provide a
+% local capability with permit write local permission which can be used
+% as a stack. The stack should now be the only place one can store the
+% return capability, but it should also be the only place one can store
+% the stack capability. 
+
+% Using local return capabilities and putting a stack abstraction on a
+% local capability permit write local capability is a good start, but as
+% it turns out, it is not wnough. An adversary could do the following 
+% \begin{enumerate}
+% \item In a first invocation, fill the stack frame with copies of the
+%   current stack capability.
+% \item In a later call, the adversary may be able to load the stack
+%   capability from the previous call.
+% \item If we have used a larger part of the stack than in the first
+%   call, then the adversary has access to part of our local stack frame.
+% \end{enumerate}
+
+% The above attack shows that it is tricky to ensure
+% well-bracketedness. It raises the question whether it is possible to
+% do so it is completely watertight. The attack utilized the stack, so
+% it is necessary to have a trusted stack or can we do without? In
+% general it raises the question, how do we reason about capability
+% machines and local capabilities, so we are sure that what ever calling
+% scheme we come up with actually provably ensures well-bracketed calls.
+
+% In the following paper, we present the following contributions
+% \begin{enumerate}
+% \item 
+% \end{enumerate}
  
 
 %%% b)
@@ -722,23 +820,30 @@ For technical reasons (monotonicity of the logical relation), a
 temporary region is not removed in the model when it is
 revoked. Instead it is turned into a new kind of region, namely a
 revoked region. A revoked region contains no state transition
-system and puts no requirements on the memory it models. It serves
-simply as a mask for a temporary region that have been revoked.
-(This way of masking a region goes back to earlier work of
-Ahmed~\cite{Ahmed2004semantics} and was also used in~\cite{Thamsborg:2011:KLR:2034773.2034831}.)
+system and puts no requirements on the memory it models. It
+simply serves as a mask for a temporary region that have been revoked.
+This way of masking a region goes back to earlier work of
+Ahmed~\cite{Ahmed2004semantics} and was also used in~\cite{Thamsborg:2011:KLR:2034773.2034831}.
 
 % Recursive worlds intuition
-The worlds end up being recursive. The memory can contain capabilities
-and capabilities grants authority over part of the memory. A world
-models memory, so it also needs to be able to model capabilities in
-memory and the protocols on them. Whether a capability satisfies the
-protocol of a region may depend on what it grants authority over in
-memory which is described by the world.
+% The worlds end up being defined recursively: The memory can contain
+% capabilities,
+% which grant authority over parts of memory. A world
+% models memory, so it also needs to be able to model capabilities in
+% memory and the protocols on them. Whether a capability satisfies the
+% protocol of a region may depend on what it grants authority over in
+% memory which is described by the world.
+
+The worlds end up being defined recursively: Worlds describe memory,
+which can contain capabilities, whose safety depends on worlds. 
+We use the method of Birkedal et
+al.~\cite{Birkedal:2011:SKM:1926385.1926401} 
+for constructing the worlds.
 
 % Short technical explanation
-The recursiveness of the worlds gives rise to a recurisve domain
-equation. Theorem~\ref{thm:world-existence} gives the solution to this
-recursive domain equation.
+% The recursiveness of the worlds gives rise to a recurisve domain
+% equation. Theorem~\ref{thm:world-existence} gives the solution to this
+% recursive domain equation.
 \begin{theorem}\label{thm:world-existence}
   There exists a \cofe{} $\Wor$ and preorders $\futurestr$ and
   $\futurewk$ such that $(\Wor,\futurestr)$ and $(\Wor,\futurewk)$ are
@@ -764,32 +869,15 @@ the worlds:
 \end{align*}
 
 \subsubsection{Future worlds}
-In order to model changes to memory over time, we use the future world
-relations. The future world relations model how more memory may be
-allocated but also how memory may change. How memory is allowed to
-change over time depends on the region that governs it and the future
-world relation used. The most interesting part about the future worlds
-is how it affects the regions, so we first look at the properties of
-the \emph{public future region} relation and the \emph{private future
-  region} relation. We then use these relations to describe the future
-world relations.
-
-{\bf Private future regions}
-In the private future region relation, we allow revocation of $\temp$
-regions. The regions cannot be revoked by removing them from the
-world, because we need the future world relations to be
-monotone. This is why we have the $\revoked$ region, so we have
-a region that can serve as a mask. We can, however, let any region
-serve as a mask, so in the private future region relation, we allow a
-$\temp$ region to become any valid region. As the $\revoked$ region
-serves as a mask, we let any valid region take its place in the
-private future region relation.
-
-If a $\temp$ region is not masked by a region, then it behaved like a
-$\perm$ region. The $\perma$ regions stay the same type and they are
-allowed to take a transition in the private part of the transition
-system. Which can be thought of as the memory changes according to
-some protocol.
+The future world relations model how memory may evolve over time. 
+The \emph{public future world} 
+$W' \futurewk W$ is defined to mean that $\dom(W') \supseteq \dom(W)$
+and $\forall r \in \dom(W) \ldotp W'(r) \futurewk W(r)$.  That is,
+in a public future world, more regions may have been allocated, and
+each of the regions may also have evolved according to the public future
+region relation (defined below). The \emph{private future world} relation
+$W' \futurestr W$ is defined similarly, using a private future region
+relation.
 
 The properties of the \emph{private future region} relation are:
 \begin{mathpar}
@@ -803,20 +891,16 @@ The properties of the \emph{private future region} relation are:
   \inferrule{ r \in \Regions }
   { r \futurestr \revoked }
 \end{mathpar}
-
-{\bf Public future regions}
-In the public future regions we do not permit revocation of $\temp$
-regions. In this relation, the $\temp$ and $\perma$ regions must stay
-the same type and they are allowed to take a transition in the public
-part of the transition system.
-
-The $\revoked$ regions serve as masking regions, but are not as
-liberal as in the private future region relation when it comes to
-letting other regions replace them as masks. In the public future
-region relation, we only allow $\revoked$ and $\temp$ regions to take
-on the job as masking region. We have this limitation, because we
-want the private future region relation to be able to reuse any region
-it has revoked.
+These rules express that, in the private future region relation, 
+we allow revocation of temporary regions. 
+As explained above, this can be done using a special revoked region,
+which does not desribe any memory, but we also allow  
+any other region to serve as a mask, and thus any region $r$ can be a
+future region of a temporary region and of a revoked region.
+If a $\temp$ region is not masked by a region, then it behaves like a
+$\perm$ region. The $\perma$ regions stay permanent and they are
+allowed to take a transition in the private part of the transition
+system. 
 
 The \emph{public future} region relations satisfies the following properties:
 \begin{mathpar}
@@ -830,37 +914,123 @@ The \emph{public future} region relations satisfies the following properties:
   \inferrule{ }
   { \revoked \futurewk \revoked }
 \end{mathpar}
+In the public future regions we do not permit revocation of temporary
+regions. Instead, temporary and permanent regions are only 
+allowed to take a transition in the public part of the transition system.
+
+The $\revoked$ regions serve as masking regions, but are not as
+liberal as in the private future region relation when it comes to
+letting other regions replace them as masks. In the public future
+region relation, we only allow $\revoked$ and $\temp$ regions to take
+on the job as masking region. We have this limitation, because we
+want the private future region relation to be able to reuse any region
+it has revoked.
+\todo[inline]{can we make this crisper ?}
 
 Notice that the public future region relation is a subset of the
-private future region relation, so anything you are allowed to do in
-the public future region relation, the private future region relation
-can do the same.
+private future region relation.
 
-% The future world relation are really the ones from thm, the above
-% are properties of them.
-{\bf Future world relations}
-There are two future world relations a \emph{public future world}
-relation and a \emph{private future world} relation. In both future
-world relations, we have extension ordering, so a future world $W'$ of
-$W$ has at least the same regions as $W$, but $W'$ may have new regions
-imposing new protocols on parts of the memory. The two future world
-relations differ in the way existing regions are allowed to
-evolve. The public future world relation uses the public future region
-relation and the private future world relation uses the private future
-region relation:
-\begin{mathpar}
-  \inferrule{ \dom(W') \supseteq \dom(W)\\ 
-    \forall r \in \dom(W) \ldotp W'(r) \futurewk W(r) }
-  { W' \futurewk W }
-  \and
-  \inferrule{ \dom(W') \supseteq \dom(W)\\ 
-    \forall r \in \dom(W) \ldotp W'(r) \futurestr W(r) }
-  { W' \futurestr W }
-\end{mathpar}
 
-% Relate to STSs for high-level languages. Have the public-private
-% transitions, but they are also used for more than this
-\todo[inline]{Relate to STSs for high-level languages?}
+%%%%%%%%
+
+% In order to model changes to memory over time, we use the future world
+% relations. The future world relations model how more memory may be
+% allocated but also how memory may change. How memory is allowed to
+% change over time depends on the region that governs it and the future
+% world relation used. The most interesting part about the future worlds
+% is how it affects the regions, so we first look at the properties of
+% the \emph{public future region} relation and the \emph{private future
+%   region} relation. We then use these relations to describe the future
+% world relations.
+
+% {\bf Private future regions}
+% In the private future region relation, we allow revocation of $\temp$
+% regions. The regions cannot be revoked by removing them from the
+% world, because we need the future world relations to be
+% monotone. This is why we have the $\revoked$ region, so we have
+% a region that can serve as a mask. We can, however, let any region
+% serve as a mask, so in the private future region relation, we allow a
+% $\temp$ region to become any valid region. As the $\revoked$ region
+% serves as a mask, we let any valid region take its place in the
+% private future region relation.
+
+% If a $\temp$ region is not masked by a region, then it behaved like a
+% $\perm$ region. The $\perma$ regions stay the same type and they are
+% allowed to take a transition in the private part of the transition
+% system. Which can be thought of as the memory changes according to
+% some protocol.
+
+% The properties of the \emph{private future region} relation are:
+% \begin{mathpar}
+%   \inferrule{  (s,s') \in \phi \\
+%     (v,\phi_\pub,\phi,H) = (v',\phi_\pub',\phi',H')}
+%   {  (v',s',\phi_\pub',\phi',H') \futurestr (v,s,\phi_\pub,\phi,H) }
+%   \and
+%   \inferrule{ r \in \Regions }
+%   { r \futurestr (\temp,s,\phi_\pub,\phi,H) }
+%   \and
+%   \inferrule{ r \in \Regions }
+%   { r \futurestr \revoked }
+% \end{mathpar}
+
+% {\bf Public future regions}
+% In the public future regions we do not permit revocation of $\temp$
+% regions. In this relation, the $\temp$ and $\perma$ regions must stay
+% the same type and they are allowed to take a transition in the public
+% part of the transition system.
+
+% The $\revoked$ regions serve as masking regions, but are not as
+% liberal as in the private future region relation when it comes to
+% letting other regions replace them as masks. In the public future
+% region relation, we only allow $\revoked$ and $\temp$ regions to take
+% on the job as masking region. We have this limitation, because we
+% want the private future region relation to be able to reuse any region
+% it has revoked.
+
+% The \emph{public future} region relations satisfies the following properties:
+% \begin{mathpar}
+%   \inferrule{  (s,s') \in \phi_\pub \\
+%     (v,\phi_\pub,\phi,H) = (v',\phi_\pub',\phi',H')}
+%   {  (v',s',\phi_\pub',\phi',H') \futurewk (v,s,\phi_\pub,\phi,H) }
+%   \and
+%   \inferrule{ (\temp,s,\phi_\pub,\phi,H) \in \Regions }
+%   { (\temp,s,\phi_\pub,\phi,H) \futurewk \revoked }
+%   \and
+%   \inferrule{ }
+%   { \revoked \futurewk \revoked }
+% \end{mathpar}
+
+% Notice that the public future region relation is a subset of the
+% private future region relation, so anything you are allowed to do in
+% the public future region relation, the private future region relation
+% can do the same.
+
+
+% % The future world relation are really the ones from thm, the above
+% % are properties of them.
+% {\bf Future world relations}
+% There are two future world relations a \emph{public future world}
+% relation and a \emph{private future world} relation. In both future
+% world relations, we have extension ordering, so a future world $W'$ of
+% $W$ has at least the same regions as $W$, but $W'$ may have new regions
+% imposing new protocols on parts of the memory. The two future world
+% relations differ in the way existing regions are allowed to
+% evolve. The public future world relation uses the public future region
+% relation and the private future world relation uses the private future
+% region relation:
+% \begin{mathpar}
+%   \inferrule{ \dom(W') \supseteq \dom(W)\\ 
+%     \forall r \in \dom(W) \ldotp W'(r) \futurewk W(r) }
+%   { W' \futurewk W }
+%   \and
+%   \inferrule{ \dom(W') \supseteq \dom(W)\\ 
+%     \forall r \in \dom(W) \ldotp W'(r) \futurestr W(r) }
+%   { W' \futurestr W }
+% \end{mathpar}
+
+% % Relate to STSs for high-level languages. Have the public-private
+% % transitions, but they are also used for more than this
+% \todo[inline]{Relate to STSs for high-level languages?}
 
 
 \todo[inline]{Put paragraph about memory satisfaction here}
