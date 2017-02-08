@@ -383,6 +383,13 @@ pc / register-file / word are capability safe.
 piece of code'' should we adopt the convention that adversary refers
 to an unstrusted piece of code?
 
+\emph{memory}  we don't make a distinction between memory and memory
+segments in the text  (to do so properly, we would need to explain why
+assumptions
+are reasonable, given that a real machine has finite memory, but we
+need infinite domain for malloc spec, etc.)
+
+
 \section{Introduction}
 \label{sec:introduction}
 \todo[inline]{See the latex comments for the next paragraphs!}
@@ -899,8 +906,8 @@ As explained above, this can be done using a special revoked region,
 which does not desribe any memory, but we also allow  
 any other region to serve as a mask, and thus any region $r$ can be a
 future region of a temporary region and of a revoked region.
-If a $\temp$ region is not masked by a region, then it behaves like a
-$\perm$ region. The $\perma$ regions stay permanent and they are
+If a temporary region is not masked by a region, then it behaves like a
+permanent region. The permanent regions stay permanent and they are
 allowed to take a transition in the private part of the transition
 system. 
 
@@ -919,15 +926,10 @@ The \emph{public future} region relations satisfies the following properties:
 In the public future regions we do not permit revocation of temporary
 regions. Instead, temporary and permanent regions are only 
 allowed to take a transition in the public part of the transition system.
-
-The $\revoked$ regions serve as masking regions, but are not as
-liberal as in the private future region relation when it comes to
-letting other regions replace them as masks. In the public future
-region relation, we only allow $\revoked$ and $\temp$ regions to take
-on the job as masking region. We have this limitation, because we
-want the private future region relation to be able to reuse any region
-it has revoked.
-\todo[inline]{can we make this crisper ?}
+In the public future region relation, we only allow revoked and
+temporary regions to mask a region. This means that the private future
+world relations allows us to reuse a region that has been revoked
+earlier.
 
 Notice that the public future region relation is a subset of the
 private future region relation.
@@ -1048,26 +1050,39 @@ private future region relation.
       \end{aligned}\right.
 \end{align*}
 
+A memory satisfies a world, written $\memSat{\ms}{W}$, 
+if it can be partitioned into disjoint parts such that each part is
+in the interpretation of an active (permanent or temporary) region. 
+
+
 
 \subsection{Logical relation}
 
 
 \subsubsection{Observation relation}
-\todo[inline]{write something about single orthogonal closure?}  The
-\emph{observation relation}, $\observations$, is a world-indexed
-predicate that captures all the configurations that produce an
-admissable result. Here we take the result of a computation to be the
-memory when the machine halts successfully. We expect the memory to
-adhere to the protocols specified by the world, but the memory may
-change during the execution, so we just want the resulting memory to
-satisfy some private future world.
+\todo[inline]{write something about single orthogonal closure?}
 
-We also consider a failing execution admissable, because the assembly
-language contains a $\fail$ instruction, and we want to be able to
-reason about abritrary adverserial programs.
+ The \emph{observation relation}, $\observations$, defines which
+configurations are capability safe. Roughly speaking,
+a configuration is capability safe if, whenever it halts, then
+the resulting memory satisfies a private future world. 
+Notice that if a configuation fails, e.g., if an unauthorized access 
+(e.g., a load of a memory location without the requisite read capability)
+is attempted, then the configuation is considered capability safe, which it should
+because then the capability machine has caught the attempted unauthorized access
+This is similar to the logical relation given for an untyped language
+in~\cite{Devriese:2016ObjCap}, but unlike logical relations for typed languages, which
+typically require that computations do not fail. 
 
-The observation relation is defined as follows:
+\subsubsection{Expression and register-file relation}
+The expression relation, $\stder$, is a world-indexed predicate that
+contains all the words that safely can be put in the $\pcreg$-register
+of a register-file that only gives access to capabilities that are capability
+safe. 
 
+
+\begin{figure}[htbp]
+  \centering
 \begin{align*}
   \observations : &  \Worlds \nefun \UPred{\Regs \times \HeapSegments} \\
   \observations (W) \defeq & \lambda W \ldotp 
@@ -1083,12 +1098,6 @@ The observation relation is defined as follows:
                                \end{aligned}
                              \end{aligned}
 \end{align*}
-
-\subsubsection{Expression and register-file relation}
-The expression relation, $\stder$, is a world-indexed predicate that
-contains all the words that safely can be put in the $\pcreg$-register
-of a register-file that only gives access to capabilities that are capability
-safe. 
 \begin{align*}
   \stder : & \Worlds \nefun \UPred{\Words} \\
   \stder \defeq & \lambda W \ldotp \{ \npair{\pc} \mid 
@@ -1099,6 +1108,50 @@ safe.
                     & \quad \qquad \quad \npair[n']{(\reg\update{\pcreg}{\pc},\hs)} \in \observations(W) \}
                   \end{aligned}
 \end{align*}
+\begin{align*}
+  &\stdvr : \Worlds \monwknefun \UPred{\Words} \\
+  &\stdvr\defeq \lambda \; W \ldotp 
+    \begin{aligned}[t]
+      & \{ \npair{i} \mid i \in \ints \} 
+      \union \\
+      & \{ \npair{\stdcap[(\noperm,\gl)] }  \} 
+      \union \\
+      & \{ \npair{\stdcap[(\readonly,\gl)] } \mid \\
+      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)\} 
+      \union \\
+      & \{ \npair{\stdcap[(\readwrite,\gl)] } \mid \\
+      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
+      & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W) \}
+      \union \\
+      & \{ \npair{\stdcap[(\readwritel,\gl)] } \mid \\
+      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
+      & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W) \}
+      \union \\
+      & \{ \npair{\stdcap[(\exec,\gl)]} \mid \\
+      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
+      & \quad \npair{(\exec,\start,\addrend)} \in \execCond{}(\gl)(W) \} 
+      \union \\
+      & \{ \npair{\stdcap[(\entry,\gl)]} \mid \\
+      & \quad \npair{(\start,\addrend,\addr)} \in \entryCond{}(\gl)(W)\} 
+      \union \\
+      & \{ \npair{\stdcap[(\rwx,\gl)]} \mid \\
+      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
+      & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W) \land\\
+      & \quad \npair{(\rwx,\start,\addrend)} \in \execCond{}(\gl)(W)  \land \\
+      & \quad \npair{(\exec,\start,\addrend)} \in \execCond{}(\gl)(W) \}
+      \union \\
+      & \{ \npair{\stdcap[(\rwlx,\gl)]} \mid \\
+      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
+      & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W) \land\\
+      & \quad \npair{(\rwlx,\start,\addrend)} \in \execCond{}(\gl)(W) \land \\
+      & \quad \npair{(\rwx,\start,\addrend)} \in \execCond{}(\gl)(W) \land \\
+      & \quad \npair{(\exec,\start,\addrend)} \in \execCond{}(\gl)(W) \}
+    \end{aligned}
+\end{align*}
+  \caption{Logical Relation}
+  \label{fig:logrel}
+\end{figure}
+
 
 The register-file relation, $\stdrr$, contains all the register files
 that contains capability safe words. It does not require the word in
@@ -1218,46 +1271,6 @@ Revoking all temporary regions:
 \end{align*}
 
 Now define the value relation as follows:
-\begin{align*}
-  &\stdvr : \Worlds \monwknefun \UPred{\Words} \\
-  &\stdvr\defeq \lambda \; W \ldotp 
-    \begin{aligned}[t]
-      & \{ \npair{i} \mid i \in \ints \} 
-      \union \\
-      & \{ \npair{\stdcap[(\noperm,\gl)] }  \} 
-      \union \\
-      & \{ \npair{\stdcap[(\readonly,\gl)] } \mid \\
-      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)\} 
-      \union \\
-      & \{ \npair{\stdcap[(\readwrite,\gl)] } \mid \\
-      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
-      & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W) \}
-      \union \\
-      & \{ \npair{\stdcap[(\readwritel,\gl)] } \mid \\
-      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
-      & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W) \}
-      \union \\
-      & \{ \npair{\stdcap[(\exec,\gl)]} \mid \\
-      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
-      & \quad \npair{(\exec,\start,\addrend)} \in \execCond{}(\gl)(W) \} 
-      \union \\
-      & \{ \npair{\stdcap[(\entry,\gl)]} \mid \\
-      & \quad \npair{(\start,\addrend,\addr)} \in \entryCond{}(\gl)(W)\} 
-      \union \\
-      & \{ \npair{\stdcap[(\rwx,\gl)]} \mid \\
-      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
-      & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W) \land\\
-      & \quad \npair{(\rwx,\start,\addrend)} \in \execCond{}(\gl)(W)  \land \\
-      & \quad \npair{(\exec,\start,\addrend)} \in \execCond{}(\gl)(W) \}
-      \union \\
-      & \{ \npair{\stdcap[(\rwlx,\gl)]} \mid \\
-      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \land \\
-      & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W) \land\\
-      & \quad \npair{(\rwlx,\start,\addrend)} \in \execCond{}(\gl)(W) \land \\
-      & \quad \npair{(\rwx,\start,\addrend)} \in \execCond{}(\gl)(W) \land \\
-      & \quad \npair{(\exec,\start,\addrend)} \in \execCond{}(\gl)(W) \}
-    \end{aligned}
-\end{align*}
 
 
 
