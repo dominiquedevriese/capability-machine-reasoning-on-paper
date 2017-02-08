@@ -211,7 +211,7 @@
 \newcommand{\Words}{\plaindom{Word}}
 \newcommand{\Addrs}{\plaindom{Addr}}
 \newcommand{\ExecConfs}{\plaindom{ExecConf}}
-\newcommand{\RegName}{\plaindom{RegisterName}}
+\newcommand{\RegName}{\plaindom{RegName}}
 \newcommand{\Regs}{\plaindom{Reg}}
 \newcommand{\Heaps}{\plaindom{Mem}}
 \newcommand{\Mems}{\Heaps}
@@ -328,6 +328,8 @@
 \newcommand{\scall}[3]{\mathtt{scall} \; #1([#2],[#3])}
 
 
+\newcommand{\isdef}{\mathrel{\overset{\makebox[0pt]{\mbox{\normalfont\tiny\sffamily def}}}{=}}}
+\newcommand\bnfdef{\mathrel{::=}}
 
 
 
@@ -394,7 +396,6 @@ need infinite domain for malloc spec, etc.)
 
 \section{Introduction}
 \label{sec:introduction}
-\todo[inline]{See the latex comments for the next paragraphs!}
 
 Compromising software security is often based on attacks that break programming
 language properties relied upon by software authors, such as control flow
@@ -487,7 +488,7 @@ machines.  Specifically, we make the following contributions:
   has been previously used for lambda calculi. Perhaps more surprisingly, we
   show that the special nature of local capabilities can be elegantly expressed
   using a variant of an idea that has been used by
-  \cite{Dreyer:2010:IHS:1863543.1863566} to express well-bracketedness
+  \cite{Dreyer:jfp12} to express well-bracketedness
   guarantees in a lambda calculus: Kripke worlds with a weak and a strong future
   world relations. Interestingly, the two future world relations generally work
   very similarly to Dreyer et al.'s, except that they turn up in quite a
@@ -663,112 +664,176 @@ machines.  Specifically, we make the following contributions:
 
 % 
 
-\subsection{Introduce capability machines}
-\subsection{Enforcing properties on a capability machine}
+% \subsection{Contributions}
 
-Privacy of local state using memory capabilities.
-Encapsulation of private state using enter pointers or CHERI's ccall.
-(mention in passing secure compilation, full abstraction)
+% \begin{itemize}
+% \item Formal model of a simple but representative capability machine with local capabilities
+% \item Detailed study of how to do safe stack and return pointer management in this setting, taking into account:
+% \begin{itemize}
+% \item untrusted adversary
+% \item higher-order code: callbacks passed to and received from the adversary
+% \item efficient stack management
+% \item no OS support
+% \end{itemize}
+% \item Logical relation for reasoning about code in this capability machine
+% \item Fundamental theorem that expresses the guarantees offered by a capability machine for untrusted code
+% \item Technical contributions: reuse existing ideas in a new way:
+% \begin{itemize}
+% \item replace biorthogonal closure by a single orthogonal closure
+% because assembly languages remove the distinction between the
+% continuation and the arguments
+% \end{itemize}
+% \end{itemize}
+% LB: I think we should have some discussion of the flexibility /
+%   strength of our LR.  The LR defines which computations we think of
+%   as well-behaved.   
+%  We should give simple / trivial examples of
+%   code not in the LR. But we may also want to emphasize that the LR is 
+%   not too restricting, e.g., it does not enforce a certain calling
+%   scheme (examplied by Example \verb!f1! which
+%   does not use the stack and the following examples which do use the
+%   stack). This ties in to the discussion of biorthogonality, see the
+%   following paragraphs. 
 
-\subsection{Well-bracketed control flow and encapsulation of stack frames}
+% LB: we need to relate this carefully to Hur-Dreyer, who used
+%       biorthogonality even though they also worked with an assembly
+%       language. (If I recall correctly, they assumed some properties
+%       of the low level language, which is why the biortho was the
+%       right ting, but we need to check.)
 
-Hard to enforce using standard capabilities:
-\begin{itemize}
-\item Well-bracketed control flow can be broken if the adversary stores return pointers.
-(alternative: trusted stack)
-\item Encapsulation of local stack frames can be broken if the adversary stores stack pointers.
-\end{itemize}
+% LS: It is my impression that they were interested in the relation
+% between high-level and low-level programs. They are therefore in
+% particular interested in low-level programs compiled from high-level
+% programs which means that the continuation is always invoked in the 
+% same way. Our realisation was that anything we pass as an argument 
+% in a "call" can be used as a continuation, so the continuation 
+% relation was redundant. Even though we do try to give our programs
+% some structure using the macros, our logical relation is strong enough
+% to handle unstructured programs as well.
 
-\subsection{Local capabilities}
+% DD: I think the above comment by LS is correct: the reason why the biortho is
+% the right thing for Hur-Dreyer is that their LR only accepts well-behaved
+% programs which treat the return pointer as a continuation (i.e. don't store
+% it), while ours is more general.
 
-\begin{itemize}
-\item Introduced by CHERI for this purpose.
-\item Explain how they can be used for passing return pointers and stack pointers.
-\item But this is not watertight.
-\item Example attack:
-\begin{itemize}
-\item In a first invocation, adversary fills the entire unused part of the stack with copies of the current stack pointer
-\item In a second invocation, adversary can load the old stack pointer of the stack
-\item He now has access to private state that was pushed on the stack in between.
-\end{itemize}
-\item So:
-\begin{itemize}
-\item Can we make it (provably) watertight?
-\item Is the trusted stack necessary? Why not just pass return pointers locally?
-\item General question: How to reason about capability machines and
-local capabilities?
-\end{itemize}
-\end{itemize}
-
-\subsection{Contributions}
-
-\begin{itemize}
-\item Formal model of a simple but representative capability machine with local capabilities
-\item Detailed study of how to do safe stack and return pointer management in this setting, taking into account:
-\begin{itemize}
-\item untrusted adversary
-\item higher-order code: callbacks passed to and received from the adversary
-\item efficient stack management
-\item no OS support
-\end{itemize}
-\item Logical relation for reasoning about code in this capability machine
-\item Fundamental theorem that expresses the guarantees offered by a capability machine for untrusted code
-\item Technical contributions: reuse existing ideas in a new way:
-\begin{itemize}
-\item replace biorthogonal closure by a single orthogonal closure
-because assembly languages remove the distinction between the
-continuation and the arguments
-\end{itemize}
-\end{itemize}
-LB: I think we should have some discussion of the flexibility /
-  strength of our LR.  The LR defines which computations we think of
-  as well-behaved.   
- We should give simple / trivial examples of
-  code not in the LR. But we may also want to emphasize that the LR is 
-  not too restricting, e.g., it does not enforce a certain calling
-  scheme (examplied by Example \verb!f1! which
-  does not use the stack and the following examples which do use the
-  stack). This ties in to the discussion of biorthogonality, see the
-  following paragraphs. 
-
-LB: we need to relate this carefully to Hur-Dreyer, who used
-      biorthogonality even though they also worked with an assembly
-      language. (If I recall correctly, they assumed some properties
-      of the low level language, which is why the biortho was the
-      right ting, but we need to check.)
-
-LS: It is my impression that they were interested in the relation
-between high-level and low-level programs. They are therefore in
-particular interested in low-level programs compiled from high-level
-programs which means that the continuation is always invoked in the 
-same way. Our realisation was that anything we pass as an argument 
-in a "call" can be used as a continuation, so the continuation 
-relation was redundant. Even though we do try to give our programs
-some structure using the macros, our logical relation is strong enough
-to handle unstructured programs as well.
-\begin{itemize}
-\item STSs with public/private transitions for dealing with local capabilities: play the same role as before, but in different places of the LR.
-\end{itemize}
-\begin{itemize}
-\item Demonstrate all of this on several examples:
-\begin{itemize}
-\item security examples
-\item the most challenging examples from existing literature on reasoning about well-bracketed control flow in lambda calculi
-\item some compartmentalisation result?
-\item whatever else we do..
-\end{itemize}
-\end{itemize}
+% \begin{itemize}
+% \item STSs with public/private transitions for dealing with local capabilities: play the same role as before, but in different places of the LR.
+% \end{itemize}
+% \begin{itemize}
+% \item Demonstrate all of this on several examples:
+% \begin{itemize}
+% \item security examples
+% \item the most challenging examples from existing literature on reasoning about well-bracketed control flow in lambda calculi
+% \item some compartmentalisation result?
+% \item whatever else we do..
+% \end{itemize}
+% \end{itemize}
 
 \subsection{Outline}
+\todo[inline]{TODO}
 
 \section{A capability machine with local capabilities}
+\begin{figure}
+  \begin{align*}
+    \addr   &\in& \Addrs &\isdef \nats\\
+    w &\in&\Words &\isdef \ints + \Caps \\
+    \perm   &\in& \Perms &::= \noperm \mid \readonly\mid \readwrite\mid \readwritel\mid \exec\mid \entry\mid \rwx\mid \rwlx\\
+    \gl&\in&\Globals & ::= \glob \mid \local \\
+     && \Caps  &::= \left\{
+                       \begin{multlined}
+                         ((\perm,\gl),\start,\addrend,\addr)\mid\\
+                         \start\in\Addrs,\addrend \in
+                         \Addrs\cup \{\infty\}
+                       \end{multlined} \right\}\\
+    r       &\in& \RegName&\bnfdef \pcreg\mid r_0\mid r_1\mid\ldots\\
+    \reg &\in& \Regs  &\isdef \RegName \rightarrow \Words\\
+    m&\in& \Heaps &\isdef \Addrs \rightarrow \Words \\
+    \Phi    &\in& \ExecConfs  &\isdef \Regs \times \Heaps \\
+    &&\Confs &::= \ExecConfs + \{\failed \} + \{\halted\} \times \Heaps \\
+    \ms     &\in& \MemSegments &::= \Addrs \parfun \Words
+  \end{align*}
 
-Formalisation
+  \begin{array}{rcl}
+    \lv    &::=& \refreg{r} \\
+    \hv    &::=& \refheap{r}\\
+    \rv    &::=& n \mid \lv \\
+    i      &::=& 
+                 \jmp{\lv} \mid 
+                 \jnz{\lv}{\rv} \mid
+                 \move{\lv}{\rv} \mid 
+                 \load{\lv}{\hv} \mid 
+                 \store{\hv}{\rv} \mid  \\
+           &   & \plus{\lv}{\rv}{\rv} \mid 
+                 \lea{\lv}{\rv} \mid 
+                 \restricttwo{\lv}{\rv} \mid 
+                 \subseg{\lv}{\rv}{\rv} \mid  \\
+           &   & \isptr{\lv}{\rv} \mid 
+                 \getp{\lv}{\lv} \mid 
+                 \getl{\lv}{\lv} \mid 
+                 \getb{\lv}{\lv} \mid
+                 \gete{\lv}{\lv} \mid\\
+           &   & \geta{\lv}{\lv} \mid 
+                 \fail \mid
+                 \halt 
+  \end{array}
+  \caption{The syntax of our capability machine assembly language.}
+  \label{fig:syntax}
+\end{figure}
+
+\begin{figure}
+  \centering
+  \begin{tikzpicture}[main node/.style={}]
+    \node[main node] (7) {$\rwlx$};
+    \node[main node] (8) [below left of=7] {$\readwritel$};
+    \node[main node] (1) [below right of=7] {$\rwx$};
+    \node[main node] (2) [below right of=1] {$\exec$};
+    \node[main node] (3) [below right of=2] {$\entry$};
+    \node[main node] (4) [below left of=1] {$\readwrite$};
+    \node[main node] (5) [below right of=4] {$\readonly$};
+    \node[main node] (6) [below right of=5] {$\noperm$};
+
+    \path[every node/.style={font=\sffamily\small}]
+    (7) edge (8)
+    (7) edge (1)
+    (8) edge (4)
+    (1) edge (2)
+    (2) edge (3)
+    (2) edge (5)
+    (3) edge (6)
+    (1) edge (4)
+    (4) edge (5)
+    (5) edge (6);
+  \end{tikzpicture}
+
+  \caption{Permission hierarchy}
+  \label{fig:perm-hier}
+\end{figure}
+
+We define the syntax of our capability machine in Figure~\ref{fig:syntax}. We
+assume an infinite set of addresses $\Addrs$ and define machine words as either
+integers or capabilities of the form $((\perm,\gl),\start,\addrend,\addr)$. Such
+a capability represents the authority to execute permissions $\perm$ on the
+memory array $[\start,\addrend]$, together with a current address $\addr$ and a
+tag $\gl$ which indicates whether the capability is global or local. The
+available permissions and their ordering are depicted in
+Figure~\ref{fig:perm-hier}: the permissions include null permission ($\noperm$),
+readonly ($\readonly$), read/write ($\readwrite$), read/execute ($\exec$) and
+read/write/execute ($\rwx$) permissions. Additionally, there are somewhat
+special read/write-local ($\readwritel$), read/write-local/execute ($\rwlx$) and
+enter ($\entry$) permissions which we will explain below.
+
+We assume a set of register names $\RegName$. We define register files $\reg$ as
+functions mapping register names to words and memories as functions that map
+addresses to words. The state of the entire machine is represented as a
+configuration that is either a running $\Phi \in \ExecConfs$ containing a memory
+and a register file, or a failed or halted state, where the latter keeps track
+of the final state of memory.
+
+
 
 Explain our model of linking
 
 \section{Stack and return pointer management using local capabilities}
-
 \begin{itemize}
 \item Issues to consider:
 \begin{itemize}
@@ -791,7 +856,6 @@ LB: maybe we can present the examples informally before the logical relation and
 In order to be able to reason about programs running on the capability
 machine and prove properties such as well-bracketedness and
 encapsulation about them, we define a unary logical relation.
-
 % Intuition
 The logical relation is a semantic model of all the words on the
 capability machine that are definitely safe to give to an
