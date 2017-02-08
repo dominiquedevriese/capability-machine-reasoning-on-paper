@@ -1174,20 +1174,20 @@ in the interpretation of an active (permanent or temporary) region.
 \begin{figure}[htbp]
   \centering
   \begin{align*}
-  & \writeCond{}(\iota,\gl)(W) =  \\
-  & \left\{ \npair{(\start,\addrend)} \; \middle| \;
-    \begin{aligned}
-      & \exists r \in \var{localityReg}(g,W) \ldotp \\
-      & \;\; \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
-      & \;\;\;\; W(r)\nsupsim[n-1] \iota_{\start',\addrend'} \text{\footnotesize{ and}}\\
-      & \;\;\;\; W(r) \text{\footnotesize{ is address-stratified}} 
-    \end{aligned} \right\}\\
   & \readCond{}(\gl)(W) =  \\
   & \left\{ \npair{(\start,\addrend)} \; \middle| \;
     \begin{aligned}
       & \exists r \in \var{localityReg}(g,W) \ldotp \\
       & \;\; \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
       & \;\;\;\; W(r)\nsubsim[n] \iota_{\start',\addrend'}^\pwl 
+    \end{aligned} \right\}\\
+  & \writeCond{}(\iota,\gl)(W) =  \\
+  & \left\{ \npair{(\start,\addrend)} \; \middle| \;
+    \begin{aligned}
+      & \exists r \in \var{localityReg}(g,W) \ldotp \\
+      & \;\; \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
+      & \;\;\;\; W(r)\nsupsim[n-1] \iota_{\start',\addrend'} \text{\footnotesize{ and }}\\
+      & \;\;\;\; W(r) \text{\footnotesize{ is address-stratified}} 
     \end{aligned} \right\}\\
   & \execCond{}(\gl)(W) = \\
   & \left\{ \npair{(\var{perms},\start,\addrend)} \; \middle| \;
@@ -1222,10 +1222,7 @@ in the interpretation of an active (permanent or temporary) region.
 \clearpage
 }
 
-\subsubsection{Observation relation}
-\todo[inline]{write something about single orthogonal closure?}
-
- The \emph{observation relation}, $\observations$, defines which
+The \emph{observation relation}, $\observations$, defines which
 configurations are capability safe. Roughly speaking,
 a configuration is capability safe if, whenever it halts, then
 the resulting memory satisfies a private future world. 
@@ -1237,14 +1234,10 @@ This is similar to the logical relation given for an untyped language
 in~\cite{Devriese:2016ObjCap}, but unlike logical relations for typed languages, which
 typically require that computations do not fail. 
 
-\subsubsection{Expression and register-file relation}
 The expression relation, $\stder$, is a world-indexed predicate that
 contains all the words that safely can be put in the $\pcreg$-register
 of a register-file that only gives access to capabilities that are capability
 safe. 
-
-
-
 
 The register-file relation, $\stdrr$, contains all the register files
 that contains capability safe words. It does not require the word in
@@ -1252,14 +1245,50 @@ the $\pcreg$-register to be capability safe, because the relation is
 only used in the expression relation, where the $\pcreg$-register is
 overwritten anyway.
 
+The \emph{value relation}, $\stdvr$, defines which words are capability
+safe. A word is capability safe if it cannot be used to break the
+protocols defined by the world. Data is always capability safe because
+it provides no authority that can be used to break the
+invariants. Capabilities gives the authority to manipulate memory and
+potentially break memory protocols, so they need to satisfy certain
+conditions to be capability safe. We define a condition for each kind
+of permission a capability can have. These permission-based conditions
+can be found in \figurename~\ref{fig:perm-conds}. 
 
-\subsubsection{Value relation}
-The value relation, $\stdvr$, contains all the words that are safe to
-give away to an adversary. The conditions a capability must satisfy to
-be safe to give to an adversary depends on what permissions it
-gives. We there for define four conditions
+The condition for capabilities with read permission is
+$\readCond{}$. This condition makes sure the read capability can only
+be used to read capability safe words. To make sure this is the case,
+the region that governs the part of memory the capability grants
+authority over must at least require all the words to be in the value
+relation.
+Generally speaking, global capabilities should only depend on
+permanent regions. The function $\var{localityReg}(g,W)$ projects out
+all active regions when $g$ is local, but when $g$ is global, then it
+is just the permanent regions.
 
-Now define the value relation as follows:
+For capabilities with a write permission, $\writeCond{}$ must be
+satisfied for the capabilities range of authority. Generally speaking,
+write capabilities may be used to write any word, so the region that
+governs the part of memory the write capability has authority over
+must allow any capability safe word.
+This is of course not entirely true because of the distinction between
+write and permit-write-local capabilities. For write capabilities, the
+region must require the contents of memory to be non-local and
+capability safe words. For permit-write-local capabilities, the
+non-local requirement is omitted.
+
+The write condition uses $\var{localityReg}$ to pick an appropriate
+region in the same way the read condition does.
+
+The condition for the region to be address-stratified is there for
+technical reasons.\lau{Dominique, you probably disagree with this, so
+  please feel free to add something.}
+
+
+
+The definition of the value relation in \figurename~\ref{fig:logrel}
+is defined in terms of the permission-based conditions.
+
 
 \subsection{Fundamental theorem of logical relations}
 
