@@ -399,66 +399,70 @@ need infinite domain for malloc spec, etc.)
 
 Compromising software security is often based on attacks that break programming
 language properties relied upon by software authors, such as control flow
-integrity, local state encapsulation etc. Commodity processors offer little
+integrity, local state encapsulation, etc. Commodity processors offer little
 support for defending against such attacks: they offer security primitives with
 only coarse-grained memory protection and limited compartmentalization
 scalability. As a result, defenses against attacks on control flow integrity and
 local state encapsulation are either limited to only certain common forms of
 attacks (leading to an attack-defense arms race) or rely on techniques like
 machine code rewriting
-(e.g.~\cite{wahbe_efficient_1993,abadi_control-flow_2005}), machine code
-verification (e.g.~\cite{morrisett_system_1999}), virtual machines with a native
-stack (e.g.~the JVM~\cite{lindholm_java_2014}) or
+(e.g.,~\cite{wahbe_efficient_1993,abadi_control-flow_2005}), machine code
+verification (e.g.,~\cite{morrisett_system_1999}), virtual machines with a native
+stack (e.g.,~the JVM~\cite{lindholm_java_2014}) or
 randomization~\cite{forrest_building_1997}. The latter techniques essentially
 emulate protection techniques on existing hardware, at the cost of performance,
 system complexity and/or security.
 
-\emph{Capability machines} are a type of processors, intended to remediate these
-limitations by presenting a better security model at the hardware level. They
-are based on old ideas
+\emph{Capability machines} are a type of processors, intended to
+remediate these limitations by presenting a better security model at
+the hardware level. They are based on old ideas
 (e.g.~\cite{Carter:1994:HSF:195473.195579,Dennis:1966:PSM:365230.365252,shapiro_eros:_1999}),
-but have recently received renewd interest with particularly the CHERI project
-proposing new ideas and tackling practical challenges like backwards
-compatibility and realistic OS
+but have recently received renewed interest; in particular, the CHERI
+project has proposed new ideas and ways of tackling practical
+challenges like backwards compatibility and realistic OS
 support~\cite{Watson2015Cheri,Woodruff:2014:CCM:2665671.2665740}. Capability
-machines tag every word (in the register file and in memory) to enforce a
-strict separation between numbers and capabilities, a kind of pointers carrying
-some kind of authority. Memory capabilities carry the authority to read and/or
-write to a range of memory locations. Additionally, the details vary but all
-capability machines offer some form of \emph{object capabilities}, which
-represent the authority to invoke a piece of code without exposing the code's
-encapsulated private state (e.g. the M-Machine's enter capabilities or CHERI's
-sealed code/data pairs).
+machines tag every word (in the register file and in memory) to
+enforce a strict separation between numbers and capabilities, a kind
+of pointers carrying some kind of authority. Memory capabilities carry
+the authority to read and/or write to a range of memory
+locations. Moreover, all capability machines
+offer some form of \emph{object capabilities}, which represent the
+authority to invoke a piece of code without exposing the code's
+encapsulated private state (e.g., the M-Machine's enter capabilities or
+CHERI's sealed code/data pairs).
 
-Unlike for commodity processors, the security primitives on capability machines
-lend themselves well to the enforcement of properties like local state
-encapsulation and control-flow integrity. Potentially, they will enable new
-compilation schemes that enforce such properties in a way that is efficient but
-also 100\% watertight (ideally evidenced by a mathematical proof, guaranteeing
-that we do not end up in a new attack-defense arms race). However, there is
-still a lot that needs to happen to attain this goal. For example, it is quite
-non-trivial to devise a compilation scheme adapted to the details of a specific
-language's notion of encapsulation (e.g. encapsulation of private member
-variables in OO languages often behaves quite differently than encapsulation of
-private state in ML-like languages). And even if such a scheme were defined, a
-formal proof depends on a formalisation of the encapsulation provided by the
-capability machine at hand.
+In contrast to the situation for commodity processors, the security
+primitives on capability machines lend themselves well to the
+enforcement of properties like local state encapsulation and
+control-flow integrity. Potentially, they will enable new compilation
+schemes that enforce such properties in a way that is efficient but
+also 100\% watertight (ideally evidenced by a mathematical proof,
+guaranteeing that we do not end up in a new attack-defense arms
+race). However, there is still a lot that needs to happen to attain
+this goal. For example, it is quite non-trivial to devise a
+compilation scheme adapted to the details of a specific language's
+notion of encapsulation (e.g., encapsulation of private member
+variables in OO languages often behaves quite differently than
+encapsulation of private state in ML-like languages). And even if such
+a scheme were defined, a formal proof depends on a formalisation of
+the encapsulation provided by the capability machine at hand.
 
 A similar problem is the enforcement of control-flow integrity on capability
-machines. An interesting approach is taken in CheriBSD. They drop the standard
-contiguous C stack and split it into a central, trusted shadow stack, managed by
+machines. An interesting approach is taken in
+CheriBSD~\citep{Watson2015Cheri}: It drops the standard
+contiguous C stack and splits it into a central, trusted shadow stack, managed by
 trusted call and return instructions\footnote{These call and return instructions
   are implemented by CheriBSD and special support from the CHERI processor makes
   them very fast to invoke.}, and disjoint, per-component
-stacks~\citep{Watson2015Cheri}. For preventing illegal use of stack references,
+stacks. To prevent illegal use of stack references,
 the approach relies on \emph{local capabilities}, a type of capabilities offered
 by CHERI that can be passed over a function invocation \emph{temporarily}, for
 the duration of the invocation, and revoked afterwards. However, a lot of
-details remain to be filled in (e.g. how to combine a trusted shadow stack with
+details remain to be investigated (e.g., how to combine a trusted shadow stack with
 (potentially) cross-domain function pointers in a scalable way?) and there is no
-argument that this enforcement of CFI is watertight.
+argument that this enforcement of control-flow integrity is watertight.
 
-In this paper, we make progress towards the goal of efficient, provably
+In this paper, we make progress towards the goal of efficient and provably
 watertight enforcement of encapsulation and control-flow integrity on capability
 machines.  Specifically, we make the following contributions:
 \begin{itemize}
@@ -469,36 +473,42 @@ machines.  Specifically, we make the following contributions:
   solely on local capabilities (used to represent stack and return pointers) and
   does not require OS support in the form of a trusted shadow stack or special
   call and return instructions. It also does not require separate per-component
-  stacks and instead works with a single, fairly standard contiguous stack. It
-  supports higher-order cross-component calls (e.g. (potentially)
-  cross-component function pointers) and can be efficient assuming one
-  additional piece of processor support: an instruction for efficiently clearing
+  stacks and instead works with a single, fairly standard, contiguous stack. It
+  supports higher-order cross-component calls (e.g., (potentially)
+  cross-component function pointers) and can be efficient assuming
+  only \lars{can we say only here ?}
+  one additional piece of processor support: an instruction for efficiently clearing
   a range of memory.
-\item We provide a theorem (capability-safety) that is (by far) the most general
+\item We provide a theorem that is (by far) the most general
   and powerful formulation of the guarantees offered by a capability machine.
   The theorem also expresses the specific guarantees offered by the machine for
   local capabilities. It is very general and not tied to a specific ABI or a
   specific way of using the system's capabilities.
-\item The above theorem is formulated in terms of a unary step-indexed logical
-  relation with recursively defined Kripke worlds. It is inspired by one used by
-  \cite{Devriese:2016ObjCap} for capability-safety in a JavaScript-like lambda
-  calculus, but has two novel technical characteristics. The natural CPS style
-  of assembly code with return pointers as continuations is modeled using a
-  \emph{single} orthogonal closure, rather than the biorthogonal closure that
-  has been previously used for lambda calculi. Perhaps more surprisingly, we
-  show that the special nature of local capabilities can be elegantly expressed
-  using a variant of an idea that has been used by
-  \cite{Dreyer:jfp12} to express well-bracketedness
-  guarantees in a lambda calculus: Kripke worlds with a weak and a strong future
-  world relations. Interestingly, the two future world relations generally work
-  very similarly to Dreyer et al.'s, except that they turn up in quite a
-  different place in the logical relation.
+\item The above theorem is formulated in terms of a unary step-indexed
+  logical relation with recursively defined Kripke worlds. It is
+  inspired by one used in \cite{Devriese:2016ObjCap} for
+  capability-safety in a JavaScript-like lambda calculus, but has two
+  novel technical characteristics. The natural CPS style of assembly
+  code with return pointers as continuations is modelled using a
+  \emph{single} orthogonal closure, rather than the biorthogonal
+  closure that has been previously used for lambda calculi. Perhaps
+  more surprisingly, we show that the special nature of local
+  capabilities can be elegantly expressed using a variant of an idea
+  that has been used by Dreyer et. al.~\cite{Dreyer:jfp12} to express
+  well-bracketedness guarantees in a lambda calculus: Kripke worlds
+  with both a public and a private future world relation. Interestingly,
+  the two future world relations generally work very similarly to
+  Dreyer et al.'s, except that they turn up in quite a different place
+  in the logical relation.
 \item We demonstrate the power of our results by applying them to challenging
   examples, specifically constructed to demonstrate local state encapsulation
   and control-flow integrity guarantees in the presence of cross-component
   function pointers. The examples demonstrate both the power of our formulation
   of capability-safety and our stack management discipline.
 \end{itemize}
+
+For reasons of space, some details and all proofs have been omitted;
+please refer to the technical appendix~\cite{} for those.
 
 % % Possible high-level intros:
 % % 0) Arms race compilers
@@ -883,7 +893,7 @@ such changes to the memory in our model.
   \caption{Relation between local and global capabilities and temporary and permanent regions.}
   \label{fig:cap-world}
 \end{figure}
-A world is a finite map from region names, modeled as natural numbers, to regions.
+A world is a finite map from region names, modelled as natural numbers, to regions.
 We have three types of regions: \emph{permanent}, \emph{temporary}, and \emph{revoked}.
 %$\perma$, $\temp$, and $\revoked$. The
 %$\perma$ and $\temp$ 
@@ -898,7 +908,7 @@ depend on these protocols. The protocols imposed on memory by temporary
 regions can be revoked at certain points during execution,
 corresponding to the points when local capabilities can be
 revoked. This means that local capabilities safely can depend on the
-protocols imposed on memory by temporary regions, wheareas global
+protocols imposed on memory by temporary regions, whereas global
 capabilities cannot, since a global capability may stay around
 throughout the execution of a program, but a temporary region may be
 revoked.
@@ -981,7 +991,7 @@ The properties of the \emph{private future region} relation are:
 These rules express that, in the private future region relation, 
 we allow revocation of temporary regions. 
 As explained above, this can be done using a special revoked region,
-which does not desribe any memory, but we also allow  
+which does not describe any memory, but we also allow  
 any other region to serve as a mask, and thus any region $r$ can be a
 future region of a temporary region and of a revoked region.
 If a temporary region is not masked by a region, then it behaves like a
@@ -1178,7 +1188,7 @@ in the interpretation of an active (permanent or temporary) region.
       \union \\
       & \{ \npair{\stdcap[(\readwrite,\gl)] } \mid \\
       & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{\footnotesize{ and }} \\
-      & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W) \}
+      & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W) \} 
       \union \\
       & \{ \npair{\stdcap[(\readwritel,\gl)] } \mid \\
       & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{\footnotesize{ and }} \\
@@ -1240,20 +1250,20 @@ in the interpretation of an active (permanent or temporary) region.
 \begin{figure}[htbp]
   \centering
   \begin{align*}
-  & \writeCond{}(\iota,\gl)(W) =  \\
-  & \left\{ \npair{(\start,\addrend)} \; \middle| \;
-    \begin{aligned}
-      & \exists r \in \var{localityReg}(g,W) \ldotp \\
-      & \;\; \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
-      & \;\;\;\; W(r)\nsupsim[n-1] \iota_{\start',\addrend'} \text{\footnotesize{ and}}\\
-      & \;\;\;\; W(r) \text{\footnotesize{ is address-stratified}} 
-    \end{aligned} \right\}\\
   & \readCond{}(\gl)(W) =  \\
   & \left\{ \npair{(\start,\addrend)} \; \middle| \;
     \begin{aligned}
       & \exists r \in \var{localityReg}(g,W) \ldotp \\
       & \;\; \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
       & \;\;\;\; W(r)\nsubsim[n] \iota_{\start',\addrend'}^\pwl 
+    \end{aligned} \right\}\\
+  & \writeCond{}(\iota,\gl)(W) =  \\
+  & \left\{ \npair{(\start,\addrend)} \; \middle| \;
+    \begin{aligned}
+      & \exists r \in \var{localityReg}(g,W) \ldotp \\
+      & \;\; \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
+      & \;\;\;\; W(r)\nsupsim[n-1] \iota_{\start',\addrend'} \text{\footnotesize{ and }}\\
+      & \;\;\;\; W(r) \text{\footnotesize{ is address-stratified}} 
     \end{aligned} \right\}\\
   & \execCond{}(\gl)(W) = \\
   & \left\{ \npair{(\var{perms},\start,\addrend)} \; \middle| \;
@@ -1287,47 +1297,143 @@ in the interpretation of an active (permanent or temporary) region.
 \end{figure}
 \clearpage
 }
+\todo[inline]{Add section introduction}
 
-\subsubsection{Observation relation}
-\todo[inline]{write something about single orthogonal closure?}
-
- The \emph{observation relation}, $\observations$, defines which
+The \emph{observation relation}, $\observations$, defines which
 configurations are capability safe. Roughly speaking,
 a configuration is capability safe if, whenever it halts, then
 the resulting memory satisfies a private future world. 
-Notice that if a configuation fails, e.g., if an unauthorized access 
+Notice that if a configuration fails, e.g., if an unauthorized access 
 (e.g., a load of a memory location without the requisite read capability)
-is attempted, then the configuation is considered capability safe, which it should
+is attempted, then the configuration is considered capability safe, which it should
 because then the capability machine has caught the attempted unauthorized access
 This is similar to the logical relation given for an untyped language
 in~\cite{Devriese:2016ObjCap}, but unlike logical relations for typed languages, which
 typically require that computations do not fail. 
 
-\subsubsection{Expression and register-file relation}
-The expression relation, $\stder$, is a world-indexed predicate that
-contains all the words that safely can be put in the $\pcreg$-register
-of a register-file that only gives access to capabilities that are capability
-safe. 
 
+The \emph{register-file relation}, $\stdrr$, specifies all the
+register-files that are capability safe. Capability safe
+register-files contain capability safe words (e.g.n, words in
+$\stdvr$) in all registers but $\pcreg$.
 
+The \emph{expression relation}, $\stder$, defines what words are
+capability safe when used for the program counter. A word is
+capability safe as a program counter when it can be plugged into a
+capability safe register file (i.e., a register file in $\stdrr$) and
+paired with a memory satisfying the world to become a capability safe
+configuration.
 
+The \emph{value relation}, $\stdvr$, defines which words are capability
+safe. A word is capability safe if it cannot be used to break the
+protocols defined by the world. Data is always capability safe because
+it provides no authority that can be used to break the
+invariants. Capabilities gives the authority to manipulate memory and
+potentially break memory protocols, so they need to satisfy certain
+conditions to be capability safe. We define a condition for each kind
+of permission a capability can have. These permission-based conditions
+can be found in \figurename~\ref{fig:perm-conds}. 
 
-The register-file relation, $\stdrr$, contains all the register files
-that contains capability safe words. It does not require the word in
-the $\pcreg$-register to be capability safe, because the relation is
-only used in the expression relation, where the $\pcreg$-register is
-overwritten anyway.
+The condition for capabilities with read permission is
+$\readCond{}$. It ensures that a read capability can only be used to
+read capability safe words, by requiring that the region that governs
+the part of memory that the capability grants authority over enforces
+that all the words are in the value relation.  Generally speaking,
+global capabilities should only depend on permanent regions. Therefore
+we use the function $\var{localityReg}(g,W)$, which projects out all
+active regions when $g$ is local, but only the permanent regions when
+$g$ is global.
 
+For a capability with a write permission, $\writeCond{}$ must be
+satisfied for the capability's range of authority. Generally speaking,
+write capabilities may be used to write any word, so the region that
+governs the part of memory the write capability has authority over
+must at least allow any capability safe word to be stored.
+This is of course not entirely true because of the distinction between
+write and permit-write-local capabilities. For write capabilities, the
+region must require the contents of memory to be non-local (and
+capability safe). For permit-write-local capabilities, the
+non-local requirement is omitted.
+The write condition uses $\var{localityReg}$ to pick an appropriate
+region in the same way the read condition does.
+The condition for the region to be address-stratified is there for
+technical reasons.\lau{Dominique, you probably disagree with this, so
+  please feel free to add something.}
 
-\subsubsection{Value relation}
-The value relation, $\stdvr$, contains all the words that are safe to
-give away to an adversary. The conditions a capability must satisfy to
-be safe to give to an adversary depends on what permissions it
-gives. We there for define four conditions
+The conditions $\entryCond{}$ and $\execCond{}$ are very similar and
+differ only slightly. Executable capabilities can be updated to point
+anywhere in memory, so they must be capability safe as a program
+counter no matter where they point in memory. In contrast, enter
+\lars{``capability safe as a program counter'' is a bit hard to
+  understand - why not say that this is a capability one can jump to ?}
+\lau{ When jumping to a capability, it becomes the program counter. A program counter is capability safe when it is the $\stder$ relation. When I say ``capability safe as a program counter'' I take it to mean being in the $\stder$-relation. }
+capabilities are opaque and must be used from the address they point
+to. They change permission when jumped to, so we require them to be
+capability safe as a program counter when the permission is changed to
+read-execute.
+In both conditions, the capability must be capability safe as a
+program counter in certain future worlds. If the capability is global,
+then it should be capability safe as a program counter in any private
+future world. This means that it can only depend on permanent regions
+because temporary regions may be revoked in a private future
+world. On the other hand, local capabilities must only be capability
+safe in public future worlds because they may depend on temporary
+regions, so we cannot expect them to function correctly as program
+counters if temporary regions are revoked.
 
-Now define the value relation as follows:
+The definition of the value relation in \figurename~\ref{fig:logrel}
+is defined in terms of the permission-based conditions.
 
-\subsection{Fundamental theorem of logical relations}
+With the logical relation defined, we can now state a strong theorem
+about the safety properties of the capability machine. Namely that any
+capability that does not grant unreasonable authority is capability
+safe as a program counter.
+\begin{theorem}[Fundamental Theorem]
+  \label{thm:ftlr}
+  For all $n$, $\perm$, $\start$, $\addrend$, $\addr$, $\gl$, $W$, if one of the following holds:
+  \begin{align*}
+      & \bullet
+        \begin{aligned}[t]
+        &\perm = \exec \text{\footnotesize{ and }}\\
+        &\npair{(\start,\addrend)} \in \readCond{}(\gl)(W)
+      \end{aligned} \\
+    & \bullet 
+      \begin{aligned}[t]
+        &\perm = \rwx \text{\footnotesize{ and }} \\
+        &\npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{\footnotesize{ and }}\\
+        &\npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W)
+      \end{aligned} \\
+    & \bullet 
+      \begin{aligned}[t]
+        &\perm = \rwlx \text{\footnotesize{ and }}\\
+        &\npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{\footnotesize{ and }}\\
+        &\npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W),
+      \end{aligned}
+  \end{align*}
+  then
+  \[
+    \npair{((\perm,\gl),\start,\addrend,\addr)} \in \stder(W)
+  \]
+\end{theorem}
+The Fundamental Theorem allows us to prove capability safety for
+untrusted programs. If we can show that the authority the capability
+for the program grants is reasonable, then it is safe to
+execute. Intuitively this is because the logical relation captures the
+safe behaviour of the capability machine that do not allow you to
+produce something capability \emph{unsafe} from something capability
+safe. The Fundamental Theorem also serves as a sanity check of the
+logical relation as it makes sure that a large class of capabilities
+actually inhabits it.
+
+\todo[inline]{Add discussion/comparison to other LRs}
+% Comparisson of LR to other work:
+% - Single othorgonal closure
+%   o all capabilities are possible continuations, not just the one we
+%   intend to be it.
+% - No termination guarantees in observation relation
+% - Private/public transitions used like in Dreyer-Neis-Birkedal, but
+%   also to  handle the difference in what local and global
+%   capabilities can handle.
 
 \subsection{Discussion/comparison with related Dreyer-Neis-Birkedal and with Hur-Dreyer}
 
