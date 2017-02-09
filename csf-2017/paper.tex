@@ -828,70 +828,6 @@ detail, we assume an infinite address space and unbounded integers.
   \label{fig:perm-hier}
 \end{figure}
 
-\begin{figure*}
-  \centering
-  \begin{equation*}
-    \Phi  \rightarrow
-    \begin{cases}
-      \sem{\decode(\memheap(\addr))}(\Phi) & \text{if $\memreg(\pcreg) = \stdcap$ and $\start \leq \addr \leq \addrend$ and $\perm \in \{ \exec,\rwx, \rwlx \}$ } \\
-      \failed                                 & \text{otherwise}
-    \end{cases}
-  \end{equation*}%
-  \begin{align*}
-    \updatePcPerm{w} &=
-                       \begin{cases}
-                         ((\exec,\gl),\start,\addrend,\addr) & \text{if $w = ((\entry,\gl),\start,\addrend,\addr)$}\\
-                         w & \text{otherwise}
-                       \end{cases}\\
-    \stdUpdatePc{\Phi} &=
-                         \begin{cases}
-                           \updateReg{\pcreg}{\var{newPc}} & \arraycolsep=0pt
-                           \begin{array}[t]{l}
-                             \text{if $\memreg(\pcreg) = \stdcap$}\\
-                             \quad\text{and $\var{newPc} = ((\perm,\gl),\start,\addrend,\addr + 1)$}\\
-                           \end{array}
-                         \end{cases}
-  \end{align*}
-
-  \begin{tabular}{|c|p{3.7cm}|p{10.5cm}|}
-    \hline
-    $i$&$\sem{i}(\Phi)$&Conditions\\
-    \hline
-    $\fail$&$\failed$&\\
-    \hline
-    $\halt$&$(\halted,\memheap)$&\\
-    \hline
-    $\move{\refreg{r_1}}{\rv}$& $\begin{multlined}
-      \stdUpdatePc{}(\updateReg{r_1}{\\
-          \memreg(\rv)}) \end{multlined}$&\\
-    \hline
-    $\jmp{\lv}$&$\begin{multlined}
-                   \updateReg{\pcreg}{\\\updatePcPerm{\memreg(\lv)}}
-                 \end{multlined}$&\\
-    \hline
-    $\load{\refreg{r_1}}{\refheap{r_2}}$&$\updateReg{r_1}{\memheap(\addr)}$&$\memreg(r_2) = \stdcap$ and $\perm \in \{ \rwx, \rwlx, \exec, \readwrite, \readwritel, \readonly \}$  and  $\start \leq \addr \leq \addrend$\\
-    \hline
-    $\store{\refheap{r_1}}{\refreg{r_2}}$&$\stdUpdatePc{\updateHeap{\addr}{\var{w}}}$&$\memreg(r_1) = \stdcap$ and $\perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\}$  and  $\start \leq \addr \leq \addrend$ and $\var{w} = \memreg(r_2)$
-                                                                                       and if  $\var{w} = ((\_,\local),\_,\_,\_)$, then  $\perm \in \{\rwlx,\readwritel \}$\\
-    \hline
-    $\restricttwo{\refreg{r}}{\rv}$&$\begin{multlined}
-                                       \stdUpdatePc{}(\updateReg{r}{\\(\permp',\start,\addrend,\addr)})
-                                     \end{multlined}$  &
-                                                      $\memreg(r) = \stdcap[\permp]$ and $\permp' = \decodePermPair{\memreg(\rv)}$
-                                                      and $\permp'\sqsubseteq \permp$\\
-    \hline
-    $\geta{\refreg{r_1}}{\refreg{r_2}}$ & $\stdUpdatePc{\updateReg{r_1}{\addr}}$ &
-                                                $\memreg(r_2) = ((\_,\_),\_,\_,\addr)$\\
-    \hline
-    \multicolumn{3}{|c|}{$\cdots$}\\
-    \hline
-    \_&$\failed$&otherwise\\
-    \hline
-  \end{tabular}
-  \caption{An excerpt from the operational semantics}
-  \label{fig:op-sem}
-\end{figure*}
-
 We define the syntax of our capability machine in \figurename~\ref{fig:syntax}. We
 assume an infinite set of addresses $\Addrs$ and define machine words as either
 integers or capabilities of the form $((\perm,\gl),\start,\addrend,\addr)$. Such
@@ -913,11 +849,138 @@ and a register file, or a failed or halted state, where the latter keeps hold
 of the final state of memory. We also define memory segments $\ms$:
 parts of memory represented as partial functions mapping addresses to words.
 
-The instruction set of our machine is rather basic.  Instructions $i$ include
-jumps ($\jmp{}$), conditional jumps ($\jnz{}{}$), a move instruction that copies
-a word from one register to another ($\move{}{}$), load and store instructions
-for reading from and writing to memory ($\load{}{}$ and $\store{}{}$) 
+The instruction set of our machine is rather basic. Instructions $i$ include
+relatively standard jump ($\jmp{}$), conditional jump ($\jnz{}{}$) and move
+($\move{}{}$, copies words between registers) instructions. Also familiar are
+load and store instructions for reading from and writing to memory ($\load{}{}$
+and $\store{}{}$) and an arithmetic addition operator ($\plus{}{}{}$). There are
+three instructions for modifying capabilities: $\lea{}{}$ (modifies the current
+address), $\restrict{}{}$ (modifies the permission and local/global flag) and
+$\subseg{}{}{}$ (modifies the range of a capability). Importantly, these
+instructions take care that the resulting capability always carries less
+authority than the original (e.g. restrict will only weaken a permission).
+Finally, there is an instruction $\isptr{}{}$ for testing whether a word is a
+capability or a number and instructions $\getp{}{}$, $\getl{}{}$, $\getb{}{}$,
+$\gete{}{}$ and $\geta{}{}$ for obtaining respectively the permissions,
+local/global flag, base, end and current address of a capability.
 
+\begin{figure*}
+  \centering
+  \begin{equation*}
+    \Phi  \rightarrow
+    \begin{cases}
+      \sem{\decode(n)}(\Phi) & \text{if $\memreg(\pcreg) = \stdcap$ and $\start \leq \addr \leq \addrend$ and $\perm \in \{ \exec,\rwx, \rwlx \}$ and $\memheap(\addr) = n$ }\\
+      \failed                                 & \text{otherwise}
+    \end{cases}
+  \end{equation*}\vspace{-.3cm}%
+  \begin{align*}
+    \updatePcPerm{w} &=
+                       \begin{cases}
+                         ((\exec,\gl),\start,\addrend,\addr) & \text{if $w = ((\entry,\gl),\start,\addrend,\addr)$}\\
+                         w & \text{otherwise}
+                       \end{cases}\\
+    \stdUpdatePc{\Phi} &=
+                         \begin{cases}
+                           \updateReg{\pcreg}{\var{newPc}} & \arraycolsep=0pt
+                           \begin{array}[t]{l}
+                             \text{if $\memreg(\pcreg) = \stdcap$}\\
+                             \quad\text{and $\var{newPc} = ((\perm,\gl),\start,\addrend,\addr + 1)$}\\
+                           \end{array}
+                         \end{cases}
+  \end{align*}
+
+  \begin{tabular}{|c|p{3.8cm}|p{10.4cm}|}
+    \hline
+    $i$&$\sem{i}(\Phi)$&Conditions\\
+    \hline
+    $\fail$&$\failed$&\\
+    \hline
+    $\halt$&$(\halted,\memheap)$&\\
+    \hline
+    $\move{\refreg{r_1}}{\rv}$& $\begin{multlined}
+      \stdUpdatePc{}(\updateReg{r_1}{\\
+          \memreg(\rv)}) \end{multlined}$&\\
+    \hline
+    $\load{\refreg{r_1}}{\refheap{r_2}}$&$\updateReg{r_1}{\memheap(\addr)}$&$\memreg(r_2) = \stdcap$ and $\perm \in \{ \rwx, \rwlx, \exec, \readwrite, \readwritel, \readonly \}$  and  $\start \leq \addr \leq \addrend$\\
+    \hline
+    $\restricttwo{\refreg{r}}{\rv}$&$\begin{multlined}
+                                       \stdUpdatePc{}(\updateReg{r}{\\(\permp',\start,\addrend,\addr)})
+                                     \end{multlined}$  &
+                                                        $\memreg(r) = \stdcap[\permp]$ and $\permp' = \decodePermPair{\memreg(\rv)}$
+                                                      and $\permp'\sqsubseteq \permp$\\
+    \hline
+    $\geta{\refreg{r_1}}{\refreg{r_2}}$ & $\stdUpdatePc{\updateReg{r_1}{\addr}}$ &
+                                                $\memreg(r_2) = ((\_,\_),\_,\_,\addr)$\\
+    \hline
+    $\jmp{\lv}$&$\begin{multlined}
+                   \updateReg{\pcreg}{\\\updatePcPerm{\memreg(\lv)}}
+                 \end{multlined}$&\\
+    \hline
+    $\store{\refheap{r_1}}{\refreg{r_2}}$&$\stdUpdatePc{\updateHeap{\addr}{\var{w}}}$&$\memreg(r_1) = \stdcap$ and $\perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\}$  and  $\start \leq \addr \leq \addrend$ and $\var{w} = \memreg(r_2)$
+                                                                                       and if  $\var{w} = ((\_,\local),\_,\_,\_)$, then  $\perm \in \{\rwlx,\readwritel \}$\\
+    \hline
+    \multicolumn{3}{|c|}{$\cdots$}\\
+    \hline
+    \_&$\failed$&otherwise\\
+    \hline
+  \end{tabular}
+  \caption{An excerpt from the operational semantics}
+  \label{fig:op-sem}
+\end{figure*}
+
+Figure~\ref{fig:op-sem} shows the operational semantics of our capability
+machine, or at least an excerpt containing a number of representative
+instructions. Essentially, a configuration $\Phi$ will either decode and execute
+the instruction at $\memreg{\pcreg}$ if it is executable and the current address
+is in the valid range or fail otherwise. The table in the figure shows for a
+given instruction $i$ the result of executing it in configuration $\Phi$. The
+$\fail$ and $\halt$ instructions simply fail and halt. The $\move{}{}$
+instruction simply modifies the register file as requested and updates the
+$\pcreg$ to the next instruction using the meta-function $\stdUpdatePc{}$.
+
+The $\load{}{}$ instruction loads the contents of the requested memory location
+into the appropriate register, but only if the capability has appropriate
+authority (i.e. read permission and an appropriate range). The $\restrict{}{}$
+instruction will update a capability's permissions and global/local status in
+the register file, but requires that the new permissions are weaker than the
+original and does not turn local capabilities into global ones. The $\geta{}{}$
+instruction queries the current address of a capability and stores it in another
+register.
+
+The $\jmp{}$ instruction updates the program counter to a requested location,
+but it is complicated by the presence of \emph{enter capabilities}, modeled
+after the M-Machine's~\cite{Carter:1994:HSF:195473.195579}. Enter capabilities
+cannot be used to read, write or execute and their current address and range
+cannot be modified. They can only be used to jump to, but when that happens,
+their permission is updated to $\exec$. This special behavior makes them
+suitable for representing a kind of closures: an opaque package containing a
+piece of code together with local encapsulated state. The idea is that one can
+build an enter capability $c = ((\entry,\gl),\start,\addrend,\addr)$ where the
+range $[\start,\addr-1]$ is used for storing the closure's local state (data or
+capabilities) and the range $[\addr,\addrend]$ can be used for storing
+instructions. The instructions and data are opaque to an adversary holding $c$
+but when $c$ jumped to, the data becomes available to the closure's code through
+the updated version of $c$ that is now in the $\pcreg$\footnote{Note that
+  $\pcreg$ can be used to $\load{}{}$ from, like any other register.}.
+
+The final semantics we discuss is that of $\store{}{}$. As expected, it updates
+the memory to the requested value if the capability has write authority for the
+requested location. However, the instruction is complicated by the presence of
+\emph{local capabilities}, modeled after the ones in
+CHERI~\cite{Watson2015Cheri}. Basically, local capabilities are special in that
+they can only be kept in registers, i.e. they cannot be stored to memory. This
+means that local capabilities can be \emph{temporarily} given to an adversary,
+for the duration of an invocation: if we take care to erase the capability from
+the register file after control is passed back to us, we can be sure that he/she
+will not have been able to store the capability. However, there is one exception
+to the rule above: local capabilities can be stored to a part of memory for
+which we have a capability with write-local authority (i.e. permission $\rwl$ or
+$\rwlx$). This exception is intended to accomodate regions of memory that behave
+like the C stack: stashing away the contents of registers on the stack can be
+allowed, even if this includes local capabilities. As long as all capabilities
+with write-local authority are themselves local and the stack is cleared after
+control is passed back by the adversary, we will see that this does not break
+the intended behavior of local capabilities.
 
 Explain our model of linking
 
