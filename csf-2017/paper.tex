@@ -14,6 +14,7 @@
 \usepackage{mathpartir}
 \usepackage{listings}
 \usepackage{hyperref}
+\usepackage{multicol}
 \usepackage{natbib}
 \lstset{
   basicstyle=\ttfamily,
@@ -743,6 +744,13 @@ please refer to the technical appendix~\cite{} for those.
 \todo[inline]{TODO}
 
 \section{A capability machine with local capabilities}
+In this paper, we work with a formal capability machine that has all the
+characteristics of real capability machines, as well as local capabilities much
+like CHERI's, but is otherwise kept as simple as possible. It is inspired by
+both the M-Machine~\cite{Carter:1994:HSF:195473.195579} and
+CHERI~\cite{Watson2015Cheri}. To avoid getting bogged down in uninteresting
+detail, we assume an infinite address space and unbounded integers.
+
 \begin{figure}
   \begin{align*}
     \addr   &\in& \Addrs &\isdef \nats\\
@@ -762,7 +770,6 @@ please refer to the technical appendix~\cite{} for those.
     &&\Confs &::= \ExecConfs + \{\failed \} + \{\halted\} \times \Heaps \\
     \ms     &\in& \MemSegments &::= \Addrs \parfun \Words
   \end{align*}
-
   \begin{equation*}
   \begin{array}{rcl}
     \lv    &::=& \refreg{r} \\
@@ -821,6 +828,70 @@ please refer to the technical appendix~\cite{} for those.
   \label{fig:perm-hier}
 \end{figure}
 
+\begin{figure*}
+  \centering
+  \begin{equation*}
+    \Phi  \rightarrow
+    \begin{cases}
+      \sem{\decode(\memheap(\addr))}(\Phi) & \text{if $\memreg(\pcreg) = \stdcap$ and $\start \leq \addr \leq \addrend$ and $\perm \in \{ \exec,\rwx, \rwlx \}$ } \\
+      \failed                                 & \text{otherwise}
+    \end{cases}
+  \end{equation*}%
+  \begin{align*}
+    \updatePcPerm{w} &=
+                       \begin{cases}
+                         ((\exec,\gl),\start,\addrend,\addr) & \text{if $w = ((\entry,\gl),\start,\addrend,\addr)$}\\
+                         w & \text{otherwise}
+                       \end{cases}\\
+    \stdUpdatePc{\Phi} &=
+                         \begin{cases}
+                           \updateReg{\pcreg}{\var{newPc}} & \arraycolsep=0pt
+                           \begin{array}[t]{l}
+                             \text{if $\memreg(\pcreg) = \stdcap$}\\
+                             \quad\text{and $\var{newPc} = ((\perm,\gl),\start,\addrend,\addr + 1)$}\\
+                           \end{array}
+                         \end{cases}
+  \end{align*}
+
+  \begin{tabular}{|c|p{3.7cm}|p{10.5cm}|}
+    \hline
+    $i$&$\sem{i}(\Phi)$&Conditions\\
+    \hline
+    $\fail$&$\failed$&\\
+    \hline
+    $\halt$&$(\halted,\memheap)$&\\
+    \hline
+    $\move{\refreg{r_1}}{\rv}$& $\begin{multlined}
+      \stdUpdatePc{}(\updateReg{r_1}{\\
+          \memreg(\rv)}) \end{multlined}$&\\
+    \hline
+    $\jmp{\lv}$&$\begin{multlined}
+                   \updateReg{\pcreg}{\\\updatePcPerm{\memreg(\lv)}}
+                 \end{multlined}$&\\
+    \hline
+    $\load{\refreg{r_1}}{\refheap{r_2}}$&$\updateReg{r_1}{\memheap(\addr)}$&$\memreg(r_2) = \stdcap$ and $\perm \in \{ \rwx, \rwlx, \exec, \readwrite, \readwritel, \readonly \}$  and  $\start \leq \addr \leq \addrend$\\
+    \hline
+    $\store{\refheap{r_1}}{\refreg{r_2}}$&$\stdUpdatePc{\updateHeap{\addr}{\var{w}}}$&$\memreg(r_1) = \stdcap$ and $\perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\}$  and  $\start \leq \addr \leq \addrend$ and $\var{w} = \memreg(r_2)$
+                                                                                       and if  $\var{w} = ((\_,\local),\_,\_,\_)$, then  $\perm \in \{\rwlx,\readwritel \}$\\
+    \hline
+    $\restricttwo{\refreg{r}}{\rv}$&$\begin{multlined}
+                                       \stdUpdatePc{}(\updateReg{r}{\\(\permp',\start,\addrend,\addr)})
+                                     \end{multlined}$  &
+                                                      $\memreg(r) = \stdcap[\permp]$ and $\permp' = \decodePermPair{\memreg(\rv)}$
+                                                      and $\permp'\sqsubseteq \permp$\\
+    \hline
+    $\geta{\refreg{r_1}}{\refreg{r_2}}$ & $\stdUpdatePc{\updateReg{r_1}{\addr}}$ &
+                                                $\memreg(r_2) = ((\_,\_),\_,\_,\addr)$\\
+    \hline
+    \multicolumn{3}{|c|}{$\cdots$}\\
+    \hline
+    \_&$\failed$&otherwise\\
+    \hline
+  \end{tabular}
+  \caption{An excerpt from the operational semantics}
+  \label{fig:op-sem}
+\end{figure*}
+
 We define the syntax of our capability machine in \figurename~\ref{fig:syntax}. We
 assume an infinite set of addresses $\Addrs$ and define machine words as either
 integers or capabilities of the form $((\perm,\gl),\start,\addrend,\addr)$. Such
@@ -830,17 +901,22 @@ tag $\gl$ which indicates whether the capability is global or local. The
 available permissions and their ordering are depicted in
 \figurename~\ref{fig:perm-hier}: the permissions include null permission ($\noperm$),
 readonly ($\readonly$), read/write ($\readwrite$), read/execute ($\exec$) and
-read/write/execute ($\rwx$) permissions. Additionally, there are somewhat
-special read/write-local ($\readwritel$), read/write-local/execute ($\rwlx$) and
-enter ($\entry$) permissions which we will explain below.
+read/write/execute ($\rwx$) permissions. Additionally, there are three special
+read/write-local ($\readwritel$), read/write-local/execute ($\rwlx$) and enter
+($\entry$) permissions which we will explain below.
 
 We assume a set of register names $\RegName$. We define register files $\reg$ as
 functions mapping register names to words and memories as functions that map
 addresses to words. The state of the entire machine is represented as a
 configuration that is either a running $\Phi \in \ExecConfs$ containing a memory
-and a register file, or a failed or halted state, where the latter keeps track
-of the final state of memory.
+and a register file, or a failed or halted state, where the latter keeps hold
+of the final state of memory. We also define memory segments $\ms$:
+parts of memory represented as partial functions mapping addresses to words.
 
+The instruction set of our machine is rather basic.  Instructions $i$ include
+jumps ($\jmp{}$), conditional jumps ($\jnz{}{}$), a move instruction that copies
+a word from one register to another ($\move{}{}$), load and store instructions
+for reading from and writing to memory ($\load{}{}$ and $\store{}{}$) 
 
 
 Explain our model of linking
