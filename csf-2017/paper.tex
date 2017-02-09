@@ -1050,8 +1050,7 @@ revoked. This means that local capabilities safely can depend on the
 protocols imposed on memory by temporary regions, whereas global
 capabilities cannot, since a global capability may stay around
 throughout the execution of a program, but a temporary region may be
-revoked.
-\todo[inline]{Insert reference to figure.}
+revoked. This is illustrated in \figurename~\ref{fig:cap-world}.
 
 For technical reasons (monotonicity of the logical relation), a
 temporary region is not removed in the model when it is
@@ -1591,6 +1590,79 @@ actually inhabits it.
 \subsection{Discussion/comparison with related Dreyer-Neis-Birkedal and with Hur-Dreyer}
 
 \section{Examples}
+\begin{figure}[htbp]
+  \centering
+\begin{lstlisting}
+f1: malloc $r_l$ 1
+    store $r_l$ 1
+    fetch $r_1$ $\adv$
+    call $r_1$($[]$,$[r_l]$)
+    assert $r_l$ 1
+    halt
+\end{lstlisting}
+  \caption{Simple program that uses a calling convention not relyant
+    on the stack}
+  \label{fig:prog-f1}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{lstlisting}
+f2: push 1
+    fetch $r_1$ $r_\adv$
+    scall $r_1$($[]$,$[]$)
+    pop $r_1$
+    assert $r_1$ 1
+    halt
+\end{lstlisting}
+  \caption{Simple program that uses a stack-based calling convention.}
+  \label{fig:prog-f2}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{lstlisting}
+f3: push 1
+    fetch $r_1$ $\adv$
+    scall $r_1$($[]$,$[r_1]$)
+    pop $r_2$
+    assert $r_2$ 1
+    push 2
+    scall $r_1$($[]$,$[]$)
+    halt
+\end{lstlisting}
+  \caption{Simple program that relies on control-flow integrity.}
+  \label{fig:prog-f3}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{lstlisting}
+g1:  malloc $r_2$ 1
+     store $r_2$ 0
+     move $\pcreg$ $r_3$
+     lea $r_3$ $\var{offset}$
+     crtcls $[(x, r_2)]$ $r_3$
+     rclear $\RegName \setminus \{\pcreg,r_0,r_1 \}$
+     jmp $r_0$
+f4:  reqglob $r_1$
+     prepstack $r_\stk$
+     store $x$ 0
+     scall $r_1$($[]$,$[r_0,r_1,r_{\var{env}}]$)
+     store $x$ 1
+     scall $r_1$($[]$,$[r_0,r_{\var{env}}]$)
+     load $r_1$ x
+     assert $r_1$ 1
+     mclear $r_\stk$
+     rclear $\RegName \setminus \{r_0,\pcreg\}$
+     jmp $r_0$
+\end{lstlisting}
+  \caption{A program that relies on well-bracketedness of
+    \texttt{scall}s to function correctly. $\var{offset}$ is the
+    offset to $f4$.}
+  \label{fig:prog-g1}
+\end{figure}
+
 \begin{itemize}
 \item Ticket dispenser
 \item The awkward example and variants
