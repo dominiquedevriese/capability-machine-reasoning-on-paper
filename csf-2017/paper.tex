@@ -1593,23 +1593,38 @@ actually inhabits it.
 In this section, we display how capability safety allows us to prove
 local state encapsulation and control-flow integrity properties. For
 presentation purposes, we do not formally state the lemmas we
-prove. The intere
-sted reader can find all the technical details in the
+prove. The interested reader can find all the technical details in the
 techincal report.
 
-\subsection{Encapsulation of local state} 
-The program \texttt{f1} in \figurename~\ref{fig:prog-f1} simply pushes 1 to the
-stack, jumps to an adversary using \texttt{scall} and finally asserts
-the top value on the stack is 1. If this program is linked up
-with an arbitrary adversary that has access to malloc but otherwise only
-consists of instructions, then we can show that the assertion never
-fails. This shows that the local state of $\texttt{f1}$ is
-encapsulated.
+\subsection{Encapsulation of local state}
+The capability machine provides encapsulation of local state. The program \texttt{f1} in \figurename~\ref{fig:prog-f1} and the program \texttt{f2} \figurename~\ref{fig:prog-f2} demonstrate this. 
+ 
+The programs \texttt{f1} and \texttt{f2} are very similar. They both
+store some local data, call an untrusted piece of code, and finally
+make sure that their local state is unchanged. They differ in the way
+they do this. \texttt{f1} assumes it has access to a stack capability
+and uses the stack to store its local state. It also uses the
+stack-based calling convention to call the untrusted code. On the
+other hand, \texttt{f2} allocates a new piece of memory for its local
+state and uses an activation-record based calling convention
+(described in the technical report) to run the adveserial code.
+
+For both programs, we can prove that if they are linked up with an
+adversary that is allowed to allocate new memory but otherwise has no
+capabilities, then executing the program, the assertion will never
+fail.
+We can only prove this, because the capability machine encapsulates
+the local state of the two programs. The two examples also illustrate
+the versatility of the logical relation. The two examples use
+different calling convention, but the logical relation is not specific
+to any calling convention, so we can use it to reason about both
+programs. In order to reason about the unknown untrusted part, we use
+the Fundamental Theorem to argue that it must be capability safe.
 \begin{figure}[htbp]
   \centering
   \begin{lstlisting}
 f1: push 1
-    fetch $r_1$ $r_\adv$
+    fetch $r_1$ $\adv$
     scall $r_1$($[]$,$[]$)
     pop $r_1$
     assert $r_1$ 1
@@ -1622,15 +1637,6 @@ f1: push 1
 \todo[inline]{give a taste of a proof by giving high-level proof here?
 Maybe later for one of the other examples}
 
-In \figurename~\ref{fig:prog-2}, we have \texttt{f2}. \texttt{f2} is
-very similar to \texttt{f1}, but instead of using the stack for local
-state and the stack-based calling convention, it allocates new memory
-for the local state and use a calling convention based on activation
-record. Despite the different approach to handle local state and
-calls, we are still able to show a similar property to that of
-\texttt{f1}. This illustrates that the logical relation is not
-specific to the stack-based calling convention as it can be used to
-reason about programs that follow a different calling convention.
 \begin{figure}[htbp]
   \centering
 \begin{lstlisting}
@@ -1648,6 +1654,7 @@ f2: malloc $r_l$ 1
 
 \subsection{Well-bracketed control-flow} 
 
+The program $f3$ in \figurename~\ref{fig:prog-f3}
 \begin{figure}[htbp]
   \centering
   \begin{lstlisting}
