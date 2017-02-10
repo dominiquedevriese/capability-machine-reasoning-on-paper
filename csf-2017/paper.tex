@@ -1556,7 +1556,7 @@ in the interpretation of an active (permanent or temporary) region.
     \end{aligned}
 \end{align*}
   \caption{Logical Relation}
-  \label{fig:logrel}
+  \label{fig:logrel}            
 \end{figure}
 
 \begin{figure}[htbp]
@@ -1829,26 +1829,28 @@ inherited structure from the high-level language.
 
 
 \section{Examples}
-In this section, we display how capability safety allows us to prove
-local state encapsulation and control-flow integrity properties. For
-presentation purposes, we omit some details in the lemmas we state. 
-The interested reader can find all the technical details in the
-techincal report~\cite{XXX}.
+In this section, we demonstrate how our formal model of capability
+safety allows us to prove local state encapsulation and control-flow
+integrity properties for challenging examples. 
+Since we are dealing with assembly language, 
+there are many details to the formal treatment , and therefore we 
+necessarily have to omit some details
+in the lemmas we state here.  The interested reader can find all the
+technical details in the techincal report~\cite{XXX}.
 
 \subsection{Encapsulation of local state}
 The capability machine provides encapsulation of local state. The
-program \texttt{f1} in \figurename~\ref{fig:prog-f1} and the program
+programs \texttt{f1} in \figurename~\ref{fig:prog-f1} and 
 \texttt{f2} \figurename~\ref{fig:prog-f2} demonstrate this.
- 
-The programs \texttt{f1} and \texttt{f2} are very similar. They both
-store some local data, call an untrusted piece of code, and finally
+The two programs \texttt{f1} and \texttt{f2} are very similar. They both
+store some local data, call an untrusted piece of code ($\adv$), and finally
 make sure that their local state is unchanged. They differ in the way
-they do this. \texttt{f1} assumes it has access to a stack capability
+they do this. Program \texttt{f1} assumes it has access to a stack capability
 and uses the stack to store its local state. It also uses the
 stack-based calling convention to call the untrusted code. On the
 other hand, \texttt{f2} allocates a new piece of memory for its local
 state and uses an activation-record based calling convention
-(described in the technical report) to run the adveserial code.
+(described in the technical report) to run the adversarial code.
 
 \begin{figure}[htbp]
   \centering
@@ -1879,10 +1881,11 @@ f2: malloc $r_l$ 1
   \label{fig:prog-f2}
 \end{figure}
 
-For both programs, we can prove that if they are linked up with an
+For both programs, we can prove that if they are linked with an
 adversary, $\adv$, that is allowed to allocate new memory but otherwise has no
-capabilities, then executing the program, the assertion will never
-fail.
+capabilities, then the assertion will never fail when
+executing the program,
+
 We can only prove this, because the capability machine encapsulates
 the local state of the two programs. The two examples also illustrate
 the versatility of the logical relation. The two examples use
@@ -1890,55 +1893,55 @@ different calling convention, but the logical relation is not specific
 to any calling convention, so we can use it to reason about both
 programs.
 
-\todo[inline]{give a more detailed high-level taste of a proof here? Maybe later for one of the other examples?}
-\begin{lemma}[Correctness lemma for \texttt{f1}]
-\todo[inline]{The lemma copied directly from the TR. To be deleted later!}
-  \label{lem:correctness-f1}
-  Let
-  \begin{align*}
-    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
-    c_{f1} & \defeq ((\rwx,\glob),\mathtt{f1}-\olf,\mathtt{1f},\mathtt{f1}) \\
-    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
-    c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_\stk,\start_\stk-1) \\
-    c_\link & \defeq ((\readonly,\glob),\link,\link+1,\link)\\
-    \reg & \in \Regs \\
-    m & \defeq \hs_{f1} \uplus 
-        \hs_\flag \uplus                
-        \ms_{\var{link}} \uplus 
-        \hs_\adv \uplus 
-        \ms_{\malloc} \uplus 
-        \ms_{\var{stk}} \uplus
-        \ms_{\var{frame}} 
-  \end{align*}
-  and
-  \begin{itemize}
-  \item $c_\malloc$ satisfies the specification for malloc and $\iota_{\malloc,0}$ is the region from the specification.
-  \end{itemize}
-  where 
-  \begin{align*}
-    &\dom(\hs_{f1}) = [\mathtt{f1}-\olf,\mathtt{1f}] \\
-    &\dom(\hs_\flag) = [\flag,\flag] \\
-    &\dom(\ms_\link) = [\link,\link+1]\\
-    &\dom(\ms_\stk) = [\start_\stk, \addrend_\stk]\\
-    &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
-    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]} \qquad \text{ for all $n \in \nats$}
-  \end{align*}
-  and
-  \begin{itemize}
-  \item $\ms_{f1}(\mathtt{f1}-\olf) = ((\readonly,\glob),\link,\link+1,\link)$, $\ms_{f1}(\mathtt{f1}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{f1}$ contains the code of $f1$.
-  \item $\ms_\flag = [\flag \mapsto 0]$
-  \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
-  \item $\hs_\adv(\start_\adv) = c_\link$ and $\forall \addr \in [\start_\adv+1,\addrend]\ldotp \ms_\adv(a) \in \ints$
-  \end{itemize}
-  if 
-  \[
-    (\reg\update{\pcreg}{c_{f1}}\update{r_\stk}{c_\stk},m) \step[n] (\halted,m'),
-  \]
-  then
-  \[
-    m'(\flag) = 0
-  \]  
-\end{lemma}
+% \todo[inline]{give a more detailed high-level taste of a proof here? Maybe later for one of the other examples?}
+% \begin{lemma}[Correctness lemma for \texttt{f1}]
+% \todo[inline]{The lemma copied directly from the TR. To be deleted later!}
+%   \label{lem:correctness-f1}
+%   Let
+%   \begin{align*}
+%     c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
+%     c_{f1} & \defeq ((\rwx,\glob),\mathtt{f1}-\olf,\mathtt{1f},\mathtt{f1}) \\
+%     c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
+%     c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_\stk,\start_\stk-1) \\
+%     c_\link & \defeq ((\readonly,\glob),\link,\link+1,\link)\\
+%     \reg & \in \Regs \\
+%     m & \defeq \hs_{f1} \uplus 
+%         \hs_\flag \uplus                
+%         \ms_{\var{link}} \uplus 
+%         \hs_\adv \uplus 
+%         \ms_{\malloc} \uplus 
+%         \ms_{\var{stk}} \uplus
+%         \ms_{\var{frame}} 
+%   \end{align*}
+%   and
+%   \begin{itemize}
+%   \item $c_\malloc$ satisfies the specification for malloc and $\iota_{\malloc,0}$ is the region from the specification.
+%   \end{itemize}
+%   where 
+%   \begin{align*}
+%     &\dom(\hs_{f1}) = [\mathtt{f1}-\olf,\mathtt{1f}] \\
+%     &\dom(\hs_\flag) = [\flag,\flag] \\
+%     &\dom(\ms_\link) = [\link,\link+1]\\
+%     &\dom(\ms_\stk) = [\start_\stk, \addrend_\stk]\\
+%     &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
+%     &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]} \qquad \text{ for all $n \in \nats$}
+%   \end{align*}
+%   and
+%   \begin{itemize}
+%   \item $\ms_{f1}(\mathtt{f1}-\olf) = ((\readonly,\glob),\link,\link+1,\link)$, $\ms_{f1}(\mathtt{f1}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{f1}$ contains the code of $f1$.
+%   \item $\ms_\flag = [\flag \mapsto 0]$
+%   \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
+%   \item $\hs_\adv(\start_\adv) = c_\link$ and $\forall \addr \in [\start_\adv+1,\addrend]\ldotp \ms_\adv(a) \in \ints$
+%   \end{itemize}
+%   if 
+%   \[
+%     (\reg\update{\pcreg}{c_{f1}}\update{r_\stk}{c_\stk},m) \step[n] (\halted,m'),
+%   \]
+%   then
+%   \[
+%     m'(\flag) = 0
+%   \]  
+% \end{lemma}
 
 
 In order to formulate a lemmas about \texttt{f1} and \texttt{f2}, we need a way to observe whether the assertion fails. To this end, we assum access to a flag which will be set by the assertion if it fails. A slightly simplified version of the correctness lemma for \texttt{f1} is:
