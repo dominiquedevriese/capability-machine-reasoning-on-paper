@@ -268,10 +268,18 @@
 \newcommand{\fail}{\zinstr{fail}}
 \newcommand{\halt}{\zinstr{halt}}
 % One argument
-\newcommand{\oneinstr}[2]{\zinstr{#1} \; #2}
+\newcommand{\oneinstr}[2]{
+  \ifthenelse{\equal{#2}{}}
+  {\zinstr{#1}}
+  {\zinstr{#1} \; #2}
+}
 \newcommand{\jmp}[1]{\oneinstr{jmp}{#1}}
 % Two arguments
-\newcommand{\twoinstr}[3]{\zinstr{#1} \; #2 \; #3}
+\newcommand{\twoinstr}[3]{
+  \ifthenelse{\equal{#2#3}{}}
+  {\zinstr{#1}}
+  {\zinstr{#1} \; #2 \; #3}
+}
 \newcommand{\restricttwo}[2]{\twoinstr{restrict}{#1}{#2}}
 \newcommand{\jnz}[2]{\twoinstr{jnz}{#1}{#2}}
 \newcommand{\isptr}[2]{\twoinstr{isptr}{#1}{#2}}
@@ -285,7 +293,11 @@
 \newcommand{\load}[2]{\twoinstr{load}{#1}{#2}}
 \newcommand{\lea}[2]{\twoinstr{lea}{#1}{#2}}
 % Three arguments
-\newcommand{\threeinstr}[4]{\zinstr{#1} \; #2 \; #3 \; #4}
+\newcommand{\threeinstr}[4]{
+  \ifthenelse{\equal{#2#3#4}{}}
+  {\zinstr{#1}}
+  {\zinstr{#1} \; #2 \; #3 \; #4}
+}
 \newcommand{\restrict}[3]{\threeinstr{restrict}{#1}{#2}{#3}}
 \newcommand{\subseg}[3]{\threeinstr{subseg}{#1}{#2}{#3}}
 \newcommand{\plus}[3]{\threeinstr{plus}{#1}{#2}{#3}}
@@ -856,7 +868,7 @@ relatively standard jump ($\jmp{}$), conditional jump ($\jnz{}{}$) and move
 load and store instructions for reading from and writing to memory ($\load{}{}$
 and $\store{}{}$) and an arithmetic addition operator ($\plus{}{}{}$). There are
 three instructions for modifying capabilities: $\lea{}{}$ (modifies the current
-address), $\restrict{}{}$ (modifies the permission and local/global flag) and
+address), $\restricttwo{}{}$ (modifies the permission and local/global flag) and
 $\subseg{}{}{}$ (modifies the range of a capability). Importantly, these
 instructions take care that the resulting capability always carries less
 authority than the original (e.g. restrict will only weaken a permission).
@@ -941,7 +953,7 @@ $\pcreg$ to the next instruction using the meta-function $\stdUpdatePc{}$.
 
 The $\load{}{}$ instruction loads the contents of the requested memory location
 into the appropriate register, but only if the capability has appropriate
-authority (i.e. read permission and an appropriate range). The $\restrict{}{}$
+authority (i.e. read permission and an appropriate range). The $\restricttwo{}{}$
 instruction will update a capability's permissions and global/local status in
 the register file, but requires that the new permissions are weaker than the
 original and does not turn local capabilities into global ones. The $\geta{}{}$
@@ -989,6 +1001,9 @@ the intended behavior of local capabilities.
 Explain our model of linking
 \dominique{not sure what we want to say about it here...}
 
+Explain malloc
+\dominique{not sure what we want to say about it here either...}
+
 \section{Stack and return pointer management using local capabilities}
 
 One of the contributions in this paper is a demonstration that local
@@ -1003,20 +1018,113 @@ after that. After that, we define a number of reusable macro-instructions that
 can be used to conveniently apply the proposed discipline in subsequent
 examples.
 
-The basic idea of our approach is actually rather simple: we stick to a single,
-rather standard C stack and register-passed return pointers in much the same way
-as a standard C ABI. However, to prevent various ways of misusing this basic
-scheme, we put local capabilities to work and need to perform a number of
-not-always-obvious checks and safety measures.
+The basic idea of our approach is quite simple: we stick to a single, rather
+standard C stack and register-passed return pointers in much the same way as a
+standard C ABI. However, to prevent various ways of misusing this basic scheme,
+we put local capabilities to work and take a number of not-always-obvious safety
+measures. In the next paragraphs, we will explain the issues to be considered in
+all the relevant situations: when (1) starting our program, (2) invoking the
+adversary, (3) returning from the adversary, (4) invoking an adversary callback
+and (5) having a callback invoked by the adversary.
+
+\dominique{Add a summary table somewhere?}
+
+\paragraph{Program startup}
+When our code starts executing, we assume that the language runtime initializes
+the memory as follows: a contiguous array of memory is reserved for the stack,
+for which we receive a stack pointer in a register that we reserve for this
+purpose \dominique{give this register a special name like sp?}. This stack
+pointer must be local and it must carry $\rwlx$ permission. It is crucial for
+our approach that the stack is the only part of memory for which there will ever
+be capabilities with $\rwlx$ or $\rwl$ capabilities. We expect the language
+runtime to enforce this by not handing out such capabilities for other parts of
+memory in any situation (i.e. not through malloc, not during loading or linking
+etc.). Additionally, in our examples, we typically also assume some static parts
+of memory where instructions are stored or static data. Another part of memory
+(called the heap) is initially governed by malloc and at program startup, no
+other code has capabilities for this memory. Malloc will hand out capabilities
+for allocated regions as requested, but it will never hand out capabilities with
+write-local capability (i.e. no $\rwlx$ or $\rwl$ permissions). For simplicity,
+we assume that memory allocated through malloc cannot be freed.
 
 \paragraph{Invoking the adversary}
-* stack and return pointer as local caps
-* clearing registers
-* clearing the stack
+During execution, we use the stack as normal: we may push values onto it and pop
+them back off (e.g. for register spilling etc.). When we invoke the adversary,
+we need to take great care to only provide him with the authority we want him to
+have. Specifically, we clear all the registers, except those that contain
+arguments the adversary is intended to have access to. We leave a copy of the
+stack pointer in the appropriate register, but only after we have used the
+$\subseg{}{}{}$ to shrink its authority to just the part of the stack that we
+are not using. In one of the registers, we will also provide a return pointer.
+We will go into constructing the return pointer further below.
+
+It is already important to note that the return pointer
+will be provided to the adversary as local capabilities. If the adversary were
+able to store away the return pointer in a global data structure, then he would
+be able to jump to it in circumstances where this should not be possible: he
+may, for example, store the return pointer, legally jump to it a first time,
+wait to be invoked again and then jump to the old return pointer a second time,
+rather than the new return pointer received for the new invocation. Similarly,
+he may store the return pointer, invoke a function in the trusted code, wait to
+be invoked again and then jump to the stored return pointer rather than the new
+return pointer for the second invocation.
+
+Because the return pointer is local, the adversary is only able to store it
+through write-local capabilities, which (because of our assumptions above)
+means: on the stack. However, this makes it crucial that the stack pointer is
+also local: if the adversary were able to store the stack pointer in a global
+data structure, he/she can store return pointers on the stack, and play similar
+mischief as mentioned above. Storing away stack pointers for use during future
+invocations would also be dangerous for other reasons: during such a future
+invocation, a larger part of the stack may be in use by the trusted code, which
+the adversary may still have access to through the old stack pointer.
+
+A final measure we need to take is that before invocation of the adversary, we
+need to clear (i.e. overwrite with zeros) the part of the stack that we are not
+using.  Otherwise, that part of the stack may still contain data and
+capabilities from previously executed code, including local capabilities since
+they are allowed on the stack.  The adversary would be able to take advantage of
+this by using it to store either stack pointers or return pointers from previous
+invocations and play the same tricks as above.
 
 \paragraph{Returning from the adversary}
-* return pointer as enter pointer to activation record on the stack.
-* activation record contains previous pc and stack pointer
+So return pointers must be passed as local capabilities. But what should their
+permissions be, what memory should they point to and what should that memory
+(let's call it the activation record) contain? Let us answer the last question
+first by considering what should happen when the adversary jumps to a return
+pointer and what capabilities we need for achieving that. Essentially, the
+program counter should be restored to the code after the call into the
+adversary, so the activation record should store this program counter.
+Additionally, the stack pointer should also be restored to its original value.
+Since the adversary has a more restricted authority over the stack than the code
+making the call, we cannot hope to reconstruct the return pointer from the stack
+pointer owned by the adversary. Instead, the old stack pointer should also be
+stored as part of the activation record.
+
+\begin{figure}
+  \begin{tikzpicture}
+    \draw[fill=gray!20,draw=none] (0,4) rectangle (4,3.5);
+    \draw[fill=gray!20,draw=none] (0,0.5) rectangle (4,1);
+    \draw (0,0.5) -- (0,4);
+    \draw (4,0.5) -- (4,4);
+    \draw (0,3.5) rectangle (4,3) node[pos=.5] {\footnotesize previous program counter};
+    \draw (0,3) rectangle (4,2.5) node[pos=.5] {\footnotesize previous stack pointer};
+    \draw (0,2.5) rectangle (4,1) node[pos=.5] {\footnotesize restore instructions};
+    \draw (-2,2.25) node (rp) {return pointer};
+    \draw[->] (rp.east) -- (-.2,2.25);
+  \end{tikzpicture}
+  
+  \caption{Structure of an activation record}
+  \label{fig:activ-rec-struct}
+\end{figure}
+
+It's important that neither of these capabilities are accessible to the
+adversary. In other words, we need to provide the adversary a capability that he
+can jump to but not read from, i.e. an enter capability. To make this work, we
+construct the activation record as depicted in Figure~\ref{fig:activ-rec-struct}.
+
+* return pointer as enter pointer to activation
+record on the stack. * activation record contains previous pc and stack pointer
 
 \paragraph{Invoking an adversary callback}
 * must be global
