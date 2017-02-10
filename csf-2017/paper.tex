@@ -1029,7 +1029,7 @@ and (5) having a callback invoked by the adversary.
 
 \dominique{Add a summary table somewhere?}
 
-\paragraph{Program startup}
+\textbf{Program startup}
 When our code starts executing, we assume that the language runtime initializes
 the memory as follows: a contiguous array of memory is reserved for the stack,
 for which we receive a stack pointer in a register that we reserve for this
@@ -1047,7 +1047,7 @@ for allocated regions as requested, but it will never hand out capabilities with
 write-local capability (i.e. no $\rwlx$ or $\rwl$ permissions). For simplicity,
 we assume that memory allocated through malloc cannot be freed.
 
-\paragraph{Invoking the adversary}
+\textbf{Invoking the adversary}
 During execution, we use the stack as normal: we may push values onto it and pop
 them back off (e.g. for register spilling etc.). When we invoke the adversary,
 we need to take great care to only provide him with the authority we want him to
@@ -1087,7 +1087,7 @@ they are allowed on the stack.  The adversary would be able to take advantage of
 this by using it to store either stack pointers or return pointers from previous
 invocations and play the same tricks as above.
 
-\paragraph{Returning from the adversary}
+\textbf{Returning from the adversary}
 So return pointers must be passed as local capabilities. But what should their
 permissions be, what memory should they point to and what should that memory
 (let's call it the activation record) contain? Let us answer the last question
@@ -1105,13 +1105,13 @@ stored as part of the activation record.
   \begin{tikzpicture}[scale=.7, every node={scale=.7}]
     \draw[fill=gray!20,draw=none] (0,4) rectangle (6,3.5);
     \draw[fill=gray!20,draw=none] (0,0.5) rectangle (6,1);
-    \draw (0,0.5) -- (0,4);
-    \draw (6,0.5) -- (6,4);
+    \draw[draw=gray!80] (0,0.5) -- (0,4);
+    \draw[draw=gray!80] (6,0.5) -- (6,4);
     \draw (0,3.5) rectangle (6,3) node[pos=.5] {\footnotesize previous program counter};
     \draw (0,3) rectangle (6,2.5) node[pos=.5] {\footnotesize previous stack pointer};
     \draw (0,2.5) rectangle (6,1) node[pos=.5] {\footnotesize restore instructions};
     \draw (-3,2.25) node (rp) {return pointer};
-    \draw[->] (rp.east) -- (-.2,2.25);
+    \draw[->] (rp.east) -- node[above] {$\entry$}(-.2,2.25);
   \end{tikzpicture}
   
   \caption{Structure of an activation record}
@@ -1121,12 +1121,29 @@ stored as part of the activation record.
 It's important that neither of these capabilities are accessible to the
 adversary. In other words, we need to provide the adversary a capability that he
 can jump to but not read from, i.e. an enter capability. To make this work, we
-construct the activation record as depicted in Figure~\ref{fig:activ-rec-struct}.
+construct the activation record as depicted in
+Figure~\ref{fig:activ-rec-struct}. The return pointer is an $\entry$ capability
+pointing with authority over a data structure containing the previous return and
+stack pointer as well as a number of restore instructions. The current address
+points to those instructions, so that, upon invocation, they can load the old
+stack pointer and program counter into the register file through the authority
+of the pc. The return pointer is given to the adversary as an enter pointer so
+that the adversary cannot get hold of the contents of the data structure, but
+after invocation, its permission is updated to $\exec$, so that the activation
+record's contents become available to the restore instructions.
 
-* return pointer as enter pointer to activation
-record on the stack. * activation record contains previous pc and stack pointer
+The final question that remains is: where should we construct this return
+pointer? The attentive reader will see that there is only one possibility: since
+the activation record contains the old stack pointer, which is necessarily
+local, the activation record can only be constructed in a part of memory where
+we have write-local access, i.e. on the stack. Note that this means we will be
+placing and executing instructions on the stack, i.e. it will not just contain
+code pointers and data.  This means that this discipline should be combined with
+protection against stack smashing attacks (i.e. buffer overflows on the stack overwriting activation
+records' contents), but capability machines' fine-grained memory protection
+luckily is well-suited for this.
 
-\paragraph{Invoking an adversary callback}
+\textbf{Invoking an adversary callback}
 * must be global
 
 \paragraph{Having a callback invoked by the adversary}
