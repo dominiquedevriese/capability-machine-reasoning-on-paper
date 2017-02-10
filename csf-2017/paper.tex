@@ -1582,7 +1582,6 @@ in the interpretation of an active (permanent or temporary) region.
 \caption{Permission-based conditions}
 \label{fig:perm-conds}
 \end{figure}
-\clearpage
 }
 %subsection introduction
 The logical relation defines semantically what it means to be
@@ -1785,7 +1784,9 @@ The interested reader can find all the technical details in the
 techincal report.
 
 \subsection{Encapsulation of local state}
-The capability machine provides encapsulation of local state. The program \texttt{f1} in \figurename~\ref{fig:prog-f1} and the program \texttt{f2} \figurename~\ref{fig:prog-f2} demonstrate this. 
+The capability machine provides encapsulation of local state. The
+program \texttt{f1} in \figurename~\ref{fig:prog-f1} and the program
+\texttt{f2} \figurename~\ref{fig:prog-f2} demonstrate this.
  
 The programs \texttt{f1} and \texttt{f2} are very similar. They both
 store some local data, call an untrusted piece of code, and finally
@@ -1798,7 +1799,7 @@ state and uses an activation-record based calling convention
 (described in the technical report) to run the adveserial code.
 
 For both programs, we can prove that if they are linked up with an
-adversary that is allowed to allocate new memory but otherwise has no
+adversary, $\adv$, that is allowed to allocate new memory but otherwise has no
 capabilities, then executing the program, the assertion will never
 fail.
 We can only prove this, because the capability machine encapsulates
@@ -1806,12 +1807,11 @@ the local state of the two programs. The two examples also illustrate
 the versatility of the logical relation. The two examples use
 different calling convention, but the logical relation is not specific
 to any calling convention, so we can use it to reason about both
-programs. In order to reason about the unknown untrusted part, we use
-the Fundamental Theorem to argue that it must be capability safe.
+programs.
 
 \todo[inline]{give a more detailed high-level taste of a proof here? Maybe later for one of the other examples?}
-
 \begin{lemma}[Correctness lemma for \texttt{f1}]
+\todo[inline]{The lemma copied directly from the TR. To be deleted later!}
   \label{lem:correctness-f1}
   Let
   \begin{align*}
@@ -1859,6 +1859,69 @@ the Fundamental Theorem to argue that it must be capability safe.
   \]  
 \end{lemma}
 
+
+In order to formulate a lemmas about \texttt{f1} and \texttt{f2}, we need a way to observe whether the assertion fails. To this end, we assum access to a flag which will be set by the assertion if it fails. A slightly simplified version of the correctness lemma for \texttt{f1} is:
+\begin{lemma}
+  \label{lem:correctness-f1}
+  Let
+  \begin{align*}
+    c_{\var{adv}} & \defeq ((\entry,\glob),\dots) \\
+    c_{f1} & \defeq ((\rwx,\glob),\dots) \\
+    c_\malloc & \defeq ((\entry,\glob),\dots) \\
+    c_{\var{stk}} & \defeq ((\rwlx,\local),\dots) \\
+    c_\link & \defeq ((\readonly,\glob),\dots)\\
+    \reg & \in \Regs \\
+    m & \defeq
+        \begin{aligned}[t]
+          &\hs_{f1} \uplus 
+        \hs_\flag \uplus                
+        \ms_{\var{link}} \uplus 
+        \hs_\adv \uplus \\
+        &\ms_{\malloc} \uplus 
+        \ms_{\var{stk}} \uplus
+        \ms_{\var{frame}}
+      \end{aligned}
+  \end{align*}
+  where each of the capability has an appropriate range of authority and pointer and
+  \begin{itemize}
+  \item $\ms_{f1}$ contains $c_\link$, $c_\flag$ and the code of \texttt{f1}
+  \item $\ms_\flag(\flag) = 0$
+  \item $\ms_{\var{link}}$ contains $c_\adv$ and $c_\malloc$
+  \item $\hs_\adv$ contains $c_\link$ and otherwise only instructions.
+  \end{itemize}
+  if 
+  \[
+    (\reg\update{\pcreg}{c_{f1}}\update{r_\stk}{c_\stk},m) \step[*] (\halted,m'),
+  \]
+  then
+  \[
+    m'(\flag) = 0
+  \]  
+\end{lemma}
+
+In order for prove Lemma~\ref{lem:correctness-f1}, it suffices to show
+that the start configuration is capability safe (in the $\observations$ relation) for a
+world with a permanent region that requires the assertion flag to be
+0. This is done using an anti-reduction lemma which states that for a
+configuration to be capability safe, it is sufficient to
+show that it is in it at a later point of the execution. To reason
+about \texttt{scall}, it suffices to show that the configuration just
+after we jumped is capability safe and that the configuration just
+after \texttt{scall} is done cleaning up is capability safe.
+We use the Fundamental Theorem to reason about the unknown code, but
+notice that the Fundamental Theorem says nothing about enter
+capabilities and that the adversary capability is an enter
+capability. Luckily the enter capability becomes a read/execute
+capability when we jump and the Fundamental Theorem can be used to
+show that this capability is capability safe as a program counter.
+
+For \texttt{f2} we state a similar lemma:
+\begin{lemma}
+  \label{lem:correctness-f2}
+  Making similar assumptions about capabilities and linking as in
+  Lemma~\ref{lem:correctness-f1} but assuming no stack capability
+  if $(\reg\update{\pcreg}{c_{f2}},m) \step[n] (\halted,m')$, then $m'(\flag) = 0$.
+\end{lemma}
 
 \begin{figure}[htbp]
   \centering
