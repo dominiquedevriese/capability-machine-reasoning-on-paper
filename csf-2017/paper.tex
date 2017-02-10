@@ -24,7 +24,6 @@
 }
 
 \usepackage{rotating}
-
 \usepackage{afterpage}
 
 \usepackage{mathtools}
@@ -99,9 +98,9 @@
 \newcommand{\var}[1]{\mathit{#1}}
 \newcommand{\hs}{\var{ms}}
 \newcommand{\ms}{\hs}
-\newcommand{\hv}{\var{hv}}
-\newcommand{\rv}{\var{rv}}
-\newcommand{\lv}{\var{lv}}
+\newcommand{\hv}{\var{r}}
+\newcommand{\rv}{\var{r}}
+\newcommand{\lv}{\var{r}}
 \newcommand{\gl}{\var{g}}
 \newcommand{\pc}{\mathit{pc}}
 \newcommand{\pcreg}{\mathrm{pc}}
@@ -259,8 +258,8 @@
 \newcommand{\npair}[2][n]{\left(#1,#2 \right)}
 
 % Reference register/memory
-\newcommand{\refreg}[1]{\lfloor #1 \rfloor}
-\newcommand{\refheap}[1]{\langle #1 \rangle_m}
+\newcommand{\refreg}[1]{#1}
+\newcommand{\refheap}[1]{#1}
 
 % Instructions
 % No arguments
@@ -786,8 +785,6 @@ detail, we assume an infinite address space and unbounded integers.
   \end{align*}
   \begin{equation*}
   \begin{array}{rcl}
-    \lv    &::=& \refreg{r} \\
-    \hv    &::=& \refheap{r}\\
     \rv    &::=& n \mid \lv \\
     i      &::=& 
                  \jmp{\lv} \mid 
@@ -798,14 +795,14 @@ detail, we assume an infinite address space and unbounded integers.
            &   & \plus{\lv}{\rv}{\rv} \mid 
                  \minus{\lv}{\rv}{\rv} \mid 
                  \lea{\lv}{\rv} \mid 
-                 \restricttwo{\lv}{\rv} \mid 
-                 \subseg{\lv}{\rv}{\rv} \mid  \\
-           &   & \isptr{\lv}{\rv} \mid 
+                 \restricttwo{\lv}{\rv} \mid \\
+           &   & \subseg{\lv}{\rv}{\rv} \mid  
+                 \isptr{\lv}{\rv} \mid 
                  \getp{\lv}{\lv} \mid 
-                 \getl{\lv}{\lv} \mid 
-                 \getb{\lv}{\lv} \mid
-                 \gete{\lv}{\lv} \mid\\
-           &   & \geta{\lv}{\lv} \mid 
+                 \getl{\lv}{\lv} \mid\\ 
+           &   & \getb{\lv}{\lv} \mid
+                 \gete{\lv}{\lv} \mid
+                 \geta{\lv}{\lv} \mid 
                  \fail \mid
                  \halt 
   \end{array}
@@ -884,45 +881,43 @@ local/global flag, base, end and current address of a capability.
   \begin{equation*}
     \Phi  \rightarrow
     \begin{cases}
-      \sem{\decode(n)}(\Phi) & \text{if $\memreg(\pcreg) = \stdcap$ and $\start \leq \addr \leq \addrend$ and $\perm \in \{ \exec,\rwx, \rwlx \}$ and $\memheap(\addr) = n$ }\\
-      \failed                                 & \text{otherwise}
+      \sem{\decode(n)}(\Phi) & \text{\footnotesize{if $\memreg(\pcreg) = \stdcap$ and $\start \leq \addr \leq \addrend$ and $\perm \in \{ \exec,\rwx, \rwlx \}$ and $\memheap(\addr) = n$ }}\\
+      \failed                                 & \text{\footnotesize{otherwise}}
     \end{cases}
   \end{equation*}\vspace{-.3cm}%
   \begin{align*}
     \updatePcPerm{w} &=
                        \begin{cases}
-                         ((\exec,\gl),\start,\addrend,\addr) & \text{if $w = ((\entry,\gl),\start,\addrend,\addr)$}\\
-                         w & \text{otherwise}
+                         ((\exec,\gl),\start,\addrend,\addr) & \text{\footnotesize{if $w = ((\entry,\gl),\start,\addrend,\addr)$}}\\
+                         w & \text{\footnotesize{otherwise}}
                        \end{cases}\\
     \stdUpdatePc{\Phi} &=
                          \begin{cases}
                            \updateReg{\pcreg}{\var{newPc}} & \arraycolsep=0pt
-                           \begin{array}[t]{l}
-                             \text{if $\memreg(\pcreg) = \stdcap$}\\
-                             \quad\text{and $\var{newPc} = ((\perm,\gl),\start,\addrend,\addr + 1)$}\\
-                           \end{array}
+                             \text{\footnotesize{if $\memreg(\pcreg) = \stdcap$ and $\var{newPc} = ((\perm,\gl),\start,\addrend,\addr + 1)$}}\\
+                             \failed & \text{\footnotesize{otherwise}}
                          \end{cases}
   \end{align*}
 
   \begin{tabular}{|c|p{3.8cm}|p{10.4cm}|}
     \hline
     $i$&$\sem{i}(\Phi)$&Conditions\\
-    \hline
+    \hline 
     $\fail$&$\failed$&\\
     \hline
     $\halt$&$(\halted,\memheap)$&\\
     \hline
-    $\move{\refreg{r_1}}{\rv}$& $\begin{multlined}
+    $\move{\refreg{r_1}}{r_2}$& $\begin{multlined}
       \stdUpdatePc{}(\updateReg{r_1}{\\
-          \memreg(\rv)}) \end{multlined}$&\\
+          \memreg(r_2)}) \end{multlined}$&\\
     \hline
-    $\load{\refreg{r_1}}{\refheap{r_2}}$&$\updateReg{r_1}{\memheap(\addr)}$&$\memreg(r_2) = \stdcap$ and $\perm \in \{ \rwx, \rwlx, \exec, \readwrite, \readwritel, \readonly \}$  and  $\start \leq \addr \leq \addrend$\\
+    $\load{\refreg{r_1}}{\refheap{r_2}}$&$\updateReg{r_1}{\memheap(\addr)}$&$\memreg(r_2) = \stdcap$\footnotesize{ and }$\perm \in \{ \rwx, \rwlx, \exec, \readwrite, \readwritel, \readonly \}$\footnotesize{ and }$\start \leq \addr \leq \addrend$\\
     \hline
-    $\restricttwo{\refreg{r}}{\rv}$&$\begin{multlined}
-                                       \stdUpdatePc{}(\updateReg{r}{\\(\permp',\start,\addrend,\addr)})
+    $\restricttwo{\refreg{r_1}}{r_2}$&$\begin{multlined}
+                                       \stdUpdatePc{}(\updateReg{r_1}{\\(\permp',\start,\addrend,\addr)})
                                      \end{multlined}$  &
-                                                        $\memreg(r) = \stdcap[\permp]$ and $\permp' = \decodePermPair{\memreg(\rv)}$
-                                                      and $\permp'\sqsubseteq \permp$\\
+                                                        $\memreg(r_2) = \stdcap[\permp]$\footnotesize{ and }\newline$\permp' = \decodePermPair{\memreg(r_2)}$
+                                                      \footnotesize{ and }$\permp'\sqsubseteq \permp$\\
     \hline
     $\geta{\refreg{r_1}}{\refreg{r_2}}$ & $\stdUpdatePc{\updateReg{r_1}{\addr}}$ &
                                                 $\memreg(r_2) = ((\_,\_),\_,\_,\addr)$\\
@@ -931,12 +926,12 @@ local/global flag, base, end and current address of a capability.
                    \updateReg{\pcreg}{\\\updatePcPerm{\memreg(\lv)}}
                  \end{multlined}$&\\
     \hline
-    $\store{\refheap{r_1}}{\refreg{r_2}}$&$\stdUpdatePc{\updateHeap{\addr}{\var{w}}}$&$\memreg(r_1) = \stdcap$ and $\perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\}$  and  $\start \leq \addr \leq \addrend$ and $\var{w} = \memreg(r_2)$
-                                                                                       and if  $\var{w} = ((\_,\local),\_,\_,\_)$, then  $\perm \in \{\rwlx,\readwritel \}$\\
+    $\store{\refheap{r_1}}{\refreg{r_2}}$&$\stdUpdatePc{\updateHeap{\addr}{\var{w}}}$&$\memreg(r_1) = \stdcap$\footnotesize{ and }$\perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\}$ \footnotesize{ and } $\start \leq \addr \leq \addrend$\footnotesize{ and }$\var{w} = \memreg(r_2)$
+                                                                                       \footnotesize{and if }$\var{w} = ((\_,\local),\_,\_,\_)$\footnotesize{, then  }$\perm \in \{\rwlx,\readwritel \}$\\
     \hline
     \multicolumn{3}{|c|}{$\cdots$}\\
     \hline
-    \_&$\failed$&otherwise\\
+    \_&$\failed$&\footnotesize{otherwise}\\
     \hline
   \end{tabular}
   \caption{An excerpt from the operational semantics}
