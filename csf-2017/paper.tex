@@ -1023,9 +1023,10 @@ standard C stack and register-passed return pointers in much the same way as a
 standard C ABI. However, to prevent various ways of misusing this basic scheme,
 we put local capabilities to work and take a number of not-always-obvious safety
 measures. In the next paragraphs, we will explain the issues to be considered in
-all the relevant situations: when (1) starting our program, (2) invoking the
-adversary, (3) returning from the adversary, (4) invoking an adversary callback
-and (5) having a callback invoked by the adversary.
+all the relevant situations: when (1) starting our program, (2) Returning to the
+adversary, (3) invoking the
+adversary, (4) returning from the adversary, (5) invoking an adversary callback
+and (6) having a callback invoked by the adversary.
 
 \dominique{Add a summary table somewhere?}
 
@@ -1047,59 +1048,74 @@ for allocated regions as requested, but it will never hand out capabilities with
 write-local capability (i.e. no $\rwlx$ or $\rwl$ permissions). For simplicity,
 we assume that memory allocated through malloc cannot be freed.
 
-\textbf{Invoking the adversary}
-During execution, we use the stack as normal: we may push values onto it and pop
-them back off (e.g. for register spilling etc.). When we invoke the adversary,
-we need to take great care to only provide him with the authority we want him to
-have. Specifically, we clear all the registers, except those that contain
-arguments the adversary is intended to have access to. We leave a copy of the
-stack pointer in the appropriate register, but only after we have used the
-$\subseg{}{}{}$ to shrink its authority to just the part of the stack that we
-are not using. In one of the registers, we will also provide a return pointer.
-We will go into constructing the return pointer further below.
+\textbf{Returning to the adversary} Perhaps the simplest scenario is the case of
+returning to the adversary after he/she invoked our code. In this case, we will
+have received a return pointer from him, and we just need to jump to it as
+usual. The only thing we need to take care of is to properly clear the registers
+before we do (erasing any data we do not want to pass as (part of) the return
+value) and similarly, erase any part of the stack that we have used (i.e.
+overwrite it with zeros). Note that we can use the stack as normal: we may push
+values onto it and pop them back off (e.g. for register spilling etc.).
 
-It is already important to note that the return pointer
-will be provided to the adversary as local capabilities. If the adversary were
-able to store away the return pointer in a global data structure, then he would
-be able to jump to it in circumstances where this should not be possible: he
-may, for example, store the return pointer, legally jump to it a first time,
-wait to be invoked again and then jump to the old return pointer a second time,
-rather than the new return pointer received for the new invocation. Similarly,
-he may store the return pointer, invoke a function in the trusted code, wait to
-be invoked again and then jump to the stored return pointer rather than the new
-return pointer for the second invocation.
+\textbf{Invoking the adversary} Slightly more complex is the case where we
+invoke the adversary. As above, we clear all the registers, except those that
+contain arguments the adversary is intended to have access to. We leave a copy
+of the stack pointer in the appropriate register, but only after we have used
+the $\subseg{}{}{}$ to shrink its authority to just the part of the stack that
+we are not using. In one of the registers, we also provide a return pointer,
+which we will say more about below.
 
-Because the return pointer is local, the adversary is only able to store it
-through write-local capabilities, which (because of our assumptions above)
-means: on the stack. However, this makes it crucial that the stack pointer is
-also local: if the adversary were able to store the stack pointer in a global
-data structure, he/she can store return pointers on the stack, and play similar
-mischief as mentioned above. Storing away stack pointers for use during future
-invocations would also be dangerous for other reasons: during such a future
-invocation, a larger part of the stack may be in use by the trusted code, which
-the adversary may still have access to through the old stack pointer.
+Already important is the fact that the return pointer must be provided to the
+adversary as a local capability. If not, the adversary would be able to store
+away the return pointer in a global data structure, and he would be able to jump
+to it in circumstances where this should not be possible: he may, for example,
+store the return pointer, legally jump to it a first time, wait to be invoked
+again and then jump to the old return pointer a second time, rather than the new
+return pointer received for the new invocation. Similarly, he may store the
+return pointer, invoke a function in our code, wait for us to invoke him again
+and then jump to the stored, old return pointer rather than the new one he
+received upon the second invocation.
 
-A final measure we need to take is that before invocation of the adversary, we
+Because the return pointer is local, this is not possible: the adversary can
+only store it through write-local capabilities, which (because of our
+assumptions above) means: on the stack. However, this makes it crucial that the
+stack pointer is also local: if the adversary were able to store the stack
+pointer in a global data structure, he/she can store return pointers on the
+stack, and play similar mischief as mentioned above. Storing away stack pointers
+for use during future invocations would also be dangerous for other reasons:
+during such a future invocation, a larger part of the stack may be in use by the
+trusted code, which the adversary may still have access to through the old stack
+pointer.
+
+A final required safety measure is that before invocation of the adversary, we
 need to clear (i.e. overwrite with zeros) the part of the stack that we are not
-using.  Otherwise, that part of the stack may still contain data and
-capabilities from previously executed code, including local capabilities since
-they are allowed on the stack.  The adversary would be able to take advantage of
-this by using it to store either stack pointers or return pointers from previous
-invocations and play the same tricks as above.
+using. Otherwise, that part of the stack may still contain data and capabilities
+from previously executed code, including local capabilities since they are
+allowed on the stack. The adversary could take advantage of this by using it to
+store either stack pointers or return pointers from previous invocations and
+play the same tricks as above. Clearing the entire unused part of the stack is
+the most problematic aspect of our discipline in terms of efficiency, since it
+may consist of a large part of memory. We believe that capability machines like
+CHERI should consider to provide special support for this requirement, by
+implementing an optimized instruction for clearing (i.e. overwriting with zeros)
+a large block of memory. We have no experience in processor design, but we
+imagine this might be optimized as a vector instruction or by having the
+processor keep track of a range of memory for which loads should return zero
+irrespective of the actual contents of the memory.
 
-\textbf{Returning from the adversary}
-So return pointers must be passed as local capabilities. But what should their
-permissions be, what memory should they point to and what should that memory
-(let's call it the activation record) contain? Let us answer the last question
-first by considering what should happen when the adversary jumps to a return
-pointer and what capabilities we need for achieving that. Essentially, the
-program counter should be restored to the code after the call into the
-adversary, so the activation record should store this program counter.
-Additionally, the stack pointer should also be restored to its original value.
-Since the adversary has a more restricted authority over the stack than the code
-making the call, we cannot hope to reconstruct the return pointer from the stack
-pointer owned by the adversary. Instead, the old stack pointer should also be
-stored as part of the activation record.
+\textbf{Returning from the adversary} So return pointers must be passed as local
+capabilities. But what should their permissions be, what memory should they
+point to and what should that memory (the activation record) contain? Let us
+answer the last question first by considering what should happen when the
+adversary jumps to a return pointer and what capabilities we need for achieving
+that. In that case, the program counter should be restored to point after the
+instruction that jumped into the adversary, so the activation record should
+store this old program counter. Additionally, the stack pointer should also be
+restored to its original value. Since the adversary has a more restricted
+authority over the stack than the code making the call, we cannot hope to
+reconstruct the return pointer from the stack pointer owned by the adversary.
+Instead, the old stack pointer should also be stored as part of the activation
+record.
 
 \begin{figure}
   \begin{tikzpicture}[scale=.7, every node={scale=.7}]
@@ -1119,49 +1135,72 @@ stored as part of the activation record.
 \end{figure}
 
 It's important that neither of these capabilities are accessible to the
-adversary. In other words, we need to provide the adversary a capability that he
-can jump to but not read from, i.e. an enter capability. To make this work, we
-construct the activation record as depicted in
+adversary. In other words, the return pointer provided to the adversary must be
+a capability that he/she can jump to but not read from, i.e. an enter
+capability. To make this work, we construct the activation record as depicted in
 Figure~\ref{fig:activ-rec-struct}. The return pointer is an $\entry$ capability
-pointing with authority over a data structure containing the previous return and
-stack pointer as well as a number of restore instructions. The current address
-points to those instructions, so that, upon invocation, they can load the old
-stack pointer and program counter into the register file through the authority
-of the pc. The return pointer is given to the adversary as an enter pointer so
-that the adversary cannot get hold of the contents of the data structure, but
-after invocation, its permission is updated to $\exec$, so that the activation
-record's contents become available to the restore instructions.
+with authority over the activation record containing the previous return and
+stack pointer as well as a number of restore instructions. The return pointer's
+current address points to those instructions, so that, upon invocation, they are
+executed and can load the old stack pointer and program counter back into the
+register file. Because the return pointer is given to the adversary as an enter
+pointer, he/she cannot get hold of the contents of the data structure, but after
+invocation, its permission is updated to $\exec$, so the activation record's
+contents become available to the restore instructions.
 
-The final question that remains is: where should we construct this return
-pointer? The attentive reader will see that there is only one possibility: since
-the activation record contains the old stack pointer, which is necessarily
+The final question that remains is: where should we store this activation
+record? The attentive reader may already see that there is only one possibility:
+since the activation record contains the old stack pointer, which is necessarily
 local, the activation record can only be constructed in a part of memory where
 we have write-local access, i.e. on the stack. Note that this means we will be
 placing and executing instructions on the stack, i.e. it will not just contain
-code pointers and data.  This means that this discipline should be combined with
-protection against stack smashing attacks (i.e. buffer overflows on the stack overwriting activation
-records' contents), but capability machines' fine-grained memory protection
-luckily is well-suited for this.
+code pointers and data. This means that our discipline should be combined with
+protection against stack smashing attacks (i.e. buffer overflows on the stack
+overwriting activation records' contents), but conveniently, the fine-grained
+memory protection on capability machines is well-suited to easily provide such
+protection.
 
-\textbf{Invoking an adversary callback}
-* must be global
+\textbf{Invoking an adversary callback} If we have a higher-order interface to
+the adversary, we might need to invoke an adversary callback. In this case, not
+so much changes with respect to the situation where we invoke regular adversary
+code. The adversary can provide a callback as a capability for us to jump to,
+either an $\entry$-capability if he wants to protect himself from us or just an
+$\exec$ capability if he/she is not worried about that. However, there is one
+scenario that we need to prevent, namely that he/she constructs the callback
+capability to point into the stack, where he/she may have stored local
+capabilities that he should not have access to upon invocation of the callback.
+Specifically, he might store return pointers and stack pointers from previous
+stack frames there, and illegally use them inside the callback.
+
+To prevent this, we only accept callbacks from the adversary in the form of
+global capabilities and we check this prior to invoking them (and fail
+otherwise). This should not be an overly strict requirement, since our own
+callbacks do not contain local data themselves, so there should be no need for
+the adversary to construct callbacks on the stack.\footnote{Note that it does
+  prevent a legitimate but non-essential scenario where the adversary wants to
+  give us temporary access to a callback not allocated on the stack.}
 
 \paragraph{Having a callback invoked by the adversary}
-* checking the received stack pointer
+The above leaves us with probably the hardest scenario: how to provide a
+callback to the adversary. The basic idea is that we allocate a block of memory
+using malloc that we fill with the capabilities and data that the callback needs
+access to, as well as some prelude instructions that load the data into
+registers and jumps to the right code. We can then provide the adversary with an
+enter-capability covering the allocated block and pointing to the contained
+prelude instructions. However, the question that remains in this setup is: where
+do we get the stack pointer?
+
+Our answer is that the adversary should provide it to us, much like we provide
+him with a current stack pointer when we invoke his code.  However, it is
+important that we do not just accept any capability as a stack pointer but check
+that it is safe to use.  Specifically, we check that it is indeed a $\rwlx$
+pointer and that its current address points just below its start address.
+Without these checks, err...
+\dominique{is this needed for security or just for convenience?}
 
 
-
-
+TODO:
 \begin{itemize}
-\item Issues to consider:
-\begin{itemize}
-\item no global store-local capabilities
-\item clearing the stack
-\item clearing (some) registers
-\item constructing return pointers
-\item constructing callbacks
-\item invoking the adversary's callbacks
-\end{itemize}
 \item Reusable macro-instructions for stack and return pointer management
 \begin{itemize}
 \item taking care of the stuff above
