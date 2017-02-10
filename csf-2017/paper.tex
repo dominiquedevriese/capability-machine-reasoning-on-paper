@@ -256,6 +256,7 @@
 \newcommand{\stdkr}{\contintr{\asmType}}
 \newcommand{\observations}{\mathcal{O}}
 \newcommand{\npair}[2][n]{\left(#1,#2 \right)}
+\newcommand{\npairP}[2][n]{(#1,#2)}
 
 % Reference register/memory
 \newcommand{\refreg}[1]{#1}
@@ -490,7 +491,7 @@ machines.  Specifically, we make the following contributions:
   stacks and instead works with a single, fairly standard, contiguous stack. It
   supports higher-order cross-component calls (e.g., (potentially)
   cross-component function pointers) and can be efficient assuming
-  only \lars{can we say only here ?}
+  only
   one additional piece of processor support: an instruction for efficiently clearing
   a range of memory.
 \item We provide a theorem that is (by far) the most general
@@ -922,9 +923,7 @@ local/global flag, base, end and current address of a capability.
     $\geta{\refreg{r_1}}{\refreg{r_2}}$ & $\stdUpdatePc{\updateReg{r_1}{\addr}}$ &
                                                 $\memreg(r_2) = ((\_,\_),\_,\_,\addr)$\\
     \hline
-    $\jmp{\lv}$&$\begin{multlined}
-                   \updateReg{\pcreg}{\\\updatePcPerm{\memreg(\lv)}}
-                 \end{multlined}$&\\
+    $\jmp{\lv}$&$\updateReg{\pcreg}{\var{newPc}}$&$\var{newPc} = \updatePcPerm{\memreg(\lv)}$\\
     \hline
     $\store{\refheap{r_1}}{\refreg{r_2}}$&$\stdUpdatePc{\updateHeap{\addr}{\var{w}}}$&$\memreg(r_1) = \stdcap$\footnotesize{ and }$\perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\}$ \footnotesize{ and } $\start \leq \addr \leq \addrend$\footnotesize{ and }$\var{w} = \memreg(r_2)$
                                                                                        \footnotesize{and if }$\var{w} = ((\_,\local),\_,\_,\_)$\footnotesize{, then  }$\perm \in \{\rwlx,\readwritel \}$\\
@@ -1034,8 +1033,7 @@ and (6) having a callback invoked by the adversary.
 When our code starts executing, we assume that the language runtime initializes
 the memory as follows: a contiguous array of memory is reserved for the stack,
 for which we receive a stack pointer in a register, $r_\stk$, that we reserve for this
-purpose. This stack
-pointer must be local and it must carry $\rwlx$ permission. It is crucial for
+purpose. This stack pointer must be local and it must carry $\rwlx$ permission. It is crucial for
 our approach that the stack is the only part of memory for which there will ever
 be an obtainable capabilities with $\rwlx$ or $\rwl$ capabilities. We expect the language
 runtime to enforce this by not handing out such capabilities for other parts of
@@ -1297,8 +1295,14 @@ for constructing the worlds.
     \begin{align*}              
       \xi : \Wor & \cong \blater (\nats \finparfun \Regions)\\
       \Regions & = \{\revoked\} \uplus \\
-                 &\hskip -2cm \{\temp\} \times \States \times \Rels \times (\States \fun (\Wor \monwknefun \UPred{\HeapSegments})) \uplus \\
-                 & \hskip -2cm \{\perma\} \times \States \times \Rels \times (\States \fun (\Wor \monstrnefun \UPred{\HeapSegments}))
+                 &\;\quad \begin{multlined}
+                     \{\temp\} \times \States \times \Rels \times \\
+                     (\States \fun (\Wor \monwknefun \UPred{\HeapSegments}))
+                   \end{multlined} \uplus \\
+                 &\;\quad \begin{multlined}
+                     \{\perma\} \times \States \times \Rels \times \\
+                     (\States \fun (\Wor \monstrnefun \UPred{\HeapSegments}))
+                   \end{multlined}
     \end{align*}
   } and for $W, W' \in \Wor$
   \begin{align*}
@@ -1478,13 +1482,11 @@ if it can be partitioned into disjoint parts such that each part is
 in the interpretation of an active (permanent or temporary) region. 
 \begin{align*}
   &\memSat{\ms}{W}
-    \text{ iff }
-    \left\{\begin{aligned}
-        &\exists P : \activeReg{W} \rightarrow \HeapSegments \ldotp \\
-        &\quad (\hs = \biguplus_{r\in\activeReg{W}}P(r) \text{\footnotesize{ and }} \\
+    \text{ iff }\\
+  &\quad \left\{\begin{aligned}
+        &\exists P : \activeReg{W} \rightarrow \HeapSegments \ldotp \hs = \biguplus_{r\in\activeReg{W}}P(r) \text{\footnotesize{ and }} \\[-.2cm]
         &\quad \forall r \in \activeReg{W} \ldotp \exists H,s \ldotp\\
-        &\qquad W(r) = (\_,s,\_,\_,H) \text{\footnotesize{ and }} \\
-        &\qquad \npair[n]{P(r)} \in H(s)(\xi^{-1}(W)))\\
+        &\qquad W(r) = (\_,s,\_,\_,H) \text{\footnotesize{ and }} \npair[n]{P(r)} \in H(s)(\xi^{-1}(W))\\
       \end{aligned}\right.
 \end{align*}
 
@@ -1494,70 +1496,92 @@ in the interpretation of an active (permanent or temporary) region.
 \afterpage{
 \begin{figure}[htbp]
   \centering
-\begin{align*}
-  & \observations \; : \;  \Worlds \nefun \UPred{\Regs \times \HeapSegments} \\
-  & \observations (W) \defeq \\
-  & \;\left\{ \npair{(\reg,\ms)} \; \middle| \;
-    \begin{aligned}
-      & \forall \ms_f, \heap', i \leq n \ldotp \\
-      & (\reg,\ms \uplus \ms_f) \step[i] (\halted,\heap')  \\
-      & \;\; \Rightarrow
-      \begin{aligned}[t]
-        & \exists W' \futurestr W, \ms_r, \ms' \ldotp\\
-        & \;\; \heap' = \ms' \uplus \ms_r \uplus \ms_f \text{\footnotesize{ and }} \\ 
-        & \;\; \heapSat[\hs']{n-i}{W'} 
+  \begin{withmathindent}{0cm}
+    \begin{align*}
+      & \observations \; : \;  \Worlds \nefun \UPred{\Regs \times \HeapSegments} \\
+      & \observations (W) \defeq \\
+      & \;\left\{ \npair{(\reg,\ms)} \; \middle| \;
+        \begin{aligned}
+          & \forall \ms_f, \heap', i \leq n \ldotp \\
+          & (\reg,\ms \uplus \ms_f) \step[i] (\halted,\heap')  \\
+          & \;\; \Rightarrow
+          \begin{aligned}[t]
+            & \exists W' \futurestr W, \ms_r, \ms' \ldotp\\
+            & \;\; \heap' = \ms' \uplus \ms_r \uplus \ms_f \text{\footnotesize{ and }} \\
+            & \;\; \heapSat[\hs']{n-i}{W'}
+          \end{aligned}
+        \end{aligned}\right\}\\
+      & \stdrr \; : \; \Worlds \monwknefun \UPred{\Regs} \\
+      & \stdrr(W) \defeq \left\{ \npair{\reg} \; \middle| \;
+          \forall r \in \RegName \setminus \{\pcreg\} \ldotp \npair{\reg(r)}
+          \in \stdvr(W) \right\} \\
+      & \\[-.2cm]
+      & \stder \; : \; \Worlds \nefun \UPred{\Words} \\
+      & \stder(W) \defeq \left\{ \npair{\pc} \; \middle| \;
+        \begin{multlined}
+          \forall n' \leq n, \npair[n']{\reg} \in \stdrr(W), \heapSat[\hs]{n'}{W} \ldotp \\
+          \npair[n']{(\reg\update{\pcreg}{\pc},\hs)} \in \observations(W)
+        \end{multlined} \right\} \\
+      & \\
+      &\stdvr \; : \; \Worlds \monwknefun \UPred{\Words} \\
+      &\stdvr(W)\defeq  \\
+      &\;\;\begin{aligned}[t] & \{ \npair{i} \mid i \in \ints \}
+        \union \\
+        & \{ \npair{\stdcap[(\noperm,\gl)] } \}
+        \union \\
+        & \left\{
+          \begin{multlined}
+            \npair{\stdcap[(\readonly,\gl)] } \mid \\
+            \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)
+          \end{multlined} \right\}
+        \union \\
+        & \left\{
+          \begin{aligned}
+            &\npair{\stdcap[(\readwrite,\gl)] } \mid \\
+             &\quad\npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{\footnotesize{ and }} \\
+             &\quad\npair{(\start,\addrend)} \in
+            \writeCond{}(\iota^\nwl,\gl)(W)
+          \end{aligned} \right\} \union \\
+        & \left\{
+          \begin{aligned}
+            &\npair{\stdcap[(\readwritel,\gl)] } \mid \\
+             &\quad\npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{\footnotesize{ and }} \\
+             &\quad\npair{(\start,\addrend)} \in
+            \writeCond{}(\iota^\pwl,\gl)(W)
+          \end{aligned} \right\}
+        \union \\
+        & \left\{
+          \begin{aligned}
+            &\npair{\stdcap[(\exec,\gl)]} \mid \\
+             &\quad\npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{\footnotesize{ and }} \\
+             &\quad\npair{(\{\exec\},\start,\addrend)} \in \execCond{}(\gl)(W)
+          \end{aligned} \right\}
+        \union \\
+        & \left\{
+          \begin{multlined}
+            \npair{\stdcap[(\entry,\gl)]} \mid \\
+            \npair{(\start,\addrend,\addr)} \in \entryCond{}(\gl)(W)
+          \end{multlined} \right\}
+        \union \\
+        & \left\{
+          \begin{aligned}
+            &\npair{\stdcap[(\rwx,\gl)]} \mid \\
+            &\quad\npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{\footnotesize{ and }} \\
+            &\quad\npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W) \text{\footnotesize{ and }}\\
+            &\quad\npair{(\{\rwx,\exec\},\start,\addrend)} \in \execCond{}(\gl)(W)
+          \end{aligned} \right\}
+        \union \\
+        & \left\{
+          \begin{aligned}
+            &\npair{\stdcap[(\rwlx,\gl)]} \mid \\
+             &\quad\npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{\footnotesize{ and }} \\
+             &\quad\npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W) \text{\footnotesize{ and }}\\
+             &\quad\npair{(\{\rwlx,\rwx,\exec\},\start,\addrend)} \in
+            \execCond{}(\gl)(W)
+          \end{aligned} \right\}
       \end{aligned}
-    \end{aligned}\right\}\\
-  & \stdrr \; : \; \Worlds \monwknefun \UPred{\Regs} \\
-  & \stdrr(W) \defeq \left\{ \npair{\reg} \; \middle| \;
-                  \begin{aligned}
-                      & \forall r \in \RegName \setminus \{\pcreg\} \ldotp \\
-                    & \;\;  \npair{\reg(r)} \in \stdvr(W) 
-                  \end{aligned} \right\} \\
-  & \\
-  & \stder \; : \; \Worlds \nefun \UPred{\Words} \\
-  & \stder(W) \defeq \left\{ \npair{\pc} \; \middle| \; 
-                  \begin{aligned}
-                    & \forall n' \leq n, \npair[n']{\reg} \in \stdrr(W), \heapSat[\hs]{n'}{W} \ldotp \\
-                    & \;\;\npair[n']{(\reg\update{\pcreg}{\pc},\hs)} \in \observations(W) 
-                  \end{aligned} \right\} \\
-  & \\
-  &\stdvr \; : \; \Worlds \monwknefun \UPred{\Words} \\
-  &\stdvr(W)\defeq  \\
-    &\;\;\begin{aligned}[t]
-      & \{ \npair{i} \mid i \in \ints \} 
-      \union \\
-      & \{ \npair{\stdcap[(\noperm,\gl)] }  \} 
-      \union \\
-      & \{ \npair{\stdcap[(\readonly,\gl)] } \mid \\
-      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)\} 
-      \union \\
-      & \{ \npair{\stdcap[(\readwrite,\gl)] } \mid \\
-      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{\footnotesize{ and }} \\
-      & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W) \} 
-      \union \\
-      & \{ \npair{\stdcap[(\readwritel,\gl)] } \mid \\
-      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{\footnotesize{ and }} \\
-      & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W) \}
-      \union \\
-      & \{ \npair{\stdcap[(\exec,\gl)]} \mid \\
-      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{\footnotesize{ and }} \\
-      & \quad \npair{(\{\exec\},\start,\addrend)} \in \execCond{}(\gl)(W) \} 
-      \union \\
-      & \{ \npair{\stdcap[(\entry,\gl)]} \mid \\
-      & \quad \npair{(\start,\addrend,\addr)} \in \entryCond{}(\gl)(W)\} 
-      \union \\
-      & \{ \npair{\stdcap[(\rwx,\gl)]} \mid \\
-      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{\footnotesize{ and }} \\
-      & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W) \text{\footnotesize{ and }}\\
-      & \quad \npair{(\{\rwx,\exec\},\start,\addrend)} \in \execCond{}(\gl)(W) 
-      \union \\
-      & \{ \npair{\stdcap[(\rwlx,\gl)]} \mid \\
-      & \quad \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{\footnotesize{ and }} \\
-      & \quad \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W) \text{\footnotesize{ and }}\\
-      & \quad \npair{(\{\rwlx,\rwx,\exec\},\start,\addrend)} \in \execCond{}(\gl)(W) \}
-    \end{aligned}
-\end{align*}
+    \end{align*}
+  \end{withmathindent}
   \caption{Logical Relation}
   \label{fig:logrel}            
 \end{figure}
@@ -1580,14 +1604,12 @@ in the interpretation of an active (permanent or temporary) region.
   &\iota_{\start,\addrend}^{\nwl} \defeq (\temp,1,=,=,H^\nwl_{start,\addrend}) \\
   \\
   &H^\nwl : \Addrs^2 \fun \States \fun (\Wor \monstrnefun \UPred{\HeapSegments})\\
-  &H^\nwl_{\start,\addrend} \; s \;\hat{W} \defeq \left\{\npair{\hs} \; \middle| \;
-    \begin{aligned}
-      &n = 0 \text{\footnotesize{ or }} (\dom(\hs) = [\start,\addrend] \text{\footnotesize{ and }} \\
-      &\forall \addr \in [\start,\addrend] \ldotp \\
-      &\;\; \nonlocal{\ms(\addr)} \text{\footnotesize{ and }}\\ 
-      &\;\; \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W})))
-    \end{aligned}
-        \right\}
+  &H^\nwl_{\start,\addrend} \; s \;\hat{W} \defeq \\
+    &\quad\left\{\npair{\hs} \; \middle| \;
+    \begin{multlined}
+      n = 0 \text{\footnotesize{ or }} (\dom(\hs) = [\start,\addrend] \text{\footnotesize{ and }} \forall \addr \in [\start,\addrend] \ldotp \\
+       {\footnotesize\nonlocal{\ms(\addr)}} \text{\footnotesize{ and }} \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W})))
+    \end{multlined} \right\}
 \end{align*}
 \caption{Standard regions}
 \label{fig:standard-regions}
@@ -1600,22 +1622,25 @@ in the interpretation of an active (permanent or temporary) region.
   & \left\{ \npair{(\start,\addrend)} \; \middle| \;
     \begin{aligned}
       & \exists r \in \var{localityReg}(g,W) \ldotp \\
-      & \;\; \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
-      & \;\;\;\; W(r)\nsubsim[n] \iota_{\start',\addrend'}^\pwl 
+      & \;\; \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r)\nsubsim[n] \iota_{\start',\addrend'}^\pwl 
     \end{aligned} \right\}\\
   & \writeCond{}(\iota,\gl)(W) =  \\
-  & \left\{ \npair{(\start,\addrend)} \; \middle| \;
+  & \left\{
+    \npair{(\start,\addrend)}
+    \; \middle| \;
     \begin{aligned}
-      & \exists r \in \var{localityReg}(g,W) \ldotp \\
-      & \;\; \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp \\
-      & \;\;\;\; W(r)\nsupsim[n-1] \iota_{\start',\addrend'} \text{\footnotesize{ and }}\\
-      & \;\;\;\; W(r) \text{\footnotesize{ is address-stratified}} 
+      & \exists r \in \var{localityReg}(g,W) \ldotp  W(r) \text{\footnotesize{ is address-stratified and}} \\
+      & \;\; \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r)\nsupsim[n-1] \iota_{\start',\addrend'}
     \end{aligned} \right\}\\
   & \execCond{}(\gl)(W) = \\
-  & \left\{ \npair{(\var{perms},\start,\addrend)} \; \middle| \;
+  & \left\{
+    \begin{multlined}
+      \npairP{(\var{perms}, \\
+        \start,\addrend)}
+    \end{multlined}
+     \; \middle| \;
     \begin{aligned}
-      & \forall n' < n, W' \future W \ldotp \\
-      & \;\; \forall a \in [\start,\addrend], \perm \in \var{perms} \ldotp \\
+      & \forall n' < n, W' \future W \ldotp \forall a \in [\start,\addrend], \perm \in \var{perms} \ldotp \\
       & \;\;\;\; \npair[n']{((\perm,\gl),\start,\addrend,\addr)} \in \stder(W')\\
     \end{aligned} \right\} \\
   & \entryCond{}(\gl)(W) = \\
@@ -1626,13 +1651,13 @@ in the interpretation of an active (permanent or temporary) region.
     \end{aligned} \right\} \\
   & \quad \text{where } \gl = \local \Rightarrow \future = \futurewk \\
   & \quad \text{and } \gl = \glob \Rightarrow \future = \futurestr
-\end{align*}
+  \end{align*}
   \begin{align*}
     &\iota = (v,s,\phi_\pub,\phi,H) \text{\footnotesize{ is address-stratified iff}}\\
     &\qquad\begin{multlined}
       \forall s', \hat{W}, n, \ms, \ms' \ldotp \\
-      \npair{\ms},\npair{\ms'} \in H~ s'~ \hat{W} \Rightarrow \\
-      \dom(\ms) = \dom(\ms') \wedge \\
+      \npair{\ms},\npair{\ms'} \in H~ s'~ \hat{W} \Rightarrow 
+      \dom(\ms) = \dom(\ms') \text{\footnotesize{ and }} \\
       \forall \addr \in
       \dom(\ms)\ldotp \npair{\ms\update{\addr}{\ms'(\addr)}} \in H~ s'~ \hat{W}
     \end{multlined}
@@ -1748,8 +1773,7 @@ safe as a program counter.
   \begin{align*}
       & \bullet
         \begin{aligned}[t]
-        &\perm = \exec \text{\footnotesize{ and }}\\
-        &\npair{(\start,\addrend)} \in \readCond{}(\gl)(W)
+        &\perm = \exec \text{\footnotesize{ and }}\npair{(\start,\addrend)} \in \readCond{}(\gl)(W)
       \end{aligned} \\
     & \bullet 
       \begin{aligned}[t]
@@ -1764,10 +1788,7 @@ safe as a program counter.
         &\npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W),
       \end{aligned}
   \end{align*}
-  then
-  \[
-    \npair{((\perm,\gl),\start,\addrend,\addr)} \in \stder(W)
-  \]
+  then $\npair{((\perm,\gl),\start,\addrend,\addr)} \in \stder(W)$
 \end{theorem}
 The Fundamental Theorem allows us to prove capability safety for
 untrusted programs: if the authority granted by
@@ -1983,14 +2004,11 @@ fails. A slightly simplified version of the correctness lemma for
   \item $\ms_{\var{link}}$ contains $c_\adv$ and $c_\malloc$
   \item $\hs_\adv$ contains $c_\link$ and otherwise only instructions.
   \end{itemize}
-  if 
+  If 
   \[
     (\reg\update{\pcreg}{c_{f1}}\update{r_\stk}{c_\stk},m) \step^* (\halted,m'),
   \]
-  then
-  \[
-    m'(\flag) = 0
-  \]  
+  then $m'(\flag) = 0$
 \end{lemma}
 
 To prove Lemma~\ref{lem:correctness-f1}, it suffices to show
@@ -2091,11 +2109,10 @@ work.
   Making similar assumptions about capabilities and linking as in
   Lemma~\ref{lem:correctness-f1} but assuming no stack capability
   if
-  $(\reg_0\update{\pcreg}{c_\adv}\update{r_\stk}{c_\stk}\update{r_1}{c_{g1}},m) \step^* (\halted,m')$,
-  then 
-\[
-  m'(\flag) = 0.
-\]
+  \[
+  (\reg_0\update{\pcreg}{c_\adv}\update{r_\stk}{c_\stk}\update{r_1}{c_{g1}},m) \step^* (\halted,m'),
+  \]
+  then $m'(\flag) = 0$.
 \end{lemma}
 
 As mentioned, the callback must be global. This is to make sure the
