@@ -1020,7 +1020,7 @@ examples.
 
 The basic idea of our approach is quite simple: we stick to a single, rather
 standard C stack and register-passed return pointers in much the same way as a
-standard C ABI. However, to prevent various ways of misusing this basic scheme,
+standard C ABI\lau{This sentence does not compute}. However, to prevent various ways of misusing this basic scheme,
 we put local capabilities to work and take a number of not-always-obvious safety
 measures. In the next paragraphs, we will explain the issues to be considered in
 all the relevant situations: when (1) starting our program, (2) Returning to the
@@ -1050,7 +1050,7 @@ we assume that memory allocated through malloc cannot be freed.
 
 \textbf{Returning to the adversary} Perhaps the simplest scenario is the case of
 returning to the adversary after they invoked our code. In this case, we will
-have received a return pointer from him, and we just need to jump to it as
+have received a return pointer from them, and we just need to jump to it as
 usual. The only thing we need to take care of is to properly clear the registers
 before we do (erasing any data we do not want to pass as (part of) the return
 value) and similarly, erase any part of the stack that we have used (i.e.
@@ -1068,13 +1068,13 @@ which we will say more about below.
 Already important is the fact that the return pointer must be provided to the
 adversary as a local capability. If not, the adversary would be able to store
 away the return pointer in a global data structure, and he would be able to jump
-to it in circumstances where this should not be possible: he may, for example,
+to it in circumstances where this should not be possible: for example, he may
 store the return pointer, legally jump to it a first time, wait to be invoked
 again and then jump to the old return pointer a second time, rather than the new
 return pointer received for the new invocation. Similarly, he may store the
 return pointer, invoke a function in our code, wait for us to invoke him again
 and then jump to the stored, old return pointer rather than the new one he
-received upon the second invocation.
+received upon the second invocation. \lau{If we need space, then maybe one of the examples is sufficient.}
 
 Because the return pointer is local, this is not possible: the adversary can
 only store it through write-local capabilities, which (because of our
@@ -1097,7 +1097,7 @@ play the same tricks as above. Clearing the entire unused part of the stack is
 the most problematic aspect of our discipline in terms of efficiency, since it
 may consist of a large part of memory. We believe that capability machines like
 CHERI should consider to provide special support for this requirement, by
-implementing an optimized instruction for clearing (i.e. overwriting with zeros)
+implementing an optimized instruction for clearing
 a large block of memory. We have no experience in processor design, but we
 imagine this might be optimized as a vector instruction or by having the
 processor keep track of a range of memory for which loads should return zero
@@ -1180,7 +1180,7 @@ the adversary to construct callbacks on the stack.\footnote{Note that it does
   prevent a legitimate but non-essential scenario where the adversary wants to
   give us temporary access to a callback not allocated on the stack.}
 
-\paragraph{Having a callback invoked by the adversary}
+\textbf{Having a callback invoked by the adversary}
 The above leaves us with probably the hardest scenario: how to provide a
 callback to the adversary. The basic idea is that we allocate a block of memory
 using malloc that we fill with the capabilities and data that the callback needs
@@ -1197,6 +1197,8 @@ that it is safe to use.  Specifically, we check that it is indeed a $\rwlx$
 pointer and that its current address points just below its start address.
 Without these checks, err...
 \dominique{is this needed for security or just for convenience?}
+\lau{Say we are called with a stack capability that is global and $\rwx$ as well as an integer as a non-local return pointer (this is fair game as the adversary has to follow no rules). Now you push the l(a)unch codes to what you think is the stack and \texttt{scall} the callback. At this point \texttt{scall} does its thing, but because it never attempts to store anything local it will succeed and jump to the adversary! The adversary can now look at what you thought was the stack and eat your lunch or fire the missiles as they prefer. It is not sufficient to require the stack to be just local because there may be a global equivalent. We know this is not the case for the rwlx capability because we have a system wide assumption that all rwlx capabilities are local.
+Finally the adjustment of the pointer in \texttt{prepstck} (or whatever I called it) is a convenience/ space efficiency thing purely.}
 
 
 TODO:
@@ -1207,7 +1209,8 @@ TODO:
 \end{itemize}
 \end{itemize}
 
-LB: maybe we can present the examples informally before the logical relation and then return to them after the logical relation (to present the formal properties) ?
+
+\lars{maybe we can present the examples informally before the logical relation and then return to them after the logical relation (to present the formal properties) ?}
 
 \section{Logical relation}
 In order to be able to reason about programs running on the capability
