@@ -42,6 +42,7 @@
 % \usepackage[displaymath,floats,graphics,textmath,footnotes]{preview}
 
 \newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
 
 \newcommand{\forcenewline}{$\phantom{v}$\\}
 \newcommand{\judgment}[2]{\paragraph{#1}\hspace{\stretch{1}}\fbox{$#2$}}
@@ -1701,6 +1702,55 @@ programs. In order to reason about the unknown untrusted part, we use
 the Fundamental Theorem to argue that it must be capability safe.
 
 \todo[inline]{give a more detailed high-level taste of a proof here? Maybe later for one of the other examples?}
+
+\begin{lemma}[Correctness lemma for \texttt{f1}]
+  \label{lem:correctness-f1}
+  Let
+  \begin{align*}
+    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
+    c_{f1} & \defeq ((\rwx,\glob),\mathtt{f1}-\olf,\mathtt{1f},\mathtt{f1}) \\
+    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
+    c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_\stk,\start_\stk-1) \\
+    c_\link & \defeq ((\readonly,\glob),\link,\link+1,\link)\\
+    \reg & \in \Regs \\
+    m & \defeq \hs_{f1} \uplus 
+        \hs_\flag \uplus                
+        \ms_{\var{link}} \uplus 
+        \hs_\adv \uplus 
+        \ms_{\malloc} \uplus 
+        \ms_{\var{stk}} \uplus
+        \ms_{\var{frame}} 
+  \end{align*}
+  and
+  \begin{itemize}
+  \item $c_\malloc$ satisfies the specification for malloc and $\iota_{\malloc,0}$ is the region from the specification.
+  \end{itemize}
+  where 
+  \begin{align*}
+    &\dom(\hs_{f1}) = [\mathtt{f1}-\olf,\mathtt{1f}] \\
+    &\dom(\hs_\flag) = [\flag,\flag] \\
+    &\dom(\ms_\link) = [\link,\link+1]\\
+    &\dom(\ms_\stk) = [\start_\stk, \addrend_\stk]\\
+    &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
+    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]} \qquad \text{ for all $n \in \nats$}
+  \end{align*}
+  and
+  \begin{itemize}
+  \item $\ms_{f1}(\mathtt{f1}-\olf) = ((\readonly,\glob),\link,\link+1,\link)$, $\ms_{f1}(\mathtt{f1}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{f1}$ contains the code of $f1$.
+  \item $\ms_\flag = [\flag \mapsto 0]$
+  \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
+  \item $\hs_\adv(\start_\adv) = c_\link$ and $\forall \addr \in [\start_\adv+1,\addrend]\ldotp \ms_\adv(a) \in \ints$
+  \end{itemize}
+  if 
+  \[
+    (\reg\update{\pcreg}{c_{f1}}\update{r_\stk}{c_\stk},m) \step[n] (\halted,m'),
+  \]
+  then
+  \[
+    m'(\flag) = 0
+  \]  
+\end{lemma}
+
 
 \begin{figure}[htbp]
   \centering
