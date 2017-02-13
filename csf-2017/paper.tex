@@ -35,6 +35,7 @@
 \setlist[enumproof]{label*=\arabic*.}
 
 \usepackage{tikz}
+\usetikzlibrary{positioning}
 \usepackage{multirow,bigdelim}
 
 % %make latex preview-mode work with natbib...
@@ -2069,7 +2070,8 @@ f3: push 1
   \caption{Simple program that relies on control-flow integrity.}
   \label{fig:prog-f3}
 \end{figure}
-
+\lau{Add something about the correctness lemma? Not sure if I have
+  anything important to say.}
 \begin{lemma}
   \label{lem:correctness-f3}
   Making similar assumptions about capabilities and linking as in
@@ -2092,6 +2094,34 @@ we will get back to this point. The program now sets $x$ to $0$ and
 calls the callback. When it returns from the callback, it sets $x$ to
 $1$ and calls the callback a second time. When it returns from the
 callback, it asserts $x$ is $1$ and returns.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{lstlisting}
+g1:  malloc $r_2$ 1
+     store $r_2$ 0
+     move $\pcreg$ $r_3$
+     lea $r_3$ $\var{offset}$
+     crtcls $[(x, r_2)]$ $r_3$
+     rclear $\RegName \setminus \{\pcreg,r_0,r_1 \}$
+     jmp $r_0$
+f4:  reqglob $r_1$
+     prepstack $r_\stk$
+     store $x$ 0
+     scall $r_1$($[]$,$[r_0,r_1,r_{\var{env}}]$)
+     store $x$ 1
+     scall $r_1$($[]$,$[r_0,r_{\var{env}}]$)
+     load $r_1$ $x$
+     assert $r_1$ 1
+     mclear $r_\stk$
+     rclear $\RegName \setminus \{r_0,\pcreg\}$
+     jmp $r_0$
+\end{lstlisting}
+  \caption{A program that relies on well-bracketedness of
+    \texttt{scall}s to function correctly. $\var{offset}$ is the
+    offset to $f4$.}
+  \label{fig:prog-g1}
+\end{figure}
 
 To illustrate how subtle this program is, consider one way an
 adversary may try to make the assertion fail. In the second callback
@@ -2131,44 +2161,59 @@ assumes control first with a capability for the closure creator
 \texttt{g1}. This means we need to check all arguments are safe
 to use and that we clean up before returning in the end. The inversion
 of control poses an interesting challenge when it comes to reasoning
-bout the adversaries local state during the execution of
-\texttt{f4}. During the execution of \texttt{f4} and the callbacks the
-adversary should not be able to rely on its local state from outside
+about the adversaries local state during the execution of
+\texttt{f4}. During the execution of \texttt{f4} and the callbacks, the
+adversary should not be able to rely on its local state from before
 the call of \texttt{f4}. This is easily done by revoking all the
 temporary regions of the world given at the start of \texttt{f4}. The
-real challenge comes when \texttt{f4} returns and needs to guarantee
+real challenge comes when \texttt{f4} returns and we need to establish
 that the protocols of the adversaries local state has not been
-violated. To this end, we need to reinstate regions we revoked which
-is done using the masking regions.
+violated. This can be done by reinstating all of the adverseries old
+regions, but we can only do this if the old adverserial regions are
+not masked by permanent regions. As illustrated in
+\figurename~\ref{fig:worlds-in-pf-g1}, we know this must be the
+case. Whenever we are given a world, we get a public future world
+where it is not allowed to use permanent regions for masking and in
+the private future worlds we construct, we know it is not done
+either. The return pointer \texttt{f4} gets from the adversary is
+valid in future worlds of $W_1$, so in order to use it to argue it is
+safe to return $W_6$ needs to be a public future worlds of $W_1$. We
+can construct this as a private future world of $W_5$, but only
+because we can reinstate the temporary regions of $W_1$ with the same
+region names.
 
-\begin{figure}[htbp]
+\begin{figure}[hptb]
   \centering
-  \begin{lstlisting}
-g1:  malloc $r_2$ 1
-     store $r_2$ 0
-     move $\pcreg$ $r_3$
-     lea $r_3$ $\var{offset}$
-     crtcls $[(x, r_2)]$ $r_3$
-     rclear $\RegName \setminus \{\pcreg,r_0,r_1 \}$
-     jmp $r_0$
-f4:  reqglob $r_1$
-     prepstack $r_\stk$
-     store $x$ 0
-     scall $r_1$($[]$,$[r_0,r_1,r_{\var{env}}]$)
-     store $x$ 1
-     scall $r_1$($[]$,$[r_0,r_{\var{env}}]$)
-     load $r_1$ $x$
-     assert $r_1$ 1
-     mclear $r_\stk$
-     rclear $\RegName \setminus \{r_0,\pcreg\}$
-     jmp $r_0$
-\end{lstlisting}
-  \caption{A program that relies on well-bracketedness of
-    \texttt{scall}s to function correctly. $\var{offset}$ is the
-    offset to $f4$.}
-  \label{fig:prog-g1}
-\end{figure}
+\begin{tikzpicture}[main node/.style={}, node distance=1.5cm]
+  \node[main node] (1) {$W_1$};
+  \node[main node] (label1) [below of=1,yshift=1cm] {\footnotesize{\textit{\texttt{f3} called}}};
+  \node[main node,left] (given) [left of=1,yshift=0.05cm] {\parbox{1.5cm}{\footnotesize{Given:}}};
 
+  \node[main node] (2) [above right of=1]{$W_2$};
+  \node[main node] (label2) [above of=2,yshift=-1cm] {\textit{\footnotesize{first callback}}};
+
+  \node[main node,left] (const) [above of=given,yshift=-0.4cm] {\parbox{1.5cm}{\footnotesize{Constructed:}}};
+
+  \node[main node] (3) [below right of=2]{$W_3$};
+  \node[main node] (label3) [below of=3,yshift=0.75cm] {\footnotesize{\textit{callback returns}}};
+
+  \node[main node] (4) [above right of=3]{$W_4$};
+  \node[main node] (label4) [above of=4,yshift=-0.75cm] {\footnotesize{\textit{second callback}}};
+
+  \node[main node] (5) [below right of=4]{$W_5$};
+  \node[main node] (label5) [below of=5,yshift=1cm] {\footnotesize{\textit{callback returns}}};
+
+  \node[main node] (6) [above right of=5]{$W_6$};
+  \node[main node] (label6) [above of=6,yshift=-1cm] {\footnotesize{\textit{\texttt{f3} returns}}};
+  \path(1) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\priv$} (2)
+       (2) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\pub$} (3)
+       (3) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\priv$} (4)
+       (4) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\pub$} (5)
+       (5) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\priv$} (6);
+\end{tikzpicture}
+  \caption{Worlds in the proof of Lemma~\ref{lem:correctness-g1}}
+  \label{fig:worlds-in-pf-g1}
+\end{figure}
 \begin{itemize}
 \item Ticket dispenser
 \item The awkward example and variants
