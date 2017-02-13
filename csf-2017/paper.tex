@@ -1861,58 +1861,6 @@ The Fundamental Theorem also serves as a sanity check of the
 logical relation as it guarantees that a large class of capabilities
 actually inhabits it.
 
-\subsection{Discussion}
-%/comparison with related Dreyer-Neis-Birkedal and with Hur-Dreyer}
-%\todo[inline]{Add discussion/comparison to other LRs}
-% Comparisson of LR to other work:
-% - Single othorgonal closure
-%   o all capabilities are possible continuations, not just the one we
-%   intend to be it.
-% - No termination guarantees in observation relation
-% - Private/public transitions used like in Dreyer-Neis-Birkedal, but
-%   also to  handle the difference in what local and global
-%   capabilities can handle.
-
-\todo[inline]{Maybe move this subsection to related work}
-
-As already mentioned, our the state transition systems used in our
-logical relation are inspired by earlier work on logical relations for
-high-level
-languages~\cite{Ahmed:popl09, Dreyer:jfp12,Devriese:2016ObjCap}.
-The idea of public and private transitions comes from 
-Dreyer et. al.~\cite{Dreyer:jfp12}, who gave a logical relations model
-of a high-level lambda calculus. In \emph{loc. cit.}
-public transitions were used to 
-capture the \emph{extensional} behavior of a program expression
-(and a context), whereas private transitions were used to capture
-the internal behaviour of a computation using local state.
-Technically, the logical relation of Dreyer et. al.\ was
-formulated using biorthogonal closure, and the future world
-relation for continuations was required to be a public future world
-relation. In other words, the choice between private or public future
-rested on the ``structure'' of the programming language. 
-In contrast, 
-for our low-level, unstructured, assembly language, we
-we instead decide on whether to use a private or public future 
-world depending on whether the capability is global or local. 
-Another interesting technical difference is that in our low-level 
-language we do not have a fixed calling convention and any register
-can serve as a continuation, and therefore we do not use biorthogonal
-closure but just model return pointers as continuations using a single
-orthogonal closure. 
-
-\lars{don't know yet whether we need something like the following paragraph:}
-Even though 
-Hur and Dreyer~\cite{Hur:2011:KLR:1926385.1926402} also
-considered a logical
-relation involving an assembly language, they still used
-biorthogonal closure but that was because their logical relation
-was a relation between a high-level language and an assembly
-language,  and thus the assembly language in the relation essentially
-inherited structure from the high-level language.
-
-
-
 \section{Examples}
 \label{sec:examples}
 In this section, we demonstrate how our formal model of capability
@@ -2292,20 +2240,29 @@ read-write access to a framebuffer.
 \item Some compartmentalisation result?
 \end{itemize}
 \end{comment}
+
 \section{Discussion, future work}
 \label{sec:discussion}
+
 \begin{itemize}
 \item A general well-bracketed control flow result?
-\begin{itemize}
-\item what would that result say?
-\item possible idea: fully abstract compilation from an assembly language with
-a trusted stack to one without
-\item the LR and some of the lemmas already imply well-bracketed control flow, as seen in examples
-\end{itemize}
-\item Relation to local parameters in Scala, Algol/Pascal second-class function parameters?
+  \begin{itemize}
+  \item what would that result say?
+  \item possible idea: fully abstract compilation from an assembly language with
+  a trusted stack to one without
+  \item the LR and some of the lemmas already imply well-bracketed control flow, as seen in examples
+  \end{itemize}
+\item Relation to local parameters in Scala, Algol/Pascal second-class function
+  parameters? 
 \item Stack clearing realistic?
 \item Non-modularity of heap allocation requirement for adversary callbacks
 \end{itemize}
+
+It is worth mentioning that local capabilities are quite similar to features
+that have been proposed for high-level languages. Specifically,
+\citet{osvald_gentrification_2016}'s second-class or local values in Scala are
+remarkably similar and we expect they will support similar reasoning patterns.
+
 
 \section{Related work}
 \label{sec:related-work}
@@ -2346,52 +2303,93 @@ worlds~\cite{Appel:2001:IMR:504709.504712,Ahmed2004semantics,Birkedal:2011:SKM:1
 closely related to the one used by \citet{Devriese:2016ObjCap} to formulate
 capability-safety in a high-level JavaScript-like lambda calculus. Our
 fundamental theorem is similar to theirs and can be seen as a formulation of
-capability-safety of the capability-machine. Because we are not interested in an
-externally observable notion of side-effects (like console output or memory
-access traces), we do not require their notion of effect parametricity.
+capability-safety of the capability-machine. Because we are not interested in
+externally observable side-effects (like console output or memory access
+traces), we do not require their notion of effect parametricity.
 
 The idea of applying SKLRs to an assembly language was applied before by
 \citet{Hur:2011:KLR:1926385.1926402}, who constructed a binary SKLR for
 formulating and proving correctness of an ML-to-assembly compiler. Their
 condition on the assembly code are quite loose (for example, they allow
-hand-written and self-modifying assmebly code), but they do assume code that
-is non-adversarial and respects the ABI of the high-level language (for example,
-the code does not store return pointers and invoke them after their intended
-lifetime). As a result, they can treat return pointers as evaluation contexts in
-a lambda calculus and use biorthogonality~\cite{pitts_operational_1998}. This
-means that they define the logical relation to accept evaluation contexts if
-they produce related observations for related values and to accept terms if they
-produce related observations when plugged into related evaluation contexts. In
-our setting, there is no guarantee that adversarial code will treat return
-pointers as intended, so, as described in Section~\ref{sec:logical-relation}, we
-define our logical relation in a (arguably natural but still) novel way, using a single
-orthogonal closure, i.e. accept terms if they produce related observations when
-given related arguments, where those arguments include the return pointer.
+hand-written and self-modifying assembly code), but they do assume code that is
+non-adversarial and respects the calling convention of the high-level language
+(for example, the code does not store return pointers and invoke them after
+their intended lifetime). As a result, they can treat return pointers as
+evaluation contexts (continuations) in a lambda calculus and use biorthogonality
+to define the LR~\cite{pitts_operational_1998}. In our setting, there is no
+guarantee that potentially adversarial code will respect the calling convention,
+so, as described in Section~\ref{sec:logical-relation}, we do not use
+biorthogonal closure but just model return pointers as continuations using a
+single orthogonal closure.
 
 Another novel aspect of our logical relation is how we model the temporary
 nature of local capabilities. The main insight is that the temporary, revokable
-nature of these capabilities can be seen as a generalisation of the special
-status of evaluation contexts in lambda calculi. Closely related to this is a
-study by \citet{Dreyer:jfp12} (DNB) of the impact of higher-order state and
-control effects on local relational reasoning. DNB formally capture this special
-status of evaluation contexts using Kripke worlds with public and private future
-world relations. Our public and private worlds are inspired by theirs and they
-are at times remarkably similar. For example, the state-transitition system in
-the proof of our assembly version of the awkward example, is exactly the same as
-the one used by DNB for the original awkward example. Nevertheless, there are
-also remarkable differences: in DNB's logical relation, public future worlds
-only turn up in the continuation relation (which we do not have, see above).
-This is different from our value relation which uses public and private future
-worlds depending on the locality of the capability at hand. Additionally, our
-worlds are a bit more complex because, to allow store-local capabilities, they
-can have temporary regions that are only monotonous w.r.t. public future worlds,
-while DNB's worlds are entirely permanent.
+nature of these capabilities can be seen as a generalisation of the
+syntactically special, unstoreable status of evaluation contexts in lambda
+calculi (without control effects). Closely related to this is a study by
+\citet{Dreyer:jfp12} (DNB) of the impact of higher-order state and control
+effects on local relational reasoning. DNB formally capture the special status
+of evaluation contexts using Kripke worlds with public and private future world
+relations. Our future world relations are inspired by theirs and they are at
+times remarkably similar. For example, the state-transitition system in the
+proof of our assembly version of the awkward example, is exactly the same as the
+one used by DNB for the original awkward example. However, in our logical
+relation, public and private future worlds turn up in an entirely different
+place in the logical relation: rather than using public future worlds for the
+special syntactic category of evaluation contexts, they are used in the value
+relation depending on the depending on the locality of the capability at hand.
+Additionally, our worlds are a bit more complex because, to allow store-local
+capabilities, they can have temporary regions that are only monotonous w.r.t.
+public future worlds, while DNB's worlds are entirely permanent.
 
-As a side note: our model of local/global capabilities may also be applicable
-for reasoning about related ideas in higher-level languages. Specifically,
-\citet{osvald_gentrification_2016}'s second-class or local values in Scala are
-remarkably similar to the local capabilities we study and we expect they will
-support similar reasoning patterns.
+%/comparison with related Dreyer-Neis-Birkedal and with Hur-Dreyer}
+%\todo[inline]{Add discussion/comparison to other LRs}
+% Comparisson of LR to other work:
+% - Single othorgonal closure
+%   o all capabilities are possible continuations, not just the one we
+%   intend to be it.
+% - No termination guarantees in observation relation
+% - Private/public transitions used like in Dreyer-Neis-Birkedal, but
+%   also to  handle the difference in what local and global
+%   capabilities can handle.
+
+% As already mentioned, our the state transition systems used in our
+% logical relation are inspired by earlier work on logical relations for
+% high-level
+% languages~\cite{Ahmed:popl09, Dreyer:jfp12,Devriese:2016ObjCap}.
+% The idea of public and private transitions comes from 
+% Dreyer et. al.~\cite{Dreyer:jfp12}, who gave a logical relations model
+% of a high-level lambda calculus. In \emph{loc. cit.}
+% public transitions were used to 
+% capture the \emph{extensional} behavior of a program expression
+% (and a context), whereas private transitions were used to capture
+% the internal behaviour of a computation using local state.
+% Technically, the logical relation of Dreyer et. al.\ was
+% formulated using biorthogonal closure, and the future world
+% relation for continuations was required to be a public future world
+% relation. In other words, the choice between private or public future
+% rested on the ``structure'' of the programming language. 
+% In contrast, 
+% for our low-level, unstructured, assembly language, we
+% we instead decide on whether to use a private or public future 
+% world depending on whether the capability is global or local. 
+% Another interesting technical difference is that in our low-level 
+% language we do not have a fixed calling convention and any register
+% can serve as a continuation, and therefore we do not use biorthogonal
+% closure but just model return pointers as continuations using a single
+% orthogonal closure. 
+
+% \lars{don't know yet whether we need something like the following paragraph:}
+% Even though 
+% Hur and Dreyer~\cite{Hur:2011:KLR:1926385.1926402} also
+% considered a logical
+% relation involving an assembly language, they still used
+% biorthogonal closure but that was because their logical relation
+% was a relation between a high-level language and an assembly
+% language,  and thus the assembly language in the relation essentially
+% inherited structure from the high-level language.
+
+
 
 
 \begin{itemize}
