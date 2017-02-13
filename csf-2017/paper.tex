@@ -860,8 +860,10 @@ functions mapping register names to words and memories as functions that map
 addresses to words. The state of the entire machine is represented as a
 configuration that is either a running $\Phi \in \ExecConfs$ containing a memory
 and a register file, or a failed or halted state, where the latter keeps hold
-of the final state of memory. We also define memory segments $\ms$:
-parts of memory represented as partial functions mapping addresses to words. \lau{we don't really make the distinction between memory and memory segments in the rest of the paper, so maybe we should leave this out?}
+of the final state of memory. 
+% We also define memory segments $\ms$:
+% parts of memory represented as partial functions mapping addresses to words.
+%\lau{we don't really make the distinction between memory and memory segments in the rest of the paper, so maybe we should leave this out?}
 
 The instruction set of our machine is rather basic. Instructions $i$ include
 relatively standard jump ($\jmp{}$), conditional jump ($\jnz{}{}$) and move
@@ -968,11 +970,12 @@ build an enter capability $c = ((\entry,\gl),\start,\addrend,\addr)$ where the
 range $[\start,\addr-1]$ is used for storing the closure's local state (data or
 capabilities) and the range $[\addr,\addrend]$ can be used for storing
 instructions. The instructions and data are opaque to an adversary holding $c$
-but when $c$ jumped to, the data becomes available to the closure's code through
+but when $c$ is jumped to, the data becomes available to the closure's code through
 the updated version of $c$ that is now in the $\pcreg$\footnote{Note that the
-  capability in the $\pcreg$-register can be used to load from.}. \lau{As we
-  talked about what is described here, is not how we make closures in the TR, so
-  we should consider whether we should refrain from using that word here. }
+  capability in the $\pcreg$-register can be used to load from.}.
+% \lau{As we
+%   talked about what is described here, is not how we make closures in the TR, so
+%   we should consider whether we should refrain from using that word here. }
 
 The final semantics we discuss is that of $\store{}{}$. As expected, it updates
 the memory to the requested value if the capability has write authority for the
@@ -1004,11 +1007,13 @@ software, precisely to allow experimenting with alternative models like ours.
 % Contrary to more traditional assembly languages, capability machines do not
 % allow literal addresses to appear as part of instructions. This means that we 
 
-Explain our model of linking
-\dominique{not sure what we want to say about it here...}
-
-Explain malloc
-\dominique{not sure what we want to say about it here either...}
+In order to have a reasonably realistic system, we have created a
+simple model of linking, so programs can have access to other programs
+through a linking table. We also assume malloc to be part of the
+trusted computing base satisfying a certain specification. Malloc and
+the model linking is described to the degree necessary, in the next
+section, but we refer to the technical appendix~\ref{XXX} for further
+details.
 
 \section{Stack and return pointer management using local capabilities}
 \label{sec:stack-and-return-pointer}
@@ -1027,7 +1032,7 @@ examples.
 
 The basic idea of our approach is quite simple: we stick to a single, rather
 standard, C stack and register-passed return pointers, much like a standard C
-ABI\lau{This sentence does not compute}. However, to prevent various ways of
+ABI. However, to prevent various ways of
 misusing this basic scheme, we put local capabilities to work and take a number
 of not-always-obvious safety measures. In the next paragraphs, we will explain
 the issues to be considered in all the relevant situations: when (1) starting
@@ -1035,7 +1040,8 @@ our program, (2) Returning to the adversary, (3) invoking the adversary, (4)
 returning from the adversary, (5) invoking an adversary callback and (6) having
 a callback invoked by the adversary.
 
-\dominique{Add a summary table somewhere?}
+% \dominique{Add a summary table somewhere?}
+% \lau{It seems like we want have the space for this}.
 
 \textbf{Program startup}
 When our code starts executing, we assume that the language runtime initializes
@@ -1079,11 +1085,17 @@ store the return pointer, legally jump to it a first time, wait to be invoked
 again and then jump to the old return pointer a second time, rather than the new
 return pointer received for the new invocation. Similarly, they may store the
 return pointer, invoke a function in our code, wait for us to invoke him again
-and then jump to the stored, old return pointer rather than the new one he
-received upon the second invocation. \lau{If we need space, then maybe one of the examples is sufficient.}
-\lau{In the examples, we refer to the local return pointer as
-  ``protected return pointer''. We should either introduce that here
-  or use a different formulation in the examples. }
+and then jump to the stored, old return pointer rather than the new one they
+received upon the second invocation.
+% \lau{If we need space, then maybe one of the examples is sufficient.}
+% \lau{Both of these are good to have their as the two last examples of Section~\ref{sec:examples} use them.}
+%
+% \lau{In the examples, we refer to the local return pointer as
+%   ``protected return pointer''. We should either introduce that here
+%   or use a different formulation in the examples. }
+% \lau{It seemed did not seem to add anything to adopt the terminlogy - we
+%   often highlight that the return pointer is local which in most cases
+%   is so important that we do not want to leave it out.}
 
 Because the return pointer is local, this is not possible: the adversary can
 only store it through write-local capabilities, which (because of our
@@ -1203,23 +1215,57 @@ Our answer is that the adversary should provide it to us, much like we provide
 them with a current stack pointer when we invoke his code.  However, it is
 important that we do not just accept any capability as a stack pointer but check
 that it is safe to use.  Specifically, we check that it is indeed a $\rwlx$
-pointer and that its current address points just below its start address.
-Without these checks, err...
-\dominique{is this needed for security or just for convenience?}
-\lau{Say we are called with a stack capability that is global and $\rwx$ as well as an integer as a non-local return pointer (this is fair game as the adversary has to follow no rules). Now you push the l(a)unch codes to what you think is the stack and \texttt{scall} the callback. At this point \texttt{scall} does its thing, but because it never attempts to store anything local it will succeed and jump to the adversary! The adversary can now look at what you thought was the stack and eat your lunch or fire the missiles as they prefer. It is not sufficient to require the stack to be just local because there may be a global equivalent. We know this is not the case for the rwlx capability because we have a system wide assumption that all rwlx capabilities are local.
-Finally the adjustment of the pointer in \texttt{prepstck} (or whatever I called it) is a convenience/ space efficiency thing purely.}
+capability and make sure its current address points just below its start address.
+Without this check, an adversary could potentially get control over
+our local stack frame during a callback by passing us a local $\rwx$
+capability to a global data structure (i.e., there exists a global
+capability for it) as the stack capability and a global
+return capability. If our local state contains no local capabilities,
+then following our calling convention, the callback would not fail and
+the adversary could use a stored capability for the global data
+structure to access our local state. 
+To prevent this from happening, we need to make sure the stack
+capability is local and there exists no global capability for that
+memory segment. By making sure the capability has permission $\rwlx$,
+we rely on the system wide assumption that there are only local
+$\rwlx$ capabilities.
 
+\textbf{Reusable macro instructions} With the high-level approach in
+mind, we define the following macro instructions: 
+\texttt{fetch $r$ $\var{name}$} fetches the capability related to
+$\var{name}$ from the linking table and stores it in register
+$r$. 
+\texttt{push $r$}/\texttt{pop $r$} works as one would expect. All
+macros that uses the stack assumes a stack capability in
+register $r_\stk$. 
+\texttt{prepstk $r$} prepares the stack by checking it has permission
+$\rwlx$ and making it conform to our stack discipline. 
+\texttt{scall  $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}
+Jumps to the capability in register $r$ in a safe manner. That is it
+pushes local state, stack capability and in code return capability to
+the stack, sets up the necessary on stack return code and creates a
+return capability, restricts stack capability, clears the unused part
+of the stack, clears the necessary registers and jumpsto $r$. Upon
+return, the private state is restored.
+\texttt{mclear $r$} clears all the memory the capability in register
+$r$ has authority over.
+\texttt{rclear $\var{regSet}$} clears all the registers in $\var{regSet}$
+\texttt{reqglob $r$} checks whether the word in register $r$ is a
+global capability.
+\texttt{crtcls $\overline{(x_i,r_i)}$ $r$} allocates a closure pair
+where the capability in register $r$ is used to point to the program
+and a new environment is allocated where the contents of $\overline{r_i}$ is
+stored. In the program referred to by $r$, an implicit fetch
+happens when an instruction refers to $x_i$.
 
-TODO:
-\begin{itemize}
-\item Reusable macro-instructions for stack and return pointer management
-\begin{itemize}
-\item taking care of the stuff above
-\end{itemize}
-\end{itemize}
+In Section~\ref{sec:examples}, we use the above macros and some
+more. The technical appendix~\ref{XXX} contains detailed descriptions
+of all the macros.
 
-
-\lars{maybe we can present the examples informally before the logical relation and then return to them after the logical relation (to present the formal properties) ?}
+%\lars{maybe we can present the examples informally before the logical
+%relation and then return to them after the logical relation (to
+%present the formal properties) ?}
+% \lau{not enough space to do this.}
 
 \section{Logical relation}
 \label{sec:logical-relation}
@@ -1243,8 +1289,9 @@ such changes to the memory in our model.
 %
 
 \subsection{Worlds}
-\todo[inline]{Find a good place to describe monotonicity of
-  interpretation function.}
+%\todo[inline]{Find a good place to describe monotonicity of
+%interpretation function.}
+% \lau{this may not be an important enough point to include it.}
 \begin{figure}[htbp]
   \centering
   \includegraphics{w11}
@@ -1734,8 +1781,11 @@ global capabilities should only depend on permanent regions. Therefore
 we use the function $\var{localityReg}(g,W)$, which projects out all
 active regions when $g$ is local, but only the permanent regions when
 $g$ is global.
-\todo[inline]{Do we want to mention the standard regions here? (They
-  are not mentioned anywhere)}
+The read condition uses one of two standard regions found
+in~\ref{fig:standard-regions}. $\iota^\pwl_{\start,\addrend}$ requires
+all the words in the range $[\start,\addrend]$ to be capability
+safe. $\iota^\nwl_{\start,\addrend}$ requires the words to be
+non-local and capability safe.
 
 For a capability with a write permission, $\writeCond{}$ must be
 satisfied for the capability's range of authority. Generally speaking,
@@ -1873,7 +1923,7 @@ ensure these properties. Since we are dealing with assembly language,
 there are many details to the formal treatment, and therefore we
 necessarily have to omit some details in the lemmas we state here.
 The interested reader can find all the technical details in the
-techincal report~\cite{XXX}.
+techincal appendix~\cite{XXX}.
 
 \subsection{Encapsulation of local state}
 The capability machine provides encapsulation of local state. The
@@ -1887,7 +1937,7 @@ and uses the stack to store its local state. It also uses the
 stack-based calling convention \texttt{scall} to call the untrusted code. On the
 other hand, \texttt{f2} allocates a new piece of memory for its local
 state and uses an activation-record based calling convention
-(described in the technical report) to run the adversarial code.
+(described in the technical appendix) to run the adversarial code.
 
 \begin{figure}[htbp]
   \centering
@@ -2052,17 +2102,17 @@ two example programs \texttt{f3} in \figurename~\ref{fig:prog-f3} and
   problem in the aformentioned section.}
 In \texttt{f3} there are two calls to an adversary and in order for
 the assertion in the middle to succeed, they need to be
-well-bracketed. If the adversary is able to store the protected return
+well-bracketed. If the adversary is able to store the return
 pointer from the first call, so it is available for the second call, then it can be used
 in a context where \texttt{f3} has $2$ on top of its stack which will cause the
-assertion to fail. The protected return pointer is passed as a local
+assertion to fail. The return pointer is passed as a local
 capability, so the only means the adversary has to store it is the
 stack capability. The stack capability itself is a local capability,
 so the adversary can only store it on the stack. This means that after
-the adversary jumps to the protected return pointer, \texttt{f3} can
+the adversary jumps to the return pointer, \texttt{f3} can
 revoke it (by erasing it which happens as part of the
 \texttt{scall}). In other words, the adversary cannot store the
-protected return pointer for the second call, and it is possible to
+return pointer for the second call, and it is possible to
 prove that the assertion never fails.
 \begin{figure}[htbp]
   \centering
@@ -2115,7 +2165,7 @@ g1:  malloc $r_2$ 1
      rclear $\RegName \setminus \{\pcreg,r_0,r_1 \}$
      jmp $r_0$
 f4:  reqglob $r_1$
-     prepstack $r_\stk$
+     prepstk $r_\stk$
      store $x$ 0
      scall $r_1$($[]$,$[r_0,r_1,r_{\var{env}}]$)
      store $x$ 1
@@ -2135,9 +2185,9 @@ f4:  reqglob $r_1$
 To illustrate how subtle this program is, consider one way an
 adversary may try to make the assertion fail. In the second callback
 an adversary can get to the first callback by calling the closure one
-more time. If the adversary can save the protected return pointer in
+more time. If the adversary can save the return pointer in
 the second callback and use it in the first, then the assertion will
-fail because $x$ is $0$ before the first callback. The protected return
+fail because $x$ is $0$ before the first callback. The return
 pointer cannot be transfered between the callbacks, so this does not
 work.
 
