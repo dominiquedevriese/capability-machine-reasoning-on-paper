@@ -35,6 +35,7 @@
 \setlist[enumproof]{label*=\arabic*.}
 
 \usepackage{tikz}
+\usetikzlibrary{positioning}
 \usepackage{multirow,bigdelim}
 
 % %make latex preview-mode work with natbib...
@@ -372,7 +373,7 @@
 \setlength{\mathindent}{.2cm}
 
 \title{Reasoning about a Capability Machine with Local Capabilities\\
- Provably Safe Stack and Return Pointer Management (without OS Support).}
+ Provably Safe Stack and Return Pointer Management (without OS Support)}
 
 
 \author{%
@@ -1011,6 +1012,7 @@ Explain malloc
 \dominique{not sure what we want to say about it here either...}
 
 \section{Stack and return pointer management using local capabilities}
+\label{sec:stack-and-return-pointer}
 \lau{Do we want to use the term ``pointer'' at any point? I have also used it, but I guess it might create some confusing to whether we have traditional pointer as well as capabilities?}
 One of the contributions in this paper is a demonstration that local
 capabilities on a capability machine can be used in a stack and return pointer
@@ -1080,6 +1082,9 @@ return pointer received for the new invocation. Similarly, they may store the
 return pointer, invoke a function in our code, wait for us to invoke him again
 and then jump to the stored, old return pointer rather than the new one he
 received upon the second invocation. \lau{If we need space, then maybe one of the examples is sufficient.}
+\lau{In the examples, we refer to the local return pointer as
+  ``protected return pointer''. We should either introduce that here
+  or use a different formulation in the examples. }
 
 Because the return pointer is local, this is not possible: the adversary can
 only store it through write-local capabilities, which (because of our
@@ -1648,7 +1653,7 @@ in the interpretation of an active (permanent or temporary) region.
     \end{multlined}
      \; \middle| \;
     \begin{aligned}
-      & \forall n' < n, W' \future W \ldotp \forall a \in [\start,\addrend], \perm \in \var{perms} \ldotp \\
+      & \forall n' < n, W' \future W, a \in [\start,\addrend], \perm \in \var{perms} \ldotp \\
       & \;\;\;\; \npair[n']{((\perm,\gl),\start,\addrend,\addr)} \in \stder(W')\\
     \end{aligned} \right\} \\
   & \entryCond{}(\gl)(W) = \\
@@ -1863,23 +1868,24 @@ inherited structure from the high-level language.
 \section{Examples}
 In this section, we demonstrate how our formal model of capability
 safety allows us to prove local state encapsulation and control-flow
-integrity properties for challenging examples. 
-Since we are dealing with assembly language, 
-there are many details to the formal treatment , and therefore we 
-necessarily have to omit some details
-in the lemmas we state here.  The interested reader can find all the
-technical details in the techincal report~\cite{XXX}.
+integrity properties for challenging program examples. The security
+measures of Section~\ref{sec:stack-and-return-pointer} are deployed to
+ensure these properties. Since we are dealing with assembly language,
+there are many details to the formal treatment, and therefore we
+necessarily have to omit some details in the lemmas we state here.
+The interested reader can find all the technical details in the
+techincal report~\cite{XXX}.
 
 \subsection{Encapsulation of local state}
 The capability machine provides encapsulation of local state. The
-programs \texttt{f1} in \figurename~\ref{fig:prog-f1} and 
-\texttt{f2} \figurename~\ref{fig:prog-f2} demonstrate this.
-The two programs \texttt{f1} and \texttt{f2} are very similar. They both
-store some local data, call an untrusted piece of code ($\adv$), and
-then tests whether local state is unchanged. They differ in the way
-they do this. Program \texttt{f1} assumes it has access to a stack capability
+programs \texttt{f1} in \figurename~\ref{fig:prog-f1} and \texttt{f2}
+\figurename~\ref{fig:prog-f2} demonstrate this.  The two programs
+\texttt{f1} and \texttt{f2} are very similar. They both store some
+local state, call an untrusted piece of code ($\adv$), and then tests
+whether the local state is unchanged. They differ in the way they do
+this. Program \texttt{f1} assumes it has access to a stack capability
 and uses the stack to store its local state. It also uses the
-stack-based calling convention to call the untrusted code. On the
+stack-based calling convention \texttt{scall} to call the untrusted code. On the
 other hand, \texttt{f2} allocates a new piece of memory for its local
 state and uses an activation-record based calling convention
 (described in the technical report) to run the adversarial code.
@@ -1914,18 +1920,22 @@ f2: malloc $r_l$ 1
 \end{figure}
 
 For both programs, we can prove that if they are linked with an
-adversary, $\adv$, that is allowed to allocate new memory but otherwise has no
-capabilities, then the assertion will never fail when
+adversary, $\adv$, that is allowed to allocate new memory but
+otherwise has no capabilities, then the assertion will never fail when
 executing the program (see Lemmas~\ref{lem:correctness-f1}
-and~\ref{lem:correctness-f2} below).
-\lars{shouldn't we say already here that the adversary is a global 
-  capability and that is why, intuitively, the local state is
-  preserved ?}
-The two examples also illustrate
-the versatility of the logical relation. The two examples use
-different calling convention, but the logical relation is not specific
-to any calling convention, so we can use it to reason about both
-programs.
+and~\ref{lem:correctness-f2} below).  \lars{shouldn't we say already
+here that the adversary is a global capability and that is why,
+intuitively, the local state is preserved ?} \lau{Due to the ``order
+of control'', \texttt{f1} runs first. The lemma is quite restrictive
+on the adversary in the sense that it only has access to malloc (and
+whatever we give et access to). Specifically, it does not have access
+to the stack capability and because of that we don't need to check it
+first. We could write that the lemmas are limited in their assumptions
+to make them simpler and a more complicated example is coming up.}
+The two examples also illustrate the versatility of the logical
+relation. The two examples use different calling convention, but the
+logical relation is not specific to any calling convention, so we can
+use it to reason about both programs.
 
 
 % \begin{lemma}[Correctness lemma for \texttt{f1}]
@@ -1980,10 +1990,9 @@ programs.
 
 In order to formulate lemmas about \texttt{f1} and \texttt{f2}, we
 need a way to observe whether the assertion fails. To this end, we
-assume access to a flag (an address in memory)
-which will be set to $1$ by the assertion if it
-fails. A slightly simplified version of the correctness lemma for
-\texttt{f1} is:
+assume access to a flag (an address in memory). When the assertion
+fails, it sets the flag to $1$ and halts. A slightly simplified
+version of the correctness lemma for \texttt{f1} is:
 \begin{lemma}
   \label{lem:correctness-f1}
   Let
@@ -1991,7 +2000,7 @@ fails. A slightly simplified version of the correctness lemma for
     \begin{array}{r@{}lr@{}l}
     c_{\var{adv}} & \;\defeq ((\entry,\glob),\dots) & c_{\var{stk}} & \;\defeq ((\rwlx,\local),\dots)\\
     c_{f1} & \;\defeq ((\rwx,\glob),\dots) & c_\link &\; \defeq ((\readonly,\glob),\dots)\\
-    c_\malloc &\; \defeq ((\entry,\glob),\dots) & & \\
+    c_\malloc &\; \defeq ((\entry,\glob),\dots) & \reg& \; \in \Regs \\
     m &  \multicolumn{3}{@{}l}{\;\defeq \ms_{f1} \uplus \ms_\flag \uplus \ms_{\var{link}} \uplus \hs_\adv \uplus \ms_{\malloc} \uplus} \\
       & \multicolumn{3}{@{}l}{\phantom{\;\defeq \;}  \ms_{\var{stk}} \uplus \ms_{\var{frame}}} \\
     \end{array}
@@ -2007,18 +2016,18 @@ fails. A slightly simplified version of the correctness lemma for
   then $m'(\flag) = 0$
 \end{lemma}
 
-To prove Lemma~\ref{lem:correctness-f1}, it suffices to show
-that the start configuration is capability safe (in the $\observations$ relation) for a
-world with a permanent region that requires the assertion flag to be
-0. This is done using an anti-reduction lemma which states that for a
-configuration to be capability safe, it is sufficient to
-show that it is in it at a later point of the execution. To reason
-about \texttt{scall}, it suffices to show that (1) the configuration just
-after we jumped is capability safe and (2) that the configuration just
-after \texttt{scall} is done cleaning up is capability safe.
-We use the Fundamental Theorem to reason about the unknown code, but
-notice that the Fundamental Theorem says nothing about enter
-capabilities and that the adversary capability is an enter
+To prove Lemma~\ref{lem:correctness-f1}, it suffices to show that the
+start configuration is capability safe (in the $\observations$
+relation) for a world with a permanent region that requires the
+assertion flag to be 0. This is done using an anti-reduction lemma
+which states that for a configuration to be capability safe, it is
+sufficient to show that it is in it at a later point of the
+execution. To reason about \texttt{scall}, it suffices to show that
+(1) the configuration just after we jumped is capability safe and (2)
+that the configuration just after \texttt{scall} is done cleaning up
+is capability safe.  We use the Fundamental Theorem to reason about
+the unknown code, but notice that the Fundamental Theorem says nothing
+about enter capabilities and that the adversary capability is an enter
 capability. Luckily the enter capability becomes a read/execute
 capability when we jump and the Fundamental Theorem can be used to
 show that this capability is capability safe as a program counter.
@@ -2037,17 +2046,22 @@ well-bracketed control-flow. To illustrate this, we look at
 two example programs \texttt{f3} in \figurename~\ref{fig:prog-f3} and
 \texttt{g1} in \figurename~\ref{fig:prog-g1}.
 
+\lau{in the following paragraph, we could make a reference to
+  \textbf{invoking the adversary} from
+  section~\ref{sec:stack-and-return-pointer} where the problem is
+  first introduced. In fact, this paragraph is a reiteration of the
+  problem in the aformentioned section.}
 In \texttt{f3} there are two calls to an adversary and in order for
 the assertion in the middle to succeed, they need to be
 well-bracketed. If the adversary is able to store the protected return
-pointer, so it is available for the second call, then it can be used
-in a context where \texttt{f3} has 2 on top of its stack which will cause the
+pointer from the first call, so it is available for the second call, then it can be used
+in a context where \texttt{f3} has $2$ on top of its stack which will cause the
 assertion to fail. The protected return pointer is passed as a local
 capability, so the only means the adversary has to store it is the
 stack capability. The stack capability itself is a local capability,
 so the adversary can only store it on the stack. This means that after
 the adversary jumps to the protected return pointer, \texttt{f3} can
-revoke it (by overwritting it which happens as part of the
+revoke it (by erasing it which happens as part of the
 \texttt{scall}). In other words, the adversary cannot store the
 protected return pointer for the second call, and it is possible to
 prove that the assertion never fails.
@@ -2066,11 +2080,12 @@ f3: push 1
   \caption{Simple program that relies on control-flow integrity.}
   \label{fig:prog-f3}
 \end{figure}
-
+\lau{Add something about the correctness lemma? Not sure if I have
+  anything important to say.}
 \begin{lemma}
   \label{lem:correctness-f3}
   Making similar assumptions about capabilities and linking as in
-  Lemma~\ref{lem:correctness-f1} but assuming no stack capability
+  Lemma~\ref{lem:correctness-f1}
   if $(\reg\update{\pcreg}{c_{f3}}\update{r_\stk}{c_\stk},m) \step^*
   (\halted,m')$, then $m'(\flag) = 0$.
 \end{lemma}
@@ -2078,66 +2093,17 @@ f3: push 1
 The final example, in \figurename~\ref{fig:prog-g1}, is a faithful
 translation of a trciky example known from the
 litterature\cite{XXX}. It consists of two parts, \texttt{g1} and
-\texttt{f4}. \texttt{g1} is a closure generator that generates a
-closure with one variable $x$ set to 0 in its environment and \texttt{f4} as
-the program. The program \texttt{f4} expects to arguments: a stack and
-a callback. The stack is necessary to use \texttt{scall}, but because
-it comes from an untrusted source, we need to make sure that it has
-the correct permission and fits with our stack dicipline. The callback
-must be global for the program to work, we will get back to this
-point. The program now sets $x$ to 0 and calls the callback. When it
-returns from the callback, it sets $x$ to 1 and calls the callback a
-second time. When it returns from the callback, it asserts $x$ is 1
-and returns. 
-
-To illustrate how subtle this program is, consider one way an
-adversary may try to make the assertion fail. In the second callback
-an adversary can get to the first callback by calling the closure one
-more time. If the adversary can save the protected return pointer in
-the second callback and use it in the first, then the assertion will
-fail because $x$ is 0 before the first callback. The protected return
-pointer cannot be transfered between the callbacks, so this does not
-work.
-
-
-\begin{lemma}
-  \label{lem:correctness-g1}
-  Making similar assumptions about capabilities and linking as in
-  Lemma~\ref{lem:correctness-f1} but assuming no stack capability
-  if
-  \[
-  (\reg_0\update{\pcreg}{c_\adv}\update{r_\stk}{c_\stk}\update{r_1}{c_{g1}},m) \step^* (\halted,m'),
-  \]
-  then $m'(\flag) = 0$.
-\end{lemma}
-
-As mentioned, the callback must be global. This is to make sure the
-callback is not a piece of code on the stack that restores the
-adversaries original stack capability breaking the encapsulation of
-our local stack frame. In the proof of Lemma~\ref{lem:correctness-g1},
-this also shows up. When we reason about \texttt{f4}, we revoke all
-the local state of the adversary which means that we consider a
-private future world. We use the $\execCond{}$ to reason about the
-jump to the callback and because the callback is global, it works for
-private future worlds. Had the callback been local, then the
-$\execCond{}$ would only work for public future worlds, and we would
-be stuck in the proof.
-
-In Lemma~\ref{lem:correctness-g1} the order of control has been
-inverted compared to the previous lemmas. In this lemma, the adversary
-assumes control first with a capability for the closure creator
-\texttt{g1}. This means we need to check all arguments are safe
-to use and that we clean up before returning in the end. The inversion
-of control poses an interesting challenge when it comes to reasoning
-bout the adversaries local state during the execution of
-\texttt{f4}. During the execution of \texttt{f4} and the callbacks the
-adversary should not be able to rely on its local state from outside
-the call of \texttt{f4}. This is easily done by revoking all the
-temporary regions of the world given at the start of \texttt{f4}. The
-real challenge comes when \texttt{f4} returns and needs to guarantee
-that the protocols of the adversaries local state has not been
-violated. To this end, we need to reinstate regions we revoked which
-is done using the masking regions.
+\texttt{f4}. \texttt{g1} is a closure generator that generates
+closures with one variable $x$ set to $0$ in its environment and
+\texttt{f4} as the program. The program \texttt{f4} expects two
+arguments: a stack and a callback. The stack is necessary to use
+\texttt{scall}, but because it comes from an untrusted source, we need
+to make sure that it has the correct permission and fits with our
+stack dicipline. The callback must be global for the program to work,
+we will get back to this point. The program now sets $x$ to $0$ and
+calls the callback. When it returns from the callback, it sets $x$ to
+$1$ and calls the callback a second time. When it returns from the
+callback, it asserts $x$ is $1$ and returns.
 
 \begin{figure}[htbp]
   \centering
@@ -2167,6 +2133,105 @@ f4:  reqglob $r_1$
   \label{fig:prog-g1}
 \end{figure}
 
+To illustrate how subtle this program is, consider one way an
+adversary may try to make the assertion fail. In the second callback
+an adversary can get to the first callback by calling the closure one
+more time. If the adversary can save the protected return pointer in
+the second callback and use it in the first, then the assertion will
+fail because $x$ is $0$ before the first callback. The protected return
+pointer cannot be transfered between the callbacks, so this does not
+work.
+
+\begin{lemma}
+  \label{lem:correctness-g1}
+  Making similar assumptions about capabilities and linking as in
+  Lemma~\ref{lem:correctness-f1} 
+  if
+  \[
+  (\reg_0\update{\pcreg}{c_\adv}\update{r_\stk}{c_\stk}\update{r_1}{c_{g1}},m) \step^* (\halted,m'),
+  \]
+  then $m'(\flag) = 0$.
+\end{lemma}
+
+As mentioned, the callback must be global. This is to make sure the
+callback is not a piece of code on the stack that restores the
+adversaries original stack capability breaking the encapsulation of
+our local stack frame. In the proof of Lemma~\ref{lem:correctness-g1},
+this also shows up. When we reason about \texttt{f4}, we revoke all
+the local state of the adversary which means that we consider a
+private future world. We use the $\execCond{}$ to reason about the
+jump to the callback and because the callback is global, it works for
+private future worlds. Had the callback been local, then the
+$\execCond{}$ would only work for public future worlds, and we would
+be stuck in the proof.
+
+In Lemma~\ref{lem:correctness-g1} the order of control has been
+inverted compared to the previous lemmas. In this lemma, the adversary
+assumes control first with a capability for the closure creator
+\texttt{g1}. This means we need to check all arguments are safe
+to use and that we clean up before returning in the end. The inversion
+of control poses an interesting challenge when it comes to reasoning
+about the adversaries local state during the execution of
+\texttt{f4}. During the execution of \texttt{f4} and the callbacks, the
+adversary should not be able to rely on its local state from before
+the call of \texttt{f4}. This is easily done by revoking all the
+temporary regions of the world given at the start of \texttt{f4}. When
+\texttt{f4} returns, then the adversary is allowed to rely on its
+local state again which means that we need to guarantee that the local
+state is unchanged. To illustrate how this is done in the proof of
+Lemma~\ref{lem:correctness-g1}, consider
+\figurename~\ref{fig:worlds-in-pf-g1}. The return pointer given to
+\texttt{f4} might be local and it is capability safe in $W_1$, so it
+can only be used in public future worlds. Let us see how $W_6$ is
+constructed as a public future world. The worlds $W_2$ and $W_4$ are constructed by revoking all
+temporary regions and adding a $\iota^\pwl$ region for the stack we
+pass away and static temporary regions (a region that accepts exactly
+one memory) for our local stack as well as the adversaries local stack.
+The given worlds $W_3$ and $W_5$ are public future worlds. None of
+these worlds can have masked the temporary regions of $W_1$ with permanent
+regions. $W_6$ is constructed by revoking the temporary regions of
+$W_5$ and reinstating the temporary regions of $W_1$. This makes $W_6$
+a public future world of $W_1$. It is therefore safe to use the return
+pointer to return to the adversary.
+
+\lau{Add that the difficulties of the high-level version is also
+  present here nad solved in the same way?}
+\begin{figure}[t]
+  \centering
+\begin{tikzpicture}[main node/.style={}, node distance=1.5cm]
+  \node[main node] (1) {$W_1$};
+  \node[main node] (label1) [below of=1,yshift=1cm] {\footnotesize{\textit{\texttt{f3} called}}};
+  \node[main node,left] (given) [left of=1,yshift=0.05cm] {\parbox{1.5cm}{\footnotesize{Given:}}};
+
+  \node[main node] (2) [above right of=1]{$W_2$};
+  \node[main node] (label2) [above of=2,yshift=-1cm] {\textit{\footnotesize{first callback}}};
+
+  \node[main node,left] (const) [above of=given,yshift=-0.4cm] {\parbox{1.5cm}{\footnotesize{Constructed:}}};
+
+  \node[main node] (3) [below right of=2]{$W_3$};
+  \node[main node] (label3) [below of=3,yshift=0.75cm] {\footnotesize{\textit{callback returns}}};
+
+  \node[main node] (4) [above right of=3]{$W_4$};
+  \node[main node] (label4) [above of=4,yshift=-0.75cm] {\footnotesize{\textit{second callback}}};
+
+  \node[main node] (5) [below right of=4]{$W_5$};
+  \node[main node] (label5) [below of=5,yshift=1cm] {\footnotesize{\textit{callback returns}}};
+
+  \node[main node] (6) [above right of=5]{$W_6$};
+  \node[main node] (label6) [above of=6,yshift=-1cm] {\footnotesize{\textit{\texttt{f3} returns}}};
+  \path(1) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\priv$} (2)
+       (2) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\pub$} (3)
+       (3) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\priv$} (4)
+       (4) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\pub$} (5)
+       (5) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\priv$} (6);
+\end{tikzpicture}
+  \caption{Illustration of some of the worlds in the proof of
+    Lemma~\ref{lem:correctness-g1}. The first row of worlds are worlds
+  we construct during the proof. The second row of worlds are worlds
+  we are given during the proof. $W_6$ is constructed such that $W_6
+  \futurewk W_1$.}
+  \label{fig:worlds-in-pf-g1}
+\end{figure}
 \begin{itemize}
 \item Ticket dispenser
 \item The awkward example and variants
