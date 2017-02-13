@@ -1002,6 +1002,7 @@ Explain malloc
 \dominique{not sure what we want to say about it here either...}
 
 \section{Stack and return pointer management using local capabilities}
+\label{sec:stack-and-return-pointer}
 \lau{Do we want to use the term ``pointer'' at any point? I have also used it, but I guess it might create some confusing to whether we have traditional pointer as well as capabilities?}
 One of the contributions in this paper is a demonstration that local
 capabilities on a capability machine can be used in a stack and return pointer
@@ -1071,6 +1072,9 @@ return pointer received for the new invocation. Similarly, they may store the
 return pointer, invoke a function in our code, wait for us to invoke him again
 and then jump to the stored, old return pointer rather than the new one he
 received upon the second invocation. \lau{If we need space, then maybe one of the examples is sufficient.}
+\lau{In the examples, we refer to the local return pointer as
+  ``protected return pointer''. We should either introduce that here
+  or use a different formulation in the examples. }
 
 Because the return pointer is local, this is not possible: the adversary can
 only store it through write-local capabilities, which (because of our
@@ -1853,23 +1857,22 @@ inherited structure from the high-level language.
 \section{Examples}
 In this section, we demonstrate how our formal model of capability
 safety allows us to prove local state encapsulation and control-flow
-integrity properties for challenging examples. 
-Since we are dealing with assembly language, 
-there are many details to the formal treatment , and therefore we 
-necessarily have to omit some details
-in the lemmas we state here.  The interested reader can find all the
+integrity properties for challenging program examples.  Since we are
+dealing with assembly language, there are many details to the formal
+treatment, and therefore we necessarily have to omit some details in
+the lemmas we state here.  The interested reader can find all the
 technical details in the techincal report~\cite{XXX}.
 
 \subsection{Encapsulation of local state}
 The capability machine provides encapsulation of local state. The
-programs \texttt{f1} in \figurename~\ref{fig:prog-f1} and 
-\texttt{f2} \figurename~\ref{fig:prog-f2} demonstrate this.
-The two programs \texttt{f1} and \texttt{f2} are very similar. They both
-store some local data, call an untrusted piece of code ($\adv$), and
-then tests whether local state is unchanged. They differ in the way
-they do this. Program \texttt{f1} assumes it has access to a stack capability
+programs \texttt{f1} in \figurename~\ref{fig:prog-f1} and \texttt{f2}
+\figurename~\ref{fig:prog-f2} demonstrate this.  The two programs
+\texttt{f1} and \texttt{f2} are very similar. They both store some
+local state, call an untrusted piece of code ($\adv$), and then tests
+whether the local state is unchanged. They differ in the way they do
+this. Program \texttt{f1} assumes it has access to a stack capability
 and uses the stack to store its local state. It also uses the
-stack-based calling convention to call the untrusted code. On the
+stack-based calling convention \texttt{scall} to call the untrusted code. On the
 other hand, \texttt{f2} allocates a new piece of memory for its local
 state and uses an activation-record based calling convention
 (described in the technical report) to run the adversarial code.
@@ -1904,18 +1907,22 @@ f2: malloc $r_l$ 1
 \end{figure}
 
 For both programs, we can prove that if they are linked with an
-adversary, $\adv$, that is allowed to allocate new memory but otherwise has no
-capabilities, then the assertion will never fail when
+adversary, $\adv$, that is allowed to allocate new memory but
+otherwise has no capabilities, then the assertion will never fail when
 executing the program (see Lemmas~\ref{lem:correctness-f1}
-and~\ref{lem:correctness-f2} below).
-\lars{shouldn't we say already here that the adversary is a global 
-  capability and that is why, intuitively, the local state is
-  preserved ?}
-The two examples also illustrate
-the versatility of the logical relation. The two examples use
-different calling convention, but the logical relation is not specific
-to any calling convention, so we can use it to reason about both
-programs.
+and~\ref{lem:correctness-f2} below).  \lars{shouldn't we say already
+here that the adversary is a global capability and that is why,
+intuitively, the local state is preserved ?} \lau{Due to the ``order
+of control'', \texttt{f1} runs first. The lemma is quite restrictive
+on the adversary in the sense that it only has access to malloc (and
+whatever we give et access to). Specifically, it does not have access
+to the stack capability and because of that we don't need to check it
+first. We could write that the lemmas are limited in their assumptions
+to make them simpler and a more complicated example is coming up.}
+The two examples also illustrate the versatility of the logical
+relation. The two examples use different calling convention, but the
+logical relation is not specific to any calling convention, so we can
+use it to reason about both programs.
 
 
 % \begin{lemma}[Correctness lemma for \texttt{f1}]
@@ -1970,10 +1977,9 @@ programs.
 
 In order to formulate lemmas about \texttt{f1} and \texttt{f2}, we
 need a way to observe whether the assertion fails. To this end, we
-assume access to a flag (an address in memory)
-which will be set to $1$ by the assertion if it
-fails. A slightly simplified version of the correctness lemma for
-\texttt{f1} is:
+assume access to a flag (an address in memory). When the assertion
+fails, it sets the flag to $1$ and halts. A slightly simplified
+version of the correctness lemma for \texttt{f1} is:
 \begin{lemma}
   \label{lem:correctness-f1}
   Let
@@ -1997,18 +2003,18 @@ fails. A slightly simplified version of the correctness lemma for
   then $m'(\flag) = 0$
 \end{lemma}
 
-To prove Lemma~\ref{lem:correctness-f1}, it suffices to show
-that the start configuration is capability safe (in the $\observations$ relation) for a
-world with a permanent region that requires the assertion flag to be
-0. This is done using an anti-reduction lemma which states that for a
-configuration to be capability safe, it is sufficient to
-show that it is in it at a later point of the execution. To reason
-about \texttt{scall}, it suffices to show that (1) the configuration just
-after we jumped is capability safe and (2) that the configuration just
-after \texttt{scall} is done cleaning up is capability safe.
-We use the Fundamental Theorem to reason about the unknown code, but
-notice that the Fundamental Theorem says nothing about enter
-capabilities and that the adversary capability is an enter
+To prove Lemma~\ref{lem:correctness-f1}, it suffices to show that the
+start configuration is capability safe (in the $\observations$
+relation) for a world with a permanent region that requires the
+assertion flag to be 0. This is done using an anti-reduction lemma
+which states that for a configuration to be capability safe, it is
+sufficient to show that it is in it at a later point of the
+execution. To reason about \texttt{scall}, it suffices to show that
+(1) the configuration just after we jumped is capability safe and (2)
+that the configuration just after \texttt{scall} is done cleaning up
+is capability safe.  We use the Fundamental Theorem to reason about
+the unknown code, but notice that the Fundamental Theorem says nothing
+about enter capabilities and that the adversary capability is an enter
 capability. Luckily the enter capability becomes a read/execute
 capability when we jump and the Fundamental Theorem can be used to
 show that this capability is capability safe as a program counter.
@@ -2027,17 +2033,22 @@ well-bracketed control-flow. To illustrate this, we look at
 two example programs \texttt{f3} in \figurename~\ref{fig:prog-f3} and
 \texttt{g1} in \figurename~\ref{fig:prog-g1}.
 
+\lau{in the following paragraph, we could make a reference to
+  \textbf{invoking the adversary} from
+  section~\ref{sec:stack-and-return-pointer} where the problem is
+  first introduced. In fact, this paragraph is a reiteration of the
+  problem in the aformentioned section.}
 In \texttt{f3} there are two calls to an adversary and in order for
 the assertion in the middle to succeed, they need to be
 well-bracketed. If the adversary is able to store the protected return
-pointer, so it is available for the second call, then it can be used
-in a context where \texttt{f3} has 2 on top of its stack which will cause the
+pointer from the first call, so it is available for the second call, then it can be used
+in a context where \texttt{f3} has $2$ on top of its stack which will cause the
 assertion to fail. The protected return pointer is passed as a local
 capability, so the only means the adversary has to store it is the
 stack capability. The stack capability itself is a local capability,
 so the adversary can only store it on the stack. This means that after
 the adversary jumps to the protected return pointer, \texttt{f3} can
-revoke it (by overwritting it which happens as part of the
+revoke it (by erasing it which happens as part of the
 \texttt{scall}). In other words, the adversary cannot store the
 protected return pointer for the second call, and it is possible to
 prove that the assertion never fails.
@@ -2060,7 +2071,7 @@ f3: push 1
 \begin{lemma}
   \label{lem:correctness-f3}
   Making similar assumptions about capabilities and linking as in
-  Lemma~\ref{lem:correctness-f1} but assuming no stack capability
+  Lemma~\ref{lem:correctness-f1}
   if $(\reg\update{\pcreg}{c_{f3}}\update{r_\stk}{c_\stk},m) \step^*
   (\halted,m')$, then $m'(\flag) = 0$.
 \end{lemma}
@@ -2093,7 +2104,7 @@ work.
 \begin{lemma}
   \label{lem:correctness-g1}
   Making similar assumptions about capabilities and linking as in
-  Lemma~\ref{lem:correctness-f1} but assuming no stack capability
+  Lemma~\ref{lem:correctness-f1} 
   if
   \[
   (\reg_0\update{\pcreg}{c_\adv}\update{r_\stk}{c_\stk}\update{r_1}{c_{g1}},m) \step^* (\halted,m'),
