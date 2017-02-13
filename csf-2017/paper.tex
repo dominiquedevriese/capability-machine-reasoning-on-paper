@@ -758,6 +758,7 @@ please refer to the technical appendix~\cite{XXX} for those.
 \todo[inline]{TODO}
 
 \section{A capability machine with local capabilities}
+\label{sec:capab-mach-with}
 In this paper, we work with a formal capability machine that has all the
 characteristics of real capability machines, as well as local capabilities much
 like CHERI's, but is otherwise kept as simple as possible. It is inspired by
@@ -992,6 +993,14 @@ with write-local authority are themselves local and the stack is cleared after
 control is passed back by the adversary, we will see that this does not break
 the intended behavior of local capabilities.
 
+We point out that our local capabilities capture only a part of the semantics of
+local capabilities in CHERI. Specifically, on top of the above restrictions,
+CHERI's default implementation of CCall additionally forbids local capabilities
+from being passed accross module boundaries, something which we rely on
+crucially in this paper, for passing around local return pointers and stack
+capabilities. However, CHERI's CCall is not implemented in hardware, but in
+software, precisely to allow experimenting with alternative models like ours.
+
 % Contrary to more traditional assembly languages, capability machines do not
 % allow literal addresses to appear as part of instructions. This means that we 
 
@@ -1209,6 +1218,7 @@ TODO:
 \lars{maybe we can present the examples informally before the logical relation and then return to them after the logical relation (to present the formal properties) ?}
 
 \section{Logical relation}
+\label{sec:logical-relation}
 In order to be able to reason about programs running on the capability
 machine and prove properties such as well-bracketedness and
 encapsulation about them, we define a unary logical relation.
@@ -2185,19 +2195,23 @@ a trusted stack to one without
 
 \section{Related work}
 
-Cap-mach:
-\begin{itemize}
-\item \cite{Watson2015Cheri} CHERI papers
-\item \cite{akram_el-korashy_formal_2016}
-\end{itemize}
+Capability machines originate with Dennis and Van
+Horn~\cite{Dennis:1966:PSM:365230.365252} and we refer to
+\citet{Levy1984capability} and \citet{Watson2015Cheri} for an overview of
+previous work in the area. The capability machine formalised in
+Section~\ref{sec:capab-mach-with} is a simple but representative model, modeled
+mainly after the M-Machine~\cite{Carter:1994:HSF:195473.195579} (the enter
+pointers resemble the M-Machine's) and
+CHERI~\cite{Watson2015Cheri,Woodruff:2014:CCM:2665671.2665740} (the memory
+capabilities resemble CHERI's). The latter is a recent and relatively mature
+capability machine, which combines capabilities with a virtual memory approach,
+in the interest of backwards compatibility and gradual adoption. Our local
+capabilities are inspired by CHERI's, although as discussed, they can be passed
+accross module boundaries, contrary to what is enforced by CHERI's default CCall
+implementation.
 
-Logical relation:
-\begin{itemize}
-\item \cite{Hur:2011:KLR:1926385.1926402}
-\item \cite{Dreyer:jfp12}
-\item \cite{Devriese:2016ObjCap}
-\item \cite{osvald_gentrification_2016}
-\end{itemize}
+We believe local capabilities 
+
 
 Other papers that enforce well-bracketed control flow at low level (using a
 trusted stack manager)
@@ -2205,6 +2219,68 @@ trusted stack manager)
 \item \cite{patrignani_modular_2016-1}
 \item \cite{juglaret_beyond_2016-1}
 \item other stuff?
+\end{itemize}
+CFI: 
+\begin{itemize}
+\item \cite{budiu_architectural_2006,abadi_control-flow_2005}
+\end{itemize}
+
+Our logical relation is a unary, step-indexed Kripke logical relation (SKLR)
+with recursive
+worlds~\cite{Appel:2001:IMR:504709.504712,Ahmed2004semantics,Birkedal:2011:SKM:1926385.1926401},
+closely related to the one used by \citet{Devriese:2016ObjCap} to formulate
+capability-safety in a high-level JavaScript-like lambda calculus. Our
+fundamental theorem is similar to theirs and can be seen as a formulation of
+capability-safety of the capability-machine. Because we are not interested in an
+externally observable notion of side-effects (like console output or memory
+access traces), we do not require their notion of effect parametricity.
+
+The idea of applying SKLRs to an assembly language was applied before by
+\citet{Hur:2011:KLR:1926385.1926402}, who constructed a binary SKLR for
+formulating and proving correctness of an ML-to-assembly compiler. Their
+condition on the assembly code are quite loose (for example, they allow
+hand-written and self-modifying assmebly code), but they do assume code that it
+is non-adversarial and respects the ABI of the high-level language (for example,
+the code does not store return pointers and invoke them after their intended
+lifetime). As a result, they can treat return pointers as evaluation contexts in
+a lambda calculus and use biorthogonality~\cite{pitts_higher_1998}. This means
+that they define the logical relation to accept evaluation contexts if they
+produce related observations for related values and to accept terms if they
+produce related observations when plugged into related evaluation contexts. In
+our setting, there is no guarantee that adversarial code will treat return
+pointers as intended, so, as described in Section~\ref{sec:logical-relation}, we
+define our logical in a (arguably natural but still) novel way, using a single
+orthogonal closure, i.e. accept terms if they produce related observations when
+given related arguments, where those arguments include the return pointer.
+
+Another novel aspect of our logical relation is how we model the temporary
+nature of local capabilities. The main insight is that the temporary, revokable
+nature of these capabilities can be seen as a generalisation of the special
+status of evaluation contexts in lambda calculi. Closely related here is a study
+by \citet{Dreyer:jfp12} (DNB) of the impact of higher-order state and control
+effects on local relational reasoning. DNB formally capture this special status
+of evaluation contexts using Kripke worlds with public and private future world
+relations. Our public and private worlds are inspired by theirs and they are at
+times remarkably similar. For example, the state-transitition system in the
+proof of our assembly version of the awkward example, is exactly the same as the
+one used by DNB for the original awkward example. Nevertheless, there are also
+remarkable differences: in DNB's logical relation, public future worlds only
+turn up in the continuation relation (which we do not have, see above). This is
+different from our value relation which uses public and private future worlds
+depending on the locality of the capability at hand. Additionally, our worlds
+are a bit more complex because, to allow store-local capabilities, they can have
+temporary regions that are only monotonous w.r.t. public future worlds, while
+DNB's worlds are entirely permanent.
+
+As a side note: our model of local/global capabilities may also be applicable
+for reasoning about related ideas in higher-level languages. Specifically,
+\citet{osvald_gentrification_2016}'s second-class or local values in Scala are
+remarkably similar to the local capabilities we study and we expect they will
+support similar reasoning patterns.
+
+
+\begin{itemize}
+\item \cite{akram_el-korashy_formal_2016}
 \end{itemize}
 
 \section{Conclusion}
