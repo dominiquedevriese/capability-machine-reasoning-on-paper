@@ -503,7 +503,7 @@ machines.  Specifically, we make the following contributions:
 \item The above theorem is formulated in terms of a unary step-indexed
   logical relation with recursively defined Kripke worlds. It is
   inspired by one used in \cite{Devriese:2016ObjCap} for
-  capability-safety in a JavaScript-like lambda calculus, but has two
+  capability safety in a JavaScript-like lambda calculus, but has two
   novel technical characteristics. The natural CPS style of assembly
   code with return pointers as continuations is modeled using a
   \emph{single} orthogonal closure, rather than the biorthogonal
@@ -520,7 +520,7 @@ machines.  Specifically, we make the following contributions:
   examples, specifically constructed to demonstrate local state encapsulation
   and control-flow integrity guarantees in the presence of cross-component
   function pointers. The examples demonstrate both the power of our formulation
-  of capability-safety and our stack management discipline.
+  of capability safety and our stack management discipline.
 \end{itemize}
 \lau{I have left out the discussion/future work, related work and conclussion sections from the outline given with the contribution. Do you feel like there should be a dedicated outline instead and if not should we mention the last sections (I don't feel it contributes anything to mention them).}
 
@@ -842,17 +842,21 @@ detail, we assume an infinite address space and unbounded integers.
   \label{fig:perm-hier}
 \end{figure}
 
-We define the syntax of our capability machine in \figurename~\ref{fig:syntax}. We
-assume an infinite set of addresses $\Addrs$ and define machine words as either
-integers or capabilities of the form $((\perm,\gl),\start,\addrend,\addr)$. Such
-a capability represents the authority to execute permissions $\perm$ on the
-memory array $[\start,\addrend]$, together with a current address $\addr$ and a
-tag $\gl$ which indicates whether the capability is global or local. The
-available permissions and their ordering are depicted in
-\figurename~\ref{fig:perm-hier}: the permissions include null permission ($\noperm$),
-readonly ($\readonly$), read/write ($\readwrite$), read/execute ($\exec$) and
-read/write/execute ($\rwx$) permissions. Additionally, there are three special
-read/write-local ($\readwritel$), read/write-local/execute ($\rwlx$) and enter
+We define the syntax of our capability machine in
+\figurename~\ref{fig:syntax}. We assume an infinite set of addresses
+$\Addrs$ and define machine words as either integers or capabilities
+of the form $((\perm,\gl),\start,\addrend,\addr)$. Such a capability
+represents the authority to execute permissions $\perm$ on the memory
+array $[\start,\addrend]$, together with a current address $\addr$ and
+a tag $\gl$ which indicates whether the capability is global or
+local. The capability machine has no notion of pointers by itself, so
+we refer to capabilities as pointers and capabilities
+interchangeably. The available permissions and their ordering are
+depicted in \figurename~\ref{fig:perm-hier}: the permissions include
+null permission ($\noperm$), readonly ($\readonly$), read/write
+($\readwrite$), read/execute ($\exec$) and read/write/execute ($\rwx$)
+permissions. Additionally, there are three special read/write-local
+($\readwritel$), read/write-local/execute ($\rwlx$) and enter
 ($\entry$) permissions which we will explain below.
 
 We assume a finite set of register names $\RegName$. We define register files $\reg$ as
@@ -1219,8 +1223,8 @@ capability and make sure its current address points just below its start address
 Without this check, an adversary could potentially get control over
 our local stack frame during a callback by passing us a local $\rwx$
 capability to a global data structure (i.e., there exists a global
-capability for it) as the stack capability and a global
-return capability. If our local state contains no local capabilities,
+capability for it) as the stack pointer and a global
+return pointer. If our local state contains no local capabilities,
 then following our calling convention, the callback would not fail and
 the adversary could use a stored capability for the global data
 structure to access our local state. 
@@ -1236,15 +1240,15 @@ mind, we define the following macro instructions:
 $\var{name}$ from the linking table and stores it in register
 $r$. 
 \texttt{push $r$}/\texttt{pop $r$} works as one would expect. All
-macros that uses the stack assumes a stack capability in
+macros that uses the stack assumes a stack pointer in
 register $r_\stk$. 
 \texttt{prepstk $r$} prepares the stack by checking it has permission
 $\rwlx$ and making it conform to our stack discipline. 
 \texttt{scall  $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}
 Jumps to the capability in register $r$ in a safe manner. That is it
-pushes local state, stack capability and in code return capability to
+pushes local state, stack pointer and in code return pointer to
 the stack, sets up the necessary on stack return code and creates a
-return capability, restricts stack capability, clears the unused part
+return pointer, restricts stack pointer, clears the unused part
 of the stack, clears the necessary registers and jumpsto $r$. Upon
 return, the private state is restored.
 \texttt{mclear $r$} clears all the memory the capability in register
@@ -1880,7 +1884,7 @@ programs \texttt{f1} in \figurename~\ref{fig:prog-f1} and \texttt{f2}
 \texttt{f1} and \texttt{f2} are very similar. They both store some
 local state, call an untrusted piece of code ($\adv$), and then tests
 whether the local state is unchanged. They differ in the way they do
-this. Program \texttt{f1} assumes it has access to a stack capability
+this. Program \texttt{f1} assumes it has access to a stack pointer
 and uses the stack to store its local state. It also uses the
 stack-based calling convention \texttt{scall} to call the untrusted code. On the
 other hand, \texttt{f2} allocates a new piece of memory for its local
@@ -1920,15 +1924,16 @@ For both programs, we can prove that if they are linked with an
 adversary, $\adv$, that is allowed to allocate new memory but
 otherwise has no capabilities, then the assertion will never fail when
 executing the program (see Lemmas~\ref{lem:correctness-f1}
-and~\ref{lem:correctness-f2} below).  \lars{shouldn't we say already
-here that the adversary is a global capability and that is why,
-intuitively, the local state is preserved ?} \lau{Due to the ``order
-of control'', \texttt{f1} runs first. The lemma is quite restrictive
-on the adversary in the sense that it only has access to malloc (and
-whatever we give et access to). Specifically, it does not have access
-to the stack capability and because of that we don't need to check it
-first. We could write that the lemmas are limited in their assumptions
-to make them simpler and a more complicated example is coming up.}
+and~\ref{lem:correctness-f2} below).
+% \lars{shouldn't we say already
+% here that the adversary is a global capability and that is why,
+% intuitively, the local state is preserved ?} \lau{Due to the ``order
+% of control'', \texttt{f1} runs first. The lemma is quite restrictive
+% on the adversary in the sense that it only has access to malloc (and
+% whatever we give et access to). Specifically, it does not have access
+% to the stack pointer and because of that we don't need to check it
+% first. We could write that the lemmas are limited in their assumptions
+% to make them simpler and a more complicated example is coming up.}
 The two examples also illustrate the versatility of the logical
 relation. The two examples use different calling convention, but the
 logical relation is not specific to any calling convention, so we can
@@ -2002,7 +2007,7 @@ version of the correctness lemma for \texttt{f1} is:
       & \multicolumn{3}{@{}l}{\phantom{\;\defeq \;}  \ms_{\var{stk}} \uplus \ms_{\var{frame}}} \\
     \end{array}
 \]
-  where each of the capability has an appropriate range of authority and pointer and
+  where each of the capabilities have an appropriate range of authority and pointer furthermore
   \begin{itemize}
   \item $\ms_{f1}$ contains $c_\link$, $c_\flag$ and the code of \texttt{f1}
   \item $\ms_\flag(\flag) = 0$
@@ -2033,7 +2038,7 @@ We have a similar lemma for \texttt{f2}:
 \begin{lemma}
   \label{lem:correctness-f2}
   Making similar assumptions about capabilities and linking as in
-  Lemma~\ref{lem:correctness-f1} but assuming no stack capability
+  Lemma~\ref{lem:correctness-f1} but assuming no stack pointer
   if $(\reg\update{\pcreg}{c_{f2}},m) \step^* (\halted,m')$, then $m'(\flag) = 0$.
 \end{lemma}
 
@@ -2055,7 +2060,7 @@ pointer from the first call, so it is available for the second call, then it can
 in a context where \texttt{f3} has $2$ on top of its stack which will cause the
 assertion to fail. The return pointer is passed as a local
 capability, so the only means the adversary has to store it is the
-stack capability. The stack capability itself is a local capability,
+stack pointer. The stack pointer itself is a local capability,
 so the adversary can only store it on the stack. This means that after
 the adversary jumps to the return pointer, \texttt{f3} can
 revoke it (by erasing it which happens as part of the
@@ -2152,7 +2157,7 @@ work.
 
 As mentioned, the callback must be global. This is to make sure the
 callback is not a piece of code on the stack that restores the
-adversaries original stack capability breaking the encapsulation of
+adversaries original stack pointer breaking the encapsulation of
 our local stack frame. In the proof of Lemma~\ref{lem:correctness-g1},
 this also shows up. When we reason about \texttt{f4}, we revoke all
 the local state of the adversary which means that we consider a
@@ -2301,9 +2306,9 @@ Our logical relation is a unary, step-indexed Kripke logical relation (SKLR)
 with recursive
 worlds~\cite{Appel:2001:IMR:504709.504712,Ahmed2004semantics,Birkedal:2011:SKM:1926385.1926401},
 closely related to the one used by \citet{Devriese:2016ObjCap} to formulate
-capability-safety in a high-level JavaScript-like lambda calculus. Our
+capability safety in a high-level JavaScript-like lambda calculus. Our
 fundamental theorem is similar to theirs and can be seen as a formulation of
-capability-safety of the capability-machine. Because we are not interested in
+capability safety of the capability machine. Because we are not interested in
 externally observable side-effects (like console output or memory access
 traces), we do not require their notion of effect parametricity.
 
