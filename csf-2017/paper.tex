@@ -1081,9 +1081,27 @@ returning to the adversary after they invoked our code. In this case, we will
 have received a return pointer from them, and we just need to jump to it as
 usual. The only thing we need to take care of is to properly clear the registers
 before we do (erasing any data we do not want to pass as (part of) the return
-value) and similarly, erase any part of the stack that we have used (i.e.
-overwrite it with zeros). Note that we can use the stack as normal: we may push
-values onto it and pop them back off (e.g. for register spilling etc.).
+value) and similarly. However, it is important to carefully consider what needs
+to happen with the stack. Since we may have used the stack for various purposes
+(register spilling, storing local state when invoking other functions etc.), we
+clearly need to clear that data before returning to the adversary, to prevent
+the adversary from gaining access to it.
+
+However, if we are returning from a function that has itself invoked adversary
+code, then even the unused part of the stack may still contain data and
+capabilities left there by them, including local capabilities since the stack is
+store-local. The adversary could take advantage of this by using the unused part
+of the stack to store either stack pointers or return pointers from such
+previous invocations and then use them when they're no longer supposed to. To
+prevent this, before returning, we need to clear (i.e. overwrite with zeros) the
+entire part of the stack that the adversary has had access to, not just the
+parts that we have used ourselves. Essentially, this is needed for the same
+reason that we clear the register file: because the adversary should not be able
+to keep hold of local capabilities when control is passed to the trusted code
+and back to the adversary. Clearing the entire unused part of the stack is the
+most problematic aspect of our discipline in terms of efficiency, since it may
+consist of a large part of memory. However, we believe there are ways to
+optimize it that we discuss in Section~\ref{sec:discussion}.
 
 \textbf{Invoking the adversary} Slightly more complex is the case where we
 invoke the adversary. As above, we clear all the registers, except those that
@@ -1125,20 +1143,10 @@ trusted code, which the adversary may still have access to through the old stack
 pointer.
 
 A final required safety measure is that before invocation of the adversary, we
-need to clear (i.e. overwrite with zeros) the part of the stack that we are not
-using. Otherwise, that part of the stack may still contain data and capabilities
-from previously executed code, including local capabilities since they are
-allowed on the stack. The adversary could take advantage of this by using it to
-store either stack pointers or return pointers from previous invocations and
-play the same tricks as above. Clearing the entire unused part of the stack is
-the most problematic aspect of our discipline in terms of efficiency, since it
-may consist of a large part of memory. We believe that capability machines like
-CHERI should consider to provide special support for this requirement, by
-implementing an optimized instruction for clearing
-a large block of memory. We have no experience in processor design, but we
-imagine this might be optimized as a vector instruction or by having the
-processor keep track of a range of memory for which loads should return zero
-irrespective of the actual contents of the memory.
+need to clear the part of the stack that we are not using. Otherwise, similarly
+to what we explained above for returning to the adversary, that part of the
+stack may still contain local capabilities from previously executed code and the
+adversary could exploit this in much the same way as above.
 
 \textbf{Returning from the adversary} So return pointers must be passed as local
 capabilities. But what should their permissions be, what memory should they
@@ -2284,8 +2292,27 @@ that the lower-level machine does not allow interactions with the compiled code
 that do not correspond to an interaction with the original code in the
 high-level machine.
 
-\textbf{Performance and the requirement for stack clearing} While performance is
-not a goal of this 
+\textbf{Performance and the requirement for stack clearing} It is important to
+consider the performance of our proposed stack and return management discipline.
+Generally, the additional security measures described in
+Section~\ref{sec:stack-and-return-pointer} obviously impose an overhead w.r.t.
+an approach that does not provide security. However, they generally consist of a
+few checks or register clearings on every boundary crossing between trusted code
+and adversary, which should impose an acceptable performance overhead. The only
+exception is the requirements that we have for stack clearing, in two
+situations: when returning to the adversary and when invoking an adversary
+callback. As we have explained, it is not sufficient to clear just the part of
+the stack that we have used ourselves, but we need to clear the entire stack,
+except the part that we are using ourselves. This means that on every crossing
+of the boundary between trusted and adversary code, a potentially large region
+of memory needs to be zeroed out entirely. We believe that capability machines
+like CHERI should consider to provide special support for this requirement: a
+highly-optimized instruction for zeroing out a potentially large block of
+memory. We have no experience in processor design, but we imagine this might be
+optimized as a vector instruction or even further, by having the processor keep
+track of a range of memory for which loads should pretend that it has already
+been cleared, by returning zero irrespective of the actual contents of the
+memory.
 
 \textbf{Modularity} Our return pointers and callbacks satisfy the checks we
 apply to the ones we get from the adversary (return pointers are allowed to be
