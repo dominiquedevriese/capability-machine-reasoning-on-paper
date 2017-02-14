@@ -44,6 +44,12 @@
 \usepackage[caption=false,font=footnotesize]{subfig}
 \fi
 
+% Include the following to reduce room around display equations
+%\setlength{\abovedisplayskip}{3pt}
+%\setlength{\belowdisplayskip}{3pt}
+%\setlength{\abovedisplayshortskip}{3pt}
+%\setlength{\belowdisplayshortskip}{3pt}
+
 % %make latex preview-mode work with natbib...
 % \usepackage[displaymath,floats,graphics,textmath,footnotes]{preview}
 
@@ -2123,8 +2129,8 @@ We have a similar lemma for \texttt{\footnotesize{f2}}:
 \subsection{Well-bracketed control-flow} 
 Using the stack-based calling convention of \texttt{\footnotesize{scall}}, we get
 well-bracketed control-flow. To illustrate this, we look at
-two example programs \texttt{\footnotesize{f3}} in \figurename~\ref{fig:prog-f3} and
-\texttt{\footnotesize{g1}} in \figurename~\ref{fig:prog-g1}.
+two example programs \texttt{\footnotesize{f3}} and
+\texttt{\footnotesize{g1}} in \figurename~\ref{fig:prog-f3-and-g1}.
 
 In \texttt{\footnotesize{f3}} there are two calls to an adversary and in order for the
 assertion in the middle to succeed, they need to be well-bracketed. If the
@@ -2138,48 +2144,10 @@ adversary is cleared before the second invocation. The following lemma shows
 that there are also no other attacks that will break well-bracketedness of this
 example, i.e.\ the assertion never fails. It is similar to the two previous
 lemmas:
-\begin{figure}[t]
-  \centering
-  \begin{lstlisting}
-f3: push 1
-    fetch $r_1$ $\adv$
-    scall $r_1$($[]$,$[r_1]$)
-    pop $r_2$
-    assert $r_2$ 1
-    push 2
-    scall $r_1$($[]$,$[]$)
-    halt
-\end{lstlisting}
-  \caption{Simple program that relies on control-flow integrity.}
-  \label{fig:prog-f3}
-\end{figure}
-
-\begin{lemma}
-  \label{lem:correctness-f3}
-  Making similar assumptions about capabilities and linking as in
-  Lemma~\ref{lem:correctness-f1}
-  if $(\reg\update{\pcreg}{c_{f3}}\update{r_\stk}{c_\stk},m) \step^*
-  (\halted,m')$, then $m'(\flag) = 0$.
-\end{lemma}
-
-The final example, in \figurename~\ref{fig:prog-g1}, is a faithful translation
-of a tricky example known from the
-literature~\citep{pitts_operational_1998,Dreyer:jfp12}. It consists of two
-parts, \texttt{\footnotesize{g1}} and \texttt{\footnotesize{f4}}. \texttt{\footnotesize{g1}} is a closure generator that
-generates closures with one variable $x$ set to $0$ in its environment and
-\texttt{\footnotesize{f4}} as the program. \texttt{\footnotesize{f4}} expects one argument, a callback. The
-program sets $x$ to $0$ and calls the callback. When it returns, \texttt{\footnotesize{f4}}
-sets $x$ to $1$ and calls the callback a second time. When it returns from the
-callback, it asserts that $x$ is $1$ and returns. This example is more
-complicated than the previous ones because it involves a closure invoked by the
-adversary and an adversary callback invoked by us. As explained in
-Section~\ref{sec:stack-and-return-pointer}, this means we need to (1) take care
-to properly check the stack pointer received by our closure from the adversary
-(it must have the correct permission and fit with our stack discipline) and (2)
-require that the adversary callback is global.
 
 \begin{figure}[t]
   \centering
+  \begin{minipage}[t]{5.05cm}
   \begin{lstlisting}
 g1:  malloc $r_2$ 1
      store $r_2$ 0
@@ -2200,11 +2168,48 @@ f4:  reqglob $r_1$
      rclear $\RegName \setminus \{r_0,\pcreg\}$
      jmp $r_0$
 \end{lstlisting}
-  \caption{A program that relies on well-bracketedness of
+  \end{minipage}
+  \begin{minipage}[t]{3.4cm}
+  \begin{lstlisting}
+f3: push 1
+    fetch $r_1$ $\adv$
+    scall $r_1$($[]$,$[r_1]$)
+    pop $r_2$
+    assert $r_2$ 1
+    push 2
+    scall $r_1$($[]$,$[]$)
+    halt
+\end{lstlisting}
+  \end{minipage}
+  \caption{ Two programs that rely on well-bracketedness of
     \texttt{scall}s to function correctly. $\var{offset}$ is the
     offset to \texttt{f4}.}
-  \label{fig:prog-g1}
+  \label{fig:prog-f3-and-g1}
 \end{figure}
+
+\begin{lemma}
+  \label{lem:correctness-f3}
+  Making similar assumptions about capabilities and linking as in
+  Lemma~\ref{lem:correctness-f1}
+  if $(\reg\update{\pcreg}{c_{f3}}\update{r_\stk}{c_\stk},m) \step^*
+  (\halted,m')$, then $m'(\flag) = 0$.
+\end{lemma}
+
+The final example, \texttt{\footnotesize{g1}} with \texttt{\footnotesize{f4}}, is a faithful translation
+of a tricky example known from the
+literature~\citep{pitts_operational_1998,Dreyer:jfp12}. It consists of two
+parts, \texttt{\footnotesize{g1}} and \texttt{\footnotesize{f4}}. \texttt{\footnotesize{g1}} is a closure generator that
+generates closures with one variable $x$ set to $0$ in its environment and
+\texttt{\footnotesize{f4}} as the program. \texttt{\footnotesize{f4}} expects one argument, a callback. The
+program sets $x$ to $0$ and calls the callback. When it returns, \texttt{\footnotesize{f4}}
+sets $x$ to $1$ and calls the callback a second time. When it returns from the
+callback, it asserts that $x$ is $1$ and returns. This example is more
+complicated than the previous ones because it involves a closure invoked by the
+adversary and an adversary callback invoked by us. As explained in
+Section~\ref{sec:stack-and-return-pointer}, this means we need to (1) take care
+to properly check the stack pointer received by our closure from the adversary
+(it must have the correct permission and fit with our stack discipline) and (2)
+require that the adversary callback is global.
 
 To illustrate how subtle this program is, consider how an adversary could try to
 make the assertion fail. In the second callback an adversary can get to the
@@ -2531,5 +2536,6 @@ Dominique Devriese holds a postdoctoral fellowship from the Research Foundation 
 %\bibliographystyle{IEEEtran}
 \bibliographystyle{plainnat}
 \bibliography{IEEEabrv,references}
+
 \end{document}
 \grid
