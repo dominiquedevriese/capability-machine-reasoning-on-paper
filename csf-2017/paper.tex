@@ -1088,7 +1088,7 @@ values onto it and pop them back off (e.g. for register spilling etc.).
 \textbf{Invoking the adversary} Slightly more complex is the case where we
 invoke the adversary. As above, we clear all the registers, except those that
 contain arguments the adversary is intended to have access to. We leave a copy
-of the stack pointer in the appropriate register, but only after we have used
+of the stack pointer in $r_\stk$, but only after we have used
 the $\subseg{}{}{}$ to shrink its authority to just the part of the stack that
 we are not using. In one of the registers, we also provide a return pointer,
 which we will say more about below.
@@ -1247,28 +1247,44 @@ memory segment. By making sure the capability has permission $\rwlx$,
 we rely on the system wide assumption that there are only local
 $\rwlx$ capabilities.
 
-\textbf{Reusable macro instructions} With the high-level approach in mind, we
-define the following macro instructions: \texttt{fetch $r$ $\var{name}$} fetches
-the capability related to $\var{name}$ from the linking table and stores it in
-register $r$. \texttt{push $r$}/\texttt{pop $r$} works as one would expect. All
-macros that uses the stack assumes a stack pointer in register $r_\stk$.
-\texttt{prepstk $r$} is used when a callback is invoked by the adversary and
-prepares the received stack pointer by checking that it has permission $\rwlx$
-and making it conform to our stack discipline. \texttt{scall
-  $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)} Jumps to the
-capability in register $r$ in the manner described above. That is, it pushes local state (the
-contents of registers $\overline{r_{\var{priv}}}$), stack pointer and return
-pointer to the stack, sets up the necessary on stack return code and creates a
-return pointer, restricts stack pointer, clears the unused part of the stack,
-clears the necessary registers and jumps to $r$. Upon return, the private state
-is restored. \texttt{mclear $r$} clears all the memory the capability in
-register $r$ has authority over. \texttt{rclear $\var{regSet}$} clears all the
-registers in $\var{regSet}$ \texttt{reqglob $r$} checks whether the word in
-register $r$ is a global capability. \texttt{crtcls $\overline{(x_i,r_i)}$ $r$}
-allocates a closure pair where the capability in register $r$ is used to point
-to the program and a new environment is allocated (using malloc) where the contents of
-$\overline{r_i}$ is stored. In the program referred to by $r$, an implicit fetch
-happens when an instruction refers to $x_i$.
+\textbf{Stack management discipline}
+The precautions the needed to safely interact with an adversary have now been introduced and motivated. The stack discipline comprises the precautions. Summarized, they were:
+\begin{description}[font=\normalfont\itshape]
+\item[At program startup] a local $\rwlx$-capability (the stack pointer) resides in register $r_\stk$. The system does not hand out global write-local capabilities.
+\item[Before returning to the adversary] clear the registers (with words we do not want to pass to the adversary) and erase any part of the stack we have used (if any part of the stack has been passed to an adversary, then that part must be erased).
+\item[Before invoking the adversary] push an activation record to the stack, create a local $\entry$-capability for the restore instructions of the activation record (the return pointer) and leave it in register $r_0$, leave a copy of the stack capability restricted to the unused part in $r_\stk$, erase the part of the stack we release control over, and clear the non-argument registers.
+\item[Before invoking an adversary callback] make sure it is a global capability.
+\item[When called by an adversary] make sure the alleged stack pointer has permission $\rwlx$.
+\end{description}
+\textbf{Reusable macro instructions} 
+We define a number of reusable macros. Some of them capture the stack
+management discipline and others make the examples in
+Section~\ref{sec:examples} readable. The macros are:
+\texttt{fetch $r$ $\var{name}$} fetches the capability related to
+$\var{name}$ from the linking table and stores it in register
+$r$. \texttt{push $r$}/\texttt{pop $r$} works as one would expect. All
+macros that uses the stack assumes a stack pointer in register
+$r_\stk$.  \texttt{prepstk $r$} is used when a callback is invoked by
+the adversary and prepares the received stack pointer by checking that
+it has permission $\rwlx$ and making it conform to our stack
+discipline. \texttt{scall
+  $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)} Jumps
+to the capability in register $r$ in the manner described above. That
+is, it pushes local state (the contents of registers
+$\overline{r_{\var{priv}}}$), stack pointer and return pointer to the
+stack, sets up the necessary on stack return code and creates a return
+pointer, restricts the stack pointer, clears the unused part of the
+stack, clears the necessary registers and jumps to $r$. Upon return,
+the private state is restored. \texttt{mclear $r$} clears all the
+memory the capability in register $r$ has authority
+over. \texttt{rclear $\var{regSet}$} clears all the registers in
+$\var{regSet}$. \texttt{reqglob $r$} checks whether the word in
+register $r$ is a global capability. \texttt{crtcls
+  $\overline{(x_i,r_i)}$ $r$} allocates a closure pair where the
+capability in register $r$ is used to point to the program and a new
+environment is allocated (using malloc) where the contents of
+$\overline{r_i}$ is stored. In the program referred to by $r$, an
+implicit fetch happens when an instruction refers to $x_i$.
 
 In Section~\ref{sec:examples}, we use the above macros and some
 more. The technical appendix~\ref{XXX} contains detailed descriptions
@@ -1350,8 +1366,8 @@ by \citet{Thamsborg:2011:KLR:2034773.2034831}.
 % protocol of a region may depend on what it grants authority over in
 % memory which is described by the world.
 
-\dominique{``end up being defined recursively'' does not sound very insightful}
-The worlds end up being defined recursively: Worlds describe memory, which can
+%\dominique{``end up being defined recursively'' does not sound very insightful}
+The worlds are defined recursively: Worlds describe memory, which can
 contain capabilities, whose safety depends on worlds. We use the method of
 \citet{Birkedal:2011:SKM:1926385.1926401} for constructing the worlds.
 
@@ -1359,8 +1375,8 @@ contain capabilities, whose safety depends on worlds. We use the method of
 % The recursiveness of the worlds gives rise to a recurisve domain
 % equation. Theorem~\ref{thm:world-existence} gives the solution to this
 % recursive domain equation.
- \dominique{it is not explained what cofes are?}
- \lau{I added what cofe means but no formal definition (I think this goes under the category technicalities)}
+% \dominique{it is not explained what cofes are?}
+% \lau{I added what cofe means but no formal definition (I think this goes under the category technicalities)}
 \begin{theorem}\label{thm:world-existence}
   There exists a \cofe{} (complete ordered family of equivalences) $\Wor$ and preorders $\futurestr$ and
   $\futurewk$ such that $(\Wor,\futurestr)$ and $(\Wor,\futurewk)$ are
@@ -1423,8 +1439,8 @@ permanent regions cannot be masked away. They are only allowed to take a
 transition in the private part of the transition system.
 
 The \emph{public future} region relation satisfies
- \dominique{is defined by?} 
- \lau{As I have understood it, the relation from the theorem defines the future world relations and indirectly the future region relations. It can be shown that these will have the properties mentioned below}
+% \dominique{is defined by?} 
+% \lau{As I have understood it, the relation from the theorem defines the future world relations and indirectly the future region relations. It can be shown that these will have the properties mentioned below}
 the following properties:
 \begin{mathpar}
   \inferrule{ (v,\phi_\pub,\phi,H) = (v',\phi_\pub',\phi',H') \\
@@ -1832,7 +1848,7 @@ the capability machine. Essentially, it says that a capability that only grants
 safe authority is capability safe as a program counter.
 \begin{theorem}[Fundamental Theorem]
   \label{thm:ftlr}
-  For all $n$, $\perm$, $\start$, $\addrend$, $\addr$, $\gl$, $W$, if one of the following holds:
+  If one of the following holds:
   \begin{align*}
       & \bullet
         \begin{aligned}[t]
