@@ -1271,24 +1271,27 @@ of all the macros.
 \label{sec:logical-relation}
 In order to be able to reason about programs running on the capability
 machine and prove properties such as well-bracketedness and
-encapsulation about them, we define a unary logical relation.
+encapsulation, we define a unary logical relation.
 % Intuition
-The logical relation is a semantic model of all the words on the
-capability machine that are definitely safe to give to an
-adversary. Whether a capability is safe to give to an adversary
-depends heavily on the contents of the memory since instructions as well
-as capabilities may reside in memory. Hence we index the logical
-relation over worlds, which are used to model the memory, and our logical
-relation is thus an example of what is often referred to as a Kripke
-logical relation. A world consists of a finite set of regions, and each region
-can be understood as a protocol describing the possible evolution of
-part of the memory. Memory changes during an
-execution since new memory can be allocated and part of the existing
-memory can change. We use two future world relations to capture
-such changes to the memory in our model.
+It is a semantic model of all the words on the capability machine that are
+definitely safe to give to an adversary. Whether a capability is safe to give to
+an adversary depends heavily on the contents of the memory since instructions as
+well as capabilities may reside in memory. Hence we index the logical relation
+over worlds, which are used to model the memory (making our logical relation a
+Kripke logical relation). A world consists of a finite set of regions, and each
+region can be understood as a protocol describing the possible evolution of part
+of the memory. Future evolutions of worlds (e.g. new protocols established over
+memory received from malloc, or steps in a protocol already established for a
+part of memory) are modeled using a future world relation. In fact, as we will
+explain below, there are two such relations to accomodate reasoning about local
+capabilities.
 %
 
 \subsection{Worlds}
+\dominique{Perhaps we could first try to convey the intuition of a permanent
+  world with a temporary overlay, with global capabilities ignoring the overlay.
+  Perhaps we could add a depiction of the world to Figure 5?}
+
 %\todo[inline]{Find a good place to describe monotonicity of
 %interpretation function.}
 % \lau{this may not be an important enough point to include it.}
@@ -1304,28 +1307,27 @@ We have three types of regions: \emph{permanent}, \emph{temporary}, and \emph{re
 %$\perma$ and $\temp$ 
 Each permanent and temporary region contains a state transition system, with
 public and private transitions, which describes the protocol governing
-the evolution of the memory described by the region, similarly to what
+the memory described by the region, similarly to what
 has been used in logical relations for high-level
 languages~\cite{Ahmed:popl09,Dreyer:jfp12,Devriese:2016ObjCap}. 
 The protocols imposed on memory by permanent regions stay in place
 indefinitely. This means that any capability, local or global, can
 depend on these protocols. The protocols imposed on memory by temporary
 regions can be revoked at certain points during execution,
-corresponding to the points when local capabilities can be
+corresponding to the points, on the condition that we clear local capabilities can be
 revoked. This means that local capabilities safely can depend on the
 protocols imposed on memory by temporary regions, whereas global
 capabilities cannot, since a global capability may stay around
 throughout the execution of a program, but a temporary region may be
 revoked. This is illustrated in \figurename~\ref{fig:cap-world}.
 
-For technical reasons (monotonicity of the logical relation), a
-temporary region is not removed in the model when it is
-revoked. Instead it is turned into a new kind of region, namely a
-revoked region. A revoked region contains no state transition
-system and puts no requirements on the memory it models. It
-simply serves as a mask for a temporary region that have been revoked.
-This way of masking a region goes back to earlier work of
-Ahmed~\cite{Ahmed2004semantics} and was also used in~\cite{Thamsborg:2011:KLR:2034773.2034831}.
+For technical reasons, a temporary region is not removed in the model when it is
+revoked. Instead it is turned into a new kind of region, namely a revoked
+region. A revoked region contains no state transition system and puts no
+requirements on the memory it models. It simply serves as a mask for a
+temporary region that has been revoked. This way of masking a region goes back
+to earlier work of \citet{Ahmed2004semantics} and was also used
+by \citet{Thamsborg:2011:KLR:2034773.2034831}.
 
 % Recursive worlds intuition
 % The worlds end up being defined recursively: The memory can contain
@@ -1336,16 +1338,16 @@ Ahmed~\cite{Ahmed2004semantics} and was also used in~\cite{Thamsborg:2011:KLR:20
 % protocol of a region may depend on what it grants authority over in
 % memory which is described by the world.
 
-The worlds end up being defined recursively: Worlds describe memory,
-which can contain capabilities, whose safety depends on worlds. 
-We use the method of Birkedal et
-al.~\cite{Birkedal:2011:SKM:1926385.1926401} 
-for constructing the worlds.
+\dominique{``end up being defined recursively'' does not sound very insightful}
+The worlds end up being defined recursively: Worlds describe memory, which can
+contain capabilities, whose safety depends on worlds. We use the method of
+\citet{Birkedal:2011:SKM:1926385.1926401} for constructing the worlds.
 
 % Short technical explanation
 % The recursiveness of the worlds gives rise to a recurisve domain
 % equation. Theorem~\ref{thm:world-existence} gives the solution to this
 % recursive domain equation.
+\dominique{it is not explained what cofes are?}
 \begin{theorem}\label{thm:world-existence}
   There exists a \cofe{} $\Wor$ and preorders $\futurestr$ and
   $\futurewk$ such that $(\Wor,\futurestr)$ and $(\Wor,\futurewk)$ are
@@ -1399,18 +1401,15 @@ The properties of the \emph{private future region} relation are:
   \inferrule{ r \in \Regions }
   { r \futurestr \revoked }
 \end{mathpar}
-These rules express that, in the private future region relation, 
-we allow revocation of temporary regions. 
-As explained above, this can be done using a special revoked region,
-which does not describe any memory, but we also allow  
-any other region to serve as a mask, and thus any region $r$ can be a
-future region of a temporary region and of a revoked region.
-If a temporary region is not masked by a region, then it behaves like a
-permanent region. The permanent regions stay permanent and they are
-allowed to take a transition in the private part of the transition
-system. 
+These rules express that, in the private future region relation, we allow
+revocation of temporary regions. As explained above, this can be done using a
+special revoked region, which does not describe any memory, but we also allow
+any other region to serve as a mask, and thus any region $r$ can be a future
+region of a temporary region and of a revoked region. On the other hand,
+permanent regions cannot be masked away. They are only allowed to take a
+transition in the private part of the transition system.
 
-The \emph{public future} region relations satisfies the following properties:
+The \emph{public future} region relation satisfies \dominique{is defined by?} the following properties:
 \begin{mathpar}
   \inferrule{ (v,\phi_\pub,\phi,H) = (v',\phi_\pub',\phi',H') \\
     (s,s') \in \phi_\pub }
@@ -1422,12 +1421,11 @@ The \emph{public future} region relations satisfies the following properties:
   \inferrule{ }
   { \revoked \futurewk \revoked }
 \end{mathpar}
-In the public future regions we do not permit revocation of temporary
-regions. Instead, temporary and permanent regions are only 
-allowed to take a transition in the public part of the transition system.
-In the public future region relation, we only allow revoked and
-temporary regions to mask a region. This means that the private future
-world relations allows us to reuse a region that has been revoked
+In the public future regions we do not permit revocation of temporary regions.
+Instead, temporary and permanent regions are only allowed to take a transition
+in the public part of the transition system. Revoked regions can either remain
+revoked or be masked away by a temporary region. This means that the public
+future world relations allows us to reuse a region that has been revoked
 earlier.
 
 Notice that the public future region relation is a subset of the
@@ -1730,102 +1728,85 @@ in the interpretation of an active (permanent or temporary) region.
 \end{figure}
 }
 %subsection introduction
-The logical relation defines semantically what it means to be
-capability safe. In large parts, capability safety is defined by
-when a capability safely can be given to an untrusted piece of
-code. In the following paragraphs, we will go through the definitions
-of the logical relation and provide an intuition why they define
-capability safety.
-The definition of the logical relation is found in
-\figurename~\ref{fig:logrel}, \figurename~\ref{fig:standard-regions},
-and \figurename~\ref{fig:perm-conds}. Some definitions are omitted and
-explained when needed. The precise definitions can be found in the
-technical appendix~\cite{XXX}.
+\dominique{I would try to motivate the LR defs by saying that the LR is
+  constructed to express the FTLR and the FTLR says that if a piece of code only
+  has access to values respecting the invariants in a world, then it will
+  respect them itself too.} The logical relation defines semantically what it
+means to be capability safe.\dominique{We have not introduced capability
+  safety..} In large parts, capability safety is defined by when a capability
+can be safely given to an untrusted piece of code. In the following paragraphs,
+we will go through the definitions of the logical relation and provide an
+intuition why they define capability safety. The definition of the logical
+relation is found in \figurename~\ref{fig:logrel},
+\figurename~\ref{fig:standard-regions}, and \figurename~\ref{fig:perm-conds}.
+Some definitions are omitted and explained when needed. The precise definitions
+can be found in the technical appendix~\cite{XXX}.
 
-The \emph{observation relation}, $\observations$, defines which
-configurations are capability safe. Roughly speaking,
-a configuration is capability safe if, whenever it halts, then
-the resulting memory satisfies a private future world. 
-Notice that if a configuration fails, e.g., if an unauthorized access 
-(e.g., a load of a memory location without the requisite read capability)
-is attempted, then the configuration is considered capability safe, which it should
-because then the capability machine has caught the attempted unauthorized access
-This is similar to the logical relation given for an untyped language
-in~\cite{Devriese:2016ObjCap}, but unlike logical relations for typed languages, which
-typically require that computations do not fail. 
+The \emph{observation relation} $\observations$ defines which configurations
+are capability safe. Roughly speaking, a configuration is capability safe if,
+whenever it halts, then the resulting memory satisfies a private future world.
+Notice that failing is considered safe behavior and in fact, the machine will
+often resort to failing when, for example, an unauthorized
+access is attempted, like a load of a memory location through a
+capability without read permission. This is similar to the logical relation
+given for an untyped language in~\cite{Devriese:2016ObjCap}, but unlike logical
+relations for typed languages, which typically require that computations do not
+fail.
 
-The \emph{register-file relation}, $\stdrr$, specifies all the
-register-files that are capability safe. Capability safe
-register-files contain capability safe words (e.g.n, words in
-$\stdvr$) in all registers but $\pcreg$.
+The \emph{register-file relation} $\stdrr$ specifies that register-files are
+safe when they contain safe words (i.e., words in $\stdvr$) in all registers but
+$\pcreg$. The \emph{expression relation} $\stder$ defines when a word is safe
+to use as a program counter. That is the case when the word can be plugged into
+a capability safe register file (i.e., a register file in $\stdrr$) and paired
+with a memory satisfying the world to become a capability safe configuration.
 
-The \emph{expression relation}, $\stder$, defines when a word is
-capability safe as a program counter. That is the case when the word can be plugged into a
-capability safe register file (i.e., a register file in $\stdrr$) and
-paired with a memory satisfying the world to become a capability safe
-configuration.
+The \emph{value relation} $\stdvr$ defines when words are safe, i.e. when they
+cannot be used to break the protocols defined by the world. Non-capability data
+is always safe because it provides no authority. Capabilities give the authority
+to manipulate memory and potentially break memory protocols, so they need to
+satisfy certain conditions to be capability safe. In
+\figurename~\ref{fig:perm-conds}, we define such a condition for each kind of
+permission a capability can have (we will call these permission-based
+conditions).
 
-The \emph{value relation}, $\stdvr$, defines which words are capability
-safe. A word is capability safe if it cannot be used to break the
-protocols defined by the world. Data is always capability safe because
-it provides no authority that can be used to break the
-invariants. Capabilities gives the authority to manipulate memory and
-potentially break memory protocols, so they need to satisfy certain
-conditions to be capability safe. We define a condition for each kind
-of permission a capability can have. These permission-based conditions
-can be found in \figurename~\ref{fig:perm-conds}. 
+For capabilities with read permission, the $\readCond{}$ ensures that it can
+only be used to read capability safe words, by requiring that the region
+governing the relevant part of memory, guarantees that the memory contains only
+words in the value relation. Generally speaking, global capabilities should only
+depend on permanent regions. Therefore we use the function
+$\var{localityReg}(g,W)$, which projects out all active regions when $g$ is
+local, but only the permanent regions when $g$ is global. The read condition
+uses $\iota^\pwl_{\start,\addrend}$, a standard regions defined in
+Figure~\ref{fig:standard-regions}, which requires all the words in the range
+$[\start,\addrend]$ are safe.
 
-The condition for capabilities with read permission is
-$\readCond{}$. It ensures that a read capability can only be used to
-read capability safe words, by requiring that the region that governs
-the part of memory that the capability grants authority over enforces
-that all the words are in the value relation. Generally speaking,
-global capabilities should only depend on permanent regions. Therefore
-we use the function $\var{localityReg}(g,W)$, which projects out all
-active regions when $g$ is local, but only the permanent regions when
-$g$ is global.
-The read condition uses one of two standard regions found
-in~\ref{fig:standard-regions}. $\iota^\pwl_{\start,\addrend}$ requires
-all the words in the range $[\start,\addrend]$ to be capability
-safe. $\iota^\nwl_{\start,\addrend}$ requires the words to be
-non-local and capability safe.
+For a capability with write permission, $\writeCond{}$ must be satisfied for the
+capability's range of authority. Such a capability may be used to write any
+word, so the region governing the relevant part of memory must (at least) allow
+any capability safe word to be stored. However, this is not entirely true
+because of the distinction between write and permit-write-local capabilities.
+Only permit-write-local capabilities need to allow arbitrary safe values to be
+stored, while for write capabilities, it is sufficient to allow storing values
+that are both non-local and safe. The write condition uses $\var{localityReg}$
+to pick an appropriate region for its locality in the same way the read
+condition does. The condition for the region to be address-stratified is there
+for technical reasons.
 
-For a capability with a write permission, $\writeCond{}$ must be
-satisfied for the capability's range of authority. Generally speaking,
-write capabilities may be used to write any word, so the region that
-governs the part of memory the write capability has authority over
-must at least allow any capability safe word to be stored.
-This is of course not entirely true because of the distinction between
-write and permit-write-local capabilities. For write capabilities, the
-region must require the contents of memory to be non-local (and
-capability safe). For permit-write-local capabilities, the
-non-local requirement is omitted.
-The write condition uses $\var{localityReg}$ to pick an appropriate
-region in the same way the read condition does.
-The condition for the region to be address-stratified is there for
-technical reasons.
-
-The conditions $\entryCond{}$ and $\execCond{}$ are very similar and
-differ only slightly. Executable capabilities can be updated to point
-anywhere in memory, so they must be capability safe as a program
-counter (in the $\stder$-relation) no matter where they point in memory. In contrast, enter
-capabilities are opaque and must be used from the address they point
-to. They change permission when jumped to, so we require them to be
-capability safe as a program counter when the permission is changed to
-read/execute.
-In both cases, it must be safe to jump to the capability. This
-means that the capability must be capability safe as a
-program counter in a future world. If the capability is global,
-then it should only depend on permanent regions and therefore
-we require that it should be capability safe as a program counter in any \emph{private}
-future world (recall that temporary regions may be revoked in a private future
-world). On the other hand, a local capability should be capability
-safe in any \emph{public} future world because it may depend on temporary
-regions, so we cannot expect them to function correctly as program
-counters if temporary regions are revoked.
-
-The definition of the value relation in \figurename~\ref{fig:logrel}
-is defined in terms of the permission-based conditions.
+The conditions $\entryCond{}$ and $\execCond{}$ are very similar and differ only
+slightly. In both cases, we require that the capability can be safely jumped to.
+However, executable capabilities can be updated to point anywhere in memory, so
+they must be capability safe as a program counter (in the $\stder$-relation) no
+matter where they point to. In contrast, enter capabilities are opaque and can
+only be used to jump to the address they point to. They also change permission
+when jumped to, so we require them to be capability safe as a program counter
+when the permission is changed to read/execute. Because the capabilities are not
+necessarily invoked immediately, we need to require that this is the case in a
+future world, but it depends on the locality of the capability which future
+worlds we consider. If the capability is global, then it should only depend on
+permanent regions, so we require capability safety as a program counter in any
+\emph{private} future world (recall that temporary regions may be revoked in a
+private future world). For local capabilities, it suffices to be capability safe
+in \emph{public} future worlds, where temporary regions are still there.
 
 With the logical relation defined, we can now state a strong theorem
 about the safety properties of the capability machine:
