@@ -17,7 +17,7 @@
 \usepackage{multicol}
 \usepackage{natbib}
 \lstset{
-  basicstyle=\ttfamily,
+  basicstyle=\footnotesize\ttfamily,
   columns=fullflexible,
   keepspaces=true,
   mathescape
@@ -37,6 +37,12 @@
 \usepackage{tikz}
 \usetikzlibrary{positioning}
 \usepackage{multirow,bigdelim}
+
+\ifCLASSOPTIONcompsoc
+\usepackage[caption=false,font=normalsize,labelfont=sf,textfont=sf]{subfig}
+\else
+\usepackage[caption=false,font=footnotesize]{subfig}
+\fi
 
 % %make latex preview-mode work with natbib...
 % \usepackage[displaymath,floats,graphics,textmath,footnotes]{preview}
@@ -533,7 +539,7 @@ machines.  Specifically, we make the following contributions:
   function pointers. The examples demonstrate both the power of our formulation
   of capability safety and our stack management discipline.
 \end{itemize}
-\lau{I have left out the discussion/future work, related work and conclussion sections from the outline given with the contribution. Do you feel like there should be a dedicated outline instead and if not should we mention the last sections (I don't feel it contributes anything to mention them).}
+%\lau{I have left out the discussion/future work, related work and conclussion sections from the outline given with the contribution. Do you feel like there should be a dedicated outline instead and if not should we mention the last sections (I don't feel it contributes anything to mention them).}
 
 For reasons of space, some details and all proofs have been omitted;
 please refer to the technical appendix~\cite{XXX} for those.
@@ -955,6 +961,67 @@ local/global flag, base, end and current address of a capability.
   \label{fig:op-sem}
 \end{figure*}
 
+\begin{comment}
+  \begin{figure}
+    \centering
+    \begin{mathpar}
+      \Phi \rightarrow
+      \begin{cases}
+        \sem{\decode(n)}(\Phi) & \arraycolsep=0pt
+        \begin{array}[t]{l}
+          \text{\footnotesize{if $\memreg(\pcreg) = \stdcap$}}\\
+          \;\;\text{\footnotesize{and $\start \leq \addr \leq \addrend$ and $\memheap(\addr) = n$}}\\
+          \;\;\text{\footnotesize{and $\perm \in \{ \exec,\rwx, \rwlx \}$} }
+        \end{array}\\
+        \failed                & \text{\footnotesize{otherwise}}
+      \end{cases}
+      \and \updatePcPerm{w} =
+      \begin{cases}
+        ((\exec,\gl),\start,\addrend,\addr) & \text{\footnotesize{if $w = ((\entry,\gl),\start,\addrend,\addr)$}}\\
+        w & \text{\footnotesize{otherwise}}
+      \end{cases}\\
+      \and \stdUpdatePc{\Phi} =
+      \begin{cases}
+        \updateReg{\pcreg}{\var{newPc}} & \arraycolsep=0pt
+        \begin{array}[t]{l}
+          \text{\footnotesize{if $\memreg(\pcreg) = \stdcap$}}\\ 
+          \;\;\text{\footnotesize{and $\var{newPc} = ((\perm,\gl),\start,\addrend,\addr + 1)$}}
+        \end{array}\\
+        \failed & \text{\footnotesize{otherwise}}
+      \end{cases}
+      \and \inferrule{ } { \sem{\fail}(\Phi) = \failed } \and
+      \inferrule{ } { \sem{\halt}(\Phi) = (\halted,\memheap) } \and
+      \inferrule{ } { \sem{\move{\refreg{r_1}}{r_2}}(\Phi) =
+        \stdUpdatePc{}(\updateReg{r_1}{\memreg(r_2)}) } \and
+      \inferrule{ \memreg(r_2) = \stdcap \\
+        \perm \in \{ \rwx, \rwlx, \exec, \readwrite,
+        \readwritel, \readonly \}\\
+        \start \leq \addr \leq \addrend } {
+        \sem{\load{\refreg{r_1}}{\refheap{r_2}}}(\Phi) =
+        \updateReg{r_1}{\memheap(\addr)}} \and
+      \inferrule{ \memreg(r_2) = \stdcap[\permp]\\
+        \permp' = \decodePermPair{\memreg(r_2)}\\
+        \permp'\sqsubseteq \permp } {
+        \sem{\restricttwo{\refreg{r_1}}{r_2}}(\Phi) = \\
+        \stdUpdatePc{}(\updateReg{r_1}{(\permp',\start,\addrend,\addr)})
+      } \and \inferrule{ \memreg(r_2) = ((\_,\_),\_,\_,\addr) } {
+        \sem{\geta{\refreg{r_1}}{\refreg{r_2}}}(\Phi) =
+        \stdUpdatePc{\updateReg{r_1}{\addr}}} \and \inferrule{
+        \var{newPc} = \updatePcPerm{\memreg(\lv)} } {
+        \sem{\jmp{\lv}}(\Phi) = \updateReg{\pcreg}{\var{newPc}} } \and
+      \inferrule{ \memreg(r_1) = \stdcap\\
+        \start \leq \addr \leq \addrend\\
+        \perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\}\\
+        \var{w} = \memreg(r_2) \\
+        \var{w} = ((\_,\local),\_,\_,\_)\Rightarrow\perm \in
+        \{\rwlx,\readwritel \} } {
+        \sem{\store{\refheap{r_1}}{\refreg{r_2}}}(\Phi) =
+        \stdUpdatePc{\updateHeap{\addr}{\var{w}}} } \and
+    \end{mathpar}
+    \caption{An excerpt from the operational semantics.}
+    \label{fig:op-sem}
+  \end{figure}
+\end{comment}
 \figurename~\ref{fig:op-sem} shows an excerpt of the operational semantics containing a number of representative
 instructions. Essentially, a configuration $\Phi$ will either decode and execute
 the instruction at $\memreg{\pcreg}$ if it is executable and the current address
@@ -966,7 +1033,7 @@ $\pcreg$ to the next instruction using the meta-function $\stdUpdatePc{}$.
 
 The $\load{}{}$ instruction loads the contents of the requested memory location
 into the appropriate register, but only if the capability has appropriate
-authority (i.e. read permission and an appropriate range). The $\restricttwo{}{}$
+authority (i.e.\ read permission and an appropriate range). The $\restricttwo{}{}$
 instruction will update a capability's permissions and global/local status in
 the register file, but requires that the new permissions are weaker than the
 original and does not turn local capabilities into global ones. The $\geta{}{}$
@@ -997,13 +1064,13 @@ the memory to the requested value if the capability has write authority for the
 requested location. However, the instruction is complicated by the presence of
 \emph{local capabilities}, modeled after the ones in
 CHERI~\cite{Watson2015Cheri}. Basically, local capabilities are special in that
-they can only be kept in registers, i.e. they cannot be stored to memory. This
+they can only be kept in registers, i.e.\ they cannot be stored to memory. This
 means that local capabilities can be \emph{temporarily} given to an adversary,
 for the duration of an invocation: if we take care to erase the capability from
 the register file after control is passed back to us, we can be sure that they
 will not have been able to store the capability. However, there is one exception
 to the rule above: local capabilities can be stored to a part of memory for
-which we have a capability with write-local authority (i.e. permission $\rwl$ or
+which we have a capability with write-local authority (i.e.\ permission $\rwl$ or
 $\rwlx$). This exception is intended to accomodate regions of memory that behave
 like the C stack: stashing away the contents of registers on the stack can be
 allowed, even if this includes local capabilities. As long as all capabilities
@@ -1067,13 +1134,13 @@ abstraction we put on a piece of the memorey. This stack pointer must be local a
 our approach that the stack is the only part of memory for which there will ever
 be an obtainable capabilities with $\rwlx$ or $\rwl$ capabilities. We expect the language
 runtime to enforce this by not handing out such capabilities for other parts of
-memory in any situation (i.e. not through malloc, not during loading or linking
+memory in any situation (i.e.\ not through malloc, not during loading or linking
 etc.). Additionally, in our examples, we typically also assume some static parts
 of memory where instructions are stored or static data. Another part of memory
 (called the heap) is initially governed by malloc and at program startup, no
 other code has capabilities for this memory. Malloc will hand out capabilities
 for allocated regions as requested, but it will never hand out capabilities with
-write-local capability (i.e. no $\rwlx$ or $\rwl$ permissions). For simplicity,
+write-local capability (i.e.\ no $\rwlx$ or $\rwl$ permissions). For simplicity,
 we assume that memory allocated through malloc cannot be freed.
 
 \textbf{Returning to the adversary} Perhaps the simplest scenario is the case of
@@ -1093,7 +1160,7 @@ capabilities left there by them, including local capabilities since the stack is
 store-local. The adversary could take advantage of this by using the unused part
 of the stack to store either stack pointers or return pointers from such
 previous invocations and then use them when they're no longer supposed to. To
-prevent this, before returning, we need to clear (i.e. overwrite with zeros) the
+prevent this, before returning, we need to clear (i.e.\ overwrite with zeros) the
 entire part of the stack that the adversary has had access to, not just the
 parts that we have used ourselves. Essentially, this is needed for the same
 reason that we clear the register file: because the adversary should not be able
@@ -1181,7 +1248,7 @@ record.
 
 It's important that neither of these capabilities are accessible to the
 adversary. In other words, the return pointer provided to the adversary must be
-a capability that they can jump to but not read from, i.e. an enter
+a capability that they can jump to but not read from, i.e.\ an enter
 capability. To make this work, we construct the activation record as depicted in
 Figure~\ref{fig:activ-rec-struct}. The return pointer is an $\entry$ capability
 with authority over the activation record containing the previous return and
@@ -1197,10 +1264,10 @@ The final question that remains is: where should we store this activation
 record? The attentive reader may already see that there is only one possibility:
 since the activation record contains the old stack pointer, which is necessarily
 local, the activation record can only be constructed in a part of memory where
-we have write-local access, i.e. on the stack. Note that this means we will be
-placing and executing instructions on the stack, i.e. it will not just contain
+we have write-local access, i.e.\ on the stack. Note that this means we will be
+placing and executing instructions on the stack, i.e.\ it will not just contain
 code pointers and data. This means that our discipline should be combined with
-protection against stack smashing attacks (i.e. buffer overflows on the stack
+protection against stack smashing attacks (i.e.\ buffer overflows on the stack
 overwriting activation records' contents), but conveniently, the fine-grained
 memory protection on capability machines is well-suited to easily provide such
 protection.
@@ -1243,7 +1310,7 @@ that it is safe to use.  Specifically, we check that it is indeed a $\rwlx$
 capability and make sure its current address points just below its start address.
 Without this check, an adversary could potentially get control over
 our local stack frame during a callback by passing us a local $\rwx$
-capability to a global data structure (i.e., there exists a global
+capability to a global data structure (i.e.\ there exists a global
 capability for it) as the stack pointer and a global
 return pointer. If our local state contains no local capabilities,
 then following our calling convention, the callback would not fail and
@@ -1259,8 +1326,8 @@ $\rwlx$ capabilities.
 The precautions the needed to safely interact with an adversary have now been introduced and motivated. The stack discipline comprises the precautions. Summarized, they were:
 \begin{description}[font=\normalfont\itshape]
 \item[At program startup] a local $\rwlx$-capability (the stack pointer) resides in register $r_\stk$. The system does not hand out global write-local capabilities.
-\item[Before returning to the adversary] clear the registers (with words we do not want to pass to the adversary) and erase any part of the stack we have used (if any part of the stack has been passed to an adversary, then that part must be erased).
-\item[Before invoking the adversary] push an activation record to the stack, create a local $\entry$-capability for the restore instructions of the activation record (the return pointer) and leave it in register $r_0$, leave a copy of the stack capability restricted to the unused part in $r_\stk$, erase the part of the stack we release control over, and clear the non-argument registers.
+\item[Before returning to the adversary] clear the registers (with words we do not want to pass to the adversary) and erase any part of the stack we have used (any part of the stack that has been passed to an adversary must also be erased).
+\item[Before invoking the adversary] push an activation record to the stack, create a local $\entry$-capability for the restore instructions of the activation record (the return pointer) and leave it in a register, leave a copy of the stack capability restricted to the unused part in $r_\stk$, erase the part of the stack we release control over, and clear the non-argument registers.
 \item[Before invoking an adversary callback] make sure it is a global capability.
 \item[When called by an adversary] make sure the alleged stack pointer has permission $\rwlx$.
 \end{description}
@@ -1268,27 +1335,26 @@ The precautions the needed to safely interact with an adversary have now been in
 We define a number of reusable macros. Some of them capture the stack
 management discipline and others make the examples in
 Section~\ref{sec:examples} readable. The macros are:
-\texttt{fetch $r$ $\var{name}$} fetches the capability related to
+\texttt{\footnotesize{fetch $r$ $\var{name}$}} fetches the capability related to
 $\var{name}$ from the linking table and stores it in register
-$r$. \texttt{push $r$}/\texttt{pop $r$} works as one would expect. All
+$r$. \texttt{\footnotesize{push $r$}}/\texttt{\footnotesize{pop $r$}} works as one would expect. All
 macros that uses the stack assumes a stack pointer in register
-$r_\stk$.  \texttt{prepstk $r$} is used when a callback is invoked by
+$r_\stk$.  \texttt{\footnotesize{prepstk $r$}} is used when a callback is invoked by
 the adversary and prepares the received stack pointer by checking that
 it has permission $\rwlx$ and making it conform to our stack
-discipline. \texttt{scall
-  $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)} Jumps
+discipline. \texttt{\footnotesize{scall $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}} Jumps
 to the capability in register $r$ in the manner described above. That
 is, it pushes local state (the contents of registers
 $\overline{r_{\var{priv}}}$), stack pointer and return pointer to the
 stack, sets up the necessary on stack return code and creates a return
 pointer, restricts the stack pointer, clears the unused part of the
 stack, clears the necessary registers and jumps to $r$. Upon return,
-the private state is restored. \texttt{mclear $r$} clears all the
+the private state is restored. \texttt{\footnotesize{mclear $r$}} clears all the
 memory the capability in register $r$ has authority
-over. \texttt{rclear $\var{regSet}$} clears all the registers in
-$\var{regSet}$. \texttt{reqglob $r$} checks whether the word in
-register $r$ is a global capability. \texttt{crtcls
-  $\overline{(x_i,r_i)}$ $r$} allocates a closure pair where the
+over. \texttt{\footnotesize{rclear $\var{regSet}$}} clears all the registers in
+$\var{regSet}$. \texttt{\footnotesize{reqglob $r$}} checks whether the word in
+register $r$ is a global capability. \texttt{\footnotesize{crtcls
+  $\overline{(x_i,r_i)}$ $r$}} allocates a closure pair where the
 capability in register $r$ is used to point to the program and a new
 environment is allocated (using malloc) where the contents of
 $\overline{r_i}$ is stored. In the program referred to by $r$, an
@@ -1683,36 +1749,38 @@ in the interpretation of an active (permanent or temporary) region.
   \label{fig:logrel}            
 \end{figure}
 
-\begin{figure}[htbp]
-  \centering
-  \begin{align*}
-  &\iota_{\start,\addrend}^\pwl : \Regions\\
-  &\iota_{\start,\addrend}^\pwl \defeq (\temp,1,=,=,H^\pwl_{\start,\addrend}) \\
-  \\
-  &H^\pwl : \Addrs^2 \fun \States \fun (\Wor \monwknefun \UPred{\HeapSegments})\\
-  &H^\pwl_{\start,\addrend}\; s \; \hat{W} \defeq  \quad\left\{\npair{\hs} \; \middle| \;
-    \begin{aligned}
-      & n = 0 \text{\footnotesize{ or }} (\dom(\hs) = [\start,\addrend] \text{\footnotesize{ and }} \\
-      &\forall \addr \in [\start,\addrend] \ldotp\\
-      & \;\; \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W})))
-    \end{aligned}
-        \right\}\\
-  &\iota_{\start,\addrend}^{\nwl} : \Regions \\
-  &\iota_{\start,\addrend}^{\nwl} \defeq (\temp,1,=,=,H^\nwl_{start,\addrend}) \\
-  \\
-  &H^\nwl : \Addrs^2 \fun \States \fun (\Wor \monstrnefun \UPred{\HeapSegments})\\
-  &H^\nwl_{\start,\addrend} \; s \;\hat{W} \defeq \quad\left\{\npair{\hs} \; \middle| \;
-    \begin{aligned}
-      &n = 0 \text{\footnotesize{ or }} (\dom(\hs) = [\start,\addrend] \text{\footnotesize{ and }}\\
-      &\forall \addr \in [\start,\addrend] \ldotp \\
-      & \;\; {\footnotesize\nonlocal{\ms(\addr)}} \text{\footnotesize{ and }}\\
-      & \;\; \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W})))
-     \end{aligned}
-     \right\}
-\end{align*}
-\caption{Standard regions}
-\label{fig:standard-regions}
-\end{figure}
+
+% \begin{figure}[htbp]
+%   \centering
+%   \begin{align*}
+%   &\iota_{\start,\addrend}^\pwl : \Regions\\
+%   &\iota_{\start,\addrend}^\pwl \defeq (\temp,1,=,=,H^\pwl_{\start,\addrend}) \\
+%   \\
+%   &H^\pwl : \Addrs^2 \fun \States \fun (\Wor \monwknefun \UPred{\HeapSegments})\\
+%   &H^\pwl_{\start,\addrend}\; s \; \hat{W} \defeq  \quad\left\{\npair{\hs} \; \middle| \;
+%     \begin{aligned}
+%       & n = 0 \text{\footnotesize{ or }} (\dom(\hs) = [\start,\addrend] \text{\footnotesize{ and }} \\
+%       &\forall \addr \in [\start,\addrend] \ldotp\\
+%       & \;\; \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W})))
+%     \end{aligned}
+%         \right\}\\
+%   &\iota_{\start,\addrend}^{\nwl} : \Regions \\
+%   &\iota_{\start,\addrend}^{\nwl} \defeq (\temp,1,=,=,H^\nwl_{start,\addrend}) \\
+%   \\
+%   &H^\nwl : \Addrs^2 \fun \States \fun (\Wor \monstrnefun \UPred{\HeapSegments})\\
+%   &H^\nwl_{\start,\addrend} \; s \;\hat{W} \defeq \quad\left\{\npair{\hs} \; \middle| \;
+%     \begin{aligned}
+%       &n = 0 \text{\footnotesize{ or }} (\dom(\hs) = [\start,\addrend] \text{\footnotesize{ and }}\\
+%       &\forall \addr \in [\start,\addrend] \ldotp \\
+%       & \;\; {\footnotesize\nonlocal{\ms(\addr)}} \text{\footnotesize{ and }}\\
+%       & \;\; \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W})))
+%      \end{aligned}
+%      \right\}
+% \end{align*}
+% \caption{Standard regions}
+% \label{fig:standard-regions}
+% \end{figure}
+
 
 \begin{figure}[htbp]
   \centering
@@ -1752,18 +1820,6 @@ in the interpretation of an active (permanent or temporary) region.
   & \quad \text{where } \gl = \local \Rightarrow \future = \futurewk \\
   & \quad \text{and } \gl = \glob \Rightarrow \future = \futurestr
   \end{align*}
-  \begin{align*}
-    &\iota = (v,s,\phi_\pub,\phi,H) \text{\footnotesize{ is address-stratified iff}}\\
-    &\qquad
-      \begin{aligned}
-        &\forall s', \hat{W}, n, \ms, \ms' \ldotp \\
-        &\;\;\npair{\ms},\npair{\ms'} \in H~ s'~ \hat{W} \Rightarrow\\
-        &\;\;\;\;\dom(\ms) = \dom(\ms') \text{\footnotesize{ and }} \\
-        &\;\;\;\;\forall \addr \in \dom(\ms)\ldotp\\
-        &\;\;\;\;\;\;\npair{\ms\update{\addr}{\ms'(\addr)}} \in H~ s'~ \hat{W}
-      \end{aligned}
-  \end{align*}
-
 \caption{Permission-based conditions}
 \label{fig:perm-conds}
 \end{figure}
@@ -1778,8 +1834,7 @@ means to be capability safe.\dominique{We have not introduced capability
 can be safely given to an untrusted piece of code. In the following paragraphs,
 we will go through the definitions of the logical relation and provide an
 intuition why they define capability safety. The definition of the logical
-relation is found in \figurename~\ref{fig:logrel},
-\figurename~\ref{fig:standard-regions}, and \figurename~\ref{fig:perm-conds}.
+relation is found in \figurename~\ref{fig:logrel}, and \figurename~\ref{fig:perm-conds}.
 Some definitions are omitted and explained when needed. The precise definitions
 can be found in the technical appendix~\cite{XXX}.
 
@@ -1795,13 +1850,13 @@ relations for typed languages, which typically require that computations do not
 fail.
 
 The \emph{register-file relation} $\stdrr$ specifies that register-files are
-safe when they contain safe words (i.e., words in $\stdvr$) in all registers but
+safe when they contain safe words (i.e.\ words in $\stdvr$) in all registers but
 $\pcreg$. The \emph{expression relation} $\stder$ defines when a word is safe
 to use as a program counter. That is the case when the word can be plugged into
-a capability safe register file (i.e., a register file in $\stdrr$) and paired
+a capability safe register file (i.e.\ a register file in $\stdrr$) and paired
 with a memory satisfying the world to become a capability safe configuration.
 
-The \emph{value relation} $\stdvr$ defines when words are safe, i.e. when they
+The \emph{value relation} $\stdvr$ defines when words are safe, i.e.\ when they
 cannot be used to break the protocols defined by the world. Non-capability data
 is always safe because it provides no authority. Capabilities give the authority
 to manipulate memory and potentially break memory protocols, so they need to
@@ -1815,23 +1870,30 @@ only be used to read capability safe words, by requiring that the region
 governing the relevant part of memory, guarantees that the memory contains only
 words in the value relation. Generally speaking, global capabilities should only
 depend on permanent regions. Therefore we use the function
-$\var{localityReg}(g,W)$, which projects out all active regions when $g$ is
-local, but only the permanent regions when $g$ is global. The read condition
-uses $\iota^\pwl_{\start,\addrend}$, a standard regions defined in
-Figure~\ref{fig:standard-regions}, which requires all the words in the range
-$[\start,\addrend]$ are safe.
+$\var{localityReg}(\gl,W)$, which projects out all active regions when
+$\gl$ (the locality) is local, but only the permanent regions when $\gl$ is global.
+The read condition is defined in terms of a standard region
+$\iota^\pwl_{\start,\addrend}$ which requires all the words in the range
+$[\start,\addrend]$ to be safe.
 
-For a capability with write permission, $\writeCond{}$ must be satisfied for the
-capability's range of authority. Such a capability may be used to write any
-word, so the region governing the relevant part of memory must (at least) allow
-any capability safe word to be stored. However, this is not entirely true
-because of the distinction between write and permit-write-local capabilities.
-Only permit-write-local capabilities need to allow arbitrary safe values to be
-stored, while for write capabilities, it is sufficient to allow storing values
-that are both non-local and safe. The write condition uses $\var{localityReg}$
-to pick an appropriate region for its locality in the same way the read
-condition does. The condition for the region to be address-stratified is there
-for technical reasons.
+
+For a capability with write permission, $\writeCond{}$ must be
+satisfied for the capability's range of authority. Such a capability
+may be used to write any word, so the region governing the relevant
+part of memory must (at least) allow any capability safe word to be
+stored. However, this is not entirely true because of the distinction
+between write and permit-write-local capabilities.  Only
+permit-write-local capabilities need to allow arbitrary safe values to
+be stored, while for write capabilities, it is sufficient to allow
+storing values that are both non-local and safe. The write condition
+uses $\var{localityReg}$ to pick an appropriate region for its
+locality in the same way the read condition does. The condition for
+the region to be address-stratified is there for technical reasons and for the full definition, we refer to the technical appendix. In
+the value relation, the write condition is used with $\iota^\pwl$ for
+write-local capabilities. For write capabilities, the write condition
+is used with another standard region $\iota^\nwl_{\start,\addrend}$
+which requires all the words in the range $[\start,\addrend]$ to be
+non-local and safe.
 
 The conditions $\entryCond{}$ and $\execCond{}$ are very similar and differ only
 slightly. In both cases, we require that the capability can be safely jumped to.
@@ -1901,19 +1963,21 @@ technical appendix~\cite{XXX}.
 
 \subsection{Encapsulation of local state}
 The capability machine provides encapsulation of local state. The programs
-\texttt{f1} in \figurename~\ref{fig:prog-f1} and \texttt{f2}
-\figurename~\ref{fig:prog-f2} demonstrate this. They are very similar: both
+\texttt{\footnotesize{f1}} and \texttt{\footnotesize{f2}} in
+\figurename~\ref{fig:prog-f1-and-f2} demonstrate this. They are very similar: both
 store some local state, call an untrusted piece of code ($\adv$), and then test
 whether the local state is unchanged. They differ in the way they do this.
-Program \texttt{f1} assumes it has access to a stack pointer and uses the stack
+Program \texttt{\footnotesize{f1}} assumes it has access to a stack pointer and uses the stack
 to store its local state. It also uses the stack-based calling convention
-\texttt{scall} to call the untrusted code. On the other hand, \texttt{f2} uses
+\texttt{\footnotesize{scall}} to call the untrusted code. On the other hand, \texttt{\footnotesize{f2}} uses
 malloc to allocate memory for its local state and uses an activation-record
 based calling convention (described in the technical appendix) to run the
 adversarial code.
 
 \begin{figure}[t]
   \centering
+
+  \begin{minipage}[t]{4.1cm}
   \begin{lstlisting}
 f1: push 1
     fetch $r_1$ $\adv$
@@ -1921,24 +1985,20 @@ f1: push 1
     pop $r_1$
     assert $r_1$ 1
     halt
-\end{lstlisting}
-  \caption{Simple program that uses a stack-based calling convention.}
-  \label{fig:prog-f1}
-\end{figure}
-
-\begin{figure}[t]
-  \centering
-\begin{lstlisting}
+  \end{lstlisting}
+  \end{minipage}
+  \begin{minipage}[t]{4.1cm}
+  \begin{lstlisting}
 f2: malloc $r_l$ 1
     store $r_l$ 1
     fetch $r_1$ $\adv$
     call $r_1$($[]$,$[r_l]$)
     assert $r_l$ 1
     halt
-\end{lstlisting}
-  \caption{Simple program that uses a calling convention not reliant
-    on the stack}
-  \label{fig:prog-f2}
+  \end{lstlisting}
+  \end{minipage}
+  \caption{Two simple programs that rely on local-state encapsulation. \texttt{f1} uses our stack-based calling convention. \texttt{f2} uses a calling not reliant on the stack}
+  \label{fig:prog-f1-and-f2}
 \end{figure}
 
 For both programs, we can prove that if they are linked with an
@@ -2010,11 +2070,11 @@ about both programs, even though they use different calling conventions.
 % \end{lemma}
 
 
-In order to formulate lemmas about \texttt{f1} and \texttt{f2}, we
+In order to formulate lemmas about \texttt{\footnotesize{f1}} and \texttt{\footnotesize{f2}}, we
 need a way to observe whether the assertion fails. To this end, we
 assume access to a flag (an address in memory). When the assertion
 fails, it sets the flag to $1$ and halts. A slightly simplified
-version of the correctness lemma for \texttt{f1} is:
+version of the correctness lemma for \texttt{\footnotesize{f1}} is:
 \begin{lemma}
   \label{lem:correctness-f1}
   Let
@@ -2029,7 +2089,7 @@ version of the correctness lemma for \texttt{f1} is:
 \]
   where each of the capabilities have an appropriate range of authority and pointer. Furthermore
   \begin{itemize}
-  \item $\ms_{f1}$ contains $c_\link$, $c_\flag$ and the code of \texttt{f1}
+  \item $\ms_{f1}$ contains $c_\link$, $c_\flag$ and the code of \texttt{\footnotesize{f1}}
   \item $\ms_\flag(\flag) = 0$
   \item $\ms_{\var{link}}$ contains $c_\adv$ and $c_\malloc$
   \item $\hs_\adv$ contains $c_\link$ and otherwise only instructions.
@@ -2042,17 +2102,17 @@ To prove Lemma~\ref{lem:correctness-f1}, it suffices to show that the start
 configuration is capability safe (in the $\observations$ relation) for a world
 with a permanent region that requires the assertion flag to be 0. We prove this
 using an anti-reduction lemma by which it suffices to show that the
-configuration is safe after some reduction steps. We then use a general lemma
-for reasoning about \texttt{scall}, by which it suffices to show that (1) the
-configuration that \texttt{scall} will jump to is capability safe and (2) that
-the configuration just after \texttt{scall} is done cleaning up is capability
+configuration is capability safe after some reduction steps. We then use a general lemma
+for reasoning about \texttt{\footnotesize{scall}}, by which it suffices to show that (1) the
+configuration that \texttt{\footnotesize{scall}} will jump to is capability safe and (2) that
+the configuration just after \texttt{\footnotesize{scall}} is done cleaning up is capability
 safe. We use the Fundamental Theorem to reason about the unknown code, but
 notice that the Fundamental Theorem says nothing about enter capabilities and
 that the adversary capability is an enter capability. Luckily the enter
 capability becomes $\exec$ after the jump and then, the Fundamental Theorem
 applies.
 
-We have a similar lemma for \texttt{f2}:
+We have a similar lemma for \texttt{\footnotesize{f2}}:
 \begin{lemma}
   \label{lem:correctness-f2}
   Making similar assumptions about capabilities and linking as in
@@ -2061,22 +2121,22 @@ We have a similar lemma for \texttt{f2}:
 \end{lemma}
 
 \subsection{Well-bracketed control-flow} 
-Using the stack-based calling convention of \texttt{scall}, we get
+Using the stack-based calling convention of \texttt{\footnotesize{scall}}, we get
 well-bracketed control-flow. To illustrate this, we look at
-two example programs \texttt{f3} in \figurename~\ref{fig:prog-f3} and
-\texttt{g1} in \figurename~\ref{fig:prog-g1}.
+two example programs \texttt{\footnotesize{f3}} in \figurename~\ref{fig:prog-f3} and
+\texttt{\footnotesize{g1}} in \figurename~\ref{fig:prog-g1}.
 
-In \texttt{f3} there are two calls to an adversary and in order for the
+In \texttt{\footnotesize{f3}} there are two calls to an adversary and in order for the
 assertion in the middle to succeed, they need to be well-bracketed. If the
-adversary were able to store the return pointer from the first call and invoke
-it in the second call, then \texttt{f3} would have $2$ on top of its stack and
+adversary was able to store the return pointer from the first call and invoke
+it in the second call, then \texttt{\footnotesize{f3}} would have $2$ on top of its stack and
 the assertion will fail. However, the security measures of our calling
 convention explained in Section~\ref{sec:stack-and-return-pointer} prevent this
 sort of attack: specifically, the return pointer is local, so it can only be
 stored on the stack, but the part of the stack that is accessible to the
-adversary is cleared before the second invocation. IThe following lemma shows
+adversary is cleared before the second invocation. The following lemma shows
 that there are also no other attacks that will break well-bracketedness of this
-example, i.e. the assertion never fails. It is similar to the two previous
+example, i.e.\ the assertion never fails. It is similar to the two previous
 lemmas:
 \begin{figure}[t]
   \centering
@@ -2105,10 +2165,10 @@ f3: push 1
 The final example, in \figurename~\ref{fig:prog-g1}, is a faithful translation
 of a tricky example known from the
 literature~\citep{pitts_operational_1998,Dreyer:jfp12}. It consists of two
-parts, \texttt{g1} and \texttt{f4}. \texttt{g1} is a closure generator that
+parts, \texttt{\footnotesize{g1}} and \texttt{\footnotesize{f4}}. \texttt{\footnotesize{g1}} is a closure generator that
 generates closures with one variable $x$ set to $0$ in its environment and
-\texttt{f4} as the program. \texttt{f4} expects one argument, a callback. The
-program sets $x$ to $0$ and calls the callback. When it returns, $\texttt{f4}$
+\texttt{\footnotesize{f4}} as the program. \texttt{\footnotesize{f4}} expects one argument, a callback. The
+program sets $x$ to $0$ and calls the callback. When it returns, \texttt{\footnotesize{f4}}
 sets $x$ to $1$ and calls the callback a second time. When it returns from the
 callback, it asserts that $x$ is $1$ and returns. This example is more
 complicated than the previous ones because it involves a closure invoked by the
@@ -2116,7 +2176,7 @@ adversary and an adversary callback invoked by us. As explained in
 Section~\ref{sec:stack-and-return-pointer}, this means we need to (1) take care
 to properly check the stack pointer received by our closure from the adversary
 (it must have the correct permission and fit with our stack discipline) and (2)
-require that the adversary callback be global.
+require that the adversary callback is global.
 
 \begin{figure}[t]
   \centering
@@ -2142,7 +2202,7 @@ f4:  reqglob $r_1$
 \end{lstlisting}
   \caption{A program that relies on well-bracketedness of
     \texttt{scall}s to function correctly. $\var{offset}$ is the
-    offset to $f4$.}
+    offset to \texttt{f4}.}
   \label{fig:prog-g1}
 \end{figure}
 
@@ -2186,37 +2246,37 @@ that it is global.
 
 In Lemma~\ref{lem:correctness-g1} the order of control has been inverted
 compared to the previous lemmas. In this lemma, the adversary assumes control
-first with a capability for the closure creator \texttt{g1}. This means we need
+first with a capability for the closure creator \texttt{\footnotesize{g1}}. This means we need
 to check that all arguments are safe to use and that we clean up before
 returning in the end. The inversion of control poses an interesting challenge
 when it comes to reasoning about the adversary's local state during the
-execution of \texttt{f4}. During the execution of \texttt{f4} and the callbacks,
+execution of \texttt{\footnotesize{f4}}. During the execution of \texttt{\footnotesize{f4}} and the callbacks,
 the adversary should not be able to rely on its local state from before the call
-of \texttt{f4}. This is easily done by revoking all the temporary regions of the
-world given at the start of \texttt{f4}. However, when \texttt{f4} returns, the
+of \texttt{\footnotesize{f4}}. This is easily done by revoking all the temporary regions of the
+world given at the start of \texttt{\footnotesize{f4}}. However, when \texttt{\footnotesize{f4}} returns, the
 adversary is again allowed to rely on its old local state which means that we
 need to guarantee that the local state is unchanged. This is important because
-the return pointer that \texttt{f4} receives from the adversary may be local,
+the return pointer that \texttt{\footnotesize{f4}} receives from the adversary may be local,
 and the adversary is allowed to allocate the activation record on the stack
-(just like we do) so that he can store and recover his old stack pointer after
-\texttt{f4} returns.
+(just like we do) so that they can store and recover his old stack pointer after
+\texttt{\footnotesize{f4}} returns.
 
 In Figure~\ref{fig:worlds-in-pf-g1}, we illustrate how we accomodate this in the
 proof of Lemma~\ref{lem:correctness-g1} by constructing appropriate worlds for
 all the situations where control is passed to the adversary. The potentially
-local return pointer received by \texttt{f4} from the adversary is safe in
+local return pointer received by \texttt{\footnotesize{f4}} from the adversary is safe in
 $W_1$, so it can only be used in public future worlds. Let us see how $W_6$ is
 constructed as a public future world. The worlds $W_2$ and $W_4$ are constructed
 by revoking all temporary regions and adding a $\iota^\pwl$ region for the stack
 we pass away and static temporary regions (a region that accepts exactly one
-memory) for our local stack as well as the adversaries local stack. The given
+memory) for our local stack as well as the adversary's local stack. The given
 worlds $W_3$ and $W_5$ are public future worlds in which the adversary chooses
 to return to us. None of these worlds can have masked the temporary regions of
 $W_1$ with permanent regions. $W_6$ is constructed by revoking the temporary
 regions of $W_5$ and reinstating the temporary regions of $W_1$. This makes
 $W_6$ a public future world of $W_1$. It is therefore safe to use the return
 pointer to return to the adversary, since we have restored validity of any local
-state he/she might have stashed away.
+state they might have stashed away.
 
 \begin{figure}[t]
   \centering
@@ -2277,7 +2337,7 @@ control flow integrity, we do not prove a general theorem to show that this is
 the case. The reason for this is that it is not clear what such a theorem should
 look like. Formulations in terms of a control flow graph, like the one by
 \cite{abadi_control-flow_2005}, do not take into account temporal properties,
-like the well-bracketedness that Example~\texttt{g1} relies on.\footnote{It is a
+like the well-bracketedness that Example~\texttt{\footnotesize{g1}} relies on.\footnote{It is a
   bit unfortunate that the general term ``control flow integrity'' is used for a
   property that only captures partial correctness of control flow.} In fact, our
 examples show that our logical relation imply a form of control flow integrity
@@ -2316,7 +2376,7 @@ memory.
 
 \textbf{Modularity} Our return pointers and callbacks satisfy the checks we
 apply to the ones we get from the adversary (return pointers are allowed to be
-local, callbacks must be global), i.e. we do not claim special status and what
+local, callbacks must be global), i.e.\ we do not claim special status and what
 we propose is modular.
 
 \textbf{Local capabilities in high-level languages} It is worth mentioning that
