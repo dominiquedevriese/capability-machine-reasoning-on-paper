@@ -1841,10 +1841,11 @@ permanent regions, so we require capability safety as a program counter in any
 private future world). For local capabilities, it suffices to be capability safe
 in \emph{public} future worlds, where temporary regions are still there.
 
-With the logical relation defined, we can now state a strong theorem
-about the safety properties of the capability machine:
-any capability that only grants reasonable authority is capability
-safe as a program counter.
+\subsection{Safety of the capability machine}
+With the logical relation defined, we can now state the fundamental theorem of
+our logical relation: a strong theorem that formalises the guarantees offered by
+the capability machine. Essentially, it says that a capability that only grants
+safe authority is capability safe as a program counter.
 \begin{theorem}[Fundamental Theorem]
   \label{thm:ftlr}
   If one of the following holds:
@@ -1891,18 +1892,17 @@ The interested reader can find all the technical details in the
 technical appendix~\cite{XXX}.
 
 \subsection{Encapsulation of local state}
-The capability machine provides encapsulation of local state. The
-programs \texttt{f1} in \figurename~\ref{fig:prog-f1} and \texttt{f2}
-\figurename~\ref{fig:prog-f2} demonstrate this.  The two programs
-\texttt{f1} and \texttt{f2} are very similar. They both store some
-local state, call an untrusted piece of code ($\adv$), and then tests
-whether the local state is unchanged. They differ in the way they do
-this. Program \texttt{f1} assumes it has access to a stack pointer
-and uses the stack to store its local state. It also uses the
-stack-based calling convention \texttt{scall} to call the untrusted code. On the
-other hand, \texttt{f2} allocates a new piece of memory for its local
-state and uses an activation-record based calling convention
-(described in the technical appendix) to run the adversarial code.
+The capability machine provides encapsulation of local state. The programs
+\texttt{f1} in \figurename~\ref{fig:prog-f1} and \texttt{f2}
+\figurename~\ref{fig:prog-f2} demonstrate this. They are very similar: both
+store some local state, call an untrusted piece of code ($\adv$), and then test
+whether the local state is unchanged. They differ in the way they do this.
+Program \texttt{f1} assumes it has access to a stack pointer and uses the stack
+to store its local state. It also uses the stack-based calling convention
+\texttt{scall} to call the untrusted code. On the other hand, \texttt{f2} uses
+malloc to allocate memory for its local state and uses an activation-record
+based calling convention (described in the technical appendix) to run the
+adversarial code.
 
 \begin{figure}[t]
   \centering
@@ -1928,7 +1928,7 @@ f2: malloc $r_l$ 1
     assert $r_l$ 1
     halt
 \end{lstlisting}
-  \caption{Simple program that uses a calling convention not relyant
+  \caption{Simple program that uses a calling convention not reliant
     on the stack}
   \label{fig:prog-f2}
 \end{figure}
@@ -1947,10 +1947,9 @@ and~\ref{lem:correctness-f2} below).
 % to the stack pointer and because of that we don't need to check it
 % first. We could write that the lemmas are limited in their assumptions
 % to make them simpler and a more complicated example is coming up.}
-The two examples also illustrate the versatility of the logical
-relation. The two examples use different calling convention, but the
-logical relation is not specific to any calling convention, so we can
-use it to reason about both programs.
+The two examples also illustrate the versatility of the logical relation.
+Because it is not specific to any calling convention, we can use it to reason
+about both programs, even though they use different calling conventions.
 
 
 % \begin{lemma}[Correctness lemma for \texttt{f1}]
@@ -2020,7 +2019,7 @@ version of the correctness lemma for \texttt{f1} is:
       & \multicolumn{3}{@{}l}{\phantom{\;\defeq \;}  \ms_{\var{stk}} \uplus \ms_{\var{frame}}} \\
     \end{array}
 \]
-  where each of the capabilities have an appropriate range of authority and pointer furthermore
+  where each of the capabilities have an appropriate range of authority and pointer. Furthermore
   \begin{itemize}
   \item $\ms_{f1}$ contains $c_\link$, $c_\flag$ and the code of \texttt{f1}
   \item $\ms_\flag(\flag) = 0$
@@ -2031,21 +2030,19 @@ version of the correctness lemma for \texttt{f1} is:
   then $m'(\flag) = 0$
 \end{lemma}
 
-To prove Lemma~\ref{lem:correctness-f1}, it suffices to show that the
-start configuration is capability safe (in the $\observations$
-relation) for a world with a permanent region that requires the
-assertion flag to be 0. This is done using an anti-reduction lemma
-which states that for a configuration to be capability safe, it is
-sufficient to show that it is in it at a later point of the
-execution. To reason about \texttt{scall}, it suffices to show that
-(1) the configuration just after we jumped is capability safe and (2)
-that the configuration just after \texttt{scall} is done cleaning up
-is capability safe.  We use the Fundamental Theorem to reason about
-the unknown code, but notice that the Fundamental Theorem says nothing
-about enter capabilities and that the adversary capability is an enter
-capability. Luckily the enter capability becomes a read/execute
-capability when we jump and the Fundamental Theorem can be used to
-show that this capability is capability safe as a program counter.
+To prove Lemma~\ref{lem:correctness-f1}, it suffices to show that the start
+configuration is capability safe (in the $\observations$ relation) for a world
+with a permanent region that requires the assertion flag to be 0. We prove this
+using an anti-reduction lemma by which it suffices to show that the
+configuration is safe after some reduction steps. We then use a general lemma
+for reasoning about \texttt{scall}, by which it suffices to show that (1) the
+configuration that \texttt{scall} will jump to is capability safe and (2) that
+the configuration just after \texttt{scall} is done cleaning up is capability
+safe. We use the Fundamental Theorem to reason about the unknown code, but
+notice that the Fundamental Theorem says nothing about enter capabilities and
+that the adversary capability is an enter capability. Luckily the enter
+capability becomes $\exec$ after the jump and then, the Fundamental Theorem
+applies.
 
 We have a similar lemma for \texttt{f2}:
 \begin{lemma}
@@ -2061,25 +2058,18 @@ well-bracketed control-flow. To illustrate this, we look at
 two example programs \texttt{f3} in \figurename~\ref{fig:prog-f3} and
 \texttt{g1} in \figurename~\ref{fig:prog-g1}.
 
-\lau{in the following paragraph, we could make a reference to
-  \textbf{invoking the adversary} from
-  section~\ref{sec:stack-and-return-pointer} where the problem is
-  first introduced. In fact, this paragraph is a reiteration of the
-  problem in the aformentioned section.}
-In \texttt{f3} there are two calls to an adversary and in order for
-the assertion in the middle to succeed, they need to be
-well-bracketed. If the adversary is able to store the return
-pointer from the first call, so it is available for the second call, then it can be used
-in a context where \texttt{f3} has $2$ on top of its stack which will cause the
-assertion to fail. The return pointer is passed as a local
-capability, so the only means the adversary has to store it is the
-stack pointer. The stack pointer itself is a local capability,
-so the adversary can only store it on the stack. This means that after
-the adversary jumps to the return pointer, \texttt{f3} can
-revoke it (by erasing it which happens as part of the
-\texttt{scall}). In other words, the adversary cannot store the
-return pointer for the second call, and it is possible to
-prove that the assertion never fails. The correctness lemma for \texttt{f3} is similar to the two previous lemmas:
+In \texttt{f3} there are two calls to an adversary and in order for the
+assertion in the middle to succeed, they need to be well-bracketed. If the
+adversary were able to store the return pointer from the first call and invoke
+it in the second call, then \texttt{f3} would have $2$ on top of its stack and
+the assertion will fail. However, the security measures of our calling
+convention explained in Section~\ref{sec:stack-and-return-pointer} prevent this
+sort of attack: specifically, the return pointer is local, so it can only be
+stored on the stack, but the part of the stack that is accessible to the
+adversary is cleared before the second invocation. IThe following lemma shows
+that there are also no other attacks that will break well-bracketedness of this
+example, i.e. the assertion never fails. It is similar to the two previous
+lemmas:
 \begin{figure}[t]
   \centering
   \begin{lstlisting}
@@ -2104,20 +2094,21 @@ f3: push 1
   (\halted,m')$, then $m'(\flag) = 0$.
 \end{lemma}
 
-The final example, in \figurename~\ref{fig:prog-g1}, is a faithful
-translation of a trciky example known from the
-litterature\cite{XXX}. It consists of two parts, \texttt{g1} and
-\texttt{f4}. \texttt{g1} is a closure generator that generates
-closures with one variable $x$ set to $0$ in its environment and
-\texttt{f4} as the program. The program \texttt{f4} expects two
-arguments: a stack and a callback. The stack is necessary to use
-\texttt{scall}, but because it comes from an untrusted source, we need
-to make sure that it has the correct permission and fits with our
-stack dicipline. The callback must be global for the program to work,
-we will get back to this point. The program now sets $x$ to $0$ and
-calls the callback. When it returns from the callback, it sets $x$ to
-$1$ and calls the callback a second time. When it returns from the
-callback, it asserts $x$ is $1$ and returns.
+The final example, in \figurename~\ref{fig:prog-g1}, is a faithful translation
+of a tricky example known from the
+literature~\citep{pitts_operational_1998,Dreyer:jfp12}. It consists of two
+parts, \texttt{g1} and \texttt{f4}. \texttt{g1} is a closure generator that
+generates closures with one variable $x$ set to $0$ in its environment and
+\texttt{f4} as the program. \texttt{f4} expects one argument, a callback. The
+program sets $x$ to $0$ and calls the callback. When it returns, $\texttt{f4}$
+sets $x$ to $1$ and calls the callback a second time. When it returns from the
+callback, it asserts that $x$ is $1$ and returns. This example is more
+complicated than the previous ones because it involves a closure invoked by the
+adversary and an adversary callback invoked by us. As explained in
+Section~\ref{sec:stack-and-return-pointer}, this means we need to (1) take care
+to properly check the stack pointer received by our closure from the adversary
+(it must have the correct permission and fit with our stack discipline) and (2)
+require that the adversary callback be global.
 
 \begin{figure}[t]
   \centering
@@ -2147,14 +2138,16 @@ f4:  reqglob $r_1$
   \label{fig:prog-g1}
 \end{figure}
 
-To illustrate how subtle this program is, consider one way an
-adversary may try to make the assertion fail. In the second callback
-an adversary can get to the first callback by calling the closure one
-more time. If the adversary can save the return pointer in
-the second callback and use it in the first, then the assertion will
-fail because $x$ is $0$ before the first callback. The return
-pointer cannot be transfered between the callbacks, so this does not
-work.
+To illustrate how subtle this program is, consider how an adversary could try to
+make the assertion fail. In the second callback an adversary can get to the
+first callback by invoking the closure one more time. If there were any way for
+the adversary to transfer the return pointer from the point where it reinvokes
+the closure to where the closure reinvokes the callback, then the assertion can
+be made to fail. Similarly, if there were any way for the adversary to store a
+stack pointer or trick the trusted code into preserving it across an invocation,
+the assertion can likely be made to fail too. However, our stack and return
+pointer discipline guarantees that there is no way any of this can happen, as we
+prove in the following lemma.
 
 \begin{lemma}
   \label{lem:correctness-g1}
@@ -2172,46 +2165,50 @@ work.
   then $m'(\flag) = 0$.
 \end{lemma}
 
-As mentioned, the callback must be global. This is to make sure the
-callback is not a piece of code on the stack that restores the
-adversaries original stack pointer breaking the encapsulation of
-our local stack frame. In the proof of Lemma~\ref{lem:correctness-g1},
-this also shows up. When we reason about \texttt{f4}, we revoke all
-the local state of the adversary which means that we consider a
-private future world. We use the $\execCond{}$ to reason about the
-jump to the callback and because the callback is global, it works for
-private future worlds. Had the callback been local, then the
-$\execCond{}$ would only work for public future worlds, and we would
-be stuck in the proof.
+As explained in Section~\ref{sec:stack-and-return-pointer}, the callback must be
+global, essentially to make sure that it is not allocated on the stack where it
+might contain the adversary's original stack pointer. If not, it could break the
+encapsulation of our local stack frame. In the proof of
+Lemma~\ref{lem:correctness-g1}, this requirement shows up because we invoke the
+callback in a world that is only a private future world of the one where we
+received the callback, precisely because we have invalidated the local state of
+the adversary (particularly its previous stack and return capabilities). The
+callback is still valid in this private future world, but only because we know
+that it is global.
 
-In Lemma~\ref{lem:correctness-g1} the order of control has been
-inverted compared to the previous lemmas. In this lemma, the adversary
-assumes control first with a capability for the closure creator
-\texttt{g1}. This means we need to check all arguments are safe
-to use and that we clean up before returning in the end. The inversion
-of control poses an interesting challenge when it comes to reasoning
-about the adversaries local state during the execution of
-\texttt{f4}. During the execution of \texttt{f4} and the callbacks, the
-adversary should not be able to rely on its local state from before
-the call of \texttt{f4}. This is easily done by revoking all the
-temporary regions of the world given at the start of \texttt{f4}. When
-\texttt{f4} returns, then the adversary is allowed to rely on its
-local state again which means that we need to guarantee that the local
-state is unchanged. To illustrate how this is done in the proof of
-Lemma~\ref{lem:correctness-g1}, consider
-\figurename~\ref{fig:worlds-in-pf-g1}. The return pointer given to
-\texttt{f4} might be local and it is capability safe in $W_1$, so it
-can only be used in public future worlds. Let us see how $W_6$ is
-constructed as a public future world. The worlds $W_2$ and $W_4$ are constructed by revoking all
-temporary regions and adding a $\iota^\pwl$ region for the stack we
-pass away and static temporary regions (a region that accepts exactly
-one memory) for our local stack as well as the adversaries local stack.
-The given worlds $W_3$ and $W_5$ are public future worlds. None of
-these worlds can have masked the temporary regions of $W_1$ with permanent
-regions. $W_6$ is constructed by revoking the temporary regions of
-$W_5$ and reinstating the temporary regions of $W_1$. This makes $W_6$
-a public future world of $W_1$. It is therefore safe to use the return
-pointer to return to the adversary.
+In Lemma~\ref{lem:correctness-g1} the order of control has been inverted
+compared to the previous lemmas. In this lemma, the adversary assumes control
+first with a capability for the closure creator \texttt{g1}. This means we need
+to check that all arguments are safe to use and that we clean up before
+returning in the end. The inversion of control poses an interesting challenge
+when it comes to reasoning about the adversary's local state during the
+execution of \texttt{f4}. During the execution of \texttt{f4} and the callbacks,
+the adversary should not be able to rely on its local state from before the call
+of \texttt{f4}. This is easily done by revoking all the temporary regions of the
+world given at the start of \texttt{f4}. However, when \texttt{f4} returns, the
+adversary is again allowed to rely on its old local state which means that we
+need to guarantee that the local state is unchanged. This is important because
+the return pointer that \texttt{f4} receives from the adversary may be local,
+and the adversary is allowed to allocate the activation record on the stack
+(just like we do) so that he can store and recover his old stack pointer after
+\texttt{f4} returns.
+
+In Figure~\ref{fig:worlds-in-pf-g1}, we illustrate how we accomodate this in the
+proof of Lemma~\ref{lem:correctness-g1} by constructing appropriate worlds for
+all the situations where control is passed to the adversary. The potentially
+local return pointer received by \texttt{f4} from the adversary is safe in
+$W_1$, so it can only be used in public future worlds. Let us see how $W_6$ is
+constructed as a public future world. The worlds $W_2$ and $W_4$ are constructed
+by revoking all temporary regions and adding a $\iota^\pwl$ region for the stack
+we pass away and static temporary regions (a region that accepts exactly one
+memory) for our local stack as well as the adversaries local stack. The given
+worlds $W_3$ and $W_5$ are public future worlds in which the adversary chooses
+to return to us. None of these worlds can have masked the temporary regions of
+$W_1$ with permanent regions. $W_6$ is constructed by revoking the temporary
+regions of $W_5$ and reinstating the temporary regions of $W_1$. This makes
+$W_6$ a public future world of $W_1$. It is therefore safe to use the return
+pointer to return to the adversary, since we have restored validity of any local
+state he/she might have stashed away.
 
 \begin{figure}[t]
   \centering
@@ -2266,25 +2263,43 @@ read-write access to a framebuffer.
 \section{Discussion, future work}
 \label{sec:discussion}
 
-\begin{itemize}
-\item A general well-bracketed control flow result?
-  \begin{itemize}
-  \item what would that result say?
-  \item possible idea: fully abstract compilation from an assembly language with
-  a trusted stack to one without
-  \item the LR and some of the lemmas already imply well-bracketed control flow, as seen in examples
-  \end{itemize}
-\item Relation to local parameters in Scala, Algol/Pascal second-class function
-  parameters? 
-\item Stack clearing realistic?
-\item Non-modularity of heap allocation requirement for adversary callbacks
-\end{itemize}
+\textbf{Formulating control flow integrity} The attentive reader may notice
+that, while we claim that our stack and return pointer discipline enforces
+control flow integrity, we do not prove a general theorem to show that this is
+the case. The reason for this is that it is not clear what such a theorem should
+look like. Formulations in terms of a control flow graph, like the one by
+\cite{abadi_control-flow_2005}, do not take into account temporal properties,
+like the well-bracketedness that Example~\texttt{g1} relies on.\footnote{It is a
+  bit unfortunate that the general term ``control flow integrity'' is used for a
+  property that only captures partial correctness of control flow.} In fact, our
+examples show that our logical relation imply a form of control flow integrity
+that is stronger than such formulations, although this is not made very
+explicit. As future work, we are considering to look at a more explicit and
+useful way to formalise well-bracketed control flow. The idea would be to define
+a variant of our capability machine with built-in call and return instructions
+and well-bracketed control flow built-in to the operational semantics, and then
+prove that compiling such code to our machine using our stack and return pointer
+discipline is fully abstract~\cite{abadi_protection_1998}, which roughly means
+that the lower-level machine does not allow interactions with the compiled code
+that do not correspond to an interaction with the original code in the
+high-level machine.
 
-It is worth mentioning that local capabilities are quite similar to features
-that have been proposed for high-level languages. Specifically,
-\citet{osvald_gentrification_2016}'s second-class or local values in Scala are
-remarkably similar and we expect they will support similar reasoning patterns.
+\textbf{Performance and the requirement for stack clearing} While performance is
+not a goal of this 
 
+\textbf{Modularity} Our return pointers and callbacks satisfy the checks we
+apply to the ones we get from the adversary (return pointers are allowed to be
+local, callbacks must be global), i.e. we do not claim special status and what
+we propose is modular.
+
+\textbf{Local capabilities in high-level languages} It is worth mentioning that
+local capabilities are quite similar to features that have been proposed for
+high-level languages. Specifically, \citet{osvald_gentrification_2016}'s
+second-class or local values in Scala are remarkably similar: they are a kind of
+values that can be provided to other code for immediate use without allowing it
+to store the value in a closure or reference for later use. We believe reasoning
+about such values will require very similar reasoning techniques than the ones
+we have used for local capabilities.
 
 \section{Related work}
 \label{sec:related-work}
