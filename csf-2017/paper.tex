@@ -1124,26 +1124,25 @@ adversary.
 However, if we are returning from a function that has itself invoked adversary
 code, then clearing the used part of the stack is not enough. The \emph{unused}
 part of the stack may also contain data and capabilities, left there by the
-adversary, including local capabilities since the stack is write-local. The
-adversary could take advantage of this by using the unused part of the stack to
-store either stack pointers or return pointers from such previous invocations
-and then use them when they're no longer supposed to. To prevent this, we need
-to clear (i.e.\ overwrite with zeros) the entire part of the stack that the
-adversary has had access to, not just the parts that we have used ourselves.
-This requirement may seem strong, but it is essentially there for the same
-reason that we clear the register file: the adversary should not be able to keep
-hold of local capabilities when control is passed to trusted code and back to
-the adversary. Since we may be talking about a large part of memory, this is the
-most problematic aspect of our calling convention for performance, but see
-Section~\ref{sec:discussion} for how this might be mitigated.
+adversary, including local capabilities since the stack is write-local. As we
+will see later, we rely on the fact that the adversary cannot keep hold of local
+capabilities when they pass control to the trusted code and receive control
+back. In this case, the adversary could use the unused part of the stack to
+store local pointers and load them from there after he gets control back. To
+prevent this, we need to clear (i.e.\ overwrite with zeros) the entire part of
+the stack that the adversary has had access to, not just the parts that we have
+used ourselves. Since we may be talking about a large part of memory, this
+requirement is the most problematic aspect of our calling convention for
+performance, but see Section~\ref{sec:discussion} for how this might be
+mitigated.
 
 \textbf{Invoking the adversary} A slightly more complex case is invoking the
 adversary. As above, we clear all the non-argument registers, as well as the
 part of the stack that we are not using (because, as above, it may contain local
 capabilities from previously executed code that the adversary could exploit in
-the same way as above). We leave a copy of the stack pointer in $r_\stk$, but
-only after we have used the $\subseg{}{}{}$ to shrink its authority to the part
-that we are not using ourselves.
+the same way). We leave a copy of the stack pointer in $r_\stk$, but only after
+we have used the $\subseg{}{}{}$ to shrink its authority to the part that we are
+not using ourselves.
 
 In one of the registers, we also provide a return pointer, which must be a local
 capability. If it were global, the adversary would be able to store away the
@@ -1164,17 +1163,21 @@ second invocation.
 % \lau{It seemed did not seem to add anything to adopt the terminlogy - we
 %   often highlight that the return pointer is local which in most cases
 %   is so important that we do not want to leave it out.}
+By making the return pointer local, we prevent such attacks: the adversary can
+only store local capabilities through write-local capabilities, which (because
+of our assumptions above) means: on the stack. Since the stack pointer itself is
+also local, it can also only be stored on the stack. Because we clear the part
+of the stack that the adversary has had access to before we pass control back,
+there is no way for them to recover either of these local capabilities.
 
-Because the return pointer is local, this is not possible: the adversary can
-only store it through write-local capabilities, which (because of our
-assumptions above) means: on the stack. However, this makes it crucial that the
-stack pointer is also local: if the adversary were able to store the stack
-pointer in a global data structure, they can store return pointers on the
-stack, and play similar mischief as mentioned above. Storing away stack pointers
-for use during future invocations would also be dangerous for other reasons:
-during such a future invocation, a larger part of the stack may be in use by the
-trusted code, which the adversary may still have access to through the old stack
-pointer.
+Note that storing stack pointers for use during future invocations would also be
+dangerous in itself, i.e. not just because it can be used to store return
+pointers. Imagine that the adversary stores his stack pointer, invokes trusted
+code that uses part of the stack to store private data and then invokes the
+adversary again with a stack pointer restricted to exclude the part containing
+the private data. If the adversary had a way of keeping hold of their old stack
+pointer, it could access the private data stored there by the trusted code, and
+break local state encapsulation.
 
 \textbf{Returning from the adversary} So return pointers must be passed as local
 capabilities. But what should their permissions be, what memory should they
