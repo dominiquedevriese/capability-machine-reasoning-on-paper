@@ -1042,7 +1042,7 @@ $[\addr,\addrend]$ contains instructions. The package is opaque to an adversary
 holding $c$ but when $c$ is jumped to, the instructions can start executing and
 have access to the local data through the updated version of $c$ that is then in
 $\pcreg$\footnote{Note that the capability in the $\pcreg$-register can be used
-  to load from.}.% Lau, du er nået hertil. Husk stak vs code pointe.
+  to load from.}.
 % \lau{As we
 %   talked about what is described here, is not how we make closures in the TR, so
 %   we should consider whether we should refrain from using that word here. }
@@ -1054,7 +1054,7 @@ after the ones in the CHERI processor~\cite{Watson2015Cheri}. Basically, local
 capabilities are special in that they can only be kept in registers, i.e.\ they
 cannot be stored to memory. This means that local capabilities can be
 \emph{temporarily} given to an adversary, for the duration of an invocation: if
-we take care to erase the capability from the register file after control is
+we take care to clear the capability from the register file after control is
 passed back to us, they will not have been able to store the capability.
 However, there is one exception to the rule above: local capabilities can be
 stored to memory for which we have a capability with write-local authority
@@ -1125,7 +1125,7 @@ security measure to take care of is properly clearing the non-return-value
 registers before we jump (since they may contain data or capabilities that the
 adversary should not get access to). Additionally, we may have used the stack
 for various purposes (register spilling, storing local state when invoking other
-functions etc.), so we also need to erase that data before returning to the
+functions etc.), so we also need to clear that data before returning to the
 adversary.
 
 However, if we are returning from a function that has itself invoked adversary
@@ -1153,7 +1153,7 @@ not using ourselves.
 
 In one of the registers, we also provide a return pointer, which must be a local
 capability. If it were global, the adversary would be able to store away the
-return pointer in a global data structure, and jump to it later, in
+return pointer in a global data structure (i.e.\ there exists a global capability for it), and jump to it later, in
 circumstances where this should not be possible. For example, they could store
 the return pointer, legally jump to it a first time, wait to be invoked again
 and then jump to the old return pointer a second time, instead of the new return
@@ -1250,7 +1250,7 @@ an $\exec$ capability if they are not worried about that. However, there is one
 scenario that we need to prevent: if they construct the callback capability to
 point into the stack, it may contain local capabilities that they should not
 have access to upon invocation of the callback. As before, this includes return
-pointers and stack pointers from previous stack frames there, that they may be
+pointers and stack pointers from previous stack frames that they may be
 trying to illegally use inside the callback.
 
 To prevent this, we only accept callbacks from the adversary in the form of
@@ -1263,7 +1263,7 @@ the adversary to construct callbacks on the stack.\footnote{Note that it does
 
 \textbf{Having a callback invoked by the adversary} The above leaves us with
 perhaps the hardest scenario: how to provide a callback to the adversary. The
-basic idea is that we allocate a block of memory using malloc that we fill with
+basic idea is that we allocate blocks of memory using malloc that we fill with
 the capabilities and data that the callback needs access to, as well as some
 prelude instructions that load the data into registers and jumps to the right
 code. Note that this implies that no local capabilities can be stored as part of
@@ -1275,17 +1275,16 @@ the callback is invoked?
 Our answer is that the adversary should provide it to us, much like we provide
 them with a stack pointer when we invoke their code. However, it is important
 that we do not just accept any capability as a stack pointer but check that it
-is safe to use. Specifically, we check that it is indeed a $\rwlx$ capability
-and make sure its current address points just below the start address. Without
+is safe to use. Specifically, we check that it is indeed a $\rwlx$ capability. Without
 this check, an adversary could potentially get control over our local stack
 frame during a callback by passing us a local $\rwx$ capability to a global data
-structure (i.e.\ there exists a global capability for it) as the stack pointer
+structure instead of a proper stack pointer
 and a global callback for our callback to invoke. If our local state contains no
-local capabilities, then following our calling convention, our callback would
+local capabilities, then, following our calling convention, the callback would
 not fail and the adversary could use a stored capability for the global data
 structure to access our local state. To prevent this from happening, we need to
-make sure the stack capability is $\rwlx$, since the system wide assumption then
-tells us that the adversary cannot have a global capabilities to it.
+make sure the stack capability gives $\rwlx$ authority, since the system wide assumption then
+tells us that the adversary cannot have a global capabilities to our local stack.
 
 \textbf{Calling convention} With the security measures introduced and motivated,
 here is a summary of our proposed calling convention:
@@ -1304,7 +1303,7 @@ $\var{name}$ from the linking table and stores it in register $r$.
 \texttt{\footnotesize{push $r$}} and \texttt{\footnotesize{pop $r$}} work as one
 would expect. \texttt{\footnotesize{prepstk $r$}} is used when a callback is
 invoked by the adversary and prepares the received stack pointer by checking
-that it has permission $\rwlx$ and making it conform to our calling convention.
+that it has permission $\rwlx$.
 \texttt{\footnotesize{scall
     $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}} jumps to the
 capability in register $r$ in the manner described above. That is, it pushes
@@ -2350,7 +2349,7 @@ exception is the requirements for stack clearing which we occur in two
 situations: when returning to the adversary and when invoking an adversary
 callback. As we have explained, it is not sufficient to clear just the part of
 the stack that we have used ourselves, but we need to clear all of the stack that we are not using ourselves. 
-In other words on every boundary cross between trusted code and adversary code, a potentially large region of memory must be erased.
+In other words on every boundary cross between trusted code and adversary code, a potentially large region of memory must be cleared.
 We believe this is a common requirement for typical usage scenarios of local capabilities and
 capability machines like CHERI should consider to provide special support for
 this requirement, in the form of a highly-optimized instruction for erasing
