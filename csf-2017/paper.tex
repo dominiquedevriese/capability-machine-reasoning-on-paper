@@ -44,6 +44,8 @@
 \usepackage[caption=false,font=footnotesize]{subfig}
 \fi
 
+
+
 % Include the following to reduce room around display equations
 %\setlength{\abovedisplayskip}{3pt}
 %\setlength{\belowdisplayskip}{3pt}
@@ -917,11 +919,6 @@ local/global flag, base, end and current address of a capability.
     \end{cases}
   \end{equation*}\vspace{-.3cm}%
   \begin{align*}
-    \updatePcPerm{w} &=
-                       \begin{cases}
-                         ((\exec,\gl),\start,\addrend,\addr) & \text{\footnotesize{if $w = ((\entry,\gl),\start,\addrend,\addr)$}}\\
-                         w & \text{\footnotesize{otherwise}}
-                       \end{cases}\\
     \stdUpdatePc{\Phi} &=
                          \begin{cases}
                            \updateReg{\pcreg}{\var{newPc}} & \arraycolsep=0pt
@@ -946,14 +943,13 @@ local/global flag, base, end and current address of a capability.
     \hline
     $\restricttwo{\refreg{r_1}}{r_2}$&$\begin{multlined}
                                        \stdUpdatePc{}(\updateReg{r_1}{\\(\permp',\start,\addrend,\addr)})
-                                     \end{multlined}$  &
-                                                        $\memreg(r_2) = \stdcap[\permp]$\footnotesize{ and }\newline$\permp' = \decodePermPair{\memreg(r_2)}$
+                                     \end{multlined}$  & $\memreg(r_2) = \stdcap[\permp]$\footnotesize{ and }$\permp' = \decodePermPair{\memreg(r_2)}$
                                                       \footnotesize{ and }$\permp'\sqsubseteq \permp$\\
     \hline
     $\geta{\refreg{r_1}}{\refreg{r_2}}$ & $\stdUpdatePc{\updateReg{r_1}{\addr}}$ &
                                                 $\memreg(r_2) = ((\_,\_),\_,\_,\addr)$\\
     \hline
-    $\jmp{\lv}$&$\updateReg{\pcreg}{\var{newPc}}$&$\var{newPc} = \updatePcPerm{\memreg(\lv)}$\\
+    $\jmp{\lv}$&$\updateReg{\pcreg}{\var{newPc}}$& \footnotesize{if }$\memreg(r) = ((\perm,\gl),\start,\addrend,\addr)$\footnotesize{, then} $\var{newPc} = ((\exec,\gl),\start,\addrend,\addr)$ \footnotesize{ otherwise }$\var{newPc} = \memreg(r)$\\
     \hline
     $\store{\refheap{r_1}}{\refreg{r_2}}$&$\stdUpdatePc{\updateHeap{\addr}{\var{w}}}$&$\memreg(r_1) = \stdcap$\footnotesize{ and }$\perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\}$ \footnotesize{ and } $\start \leq \addr \leq \addrend$\footnotesize{ and }$\var{w} = \memreg(r_2)$
                                                                                        \footnotesize{and if }$\var{w} = ((\_,\local),\_,\_,\_)$\footnotesize{, then  }$\perm \in \{\rwlx,\readwritel \}$\\
@@ -1396,10 +1392,9 @@ capabilities.
 %
 
 \subsection{Worlds}
-\dominique{Perhaps we could first try to convey the intuition of a permanent
-  world with a temporary overlay, with global capabilities ignoring the overlay.
-  Perhaps we could add a depiction of the world to Figure 5?}
-
+% \dominique{Perhaps we could first try to convey the intuition of a permanent
+%   world with a temporary overlay, with global capabilities ignoring the overlay.
+%   Perhaps we could add a depiction of the world to Figure 5?}
 %\todo[inline]{Find a good place to describe monotonicity of
 %interpretation function.}
 % \lau{this may not be an important enough point to include it.}
@@ -1831,12 +1826,15 @@ in the interpretation of an active (permanent or temporary) region.
 \end{figure}
 }
 %subsection introduction
-\dominique{I would try to motivate the LR defs by saying that the LR is
-  constructed to express the FTLR and the FTLR says that if a piece of code only
-  has access to values respecting the invariants in a world, then it will
-  respect them itself too.} The logical relation defines semantically what it
-means to be capability safe.\dominique{We have not introduced capability
-  safety..} In large parts, capability safety is defined by when a capability
+% \dominique{I would try to motivate the LR defs by saying that the LR is
+%   constructed to express the FTLR and the FTLR says that if a piece of code only
+%   has access to values respecting the invariants in a world, then it will
+%   respect them itself too.} 
+The logical relation defines semantically what it
+means to be capability safe.
+% \dominique{We have not introduced capability
+%   safety..} 
+In large parts, capability safety is defined by when a capability
 can be safely given to an untrusted piece of code. In the following paragraphs,
 we will go through the definitions of the logical relation and provide an
 intuition why they define capability safety. The definition of the logical
@@ -2145,6 +2143,52 @@ that there are also no other attacks that will break well-bracketedness of this
 example, i.e.\ the assertion never fails. It is similar to the two previous
 lemmas:
 
+\begin{comment}
+\newsavebox{\testit}
+\begin{lrbox}{\testit}
+  \begin{lstlisting}
+g1:  malloc $r_2$ 1
+     store $r_2$ 0
+     move $\pcreg$ $r_3$
+     lea $r_3$ $\var{offset}$
+     crtcls $[(x, r_2)]$ $r_3$
+     rclear $\RegName \setminus \{\pcreg,r_0,r_1 \}$
+     jmp $r_0$
+f4:  reqglob $r_1$
+     prepstk $r_\stk$
+     store $x$ 0
+     scall $r_1$($[]$,$[r_0,r_1,r_{\var{env}}]$)
+     store $x$ 1
+     scall $r_1$($[]$,$[r_0,r_{\var{env}}]$)
+     load $r_1$ $x$
+     assert $r_1$ 1
+     mclear $r_\stk$
+     rclear $\RegName \setminus \{r_0,\pcreg\}$
+     jmp $r_0$
+\end{lstlisting}
+\end{lrbox}
+
+\newsavebox{\progfthree}
+\begin{lrbox}{\progfthree}
+  \begin{lstlisting}
+f3: push 1
+    fetch $r_1$ $\adv$
+    scall $r_1$($[]$,$[r_1]$)
+    pop $r_2$
+    assert $r_2$ 1
+    push 2
+    scall $r_1$($[]$,$[]$)
+    halt
+\end{lstlisting}
+\end{lrbox}
+
+\begin{figure}[t]
+  \centering
+  \subfloat{\usebox{\testit}}
+  \subfloat{\usebox{\progfthree}}
+  \caption{test}
+\end{figure}
+\end{comment}
 \begin{figure}[t]
   \centering
   \begin{minipage}[t]{5.05cm}
