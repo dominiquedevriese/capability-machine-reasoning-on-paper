@@ -1183,15 +1183,14 @@ break local state encapsulation.
 capabilities. But what should their permissions be, what memory should they
 point to and what should that memory (the activation record) contain? Let us
 answer the last question first by considering what should happen when the
-adversary jumps to a return pointer and what capabilities we need for achieving
-that. In that case, the program counter should be restored to point after the
-instruction that jumped into the adversary, so the activation record should
-store this old program counter. Additionally, the stack pointer should also be
-restored to its original value. Since the adversary has a more restricted
-authority over the stack than the code making the call, we cannot hope to
-reconstruct the return pointer from the stack pointer owned by the adversary.
-Instead, the old stack pointer should also be stored as part of the activation
-record.
+adversary jumps to a return pointer. In that case, the program counter should be
+restored to the instruction after the jump to the adversary, so the activation
+record should store this old program counter. Additionally, the stack pointer
+should also be restored to its original value. Since the adversary has a more
+restricted authority over the stack than the code making the call, we cannot
+hope to reconstruct the return pointer from the stack pointer owned by the
+adversary. Instead, the old stack pointer should be stored as part of the
+activation record.
 
 \begin{figure}
   \begin{tikzpicture}[scale=.7, every node={scale=.7}]
@@ -1210,81 +1209,76 @@ record.
   \label{fig:activ-rec-struct}
 \end{figure}
 
-It's important that neither of these capabilities are accessible to the
-adversary. In other words, the return pointer provided to the adversary must be
-a capability that they can jump to but not read from, i.e.\ an enter
-capability. To make this work, we construct the activation record as depicted in
-Figure~\ref{fig:activ-rec-struct}. The return pointer is an $\entry$ capability
-with authority over the activation record containing the previous return and
-stack pointer as well as a number of restore instructions. The return pointer's
-current address points to those instructions, so that, upon invocation, they are
-executed and can load the old stack pointer and program counter back into the
-register file. Because the return pointer is given to the adversary as an enter
-pointer, they cannot get hold of the contents of the data structure, but after
-invocation, its permission is updated to $\exec$, so the activation record's
-contents become available to the restore instructions.
+Clearly, neither of these capabilities should be accessible by the adversary. In
+other words, the return pointer provided to the adversary must be a capability
+that they can jump to but not read from, i.e.\ an enter capability. To make this
+work, we construct the activation record as depicted in
+Figure~\ref{fig:activ-rec-struct}. The $\entry$ return pointer has authority
+over the entire activation record (containing the previous return and stack
+pointer), and its current address points to a number of restore instructions in
+the record, so that upon invocation, these instructions are executed and can
+load the old stack pointer and program counter back into the register file. As
+the return pointer is an enter pointer, the adversary cannot get hold of the
+activation record's contents, but after invocation, its permission is updated to
+$\exec$, so the contents become available to the restore instructions.
 
 The final question that remains is: where should we store this activation
 record? The attentive reader may already see that there is only one possibility:
-since the activation record contains the old stack pointer, which is necessarily
-local, the activation record can only be constructed in a part of memory where
-we have write-local access, i.e.\ on the stack. Note that this means we will be
-placing and executing instructions on the stack, i.e.\ it will not just contain
-code pointers and data. This means that our calling convention should be
-combined with protection against stack smashing attacks (i.e.\ buffer overflows
-on the stack overwriting activation records' contents), but conveniently, the
-fine-grained memory protection on capability machines is well-suited to easily
-provide such protection.
+since the activation record contains the old stack pointer, which is local, the
+activation record can only be constructed in a part of memory where we have
+write-local access, i.e.\ on the stack. Note that this means we will be placing
+and executing instructions on the stack, i.e.\ it will not just contain code
+pointers and data. This means that our calling convention should be combined
+with protection against stack smashing attacks (i.e.\ buffer overflows on the
+stack overwriting activation records' contents). Luckily, such protection is
+easy to provide thanks to the capability machine's fine-grained memory
+protection.
 
 \textbf{Invoking an adversary callback} If we have a higher-order interface to
-the adversary, we might need to invoke an adversary callback. In this case, not
-so much changes with respect to the situation where we invoke regular adversary
+the adversary, we may need to invoke an adversary callback. In this case, not so
+much changes with respect to the situation where we invoke static adversary
 code. The adversary can provide a callback as a capability for us to jump to,
-either an $\entry$-capability if they want to protect themselves from us or just an
-$\exec$ capability if they are not worried about that. However, there is one
-scenario that we need to prevent, namely that they construct the callback
-capability to point into the stack, where they may have stored local
-capabilities that they should not have access to upon invocation of the callback.
-Specifically, they might store return pointers and stack pointers from previous
-stack frames there, and illegally use them inside the callback.
+either an $\entry$-capability if they want to protect themselves from us or just
+an $\exec$ capability if they are not worried about that. However, there is one
+scenario that we need to prevent: if they construct the callback capability to
+point into the stack, it may contain local capabilities that they should not
+have access to upon invocation of the callback. As before, this includes return
+pointers and stack pointers from previous stack frames there, that they may be
+trying to illegally use inside the callback.
 
 To prevent this, we only accept callbacks from the adversary in the form of
-global capabilities and we check this prior to invoking them (and fail
-otherwise). This should not be an overly strict requirement, since our own
+global capabilities, which we dynamically check before invoking them (and we
+fail otherwise). This should not be an overly strict requirement: our own
 callbacks do not contain local data themselves, so there should be no need for
 the adversary to construct callbacks on the stack.\footnote{Note that it does
   prevent a legitimate but non-essential scenario where the adversary wants to
   give us temporary access to a callback not allocated on the stack.}
 
-\textbf{Having a callback invoked by the adversary}
-The above leaves us with probably the hardest scenario: how to provide a
-callback to the adversary. The basic idea is that we allocate a block of memory
-using malloc that we fill with the capabilities and data that the callback needs
-access to, as well as some prelude instructions that load the data into
-registers and jumps to the right code. Note that this implies that no local
-capabilities can be stored as part of a closure. We can then provide the adversary with an
-enter-capability covering the allocated block and pointing to the contained
-prelude instructions. However, the question that remains in this setup is: where
-do we get the stack pointer?
+\textbf{Having a callback invoked by the adversary} The above leaves us with
+perhaps the hardest scenario: how to provide a callback to the adversary. The
+basic idea is that we allocate a block of memory using malloc that we fill with
+the capabilities and data that the callback needs access to, as well as some
+prelude instructions that load the data into registers and jumps to the right
+code. Note that this implies that no local capabilities can be stored as part of
+a closure. We can then provide the adversary with an enter-capability covering
+the allocated block and pointing to the contained prelude instructions. However,
+the question that remains in this setup is: where do we get a stack pointer when
+the callback is invoked?
 
 Our answer is that the adversary should provide it to us, much like we provide
-them with a current stack pointer when we invoke his code.  However, it is
-important that we do not just accept any capability as a stack pointer but check
-that it is safe to use.  Specifically, we check that it is indeed a $\rwlx$
-capability and make sure its current address points just below its start address.
-Without this check, an adversary could potentially get control over
-our local stack frame during a callback by passing us a local $\rwx$
-capability to a global data structure (i.e.\ there exists a global
-capability for it) as the stack pointer and a global
-return pointer. If our local state contains no local capabilities,
-then following our calling convention, the callback would not fail and
-the adversary could use a stored capability for the global data
-structure to access our local state. 
-To prevent this from happening, we need to make sure the stack
-capability is local and there exists no global capability for that
-memory segment. By making sure the capability has permission $\rwlx$,
-we rely on the system wide assumption that there are only local
-$\rwlx$ capabilities.
+them with a stack pointer when we invoke their code. However, it is important
+that we do not just accept any capability as a stack pointer but check that it
+is safe to use. Specifically, we check that it is indeed a $\rwlx$ capability
+and make sure its current address points just below the start address. Without
+this check, an adversary could potentially get control over our local stack
+frame during a callback by passing us a local $\rwx$ capability to a global data
+structure (i.e.\ there exists a global capability for it) as the stack pointer
+and a global callback for our callback to invoke. If our local state contains no
+local capabilities, then following our calling convention, our callback would
+not fail and the adversary could use a stored capability for the global data
+structure to access our local state. To prevent this from happening, we need to
+make sure the stack capability is $\rwlx$, since the system wide assumption then
+tells us that the adversary cannot have a global capabilities to it.
 
 \textbf{Calling convention} With the security measures introduced and motivated,
 here is a summary of our proposed calling convention:
@@ -1295,58 +1289,52 @@ here is a summary of our proposed calling convention:
 \item[Before invoking an adversary callback] make sure the callback capability is global.
 \item[When called by an adversary] make sure the received stack pointer has permission $\rwlx$.
 \end{description}
-\textbf{Reusable macro instructions} 
-We define a number of reusable macros capturing the calling convention and other conveniences. The macros are:
+\textbf{Reusable macro instructions} We define a number of reusable macros
+capturing the calling convention and other conveniences. All macros that uses
+the stack assumes a stack pointer in register $r_\stk$.
 \texttt{\footnotesize{fetch $r$ $\var{name}$}} fetches the capability related to
-$\var{name}$ from the linking table and stores it in register
-$r$. \texttt{\footnotesize{push $r$}}/\texttt{\footnotesize{pop $r$}} works as one would expect. All
-macros that uses the stack assumes a stack pointer in register
-$r_\stk$.  \texttt{\footnotesize{prepstk $r$}} is used when a callback is invoked by
-the adversary and prepares the received stack pointer by checking that
-it has permission $\rwlx$ and making it conform to our calling convention. \texttt{\footnotesize{scall $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}} Jumps
-to the capability in register $r$ in the manner described above. That
-is, it pushes local state (the contents of registers
-$\overline{r_{\var{priv}}}$), stack pointer and return pointer to the
-stack, sets up the necessary on stack return code and creates a return
-pointer, restricts the stack pointer, clears the unused part of the
-stack, clears the necessary registers and jumps to $r$. Upon return,
-the private state is restored. \texttt{\footnotesize{mclear $r$}} clears all the
-memory the capability in register $r$ has authority
-over. \texttt{\footnotesize{rclear $\var{regSet}$}} clears all the registers in
+$\var{name}$ from the linking table and stores it in register $r$.
+\texttt{\footnotesize{push $r$}} and \texttt{\footnotesize{pop $r$}} work as one
+would expect. \texttt{\footnotesize{prepstk $r$}} is used when a callback is
+invoked by the adversary and prepares the received stack pointer by checking
+that it has permission $\rwlx$ and making it conform to our calling convention.
+\texttt{\footnotesize{scall
+    $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}} jumps to the
+capability in register $r$ in the manner described above. That is, it pushes
+local state (the contents of registers $\overline{r_{\var{priv}}}$), stack
+pointer and return pointer to the stack, sets up the necessary on stack return
+code and creates an $\entry$ return pointer, restricts the stack pointer, clears
+the unused part of the stack, clears the necessary registers and jumps to $r$.
+Upon return, the private state is restored. \texttt{\footnotesize{mclear $r$}}
+clears all the memory the capability in register $r$ has authority over.
+\texttt{\footnotesize{rclear $\var{regSet}$}} clears all the registers in
 $\var{regSet}$. \texttt{\footnotesize{reqglob $r$}} checks whether the word in
 register $r$ is a global capability. \texttt{\footnotesize{crtcls
-  $\overline{(x_i,r_i)}$ $r$}} allocates a closure pair where the
-capability in register $r$ is used to point to the program and a new
-environment is allocated (using malloc) where the contents of
-$\overline{r_i}$ is stored. In the program referred to by $r$, an
+    $\overline{(x_i,r_i)}$ $r$}} allocates a closure where $r$ points to the
+closure's code and a new environment is allocated (using malloc) where the
+contents of $\overline{r_i}$ is stored. In the code referred to by $r$, an
 implicit fetch happens when an instruction refers to $x_i$.
 
 The technical appendix~\cite{technical_appendix} contains detailed descriptions
 of all the macros.
 
-%\lars{maybe we can present the examples informally before the logical
-%relation and then return to them after the logical relation (to
-%present the formal properties) ?}
-% \lau{not enough space to do this.}
-
 \section{Logical relation}
 \label{sec:logical-relation}
-In order to be able to reason about programs running on the capability
-machine and prove properties such as well-bracketedness and
-encapsulation, we define a unary logical relation.
+In order to reason about programs on the capability machine and prove properties
+such as well-bracketedness and encapsulation, we define a unary logical
+relation.
 % Intuition
-It is a semantic model of all the words on the capability machine that are
-definitely safe to give to an adversary. Whether a capability is safe to give to
-an adversary depends heavily on the contents of the memory since instructions as
-well as capabilities may reside in memory. Hence we index the logical relation
-over worlds, which are used to model the memory (making our logical relation a
-Kripke logical relation). A world consists of a finite set of regions, and each
-region can be understood as a protocol describing the possible evolution of part
-of the memory. Future evolutions of worlds (e.g. new protocols established over
-memory received from malloc, or steps in a protocol already established for a
-part of memory) are modeled using a future world relation. In fact, as we will
-explain below, there are two such relations to accomodate reasoning about local
-capabilities.
+It is a semantic model of all the words that are definitely safe to give to an
+adversary. Whether a capability is safe depends heavily on the contents of the
+memory since instructions as well as capabilities may reside there. Hence we
+index the logical relation over worlds, modelling the memory (this makes our
+logical relation into a Kripke logical relation). A world consists of a finite
+set of regions, and each region defines a protocol that governs the possible
+evolution of a part of memory. A future world relation defines how worlds may
+evolve during execution (e.g. new protocols established over memory received
+from malloc, or steps in a protocol already established for a part of memory).
+In fact, as we will explain below, there are two future world relations to
+accomodate reasoning about local capabilities.
 %
 
 \subsection{Worlds}
@@ -1361,28 +1349,24 @@ We have three types of regions: \emph{permanent}, \emph{temporary}, and \emph{re
 %$\perma$, $\temp$, and $\revoked$. The
 %$\perma$ and $\temp$ 
 Each permanent and temporary region contains a state transition system, with
-public and private transitions, which describes the protocol governing
-the memory described by the region, similarly to what
-has been used in logical relations for high-level
-languages~\cite{Ahmed:popl09,Dreyer:jfp12,Devriese:2016ObjCap}. 
-The protocols imposed on memory by permanent regions stay in place
-indefinitely. This means that any capability, local or global, can
-depend on these protocols. The protocols imposed on memory by temporary
-regions can be revoked at certain points during execution,
-corresponding to the points, on the condition that we clear local capabilities can be
-revoked. This means that local capabilities safely can depend on the
-protocols imposed on memory by temporary regions, whereas global
-capabilities cannot, since a global capability may stay around
-throughout the execution of a program, but a temporary region may be
-revoked. This is illustrated in \figurename~\ref{fig:cap-world}.
+public and private transitions, to describe a protocol for the region's memory,
+similarly to what has been used in logical relations for high-level
+languages~\cite{Ahmed:popl09,Dreyer:jfp12,Devriese:2016ObjCap}. Protocols
+imposed by permanent regions stay in place indefinitely. Any capability, local
+or global, can depend on these protocols. Protocols imposed by temporary regions
+can be revoked at certain points during execution, on the condition that we
+clear local capabilities when this happens. This means that local capabilities
+can safely depend on the protocols imposed by temporary regions, but global
+capabilities cannot, since a global capability may outlive a temporary region
+that is revoked. This is illustrated in \figurename~\ref{fig:cap-world}.
 
-For technical reasons, a temporary region is not removed in the model when it is
-revoked. Instead it is turned into a new kind of region, namely a revoked
-region. A revoked region contains no state transition system and puts no
-requirements on the memory it models. It simply serves as a mask for a
-temporary region that has been revoked. This way of masking a region goes back
-to earlier work of \citet{Ahmed2004semantics} and was also used
-by \citet{Thamsborg:2011:KLR:2034773.2034831}.
+For technical reasons, we do not actually remove a revoked temporary region from
+the world, but we turn it a special revoked region that exists for this purpose.
+Such a revoked region contains no state transition system and puts no
+requirements on the memory. It simply serves as a mask for a revoked temporary
+region. Masking a region like this goes back to earlier work of
+\citet{Ahmed2004semantics} and was also used by
+\citet{Thamsborg:2011:KLR:2034773.2034831}.
 
 % Recursive worlds intuition
 % The worlds end up being defined recursively: The memory can contain
