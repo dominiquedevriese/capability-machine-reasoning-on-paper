@@ -2375,6 +2375,7 @@ read-write access to a framebuffer.
 \section{Discussion, future work}
 \label{sec:discussion}
 
+\subsection{Stack and return pointer discipline}
 \textbf{Formulating control flow integrity} The attentive reader may notice
 that, while we claim that our stack and return pointer discipline enforces
 control flow integrity, we do not prove a general theorem to show that this is
@@ -2409,28 +2410,98 @@ callback. As we have explained, it is not sufficient to clear just the part of
 the stack that we have used ourselves, but we need to clear the entire stack,
 except the part that we are using ourselves. This means that on every crossing
 of the boundary between trusted and adversary code, a potentially large region
-of memory needs to be zeroed out entirely. We believe that capability machines
-like CHERI should consider to provide special support for this requirement: a
-highly-optimized instruction for zeroing out a potentially large block of
-memory. We have no experience in processor design, but we imagine this might be
-optimized as a vector instruction or even further, by having the processor keep
-track of a range of memory for which loads should pretend that it has already
-been cleared, by returning zero irrespective of the actual contents of the
-memory.
+of memory needs to be zeroed out entirely. We believe that this in fact is a
+common requirement for typical usage scenario's of local capabilities and
+capability machines like CHERI should consider to provide special support for
+this requirement, in the form of a highly-optimized instruction for zeroing out
+a potentially large block of memory. We have no experience in processor design,
+but we imagine this might be optimized as a vector instruction or even further,
+by having the processor keep track of a range of memory for which loads should
+pretend that it has already been cleared, by returning zero irrespective of the
+actual contents of the memory.
 
-\textbf{Modularity} Our return pointers and callbacks satisfy the checks we
-apply to the ones we get from the adversary (return pointers are allowed to be
-local, callbacks must be global), i.e.\ we do not claim special status and what
-we propose is modular.
+\textbf{Modularity} An important aspect of our stack and return pointer
+discipline is that it is modular. By that, we mean that the requirements we have
+on callbacks, return pointers etc. provided to trusted code by an adversary are
+also satisfied by callbacks, return pointers etc. that we construct ourselves.
+For example, our return pointers are necessarily local capabilities because they
+must point to memory where we can store the old stack pointer, but the
+adversary's return pointers are also allowed to be local. Adversary callbacks on
+the other hand are required to be global but the callbacks we construct
+ourselves are also allocated on the heap and global. In other words, we do not
+assume that our code has some sort of special status and it is possible for the
+adversary to protect themselves against us in the same way as we protect against
+them.
+
+\subsection{Logical relation}
+
+\textbf{Single orthogonal closure} The definitions of $\stder$ and $\stdvr$ in
+Figure~\ref{fig:logrel} apply a single orthogonal closure, a new variant of an
+existing pattern called biorthogonality. Biorthogonality is a pattern for
+defining logical relations~\citep{krivine_classical_1994,pitts_operational_1998}
+in terms of an observation relation of safe configurations (like we do). The
+idea is to define safe evaluation contexts as the set of contexts that produce
+safe observations when plugging safe values and define safe terms as the set of
+terms that can be plugged into safe evaluation contexts to produce safe values.
+This is an alternative to more direct definitions where safe terms are defined
+as terms that evaluate to safe values. An advantage of biorthogonality is that
+it scales better to languages with control effects like call/cc. Our definitions
+can be seen as a variant of biorthogonality, where we take only a single
+orthogonal closure: we do not define safe evaluation contexts but immediately
+define safe terms as those that produce safe observations when plugged with safe
+values. This is natural because we model arbitrary assembly code that does not
+necessarily respect a particular calling convention. As a result, return
+pointers are in principle values like all others and there is no reason to treat
+them specially in the logical relation.
+
+It is interesting to note that \citet{Hur:2011:KLR:1926385.1926402} also build a
+step-indexed, Kripke, biorthogonal logical relation for an assembly language
+(for reasoning about correct compilation from ML to assembly), but because they
+only model non-adversarial code that treats return pointers specially according
+to a particular calling convention, they can use standard biorthogonality rather
+than a single orthogonal closure like us.
+
+
+
+\textbf{Public/private future worlds} A novel aspect of our logical relation is
+how we model the temporary nature of local capabilities using public/private
+future worlds. The main insight is that the temporary, revokable nature of these
+capabilities can be seen as a generalisation of the syntactically-enforced
+unstoreable status of evaluation contexts in lambda calculi without control
+effects (of which well-bracketed control flow is a consequence). To reason about
+code that relies on this (particularly, the original awkward example),
+\citet{Dreyer:jfp12} (DNB) formally capture the special status of evaluation
+contexts using Kripke worlds with public and private future world relations.
+Essentially, they allow relatedness of evaluation contexts to be monotone with
+respect to a weaker future world relation (public) than relatedness of values,
+formalising the idea that it is safe to make temporary internal state
+modifications (private world transititions, that invalidate the continuation,
+but not other values) while an expression is performing internal steps, as long
+as the code returns to a stable state (i.e. transitions to a public future world
+of the original) before returning (i.e. invoking the continuation). We
+generalise this idea to reason about local capabilities: validity of local
+capabilities is allowed to be monotone with respect to a weaker future-world
+relation than other values, which we can exploit to distinguish between state
+changes that are always safe (public future worlds) and changes that are only
+valid if we clear all local capabilities (private future worlds). Our future
+world relations are similar to \citet{Dreyer:jfp12}'s (for example, our proof of
+the awkward example uses exactly the same state transition system than theirs),
+but they turn up in an entirely different place in the logical relation: rather
+than using public future worlds for the special syntactic category of evaluation
+contexts, they are used in the value relation depending on the depending on the
+locality of the capability at hand. Additionally, our worlds are a bit more
+complex because, to allow local memory capabilities and store-local
+capabilities, they can contain (revokable) temporary regions that are only
+monotonous w.r.t. public future worlds, while DNB's worlds are entirely
+permanent.
 
 \textbf{Local capabilities in high-level languages} It is worth mentioning that
-local capabilities are quite similar to features that have been proposed for
-high-level languages. Specifically, \citet{osvald_gentrification_2016}'s
-second-class or local values in Scala are remarkably similar: they are a kind of
-values that can be provided to other code for immediate use without allowing it
-to store the value in a closure or reference for later use. We believe reasoning
-about such values will require very similar reasoning techniques than the ones
-we have used for local capabilities.
+local capabilities are quite similar to a feature proposed for the high-level
+language Scala: \citet{osvald_gentrification_2016}'s second-class or local
+values. They are a kind of values that can be provided to other code for
+immediate use without allowing it to be stored in a closure or reference for
+later use. We believe reasoning about such values will require very similar
+reasoning techniques than the ones we have used for local capabilities.
 
 \section{Related work}
 \label{sec:related-work}
@@ -2449,8 +2520,6 @@ in the interest of backwards compatibility and gradual adoption. Our local
 capabilities are inspired by CHERI's, although as discussed, they can be passed
 accross module boundaries, contrary to what is enforced by CHERI's default CCall
 implementation.
-
-
 
 Other papers that enforce well-bracketed control flow at low level (using a
 trusted stack manager)
@@ -2472,92 +2541,11 @@ capability safety in a high-level JavaScript-like lambda calculus. Our
 fundamental theorem is similar to theirs and can be seen as a formulation of
 capability safety of the capability machine. Because we are not interested in
 externally observable side-effects (like console output or memory access
-traces), we do not require their notion of effect parametricity.
-
-The idea of applying SKLRs to an assembly language was applied before by
-\citet{Hur:2011:KLR:1926385.1926402}, who constructed a binary SKLR for
-formulating and proving correctness of an ML-to-assembly compiler. Their
-condition on the assembly code are quite loose (for example, they allow
-hand-written and self-modifying assembly code), but they do assume code that is
-non-adversarial and respects the calling convention of the high-level language
-(for example, the code does not store return pointers and invoke them after
-their intended lifetime). As a result, they can treat return pointers as
-evaluation contexts (continuations) in a lambda calculus and use biorthogonality
-to define the LR~\cite{pitts_operational_1998}. In our setting, there is no
-guarantee that potentially adversarial code will respect the calling convention,
-so, as described in Section~\ref{sec:logical-relation}, we do not use
-biorthogonal closure but just model return pointers as continuations using a
-single orthogonal closure.
-
-Another novel aspect of our logical relation is how we model the temporary
-nature of local capabilities. The main insight is that the temporary, revokable
-nature of these capabilities can be seen as a generalisation of the
-syntactically special, unstoreable status of evaluation contexts in lambda
-calculi (without control effects). Closely related to this is a study by
-\citet{Dreyer:jfp12} (DNB) of the impact of higher-order state and control
-effects on local relational reasoning. DNB formally capture the special status
-of evaluation contexts using Kripke worlds with public and private future world
-relations. Our future world relations are inspired by theirs and they are at
-times remarkably similar. For example, the state-transitition system in the
-proof of our assembly version of the awkward example, is exactly the same as the
-one used by DNB for the original awkward example. However, in our logical
-relation, public and private future worlds turn up in an entirely different
-place in the logical relation: rather than using public future worlds for the
-special syntactic category of evaluation contexts, they are used in the value
-relation depending on the depending on the locality of the capability at hand.
-Additionally, our worlds are a bit more complex because, to allow store-local
-capabilities, they can have temporary regions that are only monotonous w.r.t.
-public future worlds, while DNB's worlds are entirely permanent.
-
-%/comparison with related Dreyer-Neis-Birkedal and with Hur-Dreyer}
-%\todo[inline]{Add discussion/comparison to other LRs}
-% Comparisson of LR to other work:
-% - Single othorgonal closure
-%   o all capabilities are possible continuations, not just the one we
-%   intend to be it.
-% - No termination guarantees in observation relation
-% - Private/public transitions used like in Dreyer-Neis-Birkedal, but
-%   also to  handle the difference in what local and global
-%   capabilities can handle.
-
-% As already mentioned, our the state transition systems used in our
-% logical relation are inspired by earlier work on logical relations for
-% high-level
-% languages~\cite{Ahmed:popl09, Dreyer:jfp12,Devriese:2016ObjCap}.
-% The idea of public and private transitions comes from 
-% Dreyer et. al.~\cite{Dreyer:jfp12}, who gave a logical relations model
-% of a high-level lambda calculus. In \emph{loc. cit.}
-% public transitions were used to 
-% capture the \emph{extensional} behavior of a program expression
-% (and a context), whereas private transitions were used to capture
-% the internal behaviour of a computation using local state.
-% Technically, the logical relation of Dreyer et. al.\ was
-% formulated using biorthogonal closure, and the future world
-% relation for continuations was required to be a public future world
-% relation. In other words, the choice between private or public future
-% rested on the ``structure'' of the programming language. 
-% In contrast, 
-% for our low-level, unstructured, assembly language, we
-% we instead decide on whether to use a private or public future 
-% world depending on whether the capability is global or local. 
-% Another interesting technical difference is that in our low-level 
-% language we do not have a fixed calling convention and any register
-% can serve as a continuation, and therefore we do not use biorthogonal
-% closure but just model return pointers as continuations using a single
-% orthogonal closure. 
-
-% \lars{don't know yet whether we need something like the following paragraph:}
-% Even though 
-% Hur and Dreyer~\cite{Hur:2011:KLR:1926385.1926402} also
-% considered a logical
-% relation involving an assembly language, they still used
-% biorthogonal closure but that was because their logical relation
-% was a relation between a high-level language and an assembly
-% language,  and thus the assembly language in the relation essentially
-% inherited structure from the high-level language.
-
-
-
+traces), we do not require their notion of effect parametricity. Our logical
+relation uses several ideas from previous work, like Kripke worlds with regions
+containing state transition systems~\citep{Ahmed:popl09}, public/private future
+worlds~\citep{Dreyer:jfp12} (see Section~\ref{sec:discussion} for a discussion),
+biorthogonality~\citep{pitts_operational_1998,benton_biorthogonality_2009-1,Hur:2011:KLR:1926385.1926402}.
 
 \begin{itemize}
 \item \cite{akram_el-korashy_formal_2016}
