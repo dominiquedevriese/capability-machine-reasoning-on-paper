@@ -867,6 +867,55 @@ detail, we assume an infinite address space and unbounded integers.
   \label{fig:perm-hier}
 \end{figure}
 
+\begin{figure*}
+  \centering
+  \begin{equation*}
+    \Phi  \rightarrow
+    \begin{cases}
+      \sem{\decode(n)}(\Phi) & \text{\footnotesize{if $\memreg(\pcreg) = \stdcap$ and $\start \leq \addr \leq \addrend$ and $\perm \in \{ \exec,\rwx, \rwlx \}$ and $\memheap(\addr) = n$ }}\\
+      \failed                                 & \text{\footnotesize{otherwise}}
+    \end{cases}
+  \end{equation*}\vspace{-.3cm}%
+  \begin{align*}
+    \stdUpdatePc{\Phi} &=
+                         \begin{cases}
+                           \updateReg{\pcreg}{\var{newPc}} & \arraycolsep=0pt
+                             \text{\footnotesize{if $\memreg(\pcreg) = \stdcap$ and $\var{newPc} = ((\perm,\gl),\start,\addrend,\addr + 1)$}}\\
+                             \failed & \text{\footnotesize{otherwise}}
+                         \end{cases}
+  \end{align*}
+  \begin{tabular}{|c|p{4.3cm}|p{9.9cm}|}
+    \hline
+    $i$&$\sem{i}(\Phi)$&Conditions\\
+    \hline 
+    $\fail$&$\failed$&\\
+    \hline
+    $\halt$&$(\halted,\memheap)$&\\
+    \hline
+    $\move{\refreg{r_1}}{r_2}$& $\stdUpdatePc{}(\updateReg{r_1}{\memreg(r_2)})$&\\
+    \hline
+    $\load{\refreg{r_1}}{\refheap{r_2}}$&$\updateReg{r_1}{\memheap(\addr)}$&$\memreg(r_2) = \stdcap$\footnotesize{ and }$\perm \in \{ \rwx, \rwlx, \exec, \readwrite, \readwritel, \readonly \}$\footnotesize{ and }$\start \leq \addr \leq \addrend$\\
+    \hline
+    $\restricttwo{\refreg{r_1}}{r_2}$&$\stdUpdatePc{}(\updateReg{r_1}{w})$  & $\memreg(r_2) = \stdcap$\footnotesize{ and }$(\perm',g') = \decodePermPair{\memreg(r_2)}$
+                                                      \footnotesize{ and }$(\perm',g') \sqsubseteq (\perm,g)$\footnotesize{ and } $w =((\perm',g'),\start,\addrend,\addr)$\\
+    \hline
+    $\geta{\refreg{r_1}}{\refreg{r_2}}$ & $\stdUpdatePc{\updateReg{r_1}{\addr}}$ &
+                                                $\memreg(r_2) = ((\_,\_),\_,\_,\addr)$\\
+    \hline
+    $\jmp{\lv}$&$\updateReg{\pcreg}{\var{newPc}}$& \footnotesize{if }$\memreg(r) = ((\perm,\gl),\start,\addrend,\addr)$\footnotesize{, then} $\var{newPc} = ((\exec,\gl),\start,\addrend,\addr)$ \footnotesize{ otherwise }$\var{newPc} = \memreg(r)$\\
+    \hline
+    $\store{\refheap{r_1}}{\refreg{r_2}}$&$\stdUpdatePc{\updateHeap{\addr}{\var{w}}}$&$\memreg(r_1) = \stdcap$\footnotesize{ and }$\perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\}$ \footnotesize{ and } $\start \leq \addr \leq \addrend$\footnotesize{ and }$\var{w} = \memreg(r_2)$
+                                                                                       \footnotesize{and if }$\var{w} = ((\_,\local),\_,\_,\_)$\footnotesize{, then  }$\perm \in \{\rwlx,\readwritel \}$\\
+    \hline
+    \multicolumn{3}{|c|}{$\cdots$}\\
+    \hline
+    \_&$\failed$&\footnotesize{otherwise}\\
+    \hline
+  \end{tabular}
+  \caption{An excerpt from the operational semantics.}
+  \label{fig:op-sem}
+\end{figure*}
+
 We define the syntax of our capability machine in
 \figurename~\ref{fig:syntax}. We assume an infinite set of addresses
 $\Addrs$ and define machine words as either integers or capabilities
@@ -908,56 +957,6 @@ Finally, there is an instruction $\isptr{}{}$ for testing whether a word is a
 capability or a number and instructions $\getp{}{}$, $\getl{}{}$, $\getb{}{}$,
 $\gete{}{}$ and $\geta{}{}$ for obtaining respectively the permissions,
 local/global flag, base, end and current address of a capability.
-
-\begin{figure*}
-  \centering
-  \begin{equation*}
-    \Phi  \rightarrow
-    \begin{cases}
-      \sem{\decode(n)}(\Phi) & \text{\footnotesize{if $\memreg(\pcreg) = \stdcap$ and $\start \leq \addr \leq \addrend$ and $\perm \in \{ \exec,\rwx, \rwlx \}$ and $\memheap(\addr) = n$ }}\\
-      \failed                                 & \text{\footnotesize{otherwise}}
-    \end{cases}
-  \end{equation*}\vspace{-.3cm}%
-  \begin{align*}
-    \stdUpdatePc{\Phi} &=
-                         \begin{cases}
-                           \updateReg{\pcreg}{\var{newPc}} & \arraycolsep=0pt
-                             \text{\footnotesize{if $\memreg(\pcreg) = \stdcap$ and $\var{newPc} = ((\perm,\gl),\start,\addrend,\addr + 1)$}}\\
-                             \failed & \text{\footnotesize{otherwise}}
-                         \end{cases}
-  \end{align*}
-
-  \begin{tabular}{|c|p{4.3cm}|p{9.9cm}|}
-    \hline
-    $i$&$\sem{i}(\Phi)$&Conditions\\
-    \hline 
-    $\fail$&$\failed$&\\
-    \hline
-    $\halt$&$(\halted,\memheap)$&\\
-    \hline
-    $\move{\refreg{r_1}}{r_2}$& $\stdUpdatePc{}(\updateReg{r_1}{\memreg(r_2)})$&\\
-    \hline
-    $\load{\refreg{r_1}}{\refheap{r_2}}$&$\updateReg{r_1}{\memheap(\addr)}$&$\memreg(r_2) = \stdcap$\footnotesize{ and }$\perm \in \{ \rwx, \rwlx, \exec, \readwrite, \readwritel, \readonly \}$\footnotesize{ and }$\start \leq \addr \leq \addrend$\\
-    \hline
-    $\restricttwo{\refreg{r_1}}{r_2}$&$\stdUpdatePc{}(\updateReg{r_1}{w})$  & $\memreg(r_2) = \stdcap$\footnotesize{ and }$(\perm',g') = \decodePermPair{\memreg(r_2)}$
-                                                      \footnotesize{ and }$(\perm',g') \sqsubseteq (\perm,g)$\footnotesize{ and } $w =((\perm',g'),\start,\addrend,\addr)$\\
-    \hline
-    $\geta{\refreg{r_1}}{\refreg{r_2}}$ & $\stdUpdatePc{\updateReg{r_1}{\addr}}$ &
-                                                $\memreg(r_2) = ((\_,\_),\_,\_,\addr)$\\
-    \hline
-    $\jmp{\lv}$&$\updateReg{\pcreg}{\var{newPc}}$& \footnotesize{if }$\memreg(r) = ((\perm,\gl),\start,\addrend,\addr)$\footnotesize{, then} $\var{newPc} = ((\exec,\gl),\start,\addrend,\addr)$ \footnotesize{ otherwise }$\var{newPc} = \memreg(r)$\\
-    \hline
-    $\store{\refheap{r_1}}{\refreg{r_2}}$&$\stdUpdatePc{\updateHeap{\addr}{\var{w}}}$&$\memreg(r_1) = \stdcap$\footnotesize{ and }$\perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\}$ \footnotesize{ and } $\start \leq \addr \leq \addrend$\footnotesize{ and }$\var{w} = \memreg(r_2)$
-                                                                                       \footnotesize{and if }$\var{w} = ((\_,\local),\_,\_,\_)$\footnotesize{, then  }$\perm \in \{\rwlx,\readwritel \}$\\
-    \hline
-    \multicolumn{3}{|c|}{$\cdots$}\\
-    \hline
-    \_&$\failed$&\footnotesize{otherwise}\\
-    \hline
-  \end{tabular}
-  \caption{An excerpt from the operational semantics}
-  \label{fig:op-sem}
-\end{figure*}
 
 \begin{comment}
   \begin{figure}
