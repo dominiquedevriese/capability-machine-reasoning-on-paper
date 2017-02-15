@@ -400,18 +400,15 @@
 \maketitle
 
 \begin{abstract}  
-  Capability machines provide security guarantees at machine level
-  which makes them an interesting target for compilation schemes that aim to
-  provably enforce control-flow correctness, encapsulation of local
-  state, and such properties.
-  We provide a formalisation of a representative capability machine
-  and propose a novel stack management discipline for enforcing
-  control-flow correctness and encapsulation of local state on it. To prove
-  these properties, we provide a logical relation that semantically
-  captures capability safety. The capability safety defined by the
-  logical relation goes beyond the
-  proposed stack management discipline and can be used to reason about
-  any capability safe program.
+  Capability machines provide security guarantees at machine level which makes
+  them an interesting target for compilation schemes that aim to provably
+  enforce properties like control-flow correctness, encapsulation of local
+  state. We provide a formalisation of a representative capability machine and
+  propose a novel calling convention for enforcing control-flow correctness and
+  encapsulation of local state on it. To prove these properties, we provide a
+  logical relation that semantically captures the guarantees provided by the
+  hardware (a form of capability safety). These results are not tied to our
+  calling convention and can be used to reason about arbitrary programs.
 \end{abstract}
 
 % \section*{Terminology ?}
@@ -501,45 +498,37 @@ In this paper, we make progress towards the goal of efficient and provably
 watertight enforcement of encapsulation and control-flow correctness on
 capability machines. Specifically, we make the following contributions:
 \begin{itemize}
-\item In Section~\ref{sec:capab-mach-with}, we formalise a simple but representative capability machine featuring
-  local capabilities much like CHERI's, and define its operational semantics.
-\item We define a novel stack management discipline for enforcing control-flow
-  correctness and encapsulation of local state on the stack in
-  Section~\ref{sec:stack-and-return-pointer}. The discipline relies solely on
-  local capabilities (used to represent stack and return pointers) and does not
-  require OS support in the form of a trusted shadow stack or special call and
-  return instructions. It also does not require separate per-component stacks
-  and instead works with a single, fairly standard, contiguous stack. It
-  supports higher-order cross-component calls (e.g., (potentially)
-  cross-component function pointers) and can be efficient assuming only one
-  additional piece of processor support: an instruction for efficiently clearing
-  a range of memory.
-\item We provide a theorem that is (by far) the most general
-  and powerful formulation of the guarantees offered by a capability machine.
-  The theorem also expresses the specific guarantees offered by the machine for
-  local capabilities. It is very general and not tied to a specific ABI or a
-  specific way of using the system's capabilities.
-\item The above theorem is formulated in terms of a unary step-indexed
-  logical relation with recursively defined Kripke worlds. It is
-  inspired by one used in \cite{Devriese:2016ObjCap} for
-  capability safety in a JavaScript-like lambda calculus, but has two
-  novel technical characteristics. The natural CPS style of assembly
-  code with return pointers as continuations is modeled using a
-  \emph{single} orthogonal closure, rather than the biorthogonal
-  closure that has been previously used for lambda calculi. Perhaps
-  more surprisingly, we show that the special nature of local
-  capabilities can be elegantly expressed using a variant of an idea
-  that has been used by Dreyer et. al.~\cite{Dreyer:jfp12} to express
-  well-bracketedness guarantees in a lambda calculus: Kripke worlds
-  with both a public and a private future world relation. Interestingly,
-  the two future world relations generally work very similarly to
-  Dreyer et al.'s, except that they turn up in quite a different place
-  in the logical relation. The logical relation and theorem is presented in Section~\ref{sec:logical-relation}.
-\item We demonstrate the power of our results in Section~\ref{sec:examples} by applying them to challenging
-  examples, specifically constructed to demonstrate local state encapsulation
-  and control-flow correctness guarantees in the presence of cross-component
-  function pointers. The examples demonstrate both the power of our formulation
-  of capability safety and our stack management discipline.
+\item Formalise a simple but representative capability machine featuring local
+  capabilities, and its operational semantics
+  (Section~\ref{sec:capab-mach-with})
+\item Define a novel calling convention enforcing control-flow correctness and
+  encapsulation of local state on the stack
+  (Section~\ref{sec:stack-and-return-pointer}). It relies solely on local
+  capabilities and does not require OS support (like a trusted stack or
+  call/return instructions). It also does not use separate per-component stacks
+  but a single, fairly standard, contiguous stack. It supports higher-order
+  cross-component calls (e.g., (potentially) cross-component function pointers)
+  and can be efficient assuming only one additional piece of processor support:
+  an efficient instruction for clearing a memory range.
+\item Prove a theorem that is the most general and powerful formulation of the
+  guarantees offered by a capability machine (a form of capability
+  safety~\cite{Devriese:2016ObjCap,Maffeis2010OC}), including the specific
+  guarantees offered for local capabilities. It is very general and not tied to
+  our calling convention or a specific way of using the system's capabilities.
+\item Introduce two novel technical ideas in the unary, step-indexed Kripke
+  logical relation used to formulate the above theorem. First, we model the
+  naturally continuation-passing-style of assembly code (with return pointers as
+  continuations) using a \emph{single} orthogonal closure, rather than the
+  existing biorthogonal closure. Secondly, we express the special nature of
+  local capabilities using a variant of Dreyer et. al.'s public and private
+  future worlds~\citep{Dreyer:jfp12}, used to express well-bracketedness
+  guarantees in a lambda calculus. The logical relation and capability safety
+  theorem is presented in Section~\ref{sec:logical-relation}.
+\item Demonstrate our results by applying them to challenging examples,
+  specifically constructed to demonstrate local state encapsulation and
+  control-flow correctness guarantees in the presence of cross-component
+  function pointers (Section~\ref{sec:examples}). The examples demonstrate both
+  the power of our formulation of capability safety and our calling convention.
 \end{itemize}
 %\lau{I have left out the discussion/future work, related work and conclussion sections from the outline given with the contribution. Do you feel like there should be a dedicated outline instead and if not should we mention the last sections (I don't feel it contributes anything to mention them).}
 
@@ -778,12 +767,12 @@ refer to the technical appendix~\cite{technical_appendix} for those.
 
 \section{A capability machine with local capabilities}
 \label{sec:capab-mach-with}
-In this paper, we work with a formal capability machine that has all the
+In this paper, we work with a formal capability machine with all the
 characteristics of real capability machines, as well as local capabilities much
-like CHERI's, but is otherwise kept as simple as possible. It is inspired by
+like CHERI's. Otherwise, it is kept as simple as possible. It is inspired by
 both the M-Machine~\cite{Carter:1994:HSF:195473.195579} and
-CHERI~\cite{Watson2015Cheri}. To avoid getting bogged down in uninteresting
-detail, we assume an infinite address space and unbounded integers.
+CHERI~\cite{Watson2015Cheri}. To avoid uninteresting detail, we assume an
+infinite address space and unbounded integers.
 
 \begin{figure}
   \begin{align*}
@@ -1092,16 +1081,15 @@ details.
 \label{sec:stack-and-return-pointer}
 %\lau{Do we want to use the term ``pointer'' at any point? I have also used it, but I guess it might create some confusing to whether we have traditional pointer as well as capabilities?}
 One of the contributions in this paper is a demonstration that local
-capabilities on a capability machine can be used in a stack and return pointer
-management scheme that enforces control-flow correctness in a way that is provably
-watertight, potentially efficient, does not rely on a trusted central stack
-manager, and with support for exposing higher-order interfaces to an adversary.
-In this section, we explain this discipline. We start by explaining the
-high-level approach, the different issues that need to be taken into account,
-starting with first-order interfaces and moving onto a higher-order setting
-next. After that, we define a number of reusable macro-instructions that
-can be used to conveniently apply the proposed discipline in subsequent
-examples.
+capabilities on a capability machine can be used in a calling convention that
+enforces control-flow correctness in a way that is provably watertight,
+potentially efficient, does not rely on a trusted central stack manager, and
+with support for exposing higher-order interfaces to an adversary. In this
+section, we explain this convention. We start by explaining the high-level
+approach, the different issues that need to be taken into account, starting with
+first-order interfaces and moving onto a higher-order setting next. After that,
+we define a number of reusable macro-instructions that can be used to
+conveniently apply the proposed convention in subsequent examples.
 
 The basic idea of our approach is quite simple: we stick to a single, rather
 standard, C stack and register-passed return pointers, much like a standard C
@@ -1151,15 +1139,15 @@ capabilities left there by them, including local capabilities since the stack is
 store-local. The adversary could take advantage of this by using the unused part
 of the stack to store either stack pointers or return pointers from such
 previous invocations and then use them when they're no longer supposed to. To
-prevent this, before returning, we need to clear (i.e.\ overwrite with zeros) the
-entire part of the stack that the adversary has had access to, not just the
+prevent this, before returning, we need to clear (i.e.\ overwrite with zeros)
+the entire part of the stack that the adversary has had access to, not just the
 parts that we have used ourselves. Essentially, this is needed for the same
 reason that we clear the register file: because the adversary should not be able
 to keep hold of local capabilities when control is passed to the trusted code
 and back to the adversary. Clearing the entire unused part of the stack is the
-most problematic aspect of our discipline in terms of efficiency, since it may
-consist of a large part of memory. However, we believe there are ways to
-optimize it that we discuss in Section~\ref{sec:discussion}.
+most problematic aspect of our calling convention in terms of efficiency, since
+it may consist of a large part of memory (but see Section~\ref{sec:discussion}
+for how this might be mitigated).
 
 \textbf{Invoking the adversary} Slightly more complex is the case where we
 invoke the adversary. As above, we clear all the registers, except those that
@@ -1257,11 +1245,11 @@ since the activation record contains the old stack pointer, which is necessarily
 local, the activation record can only be constructed in a part of memory where
 we have write-local access, i.e.\ on the stack. Note that this means we will be
 placing and executing instructions on the stack, i.e.\ it will not just contain
-code pointers and data. This means that our discipline should be combined with
-protection against stack smashing attacks (i.e.\ buffer overflows on the stack
-overwriting activation records' contents), but conveniently, the fine-grained
-memory protection on capability machines is well-suited to easily provide such
-protection.
+code pointers and data. This means that our calling convention should be
+combined with protection against stack smashing attacks (i.e.\ buffer overflows
+on the stack overwriting activation records' contents), but conveniently, the
+fine-grained memory protection on capability machines is well-suited to easily
+provide such protection.
 
 \textbf{Invoking an adversary callback} If we have a higher-order interface to
 the adversary, we might need to invoke an adversary callback. In this case, not
@@ -1313,26 +1301,24 @@ memory segment. By making sure the capability has permission $\rwlx$,
 we rely on the system wide assumption that there are only local
 $\rwlx$ capabilities.
 
-\textbf{Stack management discipline}
-The precautions the needed to safely interact with an adversary have now been introduced and motivated. The stack discipline comprises the precautions. Summarized, they were:
+\textbf{Calling convention} With the security measures introduced and motivated,
+here is a summary of our proposed calling convention:
 \begin{description}[font=\normalfont\itshape]
-\item[At program startup] a local $\rwlx$-capability (the stack pointer) resides in register $r_\stk$. The system does not hand out global write-local capabilities.
-\item[Before returning to the adversary] clear the registers (with words we do not want to pass to the adversary) and erase any part of the stack we have used (any part of the stack that has been passed to an adversary must also be erased).
-\item[Before invoking the adversary] push an activation record to the stack, create a local $\entry$-capability for the restore instructions of the activation record (the return pointer) and leave it in a register, leave a copy of the stack capability restricted to the unused part in $r_\stk$, erase the part of the stack we release control over, and clear the non-argument registers.
-\item[Before invoking an adversary callback] make sure it is a global capability.
-\item[When called by an adversary] make sure the alleged stack pointer has permission $\rwlx$.
+\item[At program startup] a local $\rwlx$-capability (the stack pointer) resides in register $r_\stk$. The system never hands out global write-local capabilities.
+\item[Before returning to the adversary] clear the non-return-value registers and the entire part of the stack that we had access to.
+\item[Before invoking the adversary] push an activation record to the stack, create a return pointer as a local $\entry$-capability to the instructions in the activation record, restrict the stack capability to the unused part in $r_\stk$, clear that part of the stack, and clear the non-argument registers.
+\item[Before invoking an adversary callback] make sure the callback capability is global.
+\item[When called by an adversary] make sure the received stack pointer has permission $\rwlx$.
 \end{description}
 \textbf{Reusable macro instructions} 
-We define a number of reusable macros. The macros capture the stack
-management discipline and other conveniences. The macros are:
+We define a number of reusable macros capturing the calling convention and other conveniences. The macros are:
 \texttt{\footnotesize{fetch $r$ $\var{name}$}} fetches the capability related to
 $\var{name}$ from the linking table and stores it in register
 $r$. \texttt{\footnotesize{push $r$}}/\texttt{\footnotesize{pop $r$}} works as one would expect. All
 macros that uses the stack assumes a stack pointer in register
 $r_\stk$.  \texttt{\footnotesize{prepstk $r$}} is used when a callback is invoked by
 the adversary and prepares the received stack pointer by checking that
-it has permission $\rwlx$ and making it conform to our stack
-discipline. \texttt{\footnotesize{scall $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}} Jumps
+it has permission $\rwlx$ and making it conform to our calling convention. \texttt{\footnotesize{scall $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}} Jumps
 to the capability in register $r$ in the manner described above. That
 is, it pushes local state (the contents of registers
 $\overline{r_{\var{priv}}}$), stack pointer and return pointer to the
@@ -2237,7 +2223,7 @@ complicated than the previous ones because it involves a closure invoked by the
 adversary and an adversary callback invoked by us. As explained in
 Section~\ref{sec:stack-and-return-pointer}, this means we need to (1) take care
 to properly check the stack pointer received by our closure from the adversary
-(it must have the correct permission and fit with our stack discipline) and (2)
+(it must have the correct permission and fit with our calling convention) and (2)
 require that the adversary callback is global.
 
 To illustrate how subtle this program is, consider how an adversary could try to
@@ -2247,9 +2233,9 @@ the adversary to transfer the return pointer from the point where it reinvokes
 the closure to where the closure reinvokes the callback, then the assertion can
 be made to fail. Similarly, if there were any way for the adversary to store a
 stack pointer or trick the trusted code into preserving it across an invocation,
-the assertion can likely be made to fail too. However, our stack and return
-pointer discipline guarantees that there is no way any of this can happen, as we
-prove in the following lemma.
+the assertion can likely be made to fail too. However, our calling convention
+guarantees that there is no way any of this can happen, as we prove in the
+following lemma.
 
 \begin{lemma}
   \label{lem:correctness-g1}
@@ -2365,28 +2351,28 @@ read-write access to a framebuffer.
 \section{Discussion}
 \label{sec:discussion}
 
-\subsection{Stack and return pointer discipline}
+\subsection{Calling convention}
 \textbf{Formulating control flow correctness} The attentive reader may notice
-that, while we claim that our stack and return pointer discipline enforces
-control-flow correctness, we do not prove a general theorem to show that this is
-the case. The reason for this is that it is not clear what such a theorem should
-look like. Formulations in terms of a control-flow graph, like the one by
+that, while we claim that our calling convention enforces control-flow
+correctness, we do not prove a general theorem to show that this is the case.
+The reason for this is that it is not clear what such a theorem should look
+like. Formulations in terms of a control-flow graph, like the one by
 \cite{abadi_control-flow_2005}, do not take into account temporal properties,
-like the well-bracketedness that Example~\texttt{\footnotesize{g1}} relies on. In fact, our
-examples show that our logical relation imply a form of control-flow correctness
-that is stronger than such formulations, although this is not made very
-explicit. As future work, we are considering to look at a more explicit and
-useful way to formalise well-bracketed control flow. The idea would be to define
-a variant of our capability machine with built-in call and return instructions
-and well-bracketed control flow built-in to the operational semantics, and then
-prove that compiling such code to our machine using our stack and return pointer
-discipline is fully abstract~\cite{abadi_protection_1998}, which roughly means
-that the lower-level machine does not allow interactions with the compiled code
-that do not correspond to an interaction with the original code in the
+like the well-bracketedness that Example~\texttt{\footnotesize{g1}} relies on.
+In fact, our examples show that our logical relation imply a form of
+control-flow correctness that is stronger than such formulations, although this
+is not made very explicit. As future work, we are considering to look at a more
+explicit and useful way to formalise well-bracketed control flow. The idea would
+be to define a variant of our capability machine with built-in call and return
+instructions and well-bracketed control flow built-in to the operational
+semantics, and then prove that compiling such code to our machine using our
+calling convention is fully abstract~\cite{abadi_protection_1998}, which roughly
+means that the lower-level machine does not allow interactions with the compiled
+code that do not correspond to an interaction with the original code in the
 high-level machine.
 
 \textbf{Performance and the requirement for stack clearing} It is important to
-consider the performance of our proposed stack and return management discipline.
+consider the performance of our proposed calling convention.
 Generally, the additional security measures described in
 Section~\ref{sec:stack-and-return-pointer} obviously impose an overhead w.r.t.
 an approach that does not provide security. However, they generally consist of a
@@ -2408,18 +2394,17 @@ by having the processor keep track of a range of memory for which loads should
 pretend that it has already been cleared, by returning zero irrespective of the
 actual contents of the memory.
 
-\textbf{Modularity} An important aspect of our stack and return pointer
-discipline is that it is modular. By that, we mean that the requirements we have
-on callbacks, return pointers etc. provided to trusted code by an adversary are
-also satisfied by callbacks, return pointers etc. that we construct ourselves.
-For example, our return pointers are necessarily local capabilities because they
-must point to memory where we can store the old stack pointer, but the
-adversary's return pointers are also allowed to be local. Adversary callbacks on
-the other hand are required to be global but the callbacks we construct
-ourselves are also allocated on the heap and global. In other words, we do not
-assume that our code has some sort of special status and it is possible for the
-adversary to protect themselves against us in the same way as we protect against
-them.
+\textbf{Modularity} An important aspect of our calling convention is that it is
+modular. By that, we mean that the requirements we have on callbacks, return
+pointers etc. provided to trusted code by an adversary are also satisfied by
+callbacks, return pointers etc. that we construct ourselves. For example, our
+return pointers are necessarily local capabilities because they must point to
+memory where we can store the old stack pointer, but the adversary's return
+pointers are also allowed to be local. Adversary callbacks on the other hand are
+required to be global but the callbacks we construct ourselves are also
+allocated on the heap and global. In other words, we do not assume that our code
+has some sort of special status and it is possible for the adversary to protect
+themselves against us in the same way as we protect against them.
 
 \subsection{Logical relation}
 
@@ -2562,6 +2547,7 @@ that the machine uses capabilities.
 %\section{Conclusion}
 \label{sec:conclusion}
 \todo[inline]{Insert the correct URL for the technical report in the bibtex file!}
+
 \begin{comment}
 \section*{Acknowledgements}
 \label{sec:acknowledgements}
@@ -2569,6 +2555,7 @@ that the machine uses capabilities.
 This research was supported in part by the ModuRes Sapere Aude Advanced Grant from The Danish Council for Independent Research for the Natural Sciences (FNU).
 Dominique Devriese holds a postdoctoral fellowship from the Research Foundation - Flanders (FWO).
 \end{comment}
+
 %\bibliographystyle{IEEEtran}
 \bibliographystyle{plainnat}
 \bibliography{IEEEabrv,references}
