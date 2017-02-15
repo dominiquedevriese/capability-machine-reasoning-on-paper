@@ -1040,134 +1040,121 @@ $\pcreg$\footnote{Note that the capability in the $\pcreg$-register can be used
 %   talked about what is described here, is not how we make closures in the TR, so
 %   we should consider whether we should refrain from using that word here. }
 
-The final semantics we discuss is that of $\store{}{}$. As expected, it updates
-the memory to the requested value if the capability has write authority for the
-requested location. However, the instruction is complicated by the presence of
-\emph{local capabilities}, modeled after the ones in
-the CHERI processor~\cite{Watson2015Cheri}. Basically, local capabilities are special in that
-they can only be kept in registers, i.e.\ they cannot be stored to memory. This
-means that local capabilities can be \emph{temporarily} given to an adversary,
-for the duration of an invocation: if we take care to erase the capability from
-the register file after control is passed back to us, we can be sure that they
-will not have been able to store the capability. However, there is one exception
-to the rule above: local capabilities can be stored to a part of memory for
-which we have a capability with write-local authority (i.e.\ permission $\rwl$ or
-$\rwlx$). This exception is intended to accomodate regions of memory that behave
-like the C stack: stashing away the contents of registers on the stack can be
-allowed, even if this includes local capabilities. As long as all capabilities
-with write-local authority are themselves local and the stack is cleared after
-control is passed back by the adversary, we will see that this does not break
-the intended behavior of local capabilities.
+Finally, the $\store{}{}$ instruction updates the memory to the requested value
+if the capability has write authority for the requested location. However, the
+instruction is complicated by the presence of \emph{local capabilities}, modeled
+after the ones in the CHERI processor~\cite{Watson2015Cheri}. Basically, local
+capabilities are special in that they can only be kept in registers, i.e.\ they
+cannot be stored to memory. This means that local capabilities can be
+\emph{temporarily} given to an adversary, for the duration of an invocation: if
+we take care to erase the capability from the register file after control is
+passed back to us, they will not have been able to store the capability.
+However, there is one exception to the rule above: local capabilities can be
+stored to memory for which we have a capability with write-local authority
+(i.e.\ permission $\rwl$ or $\rwlx$). This is intended to accomodate a stack,
+where register contents can be stored, including local capabilities. As long as all
+capabilities with write-local authority are themselves local and the stack is
+cleared after control is passed back by the adversary, we will see that this
+does not break the intended behavior of local capabilities.
 
 We point out that our local capabilities capture only a part of the semantics of
-local capabilities in CHERI. Specifically, on top of the above restrictions,
-CHERI's default implementation of CCall additionally forbids local capabilities
-from being passed accross module boundaries, something which we rely on
-crucially in this paper, for passing around local return pointers and stack
-capabilities. However, CHERI's CCall is not implemented in hardware, but in
-software, precisely to allow experimenting with alternative models like ours.
+local capabilities in CHERI. Specifically, in addition to the above, CHERI's
+default implementation of the CCall exception handler forbids local capabilities
+from being passed accross module boundaries. Such a restriction fundamentally
+breaks our calling convention, since we pass around local return pointers and
+stack capabilities. However, CHERI's CCall is not implemented in hardware, but
+in software, precisely to allow experimenting with alternative models like ours.
 
 % Contrary to more traditional assembly languages, capability machines do not
 % allow literal addresses to appear as part of instructions. This means that we 
 
-In order to have a reasonably realistic system, we have created a
-simple model of linking, so programs can have access to other programs
-through a linking table. We also assume malloc to be part of the
-trusted computing base satisfying a certain specification. Malloc and
-the model linking is described to the degree necessary, in the next
-section, but we refer to the technical appendix~\cite{technical_appendix} for further
-details.
+In order to have a reasonably realistic system, we use a simple model of
+linking, so programs can have access to other programs through a linking table.
+We also assume malloc to be part of the trusted computing base satisfying a
+certain specification. Malloc and linking tables are described further in the
+next section, but we refer to the technical appendix~\cite{technical_appendix}
+for full details.
 
 \section{Stack and return pointer management using local capabilities}
 \label{sec:stack-and-return-pointer}
-%\lau{Do we want to use the term ``pointer'' at any point? I have also used it, but I guess it might create some confusing to whether we have traditional pointer as well as capabilities?}
 One of the contributions in this paper is a demonstration that local
-capabilities on a capability machine can be used in a calling convention that
-enforces control-flow correctness in a way that is provably watertight,
-potentially efficient, does not rely on a trusted central stack manager, and
-with support for exposing higher-order interfaces to an adversary. In this
-section, we explain this convention. We start by explaining the high-level
-approach, the different issues that need to be taken into account, starting with
-first-order interfaces and moving onto a higher-order setting next. After that,
-we define a number of reusable macro-instructions that can be used to
-conveniently apply the proposed convention in subsequent examples.
+capabilities on a capability machine support a calling convention that enforces
+control-flow correctness in a way that is provably watertight, potentially
+efficient, does not rely on a trusted central stack manager, and supports
+higher-order interfaces to an adversary. In this section, we explain this
+convention's high-level approach, the security measures to be taken in a number
+of situations (motivating each separately with a summary table at the end).
+After that, we define a number of reusable macro-instructions that can be used
+to conveniently apply the proposed convention in subsequent examples.
 
-The basic idea of our approach is quite simple: we stick to a single, rather
-standard, C stack and register-passed return pointers, much like a standard C
-ABI. However, to prevent various ways of
-misusing this basic scheme, we put local capabilities to work and take a number
-of not-always-obvious safety measures. In the next paragraphs, we will explain
-the issues to be considered in all the relevant situations: when (1) starting
-our program, (2) Returning to the adversary, (3) invoking the adversary, (4)
-returning from the adversary, (5) invoking an adversary callback and (6) having
-a callback invoked by the adversary.
+The basic idea of our approach is simple: we stick to a single, rather standard,
+C stack and register-passed return pointers, much like a standard C calling
+convention. However, to prevent various ways of misusing this basic scheme, we
+put local capabilities to work and take a number of not-always-obvious safety
+measures. In the next paragraphs, we will explain the issues to be considered in
+all the relevant situations: when (1) starting our program, (2) returning to the
+adversary, (3) invoking the adversary, (4) returning from the adversary, (5)
+invoking an adversary callback and (6) having a callback invoked by the
+adversary.
 
-% \dominique{Add a summary table somewhere?}
-% \lau{It seems like we want have the space for this}.
+\textbf{Program startup} We assume that the language runtime initializes the
+memory as follows: a contiguous array of memory is reserved for the stack, for
+which we receive a stack pointer in a special register $r_\stk$. We stress that
+the stack is not built-in, but merely an abstraction we put on this piece of the
+memory. The stack pointer is local and has $\rwlx$ permission. Crucially, the
+stack is the only part of memory for which the runtime (including malloc,
+loading, linking) will ever provide $\rwlx$ or $\rwl$ capabilities.
+Additionally, our examples typically also assume some memory to store
+instructions or static data. Another part of memory (called the heap) is
+initially governed by malloc and at program startup, no other code has
+capabilities for this memory. Malloc hands out $\rwx$ capabilities for allocated
+regions as requested (no $\rwlx$ or $\rwl$ permissions). For simplicity, we
+assume that memory allocated through malloc cannot be freed.
 
-\textbf{Program startup}
-When our code starts executing, we assume that the language runtime initializes
-the memory as follows: a contiguous array of memory is reserved for the stack,
-for which we receive a stack pointer in a register, $r_\stk$, that we reserve for this
-purpose. We stress that the stack is not built-in, but merely an
-abstraction we put on this piece of the memorey. This stack pointer must be local and it must carry $\rwlx$ permission. It is crucial for
-our approach that the stack is the only part of memory for which there will ever
-be an obtainable capabilities with $\rwlx$ or $\rwl$ capabilities. We expect the language
-runtime to enforce this by not handing out such capabilities for other parts of
-memory in any situation (i.e.\ not through malloc, not during loading or linking
-etc.). Additionally, in our examples, we typically also assume some static parts
-of memory where instructions are stored or static data. Another part of memory
-(called the heap) is initially governed by malloc and at program startup, no
-other code has capabilities for this memory. Malloc will hand out capabilities
-for allocated regions as requested, but it will never hand out capabilities with
-write-local capability (i.e.\ no $\rwlx$ or $\rwl$ permissions). For simplicity,
-we assume that memory allocated through malloc cannot be freed.
-
-\textbf{Returning to the adversary} Perhaps the simplest scenario is the case of
-returning to the adversary after they invoked our code. In this case, we will
-have received a return pointer from them, and we just need to jump to it as
-usual. The only thing we need to take care of is to properly clear the registers
-before we do (erasing any data we do not want to pass as (part of) the return
-value) and similarly. However, it is important to carefully consider what needs
-to happen with the stack. Since we may have used the stack for various purposes
-(register spilling, storing local state when invoking other functions etc.), we
-clearly need to erase that data before returning to the adversary, to prevent
-the adversary access to it.
+\textbf{Returning to the adversary} Perhaps the simplest situation is returning
+to the adversary after they invoked our code. In this case, we have received a
+return pointer from them, and we just need to jump to it as usual. An obvious
+security measure to take care of is properly clearing the non-return-value
+registers before we jump (since they may contain data or capabilities that the
+adversary should not get access to). Additionally, we may have used the stack
+for various purposes (register spilling, storing local state when invoking other
+functions etc.), so we also need to erase that data before returning to the
+adversary.
 
 However, if we are returning from a function that has itself invoked adversary
-code, then even the unused part of the stack may still contain data and
-capabilities left there by them, including local capabilities since the stack is
-write-local. The adversary could take advantage of this by using the unused part
-of the stack to store either stack pointers or return pointers from such
-previous invocations and then use them when they're no longer supposed to. To
-prevent this, before returning, we need to clear (i.e.\ overwrite with zeros)
-the entire part of the stack that the adversary has had access to, not just the
-parts that we have used ourselves. Essentially, this is needed for the same
-reason that we clear the register file: because the adversary should not be able
-to keep hold of local capabilities when control is passed to the trusted code
-and back to the adversary. Clearing the entire unused part of the stack is the
-most problematic aspect of our calling convention in terms of efficiency, since
-it may consist of a large part of memory (but see Section~\ref{sec:discussion}
-for how this might be mitigated).
+code, then clearing the used part of the stack is not enough. The \emph{unused}
+part of the stack may also contain data and capabilities, left there by the
+adversary, including local capabilities since the stack is store-local. The
+adversary could take advantage of this by using the unused part of the stack to
+store either stack pointers or return pointers from such previous invocations
+and then use them when they're no longer supposed to. To prevent this, we need
+to clear (i.e.\ overwrite with zeros) the entire part of the stack that the
+adversary has had access to, not just the parts that we have used ourselves.
+This requirement may seem strong, but it is essentially there for the same
+reason that we clear the register file: the adversary should not be able to keep
+hold of local capabilities when control is passed to trusted code and back to
+the adversary. Since we may be talking about a large part of memory, this is the
+most problematic aspect of our calling convention for performance, but see
+Section~\ref{sec:discussion} for how this might be mitigated.
 
-\textbf{Invoking the adversary} Slightly more complex is the case where we
-invoke the adversary. As above, we clear all the registers, except those that
-contain arguments the adversary is intended to have access to. We leave a copy
-of the stack pointer in $r_\stk$, but only after we have used
-the $\subseg{}{}{}$ to shrink its authority to just the part of the stack that
-we are not using. In one of the registers, we also provide a return pointer,
-which we will say more about below.
+\textbf{Invoking the adversary} A slightly more complex case is invoking the
+adversary. As above, we clear all the non-argument registers, as well as the
+part of the stack that we are not using (because, as above, it may contain local
+capabilities from previously executed code that the adversary could exploit in
+the same way as above). We leave a copy of the stack pointer in $r_\stk$, but
+only after we have used the $\subseg{}{}{}$ to shrink its authority to the part
+that we are not using ourselves.
 
-Already important is the fact that the return pointer must be provided to the
-adversary as a local capability. If not, the adversary would be able to store
-away the return pointer in a global data structure, and they would be able to jump
-to it in circumstances where this should not be possible: for example, they may
-store the return pointer, legally jump to it a first time, wait to be invoked
-again and then jump to the old return pointer a second time, rather than the new
-return pointer received for the new invocation. Similarly, they may store the
-return pointer, invoke a function in our code, wait for us to invoke him again
-and then jump to the stored, old return pointer rather than the new one they
-received upon the second invocation.
+In one of the registers, we also provide a return pointer, which must be a local
+capability. If it were global, the adversary would be able to store away the
+return pointer in a global data structure, and jump to it later, in
+circumstances where this should not be possible. For example, they could store
+the return pointer, legally jump to it a first time, wait to be invoked again
+and then jump to the old return pointer a second time, instead of the new return
+pointer received for the second invocation. Similarly, they could store the
+return pointer, invoke a function in our code, wait for us to invoke them again
+and then jump to the old return pointer rather than the new one, received for the
+second invocation.
 % \lau{If we need space, then maybe one of the examples is sufficient.}
 % \lau{Both of these are good to have their as the two last examples of Section~\ref{sec:examples} use them.}
 %
@@ -1188,12 +1175,6 @@ for use during future invocations would also be dangerous for other reasons:
 during such a future invocation, a larger part of the stack may be in use by the
 trusted code, which the adversary may still have access to through the old stack
 pointer.
-
-A final required safety measure is that before invocation of the adversary, we
-need to clear the part of the stack that we are not using. Otherwise, similarly
-to what we explained above for returning to the adversary, that part of the
-stack may still contain local capabilities from previously executed code and the
-adversary could exploit this in much the same way as above.
 
 \textbf{Returning from the adversary} So return pointers must be passed as local
 capabilities. But what should their permissions be, what memory should they
