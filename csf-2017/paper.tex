@@ -2226,48 +2226,49 @@ lemma.
 As explained in Section~\ref{sec:stack-and-return-pointer}, the
 macro-instruction \texttt{\footnotesize{reqglob $r_1$}} checks that the callback
 is global, essentially to make sure it is not allocated on the stack where it
-might contain old stack pointers or return pointers. If not, it could break the
-encapsulation of our local stack frame. In the proof of
+might contain old stack pointers or return pointers. Otherwise, the
+encapsulation of our local stack frame could be broken. In the proof of
 Lemma~\ref{lem:correctness-g1}, this requirement shows up because we invoke the
 callback in a world that is only a private future world of the one where we
-received the callback, precisely because we have invalidated the local state of
-the adversary (particularly its previous stack and return capabilities). The
-callback is still valid in this private future world, but only because we know
-that it is global.
+received the callback, precisely because we have invalidated the adversary's
+local state (particularly their old stack and return capabilities). The callback
+is still valid in this private future world, but only because we know that it is
+global.
 
 In Lemma~\ref{lem:correctness-g1} the order of control has been inverted
 compared to the previous lemmas. In this lemma, the adversary assumes control
-first with a capability for the closure creator \texttt{\footnotesize{g1}}. This means we need
-to check that all arguments are safe to use and that we clean up before
-returning in the end. The inversion of control poses an interesting challenge
-when it comes to reasoning about the adversary's local state during the
-execution of \texttt{\footnotesize{f4}}. During the execution of \texttt{\footnotesize{f4}} and the callbacks,
-the adversary should not be able to rely on its local state from before the call
-of \texttt{\footnotesize{f4}}. This is easily done by revoking all the temporary regions of the
-world given at the start of \texttt{\footnotesize{f4}}. However, when \texttt{\footnotesize{f4}} returns, the
-adversary is again allowed to rely on its old local state which means that we
-need to guarantee that the local state is unchanged. This is important because
-the return pointer that \texttt{\footnotesize{f4}} receives from the adversary may be local,
-and the adversary is allowed to allocate the activation record on the stack
-(just like we do) so that they can store and recover his old stack pointer after
-\texttt{\footnotesize{f4}} returns.
+first with a capability for the closure creator \texttt{\footnotesize{g1}}. This
+means we need to check that all arguments are safe to use and that we clean up
+before returning in the end. The inversion of control makes it challenging to
+reason about the adversary's local state during the execution of
+\texttt{\footnotesize{f4}}. During the execution of \texttt{\footnotesize{f4}}
+and the callbacks, the adversary cannot use their local state from before the
+call of \texttt{\footnotesize{f4}}. This is modeled by revoking the temporary
+regions of the world we get at the start of \texttt{\footnotesize{f4}}. However,
+when \texttt{\footnotesize{f4}} returns, the adversary's old local state becomes
+available again, since they are allowed to allocate their activation record on
+the stack (just like we do) so that they can store and recover their old stack
+pointer after \texttt{\footnotesize{f4}} returns. This means that we need to
+restore validity of the adversary's old local state, which we achieve
+essentially by clearing the stack.
 
-In Figure~\ref{fig:worlds-in-pf-g1}, we illustrate how we accommodate this in the
-proof of Lemma~\ref{lem:correctness-g1} by constructing appropriate worlds for
-all the situations where control is passed to the adversary. The potentially
-local return pointer received by \texttt{\footnotesize{f4}} from the adversary is safe in
-$W_1$, so it can only be used in public future worlds. Let us see how $W_6$ is
-constructed as a public future world. The worlds $W_2$ and $W_4$ are constructed
-by revoking all temporary regions and adding a $\iota^\pwl$ region for the stack
-we pass away and static temporary regions (a region that accepts exactly one
-memory) for our local stack as well as the adversary's local stack. The given
-worlds $W_3$ and $W_5$ are public future worlds in which the adversary chooses
-to return to us. None of these worlds can have masked the temporary regions of
-$W_1$ with permanent regions. $W_6$ is constructed by revoking the temporary
-regions of $W_5$ and reinstating the temporary regions of $W_1$. This makes
-$W_6$ a public future world of $W_1$. It is therefore safe to use the return
-pointer to return to the adversary, since we have restored validity of any local
-state they might have stashed away.
+In Figure~\ref{fig:worlds-in-pf-g1}, we illustrate how we accommodate this in
+the proof of Lemma~\ref{lem:correctness-g1} by constructing suitable worlds for
+all situations where we pass control to the adversary. The potentially local
+return pointer received by \texttt{\footnotesize{f4}} from the adversary is safe
+in $W_1$, so it can only be used in public future worlds. Let us see how $W_6$
+is constructed as a private future world of $W_5$ but also a public future world
+of $W_1$. The worlds $W_2$ and $W_4$ are constructed by revoking all temporary
+regions and adding a $\iota^\pwl$ region for the stack we pass away and static
+temporary regions (which accept exactly one memory) for our local stack as well
+as the adversary's old local stack. The given worlds $W_3$ and $W_5$ are public
+future worlds in which the adversary chooses to return to us. None of these
+worlds can have replaced the temporary regions of $W_1$ with permanent regions.
+Therefore, by revoking the temporary regions of $W_5$ and reinstating the
+temporary regions of $W_1$, we can construct $W_6$ as a private future world of
+$W_5$ but also a public future world of $W_1$. Because of the latter, it is safe
+to use the local return pointer to return to the adversary, since we have
+restored validity of any local state they might have stashed away.
 
 \begin{figure}[t]
   \centering
@@ -2298,11 +2299,10 @@ state they might have stashed away.
        (4) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\pub$} (5)
        (5) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\priv$} (6);
 \end{tikzpicture}
-  \caption{Illustration of some of the worlds in the proof of
-    Lemma~\ref{lem:correctness-g1}. The first row of worlds are worlds
-  we construct during the proof. The second row of worlds are worlds
-  we are given during the proof. $W_6$ is constructed such that $W_6
-  \futurewk W_1$.}
+\caption{Illustration of the worlds in the proof of
+  Lemma~\ref{lem:correctness-g1}. In the proof, the above row of worlds are
+  constructed by us, while the below worlds are given. $W_6$ is constructed such
+  that $W_6 \futurestr W_5$ \emph{ and } $W_6 \futurewk W_1$.}
   \label{fig:worlds-in-pf-g1}
 \end{figure}
 \begin{comment}
@@ -2322,47 +2322,49 @@ read-write access to a framebuffer.
 \section{Discussion}
 \label{sec:discussion}
 \noindent\textbf{Calling convention}\\
-\emph{Formulating control flow correctness} While we claim that our calling convention enforces control-flow
-correctness, we do not prove a general theorem that shows this, because it is not clear what such a theorem should state. Formulations in terms of a control-flow graph, like the one by
+\emph{Formulating control flow correctness} While we claim that our calling
+convention enforces control-flow correctness, we do not prove a general theorem
+that shows this, because it is not clear what such a theorem should look like.
+Formulations in terms of a control-flow graph, like the one by
 \cite{abadi_control-flow_2005}, do not take into account temporal properties,
 like the well-bracketedness that Example~\texttt{\footnotesize{g1}} relies on.
-In fact, our examples show that our logical relation imply a form of
-control-flow correctness that is stronger than such formulations, although this
-is not made very explicit. As future work, we consider looking at a more
-explicit and useful way to formalise well-bracketed control flow. The idea would
-be to define a variant of our capability machine with built-in call and return
-instructions and well-bracketed control flow built-in to the operational
-semantics, and then prove that compiling such code to our machine using our
-calling convention is fully abstract~\cite{abadi_protection_1998}.
+In fact, our examples show that our logical relation imply a stronger form of
+control-flow correctness than such formulations, although this is not made very
+explicit. As future work, we consider looking at a more explicit and useful way
+to formalise control flow correctness. The idea would be to define a variant
+of our capability machine with call and return instructions and
+well-bracketed control flow built-in to the operational semantics, and then
+prove that compiling such code to our machine using our calling convention is
+fully abstract~\citep{abadi_protection_1998}.
 
-\emph{Performance and the requirement for stack clearing} 
-The additional security measures of the calling convention described in
-Section~\ref{sec:stack-and-return-pointer} impose an overhead compared to
-a calling convention that does not provide security. However, the security measures generally consist of a
-few checks or register clearings on every boundary crossing between trusted code
-and adversary, which should impose an acceptable performance overhead. The only
-exception is the requirements for stack clearing which we occur in two
-situations: when returning to the adversary and when invoking an adversary
-callback. As we have explained, it is not sufficient to clear just the part of
-the stack that we have used ourselves, but we need to clear all of the stack that we are not using ourselves. 
-In other words on every boundary cross between trusted code and adversary code, a potentially large region of memory must be cleared.
-We believe this is a common requirement for typical usage scenarios of local capabilities and
-capability machines like CHERI should consider to provide special support for
-this requirement, in the form of a highly-optimized instruction for erasing
-a large block of memory.
+\emph{Performance and the requirement for stack clearing} The additional
+security measures of the calling convention described in
+Section~\ref{sec:stack-and-return-pointer} impose an overhead compared to a
+calling convention without security guarantees. However, most security measures
+require only a few atomic checks or register clearings on boundary crossings
+between trusted code and adversary, which should produce an acceptable
+performance overhead. The only exception are the requirements for stack clearing
+that we have in two situations: when returning to the adversary and when
+invoking an adversary callback. As we have explained, we need to clear all of
+the stack that we are not using ourselves, not just the part that we have
+actually used. In other words, on every boundary cross between trusted code and
+adversary code, a potentially large region of memory must be cleared. We believe
+this is actually a common requirement for typical usage scenarios of local
+capabilities and capability machines like CHERI should consider to provide
+special support for this requirement, in the form of a highly-optimized
+instruction for erasing a large block of memory.
 
-\emph{Modularity} It is important that our calling convention is modular.
-This means that the requirements we have on callbacks, return
-pointers etc. provided to trusted code by an adversary are also satisfied by
-callbacks, return pointers etc. that we construct ourselves. For example, our
-return pointers are local capabilities because they must point to
-memory where we can store the old stack pointer, but the adversary's return
-pointers are also allowed to be local. Adversary callbacks on the other hand are
-required to be global but the callbacks we construct ourselves are also
-allocated on the heap and global. In other words, we do not assume that our code
-has some sort of special status and it is possible for the adversary to protect
-themselves against us the same way we protect against them.
-\\\\
+\emph{Modularity} It is important that our calling convention is modular, i.e.
+we do not assume that our code is specially privileged w.r.t. the adversary, and
+they can apply the same measures to protect themselves from us as we do to
+protect ourselves from them. More concretely, the requirements we have on
+callbacks and return pointers received from the adversary are also satisfied by
+callbacks and return pointers that we pass to them. For example, our return
+pointers are local capabilities because they must point to memory where we can
+store the old stack pointer, but the adversary's return pointers are also
+allowed to be local too. Adversary callbacks on the other hand are required to
+be global but the callbacks we construct ourselves are allocated on the heap and
+also global. \\\\
 \noindent\textbf{Logical relation}\\
 \emph{Single orthogonal closure} The definitions of $\stder$ and $\stdvr$ in
 Figure~\ref{fig:logrel} apply a single orthogonal closure, a new variant of an
@@ -2371,103 +2373,99 @@ defining logical relations~\citep{krivine_classical_1994,pitts_operational_1998}
 in terms of an observation relation of safe configurations (like we do). The
 idea is to define safe evaluation contexts as the set of contexts that produce
 safe observations when plugging safe values and define safe terms as the set of
-terms that can be plugged into safe evaluation contexts to produce safe values.
-This is an alternative to more direct definitions where safe terms are defined
-as terms that evaluate to safe values. An advantage of biorthogonality is that
-it scales better to languages with control effects like call/cc. Our definitions
-can be seen as a variant of biorthogonality, where we take only a single
-orthogonal closure: we do not define safe evaluation contexts but immediately
-define safe terms as those that produce safe observations when plugged with safe
-values. This is natural because we model arbitrary assembly code that does not
-necessarily respect a particular calling convention. As a result, return
-pointers are in principle values like all others and there is no reason to treat
-them specially in the logical relation.
+terms that can be plugged into safe evaluation contexts to produce safe
+observations. This is an alternative to more direct definitions where safe terms
+are defined as terms that evaluate to safe values. An advantage of
+biorthogonality is that it scales better to languages with control effects like
+call/cc. Our definitions can be seen as a variant of biorthogonality, where we
+take only a single orthogonal closure: we do not define safe evaluation contexts
+but immediately define safe terms as those that produce safe observations when
+plugged with safe values. This is natural because we model arbitrary assembly
+code that does not necessarily respect a particular calling convention. As a
+result, return pointers are in principle values like all others and there is no
+reason to treat them specially in the logical relation.
 
-It is interesting to note that \citet{Hur:2011:KLR:1926385.1926402} also build a
-step-indexed, Kripke, biorthogonal logical relation for an assembly language
-(for reasoning about correct compilation from ML to assembly), but because they
-only model non-adversarial code that treats return pointers specially according
-to a particular calling convention, they can use standard biorthogonality rather
-than a single orthogonal closure like us.
+Interestingly, \citet{Hur:2011:KLR:1926385.1926402} also use a step-indexed,
+Kripke logical relation for an assembly language (for reasoning about correct
+compilation from ML to assembly), but because they only model non-adversarial
+code that treats return pointers according to a particular calling convention,
+they can use standard biorthogonality rather than a single orthogonal closure
+like us.
 
 
 
 \emph{Public/private future worlds} A novel aspect of our logical relation is
-how we model the temporary nature of local capabilities using public/private
+how we model the special nature of local capabilities using public/private
 future worlds. The main insight is that the temporary, revokable nature of these
 capabilities can be seen as a generalization of the syntactically-enforced
 unstorable status of evaluation contexts in lambda calculi without control
-effects (of which well-bracketed control flow is a consequence). To reason about
-code that relies on this (particularly, the original awkward example),
-\citet{Dreyer:jfp12} (DNB) formally capture the special status of evaluation
-contexts using Kripke worlds with public and private future world relations.
-Essentially, they allow relatedness of evaluation contexts to be monotone with
-respect to a weaker future world relation (public) than relatedness of values,
-formalising the idea that it is safe to make temporary internal state
-modifications (private world transitions, that invalidate the continuation,
-but not other values) while an expression is performing internal steps, as long
-as the code returns to a stable state (i.e. transitions to a public future world
-of the original) before returning (i.e. invoking the continuation).\lau{I feel there is an awful lot of parentheses here and that some of them might not be strictly necessary (like explaining temporary internal state modifications and returning = invoking the continuation). Dominique, could you decide whether they are essential to stay true to the contents of the cited paper.}
-We
-generalise this idea to reason about local capabilities: validity of local
-capabilities is allowed to be monotone with respect to a weaker future-world
-relation than other values, which we can exploit to distinguish between state
-changes that are always safe (public future worlds) and changes that are only
-valid if we clear all local capabilities (private future worlds). Our future
-world relations are similar to \citet{Dreyer:jfp12}'s (for example, our proof of
-the awkward example uses exactly the same state transition system),
-but they turn up in an entirely different place in the logical relation: rather
-than using public future worlds for the special syntactic category of evaluation
-contexts, they are used in the value relation depending on the
-locality of the capability at hand. Additionally, our worlds are a bit more
-complex because, to allow local memory capabilities and write-local
-capabilities, they can contain (revokable) temporary regions that are only
-monotonous w.r.t. public future worlds, while DNB's worlds are entirely
+effects. To reason about code that relies on this (particularly, the original
+awkward example), \citet{Dreyer:jfp12} (DNB) formally capture the special status
+of evaluation contexts using Kripke worlds with public and private future world
+relations. Essentially, they allow relatedness of evaluation contexts to be
+monotone with respect to a weaker future world relation (public) than
+relatedness of values. This formalises the idea that it is safe to make
+temporary internal state modifications (private world transitions, that
+invalidate the continuation, but not other values) while a term is performing
+internal steps, as long as it returns to a stable state (i.e. transitions to a
+public future world of the original) before returning. We generalise this idea
+to reason about local capabilities: validity of local capabilities is allowed to
+be monotone with respect to a weaker future-world relation than other values,
+which we can exploit to distinguish between state changes that are always valid
+(public future worlds) and changes that are only valid if we clear local
+capabilities (private future worlds). Our future world relations are similar to
+\citet{Dreyer:jfp12}'s (for example, our proof of the awkward example uses the
+exact same state transition system), but they turn up in an entirely different
+place in the logical relation: rather than using public future worlds for the
+special syntactic category of evaluation contexts, they are used in the value
+relation depending on the locality of the capability at hand. Additionally, our
+worlds are more complex because, to allow local memory capabilities and
+write-local capabilities, they can contain (revokable) temporary regions that
+are only monotonous w.r.t. public future worlds, while DNB's worlds are entirely
 permanent.
 
-\emph{Local capabilities in high-level languages} It is worth mentioning that
+\emph{Local capabilities in high-level languages} We point out that
 local capabilities are quite similar to a feature proposed for the high-level
 language Scala: \citet{osvald_gentrification_2016}'s second-class or local
 values. They are a kind of values that can be provided to other code for
 immediate use without allowing it to be stored in a closure or reference for
 later use. We believe reasoning about such values will require techniques similar 
-to the ones we have used for local capabilities.
+to what we provide for local capabilities.
 
 \section{Related work}
 \label{sec:related-work}
 
-In this section, we summarise how our work relates to previous work. We do not
-repeat the work already discussed in Section~\ref{sec:discussion}.
+Finally, we summarise how our work relates to previous work. We do not
+repeat the work we discussed in Section~\ref{sec:discussion}.
 
-Capability machines originate with Dennis and Van
-Horn~\cite{Dennis:1966:PSM:365230.365252} and we refer to
+Capability machines originate with \citet{Dennis:1966:PSM:365230.365252} and we refer to
 \citet{Levy1984capability} and \citet{Watson2015Cheri} for an overview
 of previous work. The capability machine formalized in
 Section~\ref{sec:capab-mach-with} is a simple but representative
 model, modeled mainly after the
-M-Machine~\cite{Carter:1994:HSF:195473.195579} (the enter pointers
+M-Machine~\citep{Carter:1994:HSF:195473.195579} (the enter pointers
 resemble the M-Machine's) and
-CHERI~\cite{Watson2015Cheri,Woodruff:2014:CCM:2665671.2665740} (the
+CHERI~\citep{Watson2015Cheri,Woodruff:2014:CCM:2665671.2665740} (the
 memory and local capabilities resemble CHERI's). The latter is a
 recent and relatively mature capability machine, which combines
 capabilities with a virtual memory approach, in the interest of
 backwards compatibility and gradual adoption. As discussed, our local
-capabilities differ from CHERI's by being able to cross module boundaries, 
+capabilities can cross module boundaries, 
 contrary to what is enforced by CHERI's default CCall implementation.
 
-There are plenty of other papers\lau{If there are plenty, then I guess we should cite more than one?}
- that enforce well-bracketed control flow at a
-low level, but most are restricted to preventing particular types of attacks and
-enforce only partial correctness of control flow. This includes particularly the
-line of work on \emph{control-flow integrity}~\citep{abadi_control-flow_2005}.
-This work uses a quite different attacker model than us: they assume an attacker
-that is not able to execute code, but can overwrite arbitrary data at any time
-during execution (as a model for buffer overflows). By checking the address of
-every indirect jump and using memory access control to prevent overwriting code,
-this work enforces what they call control-flow integrity, formalized as the
-property that every jump will follow a legal path in the control-flow graph.
-As discussed in Section~\ref{sec:discussion}, this integrity property does not
-take into account temporal properties and seems hard to use for reasoning. 
+Plenty of other papers\lau{If there are plenty, then I guess we should cite more
+  than one?} enforce well-bracketed control flow at a low level, but most are
+restricted to preventing particular types of attacks and enforce only partial
+correctness of control flow. This includes particularly the line of work on
+\emph{control-flow integrity}~\citep{abadi_control-flow_2005}. Those use a quite
+different attacker model than us: they assume an attacker that is not able to
+execute code, but can overwrite arbitrary data at any time during execution (to
+model buffer overflows). By checking the address of every indirect jump and
+using memory access control to prevent overwriting code, this work enforces what
+they call control-flow integrity, formalized as the property that every jump
+will follow a legal path in the control-flow graph. As discussed in
+Section~\ref{sec:discussion}, such a property ignores temporal properties and
+seems hard to use for reasoning.
 
 More closely related to our work are papers that use a trusted stack manager and
 some form of memory isolation to enforce control-flow correctness as part of a
@@ -2476,10 +2474,10 @@ result~\citep{patrignani_modular_2016-1,juglaret_beyond_2016-1}. Our work
 differs from theirs in that we use a different form of low-level security
 primitive (a capability machine with local capabilities rather than a machine
 with a primitive notion of compartments) and we do not use a trusted stack
-manager component, but a decentralized calling convention based on local
+manager, but a decentralized calling convention based on local
 capabilities. Also, both prove a secure compilation result from a high-level
 language, which clearly implies a general form of control-flow correctness,
-while we define a sound logical relation that can be used to reason about
+while we define a logical relation that can be used to reason about
 specific programs that rely on well-bracketed control flow.
 
 Our logical relation is a unary, step-indexed Kripke logical relation
@@ -2487,7 +2485,7 @@ with recursive
 worlds~\cite{Appel:2001:IMR:504709.504712,Ahmed2004semantics,Birkedal:2011:SKM:1926385.1926401},
 closely related to the one used by \citet{Devriese:2016ObjCap} to formulate
 capability safety in a high-level JavaScript-like lambda calculus. Our
-Fundamental Theorem is similar to theirs and can be seen as a formulation of
+Fundamental Theorem is similar to theirs and expresses
 capability safety of the capability machine. Because we are not interested in
 externally observable side-effects (like console output or memory access
 traces), we do not require their notion of effect parametricity. Our logical
@@ -2499,9 +2497,8 @@ biorthogonality~\citep{pitts_operational_1998,benton_biorthogonality_2009-1,Hur:
 El-Korashy also defined a formal model of a capability machine, namely CHERI,
 and uses it to prove a compartmentalization
 result~\citep{akram_el-korashy_formal_2016} (not implying control-flow
-correctness). He also proves soundness of control-flow integrity (see above)
-adapted to the capability machine, a result that seems orthogonal to the fact
-that the machine uses capabilities.
+correctness). He also adapts control-flow integrity (see above) to the machine
+and shows soundness, seemingly without relying on capabilities.
 
 %\section{Conclusion}
 %\label{sec:conclusion}
