@@ -1780,86 +1780,76 @@ temporary) region.
 %   constructed to express the FTLR and the FTLR says that if a piece of code only
 %   has access to values respecting the invariants in a world, then it will
 %   respect them itself too.} 
-The logical relation now defines semantically what it means to be capability
-safe. In large parts, capability safety is defined by when a capability can be
-safely given to adversarial code. In the following paragraphs, we will go
-through the definitions of the logical relation and provide an intuition why
-they define capability safety. The definition of the logical relation is found
-in \figurename~\ref{fig:logrel}, and \figurename~\ref{fig:perm-conds}. Some
-definitions are omitted and explained when needed. The precise definitions can
-be found in the technical appendix~\cite{technical_appendix}.
+The logical relation now defines semantically when values, terms, and
+configurations are for execution by the adversary, i.e. without the risk that
+they will be able to use it to break protocols in the world. The definition of
+the logical relation is found in \figurename{}s~\ref{fig:logrel}
+and~\ref{fig:perm-conds} and we provide some explanations in the following
+paragraphs. We omit some definitions and explain them only verbally, but precise
+definitions can be found in the technical appendix~\cite{technical_appendix}.
 
-The \emph{observation relation} $\observations$ defines which configurations
-are capability safe. Roughly speaking, a configuration is capability safe if,
-whenever it halts, then the resulting memory satisfies a private future world.
-Notice that failing is considered safe behavior and in fact, the machine will
-often resort to failing when, for example, an unauthorized
-access is attempted, like a load of a memory location through a
-capability without read permission. This is similar to the logical relation
-given for an untyped language in~\cite{Devriese:2016ObjCap}, but unlike logical
-relations for typed languages, which typically require that computations do not
-fail.
+The \emph{observation relation} $\observations$ defines configurations that we
+consider safe. Roughly speaking, a configuration is safe if, whenever it halts,
+there is a private future world that the resulting memory satisfies. Notice that
+failing is considered safe behavior. In fact, the machine often resorts to
+failing when an unauthorized access is attempted, like loading from a capability
+without read permission. This is similar to \cite{Devriese:2016ObjCap}'s logical
+relation for an untyped language, but unlike typical logical relations
+for typed languages, which require that programs do not fail.
 
 The \emph{register-file relation} $\stdrr$ specifies that register-files are
 safe when they contain safe words (i.e.\ words in $\stdvr$) in all registers but
-$\pcreg$. The \emph{expression relation} $\stder$ defines when a word is safe
-to use as a program counter. That is the case when the word can be plugged into
-a capability safe register file (i.e.\ a register file in $\stdrr$) and paired
-with a memory satisfying the world to become a capability safe configuration.
+$\pcreg$. The \emph{expression relation} $\stder$ defines that a word is safe to
+use as a program counter if it can be plugged into a safe register file (i.e.\ a
+register file in $\stdrr$) and paired with a memory satisfying the world to
+produce a safe configuration.
 
 The \emph{value relation} $\stdvr$ defines when words are safe, i.e.\ when they
 cannot be used to break the protocols defined by the world. Non-capability data
 is always safe because it provides no authority. Capabilities give the authority
 to manipulate memory and potentially break memory protocols, so they need to
-satisfy certain conditions to be capability safe. In
-\figurename~\ref{fig:perm-conds}, we define such a condition for each kind of
-permission a capability can have (we will call these permission-based
-conditions).
+satisfy certain conditions to be safe. In \figurename~\ref{fig:perm-conds}, we
+define such a condition for each kind of permission a capability can have (we
+will call these permission-based conditions).
 
 For capabilities with read permission, the $\readCond{}$ ensures that it can
-only be used to read capability safe words, by requiring that the region
-governing the relevant part of memory, guarantees that the memory contains only
-words in the value relation. Generally speaking, global capabilities should only
-depend on permanent regions. Therefore we use the function
-$\var{localityReg}(\gl,W)$, which projects out all active regions when
-$\gl$ (the locality) is local, but only the permanent regions when $\gl$ is global.
-The read condition is defined in terms of a standard region
-$\iota^\pwl_{\start,\addrend}$ which requires all the words in the range
-$[\start,\addrend]$ to be safe.
+only be used to read safe words, by requiring that the region governing the
+relevant part of memory, guarantees that it contains only words in the value
+relation. Generally speaking, global capabilities should only depend on
+permanent regions. Therefore we use the function $\var{localityReg}(\gl,W)$,
+which projects out all active regions when $\gl$ (the locality) is local, but
+only the permanent regions when $\gl$ is global. The read condition is defined
+in terms of a standard region $\iota^\pwl_{\start,\addrend}$ which requires all
+the words in the range $[\start,\addrend]$ to be safe.
 
-For a capability with write permission, $\writeCond{}$ must be
-satisfied for the capability's range of authority. Such a capability
-may be used to write any word, so the region governing the relevant
-part of memory must (at least) allow any capability safe word to be
-stored. However, this is not entirely true because of the distinction
-between write and permit-write-local capabilities.  Only
-permit-write-local capabilities need to allow arbitrary safe values to
-be stored, while for write capabilities, it is sufficient to allow
-storing values that are both non-local and safe. The write condition
-uses $\var{localityReg}$ to pick an appropriate region for its
-locality in the same way the read condition does. The condition for
-the region to be address-stratified is there for technical reasons and for the full definition, we refer to the technical appendix. In
-the value relation, the write condition is used with $\iota^\pwl$ for
-write-local capabilities. For write capabilities, the write condition
-is used with another standard region $\iota^\nwl_{\start,\addrend}$
-which requires all the words in the range $[\start,\addrend]$ to be
-non-local and safe.
+For a capability with write permission, $\writeCond{}$ must be satisfied for the
+capability's range of authority. Such a capability may be used to write any
+word, so the region governing the relevant memory must (at least) allow any safe
+word to be stored. More precisely, for permit-write-local capabilities it needs
+to allow arbitrary safe values to be stored, while for write capabilities,
+storing values that are both non-local and safe is sufficient. Like before, we
+use $\var{localityReg}$ to pick an appropriate region for the capability's
+locality. The condition for the region to be address-stratified is a technical
+requirement, defined in the technical appendix. In the value relation, the write
+condition is used with $\iota^\pwl$ for write-local capabilities. For write
+capabilities, it is used with another standard region
+$\iota^\nwl_{\start,\addrend}$ which requires that the words in
+$[\start,\addrend]$ are non-local and safe.
 
-The conditions $\entryCond{}$ and $\execCond{}$ are very similar and differ only
-slightly. In both cases, we require that the capability can be safely jumped to.
-However, executable capabilities can be updated to point anywhere in memory, so
-they must be capability safe as a program counter (in the $\stder$-relation) no
-matter where they point to. In contrast, enter capabilities are opaque and can
-only be used to jump to the address they point to. They also change permission
-when jumped to, so we require them to be capability safe as a program counter
-when the permission is changed to read/execute. Because the capabilities are not
-necessarily invoked immediately, we need to require that this is the case in a
-future world, but it depends on the locality of the capability which future
-worlds we consider. If the capability is global, then it should only depend on
-permanent regions, so we require capability safety as a program counter in any
-\emph{private} future world (recall that temporary regions may be revoked in a
-private future world). For local capabilities, it suffices to be capability safe
-in \emph{public} future worlds, where temporary regions are still there.
+The conditions $\entryCond{}$ and $\execCond{}$ are very similar. Both require
+that the capability can be safely jumped to. However, executable capabilities
+can be updated to point anywhere in their range, so they must be safe as a
+program counter (in the $\stder$-relation) no matter where they point to. In
+contrast, enter capabilities are opaque and can only be used to jump to the
+address they point to. They also change permission when jumped to, so we require
+them to be safe as a program counter when the permission is changed to $\exec$.
+Because the capabilities are not necessarily invoked immediately, this must be
+true in any future world, but it depends on the locality of the capability which
+future worlds we consider. If it is global, then it should only depend on
+permanent regions, so we require safety as a program counter in \emph{private}
+future worlds (recall that temporary regions may be revoked in a private future
+world). For local capabilities, it suffices to be safe in \emph{public} future
+worlds, where temporary regions are still present.
 
 \subsection{Safety of the capability machine}
 With the logical relation defined, we can now state the fundamental theorem of
