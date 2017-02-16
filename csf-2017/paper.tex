@@ -446,7 +446,7 @@ support for defending against such attacks: they offer security primitives with
 only coarse-grained memory protection and limited compartmentalization
 scalability. As a result, defenses against attacks on control-flow correctness
 and local-state encapsulation are either limited to only certain common forms of
-attacks (leading to an attack-defense arms race) or rely on techniques like
+attacks (leading to an attack-defense arms race) and/or rely on techniques like
 machine code rewriting
 (e.g.,~\cite{wahbe_efficient_1993,abadi_control-flow_2005}), machine code
 verification (e.g.,~\cite{morrisett_system_1999}), virtual machines with a
@@ -455,8 +455,8 @@ randomization~\citep{forrest_building_1997}. The latter techniques essentially
 emulate protection techniques on existing hardware, at the cost of performance,
 system complexity and/or security.
 
-\emph{Capability machines} are a type of processors, intended to
-remediate these limitations by presenting a better security model at
+\emph{Capability machines} are a type of processors that
+remediate these limitations with a better security model at
 the hardware level. They are based on old ideas
 (e.g.~\cite{Carter:1994:HSF:195473.195579,Dennis:1966:PSM:365230.365252,shapiro_eros:_1999}),
 but have recently received renewed interest; in particular, the CHERI
@@ -464,42 +464,37 @@ project has proposed new ideas and ways of tackling practical
 challenges like backwards compatibility and realistic OS
 support~\citep{Watson2015Cheri,Woodruff:2014:CCM:2665671.2665740}. Capability
 machines tag every word (in the register file and in memory) to
-enforce a strict separation between numbers and capabilities, a kind
-of pointers carrying authority. Memory capabilities carry
+enforce a strict separation between numbers and capabilities (a kind
+of pointers that carry authority). Memory capabilities carry
 the authority to read and/or write to a range of memory
-locations. Moreover, all capability machines
-offer some form of \emph{object capabilities}, which represent the
+locations. There is also a form of \emph{object capabilities}, which represent the
 authority to invoke a piece of code without exposing the code's
 encapsulated private state (e.g., the M-Machine's enter capabilities or
 CHERI's sealed code/data pairs).
 
-In contrast to the situation for commodity processors, the security
-primitives on capability machines lend themselves well to the
-enforcement of properties like local-state encapsulation and
-control-flow correctness. Potentially, they will enable new compilation
-schemes that enforce such properties in a way that is efficient but
-also 100\% watertight (ideally evidenced by a mathematical proof,
-guaranteeing that we do not end up in a new attack-defense arms
-race). However, there is still a lot that needs to happen to attain
-this goal. For example, it is quite non-trivial to devise a
-compilation scheme adapted to the details of a specific language's
-notion of encapsulation (e.g., encapsulation of private member
-variables in OO languages often behaves quite differently than
-encapsulation of private state in ML-like languages). And even if such
-a scheme were defined, a formal proof depends on a formalization of
-the encapsulation provided by the capability machine at hand.
+Unlike commodity processors, capability machines lend themselves well to
+enforcing local-state encapsulation. Potentially, they will enable compilation
+schemes that enforce this property in an efficient but also 100\% watertight way
+(ideally evidenced by a mathematical proof, guaranteeing that we do not end up
+in a new attack-defense arms race). However, a lot needs to happen before we get
+there. For example, it is far from trivial to devise a compilation scheme
+adapted to the details of a specific source language's notion of encapsulation
+(e.g., private member variables in OO languages often behave quite differently
+than private state in ML-like languages). And even if such a scheme were
+defined, a formal proof depends on a formalization of the encapsulation provided
+by the capability machine at hand.
 
 A similar problem is the enforcement of control-flow correctness on capability
 machines. An interesting approach is taken in CheriBSD~\citep{Watson2015Cheri}:
-It drops the standard contiguous C stack and splits it into a central, trusted
-shadow stack, managed by trusted call and return instructions, and disjoint,
-per-component stacks. To prevent illegal use of stack references, the approach
-relies on \emph{local capabilities}, a type of capabilities offered by CHERI
-to \emph{temporarily} relinquish authority, namely for the duration of a function invocation whereafter the capability can be revoked.
-However, a lot of details
-remain to be investigated (e.g., how to combine a trusted shadow stack with
-(potentially) cross-domain function pointers in a scalable way?) and there is no
-argument that this enforcement of control-flow correctness is watertight.
+the standard contiguous C stack is split into a central, trusted stack, managed
+by trusted call and return instructions, and disjoint, private, per-compartment
+stacks. To prevent illegal use of stack references, the approach relies on
+\emph{local capabilities}, a type of capabilities offered by CHERI to
+\emph{temporarily} relinquish authority, namely for the duration of a function
+invocation whereafter the capability can be revoked. However, details are scarce
+and a lot remains to be investigated (e.g., how to combine disjoint stacks with
+cross-domain function pointers in a scalable way?) and there is no argument that
+the approach is watertight.
 
 In this paper, we make progress towards the goal of efficient and provably
 watertight enforcement of encapsulation and control-flow correctness on
@@ -509,14 +504,13 @@ capability machines. Specifically, we make the following contributions:
   capabilities, and its operational semantics
   (Section~\ref{sec:capab-mach-with})
 \item Define a novel calling convention enforcing control-flow correctness and
-  encapsulation of local state on the stack
-  (Section~\ref{sec:stack-and-return-pointer}). It relies solely on local
-  capabilities and does not require OS support (like a trusted stack or
-  call/return instructions). It also does not use separate per-component stacks
-  but a single, fairly standard, contiguous stack. It supports higher-order
-  cross-component calls (e.g., (potentially) cross-component function pointers)
-  and can be efficient assuming only one additional piece of processor support:
-  an efficient instruction for clearing a memory range.
+  encapsulation of stack frames (Section~\ref{sec:stack-and-return-pointer}). It
+  relies solely on local capabilities and does not require OS support (like a
+  trusted stack or call/return instructions). It also does not use separate
+  per-component stacks but a single, fairly standard, contiguous stack. It
+  supports higher-order cross-component calls (e.g., cross-component function
+  pointers) and can be efficient assuming only one additional piece of processor
+  support: an efficient instruction for clearing a range of memory.
 \item Prove a theorem that is the most general and powerful formulation of the
   guarantees offered by a capability machine (a form of capability
   safety~\cite{Devriese:2016ObjCap,Maffeis2010OC}), including the specific
@@ -530,7 +524,7 @@ capability machines. Specifically, we make the following contributions:
   local capabilities using a variant of Dreyer et. al.'s public and private
   future worlds~\citep{Dreyer:jfp12}, used to express well-bracketedness
   guarantees in a lambda calculus. The logical relation and capability safety
-  theorem is presented in Section~\ref{sec:logical-relation}.
+  theorem are presented in Section~\ref{sec:logical-relation}.
 \item Demonstrate our results by applying them to challenging examples,
   specifically constructed to demonstrate local-state encapsulation and
   control-flow correctness guarantees in the presence of cross-component
