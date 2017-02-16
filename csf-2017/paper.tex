@@ -1895,28 +1895,27 @@ capabilities actually inhabits it.
 
 \section{Examples}
 \label{sec:examples}
-In this section, we demonstrate how our formal model of capability
-safety allows us to prove local-state encapsulation and control-flow
-correctness properties for challenging program examples. The security
-measures of Section~\ref{sec:stack-and-return-pointer} are deployed to
-ensure these properties. Since we are dealing with assembly language,
-there are many details to the formal treatment, and therefore we
-necessarily have to omit some details in the lemmas we state here.
-The interested reader can find all the technical details in the
-technical appendix~\cite{technical_appendix}.
+In this section, we demonstrate how our formalisation of capability safety
+allows us to prove local-state encapsulation and control-flow correctness
+properties for challenging program examples. The security measures of
+Section~\ref{sec:stack-and-return-pointer} are deployed to ensure these
+properties. Since we are dealing with assembly language, there are many details
+to the formal treatment, and therefore we necessarily have to omit some details
+in the lemmas we state here. The interested reader can find all the technical
+details in the technical appendix~\cite{technical_appendix}.
 
 \subsection{Encapsulation of local state}
-The capability machine provides encapsulation of local state. The programs
 \texttt{\footnotesize{f1}} and \texttt{\footnotesize{f2}} in
-\figurename~\ref{fig:prog-f1-and-f2} demonstrate this. They are very similar: both
-store some local state, call an untrusted piece of code ($\adv$), and then test
-whether the local state is unchanged. They differ in the way they do this.
-Program \texttt{\footnotesize{f1}} assumes it has access to a stack pointer and uses the stack
-to store its local state. It also uses the stack-based calling convention
-\texttt{\footnotesize{scall}} to call the adversary. On the other hand, \texttt{\footnotesize{f2}} uses
-malloc to allocate memory for its local state and uses an activation-record
-based calling convention (described in the technical appendix) to run the
-adversarial code.
+\figurename~\ref{fig:prog-f1-and-f2} demonstrate the capability machine's
+encapsulation of local state. They are very similar: both store some local
+state, call an untrusted piece of code ($\adv$), and then test whether the local
+state is unchanged. They differ in the way they do this. Program
+\texttt{\footnotesize{f1}} assumes access to a stack pointer and uses the stack
+to store its local state and the stack-based calling convention
+\texttt{\footnotesize{scall}} to call the adversary. On the other hand,
+\texttt{\footnotesize{f2}} uses malloc to allocate memory for its local state
+and uses an activation-record based calling convention (described in the
+technical appendix) to run the adversarial code.
 
 \begin{figure}[t]
   \centering
@@ -1941,15 +1940,14 @@ f2: malloc $r_l$ 1
     halt
   \end{lstlisting}
   \end{minipage}
-  \caption{Two simple programs that rely on local-state encapsulation. \texttt{f1} uses our stack-based calling convention. \texttt{f2} uses a calling not reliant on the stack}
+  \caption{Two example programs that rely on local-state encapsulation. \texttt{f1} uses our stack-based calling convention. \texttt{f2} does not rely on a stack.}
   \label{fig:prog-f1-and-f2}
 \end{figure}
 
-For both programs, we can prove that if they are linked with an
-adversary, $\adv$, that is allowed to allocate new memory but
-otherwise has no capabilities, then the assertion will never fail when
-executing the program (see Lemmas~\ref{lem:correctness-f1}
-and~\ref{lem:correctness-f2} below).
+For both programs, we can prove that if they are linked with an adversary,
+$\adv$, that is allowed to allocate memory but has no other capabilities, then
+the assertion will never fail during executing (see
+Lemmas~\ref{lem:correctness-f1} and~\ref{lem:correctness-f2} below).
 % \lars{shouldn't we say already
 % here that the adversary is a global capability and that is why,
 % intuitively, the local state is preserved ?} \lau{Due to the ``order
@@ -2014,11 +2012,11 @@ about both programs, even though they use different calling conventions.
 % \end{lemma}
 
 
-In order to formulate lemmas about \texttt{\footnotesize{f1}} and \texttt{\footnotesize{f2}}, we
-need a way to observe whether the assertion fails. To this end, we
-assume access to a flag (an address in memory). When the assertion
-fails, it sets the flag to $1$ and halts. A slightly simplified
-version of the correctness lemma for \texttt{\footnotesize{f1}} is:
+In order to formulate results about \texttt{\footnotesize{f1}} and
+\texttt{\footnotesize{f2}}, we need a way to observe whether the assertion
+fails. To this end, we assume they have access to a flag (an address in memory)
+that they set to $1$ if the assertion fails and then halt. The correctness lemma
+for \texttt{\footnotesize{f1}} then states:
 \begin{lemma}
   \label{lem:correctness-f1}
   Let
@@ -2031,7 +2029,10 @@ version of the correctness lemma for \texttt{\footnotesize{f1}} is:
       & \multicolumn{3}{@{}l}{\phantom{\;\defeq \;}  \ms_{\var{stk}} \uplus \ms_{\var{frame}}} \\
     \end{array}
 \]
-  where each of the capabilities have an appropriate range of authority and pointer. Furthermore
+where each of the capabilities have an appropriate range of authority and
+pointer\footnote{These assumptions are kept intentionally vague for brevity.
+  Full statements are in the technical appendix~\citep{technical_appendix}.}.
+Furthermore
   \begin{itemize}
   \item $\ms_{f1}$ contains $c_\link$, $c_\flag$ and the code of \texttt{\footnotesize{f1}}
   \item $\ms_\flag(\flag) = 0$
@@ -2043,24 +2044,23 @@ version of the correctness lemma for \texttt{\footnotesize{f1}} is:
 \end{lemma}
 
 To prove Lemma~\ref{lem:correctness-f1}, it suffices to show that the start
-configuration is capability safe (in the $\observations$ relation) for a world
-with a permanent region that requires the assertion flag to be 0. We prove this
-using an anti-reduction lemma by which it suffices to show that the
-configuration is capability safe after some reduction steps. We then use a general lemma
-for reasoning about \texttt{\footnotesize{scall}}, by which it suffices to show that (1) the
-configuration that \texttt{\footnotesize{scall}} will jump to is capability safe and (2) that
-the configuration just after \texttt{\footnotesize{scall}} is done cleaning up is capability
-safe. We use the Fundamental Theorem to reason about the unknown code, but
-notice that the Fundamental Theorem says nothing about enter capabilities and
-that the adversary capability is an enter capability. Luckily the enter
-capability becomes $\exec$ after the jump and then the Fundamental Theorem
-applies.
+configuration is safe (in the $\observations$ relation) for a world with a
+permanent region that requires the assertion flag to be 0. By an anti-reduction
+lemma, it suffices to show that the configuration is safe after some reduction
+steps. We then use a general lemma for reasoning about
+\texttt{\footnotesize{scall}}, by which it suffices to show that (1) the
+configuration that \texttt{\footnotesize{scall}} will jump to is safe and (2)
+that the configuration just after \texttt{\footnotesize{scall}} is done cleaning
+up is safe. We use the Fundamental Theorem to reason about the unknown code, but
+notice that the adversary capability is an enter capability, which the
+Fundamental Theorem says nothing about. Luckily the enter capability becomes
+$\exec$ after the jump and then the Fundamental Theorem applies.
 
 We have a similar lemma for \texttt{\footnotesize{f2}}:
 \begin{lemma}
   \label{lem:correctness-f2}
   Making similar assumptions about capabilities and linking as in
-  Lemma~\ref{lem:correctness-f1} but assuming no stack pointer
+  Lemma~\ref{lem:correctness-f1} but assuming no stack pointer,
   if $(\reg\update{\pcreg}{c_{f2}},m) \step^* (\halted,m')$, then $m'(\flag) = 0$.
 \end{lemma}
 
@@ -2070,18 +2070,17 @@ well-bracketed control-flow. To illustrate this, we look at
 two example programs \texttt{\footnotesize{f3}} and
 \texttt{\footnotesize{g1}} in \figurename~\ref{fig:prog-f3-and-g1}.
 
-In \texttt{\footnotesize{f3}} there are two calls to an adversary and in order for the
-assertion in the middle to succeed, they need to be well-bracketed. If the
-adversary was able to store the return pointer from the first call and invoke
-it in the second call, then \texttt{\footnotesize{f3}} would have $2$ on top of its stack and
-the assertion will fail. However, the security measures of our calling
-convention explained in Section~\ref{sec:stack-and-return-pointer} prevent this
-sort of attack: specifically, the return pointer is local, so it can only be
-stored on the stack, but the part of the stack that is accessible to the
-adversary is cleared before the second invocation. The following lemma shows
-that there are also no other attacks that will break well-bracketedness of this
-example, i.e.\ the assertion never fails. It is similar to the two previous
-lemmas:
+In \texttt{\footnotesize{f3}} there are two calls to an adversary and in order
+for the assertion in the middle to succeed, they need to be well-bracketed. If
+the adversary were able to store the return pointer from the first call and
+invoke it in the second call, then \texttt{\footnotesize{f3}} would have $2$ on
+top of its stack and the assertion would fail. However, the security measures in
+Section~\ref{sec:stack-and-return-pointer} prevent this attack: specifically,
+the return pointer is local, so it can only be stored on the stack, but the part
+of the stack that is accessible to the adversary is cleared before the second
+invocation. In fact, the following lemma shows that there are also no other
+attacks that can break well-bracketedness of this example, i.e.\ the assertion
+never fails. It is similar to the two previous lemmas:
 
 \begin{comment}
 \newsavebox{\testit}
@@ -2179,32 +2178,34 @@ f3: push 1
   (\halted,m')$, then $m'(\flag) = 0$.
 \end{lemma}
 
-The final example, \texttt{\footnotesize{g1}} with \texttt{\footnotesize{f4}}, is a faithful translation
-of a tricky example known from the
+The final example, \texttt{\footnotesize{g1}} with \texttt{\footnotesize{f4}},
+is a faithful translation of a tricky example known from the
 literature~\citep{pitts_operational_1998,Dreyer:jfp12}. It consists of two
-parts, \texttt{\footnotesize{g1}} and \texttt{\footnotesize{f4}}. \texttt{\footnotesize{g1}} is a closure generator that
-generates closures with one variable $x$ set to $0$ in its environment and
-\texttt{\footnotesize{f4}} as the program (note that we here use knowledge about the stack usage to make optimizations to the calling convention). \texttt{\footnotesize{f4}} expects one argument, a callback. The
-program sets $x$ to $0$ and calls the callback. When it returns, \texttt{\footnotesize{f4}}
-sets $x$ to $1$ and calls the callback a second time. When it returns from the
-callback, it asserts that $x$ is $1$ and returns. This example is more
-complicated than the previous ones because it involves a closure invoked by the
-adversary and an adversary callback invoked by us. As explained in
-Section~\ref{sec:stack-and-return-pointer}, this means we need to (1) take care
-to properly check the stack pointer received by our closure from the adversary
-(it must have the correct permission and fit with our calling convention) and (2)
-require that the adversary callback is global.
+parts, \texttt{\footnotesize{g1}} and \texttt{\footnotesize{f4}}.
+\texttt{\footnotesize{g1}} is a closure generator that generates closures with
+one variable $x$ set to $0$ in its environment and \texttt{\footnotesize{f4}} as
+the program (note that we can omit some calling convention security measures
+because the stack is not used or passed to the adversary in the closure
+generator). \texttt{\footnotesize{f4}} expects one argument, a callback. It sets
+$x$ to $0$ and calls the callback. When it returns, it sets $x$ to $1$ and calls
+the callback a second time. When it returns again, it asserts that $x$ is $1$
+and returns. This example is more complicated than the previous ones because it
+involves a closure invoked by the adversary and an adversary callback invoked by
+us. As explained in Section~\ref{sec:stack-and-return-pointer}, this means we
+need to check (1) that the stack pointer that the closure receives from the
+adversary (it must have the correct permission and fit with our calling
+convention) and (2) that the adversary callback is global.
 
 To illustrate how subtle this program is, consider how an adversary could try to
 make the assertion fail. In the second callback an adversary can get to the
 first callback by invoking the closure one more time. If there were any way for
 the adversary to transfer the return pointer from the point where it reinvokes
-the closure to where the closure reinvokes the callback, then the assertion can
-be made to fail. Similarly, if there were any way for the adversary to store a
-stack pointer or trick the trusted code into preserving it across an invocation,
-the assertion can likely be made to fail too. However, our calling convention
-guarantees that there is no way any of this can happen, as we prove in the
-following lemma.
+the closure to where the closure reinvokes the callback, then the assertion
+could be made to fail. Similarly, if there were any way for the adversary to
+store a stack pointer or trick the trusted code into preserving it across an
+invocation, the assertion can likely be made to fail too. However, our calling
+convention prevents any of this from happening, as we prove in the following
+lemma.
 
 \begin{lemma}
   \label{lem:correctness-g1}
