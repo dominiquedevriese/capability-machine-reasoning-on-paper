@@ -1004,39 +1004,36 @@ end and current address, respectively.
   \end{figure}
 \end{comment}
 \figurename~\ref{fig:op-sem} shows an excerpt of the operational semantics for a
-number of representative instructions. Essentially, a configuration $\Phi$ will
-either decode and execute the instruction at $\memreg(\pcreg)$ if it is
-executable and the current address is in the valid range or fail otherwise. The
-table in the figure shows for a given instruction $i$ the result of executing it
-in configuration $\Phi$. The $\fail$ and $\halt$ instructions obviously fail and
-halt respectively. The $\move{}{}$ instruction simply modifies the register file
-as requested and updates the $\pcreg$ to the next instruction using the
-meta-function $\stdUpdatePc{}$.
+few representative instructions. Essentially, a configuration $\Phi$ either
+decodes and executes the instruction at $\memreg(\pcreg)$ if it is executable
+and its address is in the valid range or otherwise fails. The table in the
+figure shows for instructions $i$ the result of executing them in configuration
+$\Phi$. $\fail$ and $\halt$ obviously fail and halt respectively. $\move{}{}$
+simply modifies the register file as requested and updates the $\pcreg$ to the
+next instruction using the meta-function $\stdUpdatePc{}$.
 
 The $\load{}{}$ instruction loads the contents of the requested memory location
-into the appropriate register, but only if the capability has appropriate
-authority (i.e.\ read permission and an appropriate range). The $\restricttwo{}{}$
-instruction will update a capability's permissions and global/local tag in
-the register file, but requires that the new permissions are weaker than the
-original and does not turn local capabilities into global ones. The $\geta{}{}$
-instruction queries the current address of a capability and stores it in another
-register.
+into a register, but only if the capability has appropriate authority (i.e.\
+read permission and an appropriate range). $\restricttwo{}{}$ updates a
+capability's permissions and global/local tag in the register file, but only if
+the new permissions are weaker than the original. It also never turns local
+capabilities into global ones. $\geta{}{}$ queries the current address of a
+capability and stores it in a register.
 
 The $\jmp{}$ instruction updates the program counter to a requested location,
 but it is complicated by the presence of \emph{enter capabilities}, modeled
 after the M-Machine's~\cite{Carter:1994:HSF:195473.195579}. Enter capabilities
-cannot be used to read, write or execute and their current address and range
-cannot be modified. They can only be used to jump to, but when that happens,
-their permission is updated to $\exec$. This special behavior makes them
-suitable for representing a kind of closures: an opaque package containing a
-piece of code together with local encapsulated state. Such a package can be
-built as an enter capability $c = ((\entry,\gl),\start,\addrend,\addr)$ where
-the range $[\start,\addr-1]$ contains local state (data or capabilities) and
-$[\addr,\addrend]$ contains instructions. The package is opaque to an adversary
-holding $c$ but when $c$ is jumped to, the instructions can start executing and
-have access to the local data through the updated version of $c$ that is then in
-$\pcreg$\footnote{Note that the capability in the $\pcreg$-register can be used
-  to load from.}.
+cannot be used to read, write or execute and their address and range cannot be
+modified. They can only be used to jump to, but when that happens, their
+permission changes to $\exec$. They can be used to represent a kind of closures:
+an opaque package containing a piece of code together with local encapsulated
+state. Such a package can be built as an enter capability $c =
+((\entry,\gl),\start,\addrend,\addr)$ where the range $[\start,\addr-1]$
+contains local state (data or capabilities) and $[\addr,\addrend]$ contains
+instructions. The package is opaque to an adversary holding $c$ but when $c$ is
+jumped to, the instructions can start executing and have access to the local
+data through the updated version of $c$ that is then in $\pcreg$\footnote{Note
+  that the capability in the $\pcreg$-register can be used to load from.}.
 % \lau{As we
 %   talked about what is described here, is not how we make closures in the TR, so
 %   we should consider whether we should refrain from using that word here. }
