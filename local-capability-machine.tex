@@ -1352,27 +1352,26 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
 
 
               \subsection{Labels}
-              \texttt{l:} is a meta level label that can be used to refer to a specific address.
+              \texttt{l:} is a meta level label that can be used to refer to a specific address. When placed on the line of a macro, it refers to the first instruction of this macro.
 
               \section{Examples}
               \label{sec:examples}
-              \subsection{Simple Examples Using Local Capabilities}
-              \label{subsec:example-loc-cap}
-              \lau{This text regards the ML-like programs and can be removed when they are.}
-              In the below, let \texttt{assert(e)} do the following: evaluate \texttt{e} if it evaluates to true, then continue execution, otherwise terminate where a designated assertion flag is set to 1. The assertion flag is assumed to start as 0 and is different from function to function (so in the program below, \texttt{adv} cannot directly use the assertion flag of \texttt{f}). Notice that an assertion will never terminate in a $\failed$ state.
-              \subsubsection{Simple use of local capabilities}
-              The following programs only use local capabilities when they create protected return pointers. The strength of this is, however, not shown as the untrusted code only gets one chance to execute.
+%               \lau{This text regards the ML-like programs and can be removed when they are.}
+%               In the below, let \texttt{assert(e)} do the following: evaluate \texttt{e} if it evaluates to true, then continue execution, otherwise terminate where a designated assertion flag is set to 1. The assertion flag is assumed to start as 0 and is different from function to function (so in the program below, \texttt{adv} cannot directly use the assertion flag of \texttt{f}). Notice that an assertion will never terminate in a $\failed$ state.
+%               \subsubsection{Simple use of local capabilities}
+%               The following programs only use local capabilities when they create protected return pointers. The strength of this is, however, not shown as the untrusted code only gets one chance to execute.
 
-              ML-like program we had before:
-\begin{verbatim}
-let f = fun adv =>
-          let l = 1 in
-          adv();
-          assert (l == 1)
-\end{verbatim}
-              \lau{The above program is obsolete (and the other ML-like programs), but I will not remove it until we have gotten used to the assembly programs.}
+%               ML-like program we had before:
+% \begin{verbatim}
+% let f = fun adv =>
+%           let l = 1 in
+%           adv();
+%           assert (l == 1)
+% \end{verbatim}
+%               \lau{The above program is obsolete (and the other ML-like programs), but I will not remove it until we have gotten used to the assembly programs.}
 
-              Assembly program not using stack. Assume that $\mathtt{r_l} \not\in \{\pcreg,r_0 \}$ is a register.
+\subsection{Encapsulation of Local State}
+Assembly program not using stack. Assume that $\mathtt{r_l} \not\in \{\pcreg,r_0 \}$ is a register.
 \begin{verbatim}
 f1: malloc r_l 1
     store r_l 1
@@ -1381,7 +1380,7 @@ f1: malloc r_l 1
     assert r_l 1
 1f: halt
 \end{verbatim}
-
+For \texttt{f1} to work, its local state needs to be encapsulated. 
 \begin{lemma}[Correctness lemma for \texttt{f1}] \forcenewline
   \label{lem:correctness-f1}
   For all $n \in \nats$
@@ -1600,6 +1599,8 @@ f1: malloc r_l 1
   $W' \futurestr W$, $\ms_r$ and $\ms'$ s.t. $m' = \ms_r \uplus \ms' \uplus \ms_{\var{frame}}$ and $\heapSat[\ms']{n}{W'}$. As $\iota_\flag$ is a permanent region, we know it is still in $W'$, so $m'(\flag) = 0$.
 \end{proof}
 
+\subsection{Encapsulation of Local State Using Local Capabilities and \texttt{scall}}
+\label{subsec:example-loc-cap}
 
 Assembly program using the stack. This program assumes a $r_\stk \not\in \{\pcreg,r_0\}$ register that contains a stack capability (a local $\rwlx$-capability):
 \begin{verbatim}
@@ -2001,7 +2002,7 @@ let f = fun adv =>
 \end{verbatim}
               In this example \texttt{let l = 1 in} allocates a new local capability \texttt{l} with read-write permissions. Assuming \texttt{adv} has no access to capabilities with permit write local, they cannot store \texttt{l} and thus change its value in the second call.
 
-\subsection{Simple well-bracketedness/local capability example}
+\subsection{Well-Bracketedness Using Local Capabilities and \texttt{scall}}
 \begin{comment}
 \begin{verbatim}
 let f = fun adv =>
@@ -2463,22 +2464,22 @@ We use Lemma~\ref{lem:scall-works} (we do not use the local frame in the lemma) 
 \end{proof}
 \end{comment}
 
-\subsection{Another simple well-bracketedness/local capability example}
-Here assume that \texttt{let l = ... in} produces a local, read-write permit write local capability (but \texttt{let x = ...} produces a global capability). 
-\begin{verbatim}
-let f = fun adv =>
-          let x = 1 in
-          let l = 0 in
-          adv(l);
-          assert(!x == 1);
-          x := 2;
-          adv(0);
-          return
-\end{verbatim}
-In the above example, we give \texttt{adv} a ``mini stack'' to work with in the form of \texttt{l}. \texttt{adv} can thus store local capabilities, but their access will be revoked, when they return from the first call.
+% \subsection{Another simple well-bracketedness/local capability example}
+% Here assume that \texttt{let l = ... in} produces a local, read-write permit write local capability (but \texttt{let x = ...} produces a global capability). 
+% \begin{verbatim}
+% let f = fun adv =>
+%           let x = 1 in
+%           let l = 0 in
+%           adv(l);
+%           assert(!x == 1);
+%           x := 2;
+%           adv(0);
+%           return
+% \end{verbatim}
+% In the above example, we give \texttt{adv} a ``mini stack'' to work with in the form of \texttt{l}. \texttt{adv} can thus store local capabilities, but their access will be revoked, when they return from the first call.
 
-\subsection{Inverted control and return from closure}
-If we can prove the below example using the scall lemma, then we should also be able to prove the awkward example.
+\subsection{Inverted Control and Return From Closure}
+The following example is constructed to investigate the difficulties of preserving an adversary's local frame. There is no assertion as this is (slightly) beside the point. The lemma we would prove about this should look like Lemma~\ref{lem:correctness-g1}, but it is not state and proven here.
 \begin{lstlisting}
 g2:  move $\pcreg$ $r_3$
      lea $r_3$ $\dots$
@@ -2495,7 +2496,7 @@ f5:  reqglob $r1$
 
 
 \subsection{Variant of the ``awkward'' example}
-Assembly variant of the ``awkward'' example from \citep[p.~11]{Dreyer:2010:IHS:1863543.1863566}. 
+Assembly variant of the ``awkward'' example from \citep[p.~11]{Dreyer:2010:IHS:1863543.1863566} which roughly was:
 \begin{verbatim}
 g = fun _ => let x = 0 in
                fun f =>
@@ -2505,6 +2506,7 @@ g = fun _ => let x = 0 in
                  f();
                  assert(x == 1)
 \end{verbatim}
+Our translation of the example:
 \begin{lstlisting}
 g1:  malloc $r_2$ 1
      store $r_2$ 0
