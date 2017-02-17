@@ -1688,10 +1688,10 @@ f2: push 1
       m'(\flag) = 0
     \]
     So it suffices to show \ref{pf:f2-sc:sfts-obs}. To this end use Lemma~\ref{lem:anti-red-obs}. Let $\ms_f$ be given, then
-  \begin{multline*}
-    (\reg\update{\pcreg}{c_{f2}}\update{r_\stk}{c_\stk},\ms \uplus \ms_\stk \uplus \ms_f) \step[k] \\
+    \[
+    (\reg\update{\pcreg}{c_{f2}}\update{r_\stk}{c_\stk},\ms \uplus \ms_\stk \uplus \ms_f) \step[k] 
     (\reg',\ms \uplus \ms_\stk' \uplus \ms_f)
-  \end{multline*}
+  \]
   where
   \begin{itemize}
   \item \lookingat{(\reg',\ms)}{\scall{r_\adv}{}{r_l}}{c_{\var{next}}}
@@ -1704,7 +1704,7 @@ f2: push 1
   \end{itemize}
   In order to show the observation part necessary for Lemma~\ref{lem:anti-red-obs}, we use the "\texttt{scall} works"-Lemma (Lemma~\ref{lem:scall-works}). Show the following
   \begin{enumproof}
-  \item $\memSat{n-k}{\ms}{W}$\\
+  \item $\memSat[n-k]{\ms}{W}$\\
     Use Lemma~\ref{lem:disj-mem-sat} with
     \begin{enumproof}
     \item $\memSat[n-k]{\ms_{f2} \uplus \ms_\flag}{[1 \mapsto \iota^\sta (\perma, \ms_{f2} \uplus \ms_\flag)]}$\\
@@ -2077,6 +2077,7 @@ The assertion of $f3$ may seem a bit awkward because it is between two calls. If
     m'(\flag) = 0
   \]  
 \end{lemma}
+In an attempt to aid the reader, we first provide to high-level descriptions of possible proof of Lemma~\ref{lem:correctness-f3} followed by a more detailed proof.
 \begin{proof}[Proof of Lemma~\ref{lem:correctness-f3} (high-level description)]
 Executing $f2$ until just after the jump in the first scall brings us to a configuration where the stack contains $1$ followed by some activation code followed by all zeros. The $\pcreg$-register contains an executable adversary capability, register $r_0$ contains a protected return pointer - that is a local enter capability for the execution code, and the $r_\stk$ contains a capability for the cleared part of the stack.
 
@@ -2120,7 +2121,7 @@ Now define
   \begin{align*}
     W = \;& [0 \mapsto \iota_{\malloc,0}] \\
           & [1 \mapsto \iota^\sta (\perma,\ms_\flag \uplus \ms_{f2})]\\
-          & [2 \mapsto \iota^\sta (\perma,\ms_\link)]\\
+          & [2 \mapsto \iota^{\sta,u} (\perma,\ms_\link)]\\
           & [3 \mapsto \iota^{\nwl,p}_{\start_\adv,\addrend_\adv}]\\
   \end{align*}
 Further define
@@ -2132,7 +2133,7 @@ If we can show
 \label{eq:f3-obs1}
   \npair[n+1]{(\reg\update{\pcreg}{c_{f3}}\update{r_\stk}{c_\stk},\ms_{\malloc} \uplus \ms' \uplus \ms_{\adv} \uplus \ms_\stk)} \in \observations(W),
 \end{equation}
-then using $\ms_{\var{frame}}$ as the frame and $m'$ as the resulting memory, we get that $m' = \ms'' \uplus \ms_r \uplus \ms_{\var{frame}}$ for some $\ms'$ and $\ms_r$ s.t. $\heapSat[1]{\ms''}{W}$. Region $1$ guarantees that the assertion flag is unchanged, so we have
+then using $\ms_{\var{frame}}$ as the frame and $m'$ as the resulting memory, we get that $m' = \ms'' \uplus \ms_r \uplus \ms_{\var{frame}}$ for some $\ms'$ and $\ms_r$ s.t. $\memSat[1]{\ms''}{W}$. Region $1$ guarantees that the assertion flag is unchanged, so we have
 \[
   m'(\flag) = 0
 \]
@@ -2144,60 +2145,30 @@ where
 \[
   \lookingat{(\reg',\ms')}{\scall{r}{}{}}{c_{\var{next}}}
 \]
-where $c_{\var{next}}$ is $c_{f3}$ adjusted to point to the next instruction, namely \texttt{pop r1}. Further we have \pointstostack{\reg'}{[\start_\stk \mapsto 1]}{\ms_\stk |_{\start_\stk+1,\addrend_\stk}} and $i$ is a suitable number of steps.
+where $c_{\var{next}}$ is $c_{f3}$ adjusted to point to the next instruction, namely \texttt{pop r1}. Further we have
+\begin{itemize}
+\item \pointstostack{\reg'}{[\start_\stk \mapsto 1]}{\ms_\stk|_{\start_\stk+1,\addrend_\stk}}
+\end{itemize}
+and $i$ is a suitable number of steps.
 
 To show
 \[
   \npair[n-i]{(\reg',\ms' \uplus [\start_\stk \mapsto 1] \uplus \ms_\stk |_{\start_\stk+1,\addrend_\stk})} \in \observations(W)
 \]
-We use Lemma~\ref{lem:scall-works} which requires us to show
+We use Lemma~\ref{lem:scall-works} (we do not use the local frame in the lemma) which requires us to show
 \begin{enumproof}
   \item $\memSat[n-i]{\ms'}{W}$ \\
     Partition $\ms'$ as follows:
     \begin{enumproof}
       \item $\ms_\malloc$: governed by $\iota_{\malloc,0}$, use malloc specification.
       \item $\ms_\flag \uplus \ms_{f2}$: governed by region 1, only this memory segment is accepted.
-      \item $\ms_\link$: governed by region 2, only this memory segment is accepted.
-      \item $\ms_\adv$:\\
-        show
-        \[
-          \npair[n]{\ms_\adv} \in H^\pwl_{\start_\adv,\addrend_\adv}\;1\;\xi^{-1}(W)
-        \]
-        this is trivial except for showing
-        \[
-          \npair[n-1]{c_\link} \in \stdvr(W)
-        \]
-        amounts to showing
-        \[
-          \npair[n-1]{\link,\link+1} \in \readCond{}(\glob)(W)
-        \]
-        which follows from
+      \item $\ms_\link$: governed by region 2, only this memory segment is accepted. We also need to show that the contents is safe, i.e. shoe
         \begin{enumproof}
-          \item $\npair[n-1]{c_\adv} \in \stdvr(W)$: \label{item:f3:adv1}\\
-            We will show
-            \begin{equation}
-              \label{eq:f3:adv-in-stder}
-              \forall W' \futurestr W \ldotp \npair{c_\adv} \in \stdvr(W')
-            \end{equation}
-            which will give us \ref{item:f3:adv1} using downwards closure.
-
-            Let $W' \futurestr W$ be given and show
-            \[
-              \npair{(\start_\adv,\addrend_\adv,\start_\adv+\olf)} \in \entryCond{}(\glob)(W')
-            \]
-            to this end let $W'' \futurestr W'$ and $n' < n$ be given and show
-            \[
-              \npair[n']{\updatePcPerm{c_\adv}} \in \stder(W'')
-            \]
-            This follows from the FTLR if we can show
-            \[
-              \npair[n']{\start_\adv,\addrend_\adv} \in \readCond{}(\glob)(W'')
-            \]
-            $\iota^{\nwl,p}_{\start_\adv,\addrend_\adv}$ governs the adversary, so the result follows from Lemma~\ref{lem:nwlp-subset-pwl}.
-          \item $\npair[n-1]{c_\malloc} \in \stdvr(W)$\\
-            Which follows from Lemma~\ref{lem:malloc-in-vr}.
-            \lau{I don't think this is actually the case at the moment. I guess we either need to show this based on the specification or just require it in the specification.}
+          \item $\npair[n-i]{c_\malloc} \in \stdvr(W)$: Follows from Lemma~\ref{lem:malloc-in-vr}.
+          \item $\npair[n-i]{c_\adv} \in \stdvr(W)$: Follows from Theorem~\ref{thm:ftlr} and Lemma~\ref{lem:nwlp-subset-pwl}.
         \end{enumproof}
+      \item $\ms_\adv$:
+        Follows from Lemma~\ref{lem:stau-subset-pwl}.
     \end{enumproof}
   \item Hyp-Callee\\
     Assume
@@ -2205,10 +2176,10 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
     \item $\dom(\ms_\stk |_{\start_\stk+1,\addrend_\stk}) = \dom(\ms_{\mathit{act}} \uplus \ms_{\mathit{unused}}')$
     \item $W' = \revokeTemp{W}[\iota^{\sta}(\temp,[\start_\stk \mapsto 1]\uplus\ms_{\mathit{act}}),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}'))]$
     \item $\memSat[n-i-1]{\ms''}{W'}$
-    \item $\reg'' \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}'}$ unused}$
-    \item $\forall a \in \dom(\ms_{\var{unused}}') \ldotp \ms''(a) = 0$
-    \item $\reg''= \reg_0[\pcreg\mapsto\updatePcPerm{\reg'(r)},r_0 \mapsto c_{\mathit{ret}}, r_\stk \mapsto \_, r \mapsto \reg'(r)]$ 
+    \item $\reg'' \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}}'$ unused}$
+    \item $\reg''= \reg_0[\pcreg\mapsto\updatePcPerm{\reg'(r)},r_0 \mapsto c_{\mathit{ret}}, r_\stk \mapsto c_\stk', r \mapsto \reg'(r)]$ 
     \item $\npair[n-i-1]{c_{\mathit{ret}}} \in \stdvr(W')$
+    \item $\npair[n-i-1]{c_\stk'} \in \stdvr(W')$
     \end{itemize}
     for some $\ms_{\mathit{act}}$, $\ms_{\mathit{unused}}$, $\ms''$, $\reg''$, $c_{\mathit{ret}}$.
     
@@ -2219,7 +2190,7 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
         show
         \begin{enumproof}
           \item $\npair[n-i-1]{c_{\mathit{ret}}} \in \stdvr(W')$ : by above assumptions.
-          \item $\npair[n-i-1]{reg''(r_\stk)} \in \stdvr(W')$ : by Lemma~\ref{lem:stack-cap-vr}.
+          \item $\npair[n-i-1]{c_\stk'} \in \stdvr(W')$ : by above assumptions.
           \item $\npair[n-i-1]{c_\adv} \in \stdvr(W')$ : follows from \ref{eq:f3:adv-in-stder}.
           \item The remaining registers we need to consider contain 0 and are thus trivial to show.
         \end{enumproof}
@@ -2232,7 +2203,7 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
     Assume:
     \begin{itemize}
     \item $n' \leq n-i-2$
-    \item $W'' \futurewk \revokeTemp{W}[\iota^{\sta}(\temp,[\start_\stk \mapsto 1])[\iota^\sta(\temp,\ms_{\mathit{unused}}'')]$
+    \item $W'' \futurewk \revokeTemp{W}$
     \item $\memSat[n']{\ms''}{\revokeTemp{W''}}$ 
     \item for all $r$, we have that:
       \begin{equation*}
@@ -2259,42 +2230,42 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
       \end{itemize}
       By Lemma~\ref{lem:anti-red-obs} it suffices to show
       \begin{enumproof}
-      \item $\npair[n''-k]{(\reg^{(3)},\ms'' \uplus [\start_\stk \mapsto 2] \uplus \ms_{\var{unused}}'')} \in \observations(\revokeTemp{W''})$\\
-        Show this using Lemma~\ref{lem:scall-works}. Show:
+      \item $\npair[n'-k]{(\reg^{(3)},\ms'' \uplus [\start_\stk \mapsto 2] \uplus \ms_{\var{unused}}'')} \in \observations(\revokeTemp{W''})$\\
+        Show this using Lemma~\ref{lem:scall-works} a. Show:
         \begin{enumproof}
-          \item $\memSat[n''-k]{\ms''}{\revokeTemp{W''}}$ is satisfied by one of the first Hyp-cont assumptions.
+          \item $\memSat[n'-k]{\ms''}{\revokeTemp{W''}}$ is satisfied by one of the first Hyp-cont assumptions and Lemma~\ref{lem:heap-sat-dc}.
           \item Hyp-Callee\\
             Assume:
             \begin{itemize}
             \item $\dom(\ms_{\mathit{unused}}'') = \dom(\ms_{\mathit{act}}' \uplus \ms_{\mathit{unused}}^{(3)})$
             \item $W^{(3)} = \revokeTemp{W''}[\iota^{\sta}(\temp,[\start_\stk \mapsto 2]\uplus\ms_{\mathit{act}}'),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}^{(3)}))]$
-            \item $\memSat[n''-k-1]{\ms^{(3)}}{W^{(3)}}$
+            \item $\memSat[n'-k-1]{\ms^{(3)}}{W^{(3)}}$
             \item $\reg^{(4)} \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}}^{(3)}$ unused}$
-            \item $\forall a \in \dom(\ms_{\var{unused}}^{(3)}) \ldotp \ms^{(3)}(a) = 0$
-            \item $\reg^{(4)}= \reg_0[\pcreg\mapsto\updatePcPerm{c_\adv},r_0 \mapsto c_{\mathit{ret}}', r_\stk \mapsto \_, r \mapsto c_\adv]$ 
-            \item $(n''-k-1,c_{\mathit{ret}}') \in \stdvr(W')$
+            \item $\reg^{(4)}= \reg_0[\pcreg\mapsto\updatePcPerm{c_\adv},r_0 \mapsto c_{\mathit{ret}}', r_\stk \mapsto c_\stk'', r \mapsto c_\adv]$ 
+            \item $(n'-k-1,c_{\mathit{ret}}') \in \stdvr(W^{(3)})$
+            \item $(n'-k-1,c_\stk'') \in \stdvr(W^{(3)})$
             \end{itemize}
             This argument is almost identical to the one we just did for the first call:\\
             Using the FTLR, we get $\npair[n-i-1]{\updatePcPerm{c_\adv}} \in \stder(W^{(3)})$. Which we use with
             \begin{enumproof}
-              \item $\memSat[n''-k-1]{\ms^{(3)}}{W^{(3)}}$: By assumption.
-              \item $\npair[n''-k-1]{\reg^{(4)}}$: Show:
+              \item $\memSat[n'-k-1]{\ms^{(3)}}{W^{(3)}}$: By assumption.
+              \item $\npair[n'-k-1]{\reg^{(4)}} \in \stdrr(W^{(3)})$: Show:
                 \begin{enumproof}
-                  \item $\npair[n''-k-1]{c_\adv} \in \stdvr(W^{(3)})$ by \ref{eq:f3:adv-in-stder}.
-                  \item $\npair[n''-k-1]{c_{\mathit{ret}}'}$ by assumption.
-                  \item $\npair[n''-k-1]{\reg^{(4)}(r_\stk)}$ by Lemma~\ref{lem:stack-cap-vr}.
+                  \item $\npair[n'-k-1]{c_\adv} \in \stdvr(W^{(3)})$ by Assumption \ref{eq:f3:adv-in-stder}.
+                  \item $\npair[n'-k-1]{c_{\mathit{ret}}'}$ by assumption.
+                  \item $\npair[n'-k-1]{c_\stk''}$ by assumption
                 \end{enumproof}
             \end{enumproof}
             to get
             \[
-              \npair[n''-k-1]{(\reg^{(4)},\ms^{(3)})} \in \observations(W^{(3)})
+              \npair[n'-k-1]{(\reg^{(4)},\ms^{(3)})} \in \observations(W^{(3)})
             \]
           \item Hyp-Cont\\
             Assume
             \begin{itemize}
-            \item $n^{(3)} \leq n''-k-2$
+            \item $n'' \leq n'-k-2$
             \item $W^{(3)} \futurewk \revokeTemp{W''}[\iota^{\sta}(\temp,\ms_\stk)][\iota^\sta(\temp,\ms_{\mathit{unused}}^{(3)})]$
-            \item $\memSat[n^{(3)}]{\ms^{(3)}}{\revokeTemp{W^{(3)}}}$ 
+            \item $\memSat[n'']{\ms^{(3)}}{\revokeTemp{W^{(3)}}}$ 
             \item for all $r$, we have that:
               \begin{equation*}
                 \reg^{(4)}(r)
@@ -2307,9 +2278,9 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
             \end{itemize}
             and show
             \[
-              (n^{(3)}, (\reg^{(3)},\ms^{(3)} \uplus [\start_\stk \mapsto 2] \uplus \ms_{\var{unused}}^{(3)})) \in \observations(\revokeTemp{W^{(3)}})
+              (n'', (\reg^{(3)},\ms^{(3)} \uplus [\start_\stk \mapsto 2] \uplus \ms_{\var{unused}}^{(3)})) \in \observations(\revokeTemp{W^{(3)}})
             \]
-            To this end let $\ms_f''$, $m''$, and $j \leq n^{(3)}$ be given and assume
+            To this end let $\ms_f''$, $m''$, and $j \leq n''$ be given and assume
             \[
               (\reg^{(3)},\ms^{(3)} \uplus [\start_\stk \mapsto 2] \uplus \ms_{\var{unused}}^{(3)} \uplus \ms_f'') \step[j] (\halted,m'')
             \]
@@ -2317,7 +2288,7 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
             \[
               m'' = \ms^{(3)} \uplus [\start_\stk \mapsto 2] \uplus \ms_{\var{unused}}^{(3)} \uplus \ms_f''
             \]
-            By assumption we had $\memSat[n^{(3)}]{\ms^{(3)}}{\revokeTemp{W^{(3)}}}$ and the frame is unchanged, so we can split the memory as desired.
+            By assumption we had $\memSat[n'']{\ms^{(3)}}{\revokeTemp{W^{(3)}}}$ and the frame is unchanged, so we can split the memory as needed.
         \end{enumproof}
       \end{enumproof}
     \end{enumproof}
@@ -2326,6 +2297,7 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
 
 
 
+\begin{comment}
 \begin{proof}[Proof of Lemma~\ref{lem:correctness-f3}]
   \lau{This proof does not use scall lemma}
   This proof goes like the proof of Lemma~\ref{lem:correctness-f2} except for item \ref{f2:c-prp}
@@ -2489,6 +2461,7 @@ We use Lemma~\ref{lem:scall-works} which requires us to show
     \end{enumproof}
   \end{enumproof}
 \end{proof}
+\end{comment}
 
 \subsection{Another simple well-bracketedness/local capability example}
 Here assume that \texttt{let l = ... in} produces a local, read-write permit write local capability (but \texttt{let x = ...} produces a global capability). 
