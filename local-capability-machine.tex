@@ -330,6 +330,7 @@
 % Conv defs
 \newcommand{\lookingat}[3]{\ensuremath{#1} \text{ is looking at } \ensuremath{#2} \text{ followed by } \ensuremath{#3}}
 \newcommand{\pointstostack}[3]{\ensuremath{#1} \text{ points to stack with } \ensuremath{#2} \text{ used and } \ensuremath{#3} \text{ unused}}
+\newcommand{\linksto}[4]{\ensuremath{#1} \text{ links } \ensuremath{#2} \text{ as } \ensuremath{#3} \text{ to } \ensuremath{#4}}
 \newcommand{\nonlocal}[1]{\ensuremath{#1} \text{ is non-local}}
 
 % Macros
@@ -862,10 +863,13 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
               \dominique{Wouldn't it be more clear to provide call with two explicit lists of registers: those which need to be stored, and those which are provided as arguments (i.e. which do not need to be erased)?}
               \dominique{Perhaps you could also provide an explicit syntax for ``undefined symbols'' that should be filled in by a linker?}
 
+              In order to compute offsets and the like, the macros need registers to keep temporary computations in. We assume such a small set of registers $\RegName_t \subseteq \RegName$ is available and that $\RegName_t$ does not contain registers explicitely named in a program nor $r_0$, $r_\stk,$ or $\pcreg$ (but clearing all registers still clears the temporary registers).
+
               \subsection{Linking and ABI}
               In order to make capabilities to trusted code (and possibly untrusted code) available, we assume that some sort of linker has made these available. This is done in the following way: For every function, the first memory cell the capability for that function governs contains a capability for the linking table. Each function name in a program corresponds to an offset in the table, e.g., \texttt{malloc} could be at offset 0. When a name is used in a program, it indicates what entry from the linking table to pick. The table should always be accessible by taking a copy of the capability in the $\pcreg$-register and adjusting it to point to the first cell it governs.
 
               The capability linking table can be shared between multiple functions that are linked to the same capabilities as it is accessed through read-only capabilities.
+
 
               \subsection{Flag table}
               A function may use flags to signal failure. We use the convention that a flag table is available in the second memory cell of a functions code (so just after the linking table). The flag table is accessed through a read-write capability and initially it contains all zero. Like the linking table, each entry is associated with a name which may appear in the macros.
@@ -914,7 +918,22 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
                   \item Load the return capability to $\pcreg$
                   \end{itemize}
                 \end{description}
-              \item[\texttt{malloc $r$ $n$}] Calls malloc to allocates a piece of memory of size $n$. The capability will be stored in register $r$.
+              \item[\texttt{malloc $r$ $n$}] Calls malloc to allocates a piece of memory of size $n$. The capability will be stored in register $r$. 
+% Suggestion for malloc impl (r_t1 and r_t2 are registers in RegName_t), r_1 should not contain important stuff
+% move r_1 n
+% move r pc
+% getb r_t1 r
+% geta r_t2 r
+% minus r_t1 r_t2 r_t1
+% lea r r_t1
+% move r_0 r_t1
+% lea r_0 3 // 3 is offset to just after jmp
+% restrict r_0 encodePerm(e)
+% jmp r
+% move r r_1
+% move r_1 0
+% move r_0 r_t1
+% move r_t1 r_0
 
               \item[\texttt{assert$_{\var{flag}}$ $r_1$ $r_2$}] Compares the words in register $r_1$ and $r_2$ (if one of them is an integer, then use that in the comparison). If they are equal, then execution continues. If they are unequal, then the assertion flag named $\var{flag}$ in the flag list is set to 1 and execution halts (if no flag is specified, then the first flag in the list is set to 1).
               \item[\texttt{mclear $r$}] Stores 0 to all the memory cells the capability $r$ governs.\footnote{This may in some cases seem like an unreasonable slow instruction. In a real system it would probably be implemented as a vector operation which allows modification of continuous segments of memory rather fast.}
@@ -3411,7 +3430,6 @@ Static region used for parts of memory that should not change and where you pass
 \end{align*}
 
 \subsection{Lemmas}
-
 \subsubsection{Anti-reduction for the observation relation}
 
 \begin{lemma}[Failing terms are in $\observations$ and $\stder$]
@@ -4959,6 +4977,111 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
   \end{enumproof}
 \end{proof}
 
+\subsubsection{Malloc macro-instruction correctness}
+\begin{definition}
+  We say that ``\linksto{(\reg,\ms)}{\var{key}}{j}{c_\malloc}'' 
+  iff
+  \begin{itemize}
+  \item $\reg(pc) = \stdcap$
+  \item $\ms(\start) = ((\_,\_),\start_\link,\_,\_)$
+  \item $\ms(\start_\link+j) = c$
+  \end{itemize}
+\end{definition}
+
+
+\begin{lemma}[$\mathtt{malloc}$ works]
+  \label{lem:malloc-works}
+  If
+  \begin{itemize}
+  \item \lookingat{(\reg,\ms)}{\mathtt{malloc}\;r\;k}{c_{\var{next}}}
+  \item $k \geq 0$
+  \item \linksto{(\reg,\ms)}{\malloc}{k}{c_\malloc}
+  \item $c_\malloc$ satisfies the $\malloc$ specification with $\iota_{\malloc,0}$
+  \item $W \futurestr [i \mapsto\iota_{\malloc,0}]$
+  \item $\memSat{\ms}{W}$
+  \item $\ms = \ms' \uplus \ms_{\var{footprint}}$
+  \item $\memSat{\ms_{\var{footprint}}}{[i \mapsto W(i)]}$
+  \item[Hyp-Cont]
+    If
+    \begin{itemize}
+    \item $n' \leq n-1$
+    \item $\iota_\malloc \futurewk W(i)$
+    \item $\memSat[n']{\ms_{\var{footprint}}' \uplus \ms'}{W[i \mapsto \iota_\malloc]}$
+    \item $\memSat[n']{\ms_{\var{footprint}}'}{[i \mapsto \iota_\malloc]}$
+      \begin{equation*}
+        \reg'(r') = 
+        \begin{cases}
+          c_{\var{next}} & r' = \pcreg \\
+          ((\rwx,\glob),\start,\addrend,\addr) & r' = r \\
+          \reg(r) & r' \not\in \RegName_t \union \{\pcreg, r, r_1\}
+        \end{cases}
+      \end{equation*}
+    \item $\addrend - \start = k - 1$
+    \item $\dom(\ms_{\var{alloc}}) = [\start,\addrend]$
+    \item $\forall \addr \in [\start,\addrend]\ldotp \ms_{\var{alloc}}(\addr) = 0$
+    \end{itemize}
+    Then we have $\npair[n']{(\reg',\ms' \uplus \ms_{\var{footprint}}'  \uplus \ms_{\var{alloc}})} \in \observations(W[\iota_\malloc])$
+  \end{itemize}
+  Then
+  \[
+    \npair{(\reg,\ms)} \in \observations(W)
+  \]
+\end{lemma}
+
+\subsubsection{Create closure macro-instruction correctness}
+\begin{lemma}[$\mathtt{crtcls}$ works]
+  If
+  \begin{itemize}
+  \item \lookingat{(\reg,\ms)}{\mathtt{crtcls}\;\overline{(x,r)}\;r}{c_{\var{next}}}
+  \item \linksto{(\reg,\ms)}{\malloc}{k}{c_\malloc}
+  \item $c_\malloc$ satisfies the $\malloc$ specification with $\iota_{\malloc,0}$
+  \item $W \futurestr [i \mapsto\iota_{\malloc,0}]$
+  \item $\memSat{\ms}{W}$
+  \item $\ms = \ms' \uplus \ms_{\var{footprint}}$
+  \item $\memSat{\ms_{\var{footprint}}}{[i \mapsto W(i)]}$
+  \item[Hyp-Cont]
+    If
+    \begin{itemize}
+    \item $n' \leq n$
+    \item $\iota_\malloc \futurewk W(i)$
+    \item $\memSat[n']{\ms' \uplus \ms_{\var{footprint}}'}{W[i \mapsto \iota_\malloc]}$
+    \item $\memSat{\ms_{\var{footprint}}'}{[i \mapsto \iota_\malloc]}$
+    \item
+      \begin{equation*}
+        \reg'(r') =
+        \begin{cases}
+          c_{\var{next}} & r' = \pcreg \\
+          c_\cls = ((\entry,\glob),\start,\addrend,\start+2) & r' = r_1 \\
+          \reg(r)      & r' \not\in \{\pcreg, r_1\} \union \RegName_t
+        \end{cases}
+      \end{equation*}
+    \item $\ms_\cls = \ms_\act \uplus \ms_\env$
+    \item $c_\env = ((\readwrite,\glob),\start_\env,\addrend_\env,\start_\env)$
+    \item $\dom(\ms_\env) = [\start_\env,\addrend_\env]$
+    \item $\ms_\env(\start_\env,\dots,\addrend_\env) = \reg(\overline{r})$
+    \item Hyp-act\\ If
+      \begin{itemize}
+      \item $\reg''(\pcreg) = \updatePcPerm{c_\cls}$
+      \end{itemize}
+      Then  $\exists k \ldotp \forall \ms_f \ldotp (\reg'',\ms'' \uplus \ms_\cls \uplus \ms_f) \step[k] (\reg''',\ms'' \uplus \ms_\cls \uplus \ms_f)$
+      where
+        \begin{equation*}
+          \reg'''(r') =
+          \begin{cases}
+            c_\env & r' = c_\env \\
+            \updatePcPerm{\reg(r)} & r' = \pcreg \\
+            \reg''(r') & r' \not\in \RegName_t
+          \end{cases}
+        \end{equation*}
+    \end{itemize}
+    Then we have $\npair[n']{(\reg',\ms' \uplus \ms_{\var{footprint}} \uplus \ms_\cls)} \in \observations(W[i \mapsto \iota_\malloc])$
+  \end{itemize}
+  Then 
+  \[
+    \npair{(\reg,\ms)} \in \observations(W)
+  \]
+\end{lemma}
+
 \subsubsection{Helper lemmas about the stack}
 \begin{lemma}
   \label{lem:stack-exec-cond-help}
@@ -5260,7 +5383,7 @@ and
   \]
 \end{lemma}
 \begin{proof}
-  By definition of $\stdrr(W)$ using Lemma~\ref{stdvr-dc}.
+  By definition of $\stdrr(W)$ using Lemma~\ref{lem:stdvr-dc}.
 \end{proof}
 
 \begin{lemma}[Value relation monotone wrt $\futurewk$]
