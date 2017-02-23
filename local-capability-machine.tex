@@ -2603,7 +2603,7 @@ Where the $\dots$ is the appropriate offset to make the capability point to \tex
   \end{align*}
   where 
   \begin{itemize}
-  \item $c_\malloc$ satisfies the specification for malloc
+  \item $c_\malloc$ satisfies the specification for malloc with $\iota_{\malloc,0}$
   \end{itemize}
   \begin{align*}
     &\dom(\hs_{g1}) = [\mathtt{g1}-\olf,\mathtt{4f}] \\
@@ -2756,29 +2756,42 @@ In the proof of Lemma~\ref{lem:correctness-g1}, we will use the following region
           \[
             \npair[n_2]{(\reg_1\update{\pcreg}{\updatePcPerm{c_{g1}}},\ms_1)} \in \observations(W_1)
           \]
-          % TODO elaborate on what happens here using anti reduction lemma and malloc spec.
-          Use Lemma~\ref{lem:anti-red-obs}, so let $\ms_f'$ be given, then
+          Using Lemma~\ref{lem:malloc-works}, Lemma~\ref{lem:crtcls-works}, Lemma~\ref{lem:anti-red-obs} (and some others),
+          it suffices to show
           \[
-            (\reg_1\update{\pcreg}{\updatePcPerm{c_{g1}}},\ms_1 \uplus \ms_f') \step[i] (\reg_2,\ms_2 \uplus \ms_\malloc' \uplus \ms_\env \uplus \ms_x \uplus \ms_\cls \uplus \ms_f')
+            \npair[n_2']{(\reg_2,\ms_2 \uplus \ms_\malloc' \uplus \ms_\cls \uplus \ms_x)} \in \observations(W_2)
           \]
-          for some $i$. Where
+          where
+          \[
+            W_2 = W_1\update{0}{\iota_\malloc}\update{i_1}{\iota^\sta (\perm,\ms_\cls)}\update{i_2}{\iota_x}
+          \]
+          where $i_1,i_2\not\in\dom(W_1)$ and $i_1 \neq i_2$ and $\iota_x$ is the region in Definition~\ref{def:iotax-region} which is a region by Lemma~\ref{lem:iotax-is-a-region}. Also
           \begin{itemize}
-          \item $\memSat[n_2-i]{\ms_2 \uplus \ms_\malloc'}{W_1\update{0}{\iota_\malloc}} $
-          \item $\iota_\malloc \futurewk \iota_{\malloc,0}$
-          \item $\ms_x = [x \mapsto 0]$
+          \item $\iota_\malloc \futurestr \iota_\malloc'$
           \item $c_x = ((\rwx,\glob),x,x,x)$
-          \item $\ms_\env = [\env \mapsto c_x]$
+          \item $\ms_x = [x \mapsto 0]$
+          \item $\memSat[n_2']{\ms_2 \uplus \ms_\malloc' \uplus \ms_\cls \uplus \ms_x}{W_2}$
           \item $c_\env = ((\rwx,\glob,\env,\env,\env))$
-          \item $c_{f4}$ is $c_{g1}$ updated to point at $f4$.
-          \item $\ms_\cls$ contains $c_\env$, the $c_{f4}$, and the activation code.
-          \item $c_\cls$ is a global enter capability for $\ms_\cls$ pointing to the activation code.
-          \item $\reg_2 = reg_0\update{\pcreg}{\updatePcPerm{\reg_1(r_0)}}\update{r_0}{\reg_1(r_0)}\update{r_1}{c_\cls}$
+          \item $\ms_\env = [\env \mapsto c_x]$
+          \item $c_{f4} = ((\rwx,\glob),\mathtt{g1} - \olf,\mathtt{4f},\mathtt{f4})$
+          \item $\ms_\cls = \ms_\env \uplus \ms_\act$
+          \item 
+            \begin{equation*}
+              \reg_2(r) =
+              \begin{cases}
+                \updatePcPerm{\reg_1(r_0)} & r = \pcreg \\
+                \reg_1(r_0) & r = r_0 \\
+                c_\cls & r = r_1 \\
+                0 & \text{otherwise}
+              \end{cases}
+            \end{equation*}
           \end{itemize}
-          For world
-          \[
-            W_2 = W_1\update{0}{\iota_\malloc}\update{i_1}{\iota^\sta (\perm,\ms_\env \uplus \ms_\cls)}\update{i_2}{\iota_x}
-          \]
-          where $i_1,i_2\not\in\dom(W_1)$ and $i_1 \neq i_2$ and $\iota_x$ is the region in Definition~\ref{def:iotax-region} which is a region by Lemma~\ref{lem:iotax-is-a-region}.
+          Finally assume Hyp-Act:
+            \begin{multline}
+            \label{eq:g1-hyp-act}
+            \forall \reg,\ms \ldotp \reg(\pcreg)=c_\cls \Rightarrow\\
+            \exists j \ldotp \forall \ms_f \ldotp (\reg,\ms \uplus \ms_\cls \uplus \ms_f) \step[j] (\reg\update{\pcreg}{\updatePcPerm{c_{f4}}}\update{r_\env}{c_\env},\ms \uplus \ms_\cls \uplus \ms_f)
+          \end{multline}
           Show
           \begin{equation}
             \label{eq:g1-obs-to-show}
@@ -2814,11 +2827,18 @@ In the proof of Lemma~\ref{lem:correctness-g1}, we will use the following region
                     \label{eq:g1-c-cls-obs}
                     \npair[n_4]{(reg_3\update{\pcreg}{\updatePcPerm{c_\cls}},\ms_3)} \in \observations(W_3)
                   \end{equation}
-                  Let $\ms_3^p$ and $\ms_3^t$ be memory segments such that $\ms_3 = \ms_3^p \uplus \ms_3^t$ and $\memSat[n_4]{\ms_3^p}{\revokeTemp{W_3}}$ (using Lemma~\ref{lem:priv-mono-like2})
-
-                  Use Lemma~\ref{lem:anti-red-obs}, let $\ms_f''$ be given and take $\ms_r$ to be the part of $\ms_3^t$ that $\reg_3(r_\stk)$ does not govern. By the operational semantics, we know\footnote{the execution may fail, but then the configuration is trivially in the observation relation.}
+                  Let $\ms_3^p$ and $\ms_3^t$ be memory segments such that $\ms_3 = \ms_3^p \uplus \ms_3^t$ and $\memSat[n_4]{\ms_3^p}{\revokeTemp{W_3}}$ (using Lemma~\ref{lem:priv-mono-like2}). By $\memSat[n_4]{\ms_3}{W_3}$ and $W_3 \futurestr W_2$, we know $\ms_\cls \subseteq \ms_3^p$, so using Hyp-Act(\ref{eq:g1-hyp-act}), we get $j$ such that
                   \[
-                    (reg_3\update{\pcreg}{\updatePcPerm{c_\cls}},\ms_3^p \uplus \ms_3^t \uplus \ms_f'') \step[j] (\reg_4,\ms_4 \uplus \ms_3^t \uplus \ms_f'')
+                    \forall \ms_f \ldotp (reg_3\update{\pcreg}{\updatePcPerm{c_\cls}},\ms_3^p \uplus \ms_3^t \uplus \ms_f) \step[j] (\reg_3\update{\pcreg}{\updatePcPerm{c_\cls}}\update{r_\env}{c_\env},\ms_3^p \uplus \ms_3^t \uplus \ms_f)
+                  \]
+                  Using Lemma~\ref{lem:anti-red-obs} it suffices to show
+                  \[
+                    \npair[n_4]{(\reg_3\update{\pcreg}{\updatePcPerm{c_\cls}}\update{r_\env}{c_\env},\ms_3^p \uplus \ms_3^t)} \in \observations(W_3)
+                  \]
+                  Use Lemma~\ref{lem:anti-red-obs} again. This time let $\ms_f''$ be given and take $\ms_r$ to be the part of $\ms_3^t$ that $\reg_3(r_\stk)$ does not govern. By the operational semantics, we know\footnote{the execution may fail, but then the configuration is trivially in the observation relation.}
+                  \[
+                    (\reg_3\update{\pcreg}{\updatePcPerm{c_\cls}}\update{r_\env}{c_\env},\ms_3^p \uplus \ms_3^t \uplus \ms_f'') \step[j']
+                    (\reg_4,\ms_4 \uplus \ms_3^t \uplus \ms_f'')
                   \]
                   where
                   \begin{itemize}
@@ -2828,47 +2848,47 @@ In the proof of Lemma~\ref{lem:correctness-g1}, we will use the following region
                     \end{itemize}
                   \item \pointstostack{\reg_4}{\emptyset}{\ms_{\var{unused}}}
                     \begin{itemize}
-                    \item \texttt{prepstack} did not fail, so the capability must be $\rwlx$ and follow the stack convention.
+                    \item \texttt{prepstack} did not fail, so the stack capability must be $\rwlx$ and follow the stack convention.
                     \end{itemize}
-                  \item $\reg_3(r_1)$ is a $\glob$ capability.
+                  \item $\reg_4(r_1)$ is a $\glob$ capability.
                     \begin{itemize}
                     \item \texttt{reqglob} did not fail
                     \end{itemize}
                   \item $\ms_4(x) = 0$
-                  \item $\reg_3(r_\env) = c_\env$
+                  \item $\reg_4(r_\env) = c_\env$
                   \end{itemize}
                   region $i_2$ (the $\iota_x$ region) can be in either state $0$ or $1$, so to make sure it is in state $0$, we use a private transition. So let $W_4$ be $\revokeTemp{W_3}$ with region $i_2$ in state $0$. We then have
                   \[
-                    \memSat[n_4-j]{\ms_4}{W_4}
+                    \memSat[n_4-j-j']{\ms_4}{W_4}
                   \]
                   Now we can use Lemma~\ref{lem:scall-works} to show:
                   \[
-                    \npair[n_4-j]{(\reg_4,\ms_4 \uplus \ms_r \uplus \emptyset \uplus \ms_\unused)} \in \observations(W_4)
+                    \npair[n_4-j-j']{(\reg_4,\ms_4 \uplus \ms_r \uplus \emptyset \uplus \ms_\unused)} \in \observations(W_4)
                   \]
                   where $\ms_r$ is the local frame of the \texttt{scall} lemma.
                   \begin{enumproof}
-                    \item $\memSat[n_4-j]{\ms_4}{\revokeTemp{W_4}}$: follows from $W_4 = \revokeTemp{W_4}$
+                    \item $\memSat[n_4-j-j']{\ms_4}{\revokeTemp{W_4}}$: follows from $W_4 = \revokeTemp{W_4}$
                     \item Hyp-Callee \label{pf:g1-first-hyp-callee}\\
                       We know $\npair[n_4]{\reg_3(r_1)} \in \stdvr(W_3)$. If this is not a capability that becomes executable when jumped to, then the execution fails, so the register memory segment pair is trivially in the observation relation. If it is executable, then either the $\execCond{}$ or the $\entryCond{}$ holds for appropriate values. We also know that it is a global capability, so we can use it with private future worlds. We have $W_5 = \revokeTemp{W_4}[\iota^\sta (\temp,\emptyset \uplus \ms_\act),\iota^\pwl(\dom(\ms_\unused')),\iota^\sta(\temp,\ms_f)] \futurestr W_3$, for some $\ms_\act$ and $\ms_\unused'$. By the execute/enter condition, we have
                       \[
-                        \npair[n_4-j]{\updatePcPerm{reg_3(r_1)}} \in \stder(W_5)
+                        \npair[n_4-j-j']{\updatePcPerm{reg_3(r_1)}} \in \stder(W_5)
                       \]
                       Now it suffices to show
                       \begin{enumproof}
-                        \item $\memSat[n_4-j-1]{\ms_5}{W_5}$ for some $\ms_5$ which is one of the assumptions of Hyp-Callee.
-                        \item $\npair[n_4-j-1]{\reg_5} \in \stdrr(W_5)$ where $\reg_5$ is as described in the \texttt{scall} lemma Hyp-callee premise.\\
+                        \item $\memSat[n_4-j-j'-1]{\ms_5}{W_5}$ for some $\ms_5$ which is one of the assumptions of Hyp-Callee.
+                        \item $\npair[n_4-j-j'-1]{\reg_5} \in \stdrr(W_5)$ where $\reg_5$ is as described in the \texttt{scall} lemma Hyp-callee premise.\\
                           Amounts to showing:\lau{too deeply nested for environments}\\
-                          1) $\npair[n_4-j-1]{\reg_3(r_1)} \in \stdvr(W_5)$, use Lemma~\ref{lem:stdvr-glob-priv-mono} with $\npair[n_4-j-1]{\reg_3(r_1)} \in \stdvr(W_3)$, the capability is global, and $W_5 \futurestr W_3$.
+                          1) $\npair[n_4-j-j'-1]{\reg_3(r_1)} \in \stdvr(W_5)$, use Lemma~\ref{lem:stdvr-glob-priv-mono} with $\npair[n_4-j-1]{\reg_3(r_1)} \in \stdvr(W_3)$, the capability is global, and $W_5 \futurestr W_3$.
                           2) The protected return pointer and the stack capability are in the value relation by Hyp-callee assumptions.
                       \end{enumproof}
                       which gives us
                       \[
-                        \npair[n_4-j-1]{(\reg_5,\ms_5)} \in \observations(W_5)
+                        \npair[n_4-j-j'-1]{(\reg_5,\ms_5)} \in \observations(W_5)
                       \]
                     \item Hyp-Cont\\
                       Assume
                       \begin{itemize}
-                      \item $n_5 \leq n_4-j-2$
+                      \item $n_5 \leq n_4-j-j'-2$
                       \item $W_6 \futurewk \revokeTemp{W_4}$
                       \item $\memSat[n_5]{\ms_6}{\revokeTemp{W_6}}$
                       \item $\reg_6(\pcreg) = c_{\var{next}}$, $\reg_6(r_0) = \reg_3(r_0)$, $\reg_6(r_1) = \reg_3(r_1)$, $\reg(r_\env) = c_\env$
@@ -5065,6 +5085,7 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
 
 \subsubsection{Create closure macro-instruction correctness}
 \begin{lemma}[$\mathtt{crtcls}$ works]
+  \label{lem:crtcls-works}
   If
   \begin{itemize}
   \item \lookingat{(\reg,\ms)}{\mathtt{crtcls}\;\overline{(x,r)}\;r}{c_{\var{next}}}
@@ -5091,6 +5112,7 @@ which follows from \ref{pf:heap-sat:interp}, $n' \leq n$, and $H(s)(\xi^{-1}(W))
         \end{cases}
       \end{equation*}
     \item $\ms_\cls = \ms_\act \uplus \ms_\env$
+    \item $c_\cls = ((\entry,\glob),\dots)$
     \item $c_\env = ((\readwrite,\glob),\start_\env,\addrend_\env,\start_\env)$
     \item $\dom(\ms_\env) = [\start_\env,\addrend_\env]$
     \item $\ms_\env(\start_\env,\dots,\addrend_\env) = \reg(\overline{r})$
