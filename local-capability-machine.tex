@@ -2974,9 +2974,9 @@ In the proof of Lemma~\ref{lem:correctness-g1}, we will use the following region
               \item $\memSat[n_4]{\ms_3}{W_3}$
               \item $\reg(r_\stk).\perm = \rwlx$
               \end{itemize}
-              we get that there exists a region, $r_{\adv \stk}$ in $W_3$ such that
+              using Lemma~\ref{lem:pwl-stack} we get that there exists a region, $r_{\adv \stk}$ such that
               \[
-                W_3(r_{\adv \stk}) = \iota_{\stk_a,\stk_b}^\pwl
+                W_3(r_{\adv \stk}) \nequal \iota_{\stk_a,\stk_b}^\pwl
               \]
               and $\dom(\ms_\unused) \subseteq [\stk_a,\stk_b]$. Now take $\ms_{\adv \stk} = \ms_r|_{[\stk_a,\stk_b]}$ (notice this not all of $[\stk_a,\stk_b]$ is in the domain of $\ms_r$).
               We know
@@ -3548,6 +3548,46 @@ Static region used for parts of memory that should not change and where you pass
 \subsubsection{Standard regions}
 
 \begin{lemma}
+  \label{lem:pwl-stack}
+  For all $W$, $\start$, $\addrend$, $n$, $\ms$ if
+  \begin{itemize}
+  \item $\memSat{\ms}{W}$
+  \item $\npair{((\rwlx,\gl),\start,\addrend,\addr)} \in \stdvr(W)$
+  \item $\start \leq \addrend$
+  \end{itemize}
+  then
+  \[
+    \exists r, \start',\addrend' \ldotp [\start,\addrend] \subseteq [\start',\addrend'] \land W(\var{r}) \nequal \iota^\pwl_{\start',\addrend'}
+  \]
+\end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:pwl-stack}]
+  Assume
+  \begin{enumproof}
+    \item $\npair{((\rwlx, \gl),b,e,a)} \in \stdvr(W)$ \label{ass:pwl-stack:val-rel}
+    \item $\memSat{\ms}{W}$ \label{ass:pwl-stack:mem-sat}
+  \end{enumproof}
+  From Assumption~\ref{ass:pwl-stack:val-rel}, we get $r_1$, $r_2$, $b_1$, $b_2$, $e_1$ and $e_2$ such that
+  \begin{enumproof}[resume]
+    \item $r_1 \in \localityReg(\gl,W)$
+    \item $r_2 \in \localityReg(\gl,W)$
+    \item $[b,e] \subseteq [b_1,e_1]$\label{ass:pwl-stack:b1}
+    \item $[b,e] \subseteq [b_2,e_2]$ \label{ass:pwl-stack:b2}
+    \item $W(r_1) \nsubsim \iota^\pwl_{b_1,e_1}$ \label{ass:pwl-stack:subsim}
+    \item $W(r_2) \nsupsim \iota^\pwl_{b_2,e_2}$ \label{ass:pwl-stack:supsim}
+    \item $W(r_2)$ is address-stratified. \label{ass:pwl-stack:add-stra}
+  \end{enumproof}
+From Assumption~\ref{ass:pwl-stack:mem-sat}, we get partitionen $P$ s.t.
+\[
+  \memSat[n,p]{\ms}{W}
+\]
+Say $P(r_1) = \ms_1$ and $P(r_2) = \ms_2$. First from $\npair{\ms_1} \in W(r_1).H\;W(r_1).s\;\xi^{(-1)}(W)$ using \label{ass:pwl-stack:subsim}, we get $\npair{\ms_1} \in H^\pwl_{b_1,e_1}\;1\;\xi^{(-1)}(W)$ which means $\dom(\ms_1) = [b_1,e_1]$.
+
+Second we know $\npair{[b_2 \mapsto 0, \dots , e_2 \mapsto 0]} \in H^\pwl_{b_2,e_2}\;1\;\xi^{(-1)}(W)$ and $\npair{\ms_2} \in W(r_2).H\;W(r_2).s\;\xi^{(-1)}(W)$ which by Assumption~\ref{ass:pwl-stack:supsim} and \ref{ass:pwl-stack:add-stra} means $\dom(\ms_2) = [b_2,e_2]$.
+
+Now assume for contradition $r_1 \neq r_2$, then we have a contradiction with $\memSat[n,p]{\ms}{W}$ because $\ms_1$ and $\ms_2$ are not disjoint (by Assumptions~\ref{ass:pwl-stack:b1} and \ref{ass:pwl-stack:b2}). So $r_1=r_2$ which also means $[b_1,e_1] = [b_2,e_2]$, so from Assumption~\ref{ass:pwl-stack:subsim} and \ref{ass:pwl-stack:supsim}, we get $W(r_1) \nsim \iota^\pwl_{b_1,e_1}$ which by Lemma~\ref{lem:pwl-nsim-view} means $W(r_1) \nequal \iota^\pwl_{b_1,e_1}$
+\end{proof}
+
+\begin{lemma}
   \label{lem:hpwl-mono}
   $H^\pwl_{\start,\addrend} \; s$ is monotone w.r.t $\futurewk$ for all $s \in \States$ and $\start$ and $\addrend$
 \end{lemma}
@@ -3867,7 +3907,7 @@ Static region used for parts of memory that should not change and where you pass
   \]
   and 
   \begin{equation*}
-    \revokeTemp(W)(r) \text{ is address-stratified}
+    \revokeTemp{W}(r) \text{ is address-stratified}
   \end{equation*}
   Notice $\revokeTemp{W}(r)$ is a $\perma$ region, so $\revokeTemp{W}(r) = W(r)$. Using $r$ as witness, the result is immediate.
 \end{proof}
