@@ -3280,14 +3280,14 @@ Memory segment satisfaction:
 
 Standard regions for when writing locally is permitted:
 \begin{align*}
-  &\iota_{\start,\addrend}^\pwl : \Regions\\
-  &\iota_{\start,\addrend}^\pwl \defeq (\temp,1,=,=,H^\pwl_{\start,\addrend}) \\
+  &\iota^\pwl : \cal{P} \fun \Regions\\
+  &\iota^\pwl\;A \defeq (\temp,1,=,=,H^\pwl \; S) \\
   \\
-  &H^\pwl : \Addrs^2 \fun \States \fun (\Wor \monwknefun \UPred{\HeapSegments})\\
-  &H^\pwl_{\start,\addrend}\; s \; \hat{W} \defeq \left\{\npair{\hs} \middle|
+  &H^\pwl : \cal{P}(\Addrs) \fun \States \fun (\Wor \monwknefun \UPred{\HeapSegments})\\
+  &H^\pwl\; A \; s \; \hat{W} \defeq \left\{\npair{\hs} \middle|
     \begin{aligned}
-      &\dom(\hs) = [\start,\addrend] \land \\
-      &\forall \addr \in [\start,\addrend] \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W}))
+      &\dom(\hs) = A \land \\
+      &\forall \addr \in A \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W}))
     \end{aligned}
         \right\} \union \{\npair[0]{\ms} \}
 \end{align*}
@@ -3300,27 +3300,41 @@ Revoking all temporary regions:
                      W(r)                & \text{otherwise}
                    \end{cases}
 \end{align*}
+Further define
+\[
+  \iota^\pwl_{\start,\addrend} \defeq \iota^\pwl([\start,\addrend])
+\]
+
+
 \newcommand{\wrev}[1]{\revokeTemp{#1}}
 
 
 Standard regions for when write local is not allowed:
 \begin{align*}
-  &\iota_{\start,\addrend}^{\nwl} : \Regions \\
-  &\iota_{\start,\addrend}^{\nwl} \defeq (\temp,1,=,=,H^\nwl_{start,\addrend}) \\
+  &\iota^\nwl : \cal{P}(\Addrs) \fun \Regions \\
+  &\iota^\nwl\; A \defeq (\temp,1,=,=,H^\nwl\;A) \\
   \\
-  &\iota_{\start,\addrend}^{\nwl,p} : \Regions \\
-  &\iota_{\start,\addrend}^{\nwl,p} \defeq (\perma,1,=,=,H^\nwl_{start,\addrend})\\
+  &\iota^{\nwl,p} : \cal{P}(\Addrs) \fun \Regions \\
+  &\iota^{\nwl,p}\;A \defeq (\perma,1,=,=,H^\nwl\;A)\\
   \\
-  &H^\nwl : \Addrs^2 \fun \States \fun (\Wor \monstrnefun \UPred{\HeapSegments})\\
-  &H^\nwl_{\start,\addrend} \; s \;\hat{W} \defeq \left\{\npair{\hs} \middle|
+  &H^\nwl : \cal{P}(\Addrs) \fun \States \fun (\Wor \monstrnefun \UPred{\HeapSegments})\\
+  &H^\nwl\;A \; s \;\hat{W} \defeq \left\{\npair{\hs} \middle|
     \begin{aligned}
-      &\dom(\hs) = [\start,\addrend] \land \\
-      &\forall \addr \in [\start,\addrend] \ldotp \\
+      &\dom(\hs) = A \land \\
+      &\forall \addr \in A \ldotp \\
       &\quad \nonlocal{\ms(\addr)} \land\\ 
       &\quad \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W}))
     \end{aligned}
         \right\} \union \{\npair[0]{\ms} \}
 \end{align*}
+
+Further define
+
+\begin{align*}
+  \iota^\nwl_{\start,\addrend} & \defeq \iota^\nwl([\start,\addrend])\\
+  \iota^{\nwl,p}_{\start,\addrend} & \defeq \iota^{\nwl,p}([\start,\addrend])\\
+\end{align*}
+
 
 For convenience define
 \[
@@ -4190,6 +4204,16 @@ Now assume for contradition $r_1 \neq r_2$, then we have a contradiction with $\
 \end{proof}
 
 \subsubsection{LR Sanity lemmas}
+\begin{lemma}
+  \label{lem:mem-sat-ne}
+  \begin{align*}
+    &\forall \hs, n, W \nequal W' \ldotp \\
+    &\quad \heapSat[\hs]{n}{W} \land W \nequal W' \Rightarrow \heapSat[\hs]{n}{W'}
+  \end{align*}
+\end{lemma}
+\begin{proof}[Proof of Lemma~\ref{lem:mem-sat-ne}]
+  %TODO
+\end{proof}
 
 \begin{lemma}[Heap satisfaction downwards closure]
   \label{lem:heap-sat-dc}
@@ -5353,6 +5377,7 @@ We expect the following lemmas to hold true:
   % TODO
 \end{proof}
 
+%This lemma seems weird given the previous lemmas.
 \begin{lemma}[Revoke temporary memory with stack]
   \label{lem:revoke-temp-stack}
   \begin{align*}
@@ -5360,10 +5385,10 @@ We expect the following lemmas to hold true:
     & \quad \memSat{\ms}{W} \land \npair{\reg} \in \stdrr(W) \land \\
     & \quad \reg(r_\stk) = ((\rwlx,\gl),\start,\addrend,\addr) \land b \leq e \\
     & \qquad \exists \ms', \ms_r \ldotp \\
-    & \qquad \quad \memSat{\ms }{\revokeTemp{W}} \land \ms = \ms' \uplus \ms_r
+    & \qquad \quad \memSat{\ms'}{\revokeTemp{W}} \land \ms = \ms' \uplus \ms_r
   \end{align*}
 \end{lemma}
-\begin{proof}[lem:revoke-temp-stack]
+\begin{proof}[Proof of Lemma~\ref{lem:revoke-temp-stack}]
   % TODO
 \end{proof}
 
@@ -5372,7 +5397,7 @@ We expect the following lemmas to hold true:
   \begin{align*}
     & \forall n \ldotp \forall \ms, \ms', \ms'' \ldotp \forall W, W', W'' \ldotp\\
     & \quad \ms'' = \ms \uplus \ms' \land W'' = W \uplus W' \land \memSat{\ms}{W} \land \memSat{\ms'}{W'} \Rightarrow \\
-    & \qquad \heapSat[\ms \uplus \ms' ]{n}{W \uplus W'}
+    & \qquad \heapSat[\ms'']{n}{W''}
   \end{align*}
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:disj-mem-sat}]
@@ -5398,7 +5423,7 @@ We expect the following lemmas to hold true:
   \end{itemize}
   then
   \[
-    \memSat{\ms}{[i \mapsto \iota^\pwl(\dom(\ms))]}
+    \memSat{\ms}{[i \mapsto \iota(\dom(\ms))]}
   \]
 \end{lemma}
 \begin{proof}[Proof of Lemma~\ref{lem:mem-sat-data-only-std-regions}]
