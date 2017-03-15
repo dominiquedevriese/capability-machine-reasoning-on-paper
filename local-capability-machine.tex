@@ -509,7 +509,7 @@ Assume an $\encodePerm$, $\encodeLoc$, and $\encodePermPair$ function that encod
   \encodeLoc &: \Globals \fun \ints \\
   \encodePermPair &: (\Perms \times \Globals) \fun \ints \\
 \end{align*}
-Further, assume an inverse function, $\decodePermPair{}$, that decodes permissions
+Further, assume a left inverse function, $\decodePermPair{}$, that decodes permissions
 \[
   \decodePermPair{} : \ints \fun (\Perms \times \Globals)
 \]
@@ -575,7 +575,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
 % TODO: \Phi.reg(rv) to some other notation. It should only look up reg, if it is a regname otherwise just the litteral.
 \begin{align*}
   \sem{\fail}(\Phi)                        & = \failed \\
-  \sem{\halt}(\Phi)                        & = (\halted,\Phi) \\
+  \sem{\halt}(\Phi)                        & = (\halted,\memheap) \\
   \sem{\jmp{\lv}}(\Phi)                    & = \updateReg{\pcreg}{\updatePcPerm{\memreg(\lv)}} \\
   \sem{\jnz{\lv}{\rv}}(\Phi)               & = 
                                              \begin{cases}
@@ -587,7 +587,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                                \stdUpdatePc{\Phi} & \text{if not $\nonZero{\memreg(\rv)}$}\\
                                                \failed & \text{otherwise }
                                              \end{cases} \\
-  \sem{\load{\refreg{r_1}}{\refheap{r_2}}}  & = 
+  \sem{\load{\refreg{r_1}}{\refheap{r_2}}}(\Phi)  & = 
                                               \begin{cases}
                                                 \stdUpdatePc{\updateReg{r_1}{\var{w}}} &
                                                 \arraycolsep=0pt
@@ -598,7 +598,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                                 \end{array}\\
                                                 \failed & \text{otherwise }
                                               \end{cases}\\
-  \sem{\store{\refheap{r_1}}{\refreg{r_2}}} & = 
+  \sem{\store{\refheap{r_1}}{\refreg{r_2}}}(\Phi) & = 
                                               \begin{cases}
                                                 \stdUpdatePc{\updateHeap{\addr}{\var{w}}} &
                                                 \arraycolsep=0pt
@@ -611,9 +611,9 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                                 \end{array}\\
                                                 \failed & \text{otherwise }
                                               \end{cases}\\
-  \sem{\move{\refreg{r_1}}{\rv}}            & = \stdUpdatePc{\updateReg{r_1}{\memreg(\rv)}}
+  \sem{\move{\refreg{r_1}}{\rv}}(\Phi)            & = \stdUpdatePc{\updateReg{r_1}{\memreg(\rv)}}
   \\
-  \sem{\lea{\refreg{r_1}}{\rv}}            & =
+  \sem{\lea{\refreg{r_1}}{\rv}}(\Phi)            & =
                                              \begin{cases}
                                                \stdUpdatePc{\updateReg{r_1}{\var{c}}} &
                                                \arraycolsep=0pt
@@ -628,7 +628,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                              \end{cases} 
   \\
   % In the M-Machine, lea checks whether the pointer stay within the allowed range in the pointer.
-  \sem{\restricttwo{\refreg{r}}{\rv}}           & =
+  \sem{\restricttwo{\refreg{r}}{\rv}}(\Phi)           & =
                                                   \begin{cases}
                                                     \stdUpdatePc{\updateReg{r}{\var{c}}}  &
                                                     \arraycolsep=0pt
@@ -643,7 +643,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                                   \end{cases} 
 \end{align*}
 \begin{align*}
-  \sem{\plus{\refreg{r_1}}{\rv_1}{\rv_2}}               & =
+  \sem{\plus{\refreg{r_1}}{\rv_1}{\rv_2}}(\Phi)               & =
                                                           \begin{cases}
                                                             \stdUpdatePc{\updateReg{r_1}{n_1+n_2}} &
                                                             \arraycolsep=0pt
@@ -654,7 +654,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                                             \end{array}\\
                                                             \failed & \text{otherwise}
                                                           \end{cases}\\
-  \sem{\minus{\refreg{r_1}}{\rv_1}{\rv_2}}               & =
+  \sem{\minus{\refreg{r_1}}{\rv_1}{\rv_2}}(\Phi)               & =
                                                           \begin{cases}
                                                             \stdUpdatePc{\updateReg{r_1}{n_1-n_2}} &
                                                             \arraycolsep=0pt
@@ -665,7 +665,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                                             \end{array}\\
                                                             \failed & \text{otherwise}
                                                           \end{cases}\\
-  \sem{\subseg{\refreg{r}}{\rv_1}{\rv_2}} & = 
+  \sem{\subseg{\refreg{r}}{\rv_1}{\rv_2}}(\Phi) & = 
                                             \begin{cases}
                                               \stdUpdatePc{\updateReg{r}{\var{c}}} &
                                               \arraycolsep=0pt
@@ -681,7 +681,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                               \failed & \text{otherwise}
                                             \end{cases}
   \\
-  \sem{\geta{\refreg{r_1}}{\refreg{r_2}}} & = 
+  \sem{\geta{\refreg{r_1}}{\refreg{r_2}}}(\Phi) & = 
                                             \begin{cases}
                                               \stdUpdatePc{\updateReg{r_1}{\addr}} &
                                               \arraycolsep=0pt
@@ -691,7 +691,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                               \failed & \text{otherwise}
                                             \end{cases}
   \\
-  \sem{\getb{\refreg{r_1}}{\refreg{r_2}}} & = 
+  \sem{\getb{\refreg{r_1}}{\refreg{r_2}}}(\Phi) & = 
                                             \begin{cases}
                                               \stdUpdatePc{\updateReg{r_1}{\start}} &
                                               \arraycolsep=0pt
@@ -701,7 +701,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                               \failed & \text{otherwise}
                                             \end{cases}
   \\
-  \sem{\gete{\refreg{r_1}}{\refreg{r_2}}} & = 
+  \sem{\gete{\refreg{r_1}}{\refreg{r_2}}}(\Phi) & = 
                                             \begin{cases}
                                               \stdUpdatePc{\updateReg{r_1}{\addrend}} &
                                               \arraycolsep=0pt
@@ -711,7 +711,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                               \failed & \text{otherwise}
                                             \end{cases}
   \\
-  \sem{\getp{\refreg{r_1}}{\refreg{r_2}}} & = 
+  \sem{\getp{\refreg{r_1}}{\refreg{r_2}}}(\Phi) & = 
                                             \begin{cases}
                                               \stdUpdatePc{\updateReg{r_1}{\encodePerm(\perm)}} &
                                               \arraycolsep=0pt
@@ -721,7 +721,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                               \failed & \text{otherwise}
                                             \end{cases}
   \\
-  \sem{\getl{\refreg{r_1}}{\refreg{r_2}}} & = 
+  \sem{\getl{\refreg{r_1}}{\refreg{r_2}}}(\Phi) & = 
                                             \begin{cases}
                                               \stdUpdatePc{\updateReg{r_1}{\encodeLoc(\gl)}} &
                                               \arraycolsep=0pt
@@ -731,7 +731,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                               \failed & \text{otherwise}
                                             \end{cases}
   \\
-  \sem{\isptr{\refreg{r}}{\rv}} & =  
+  \sem{\isptr{\refreg{r}}{\rv}}(\Phi) & =  
                                   \begin{cases}
                                     \stdUpdatePc{\updateReg{r_1}{1}} & \text{if $\memreg(\rv) \in \Caps$ } \\
                                     \stdUpdatePc{\updateReg{r_1}{0}} & \text{otherwise} 
@@ -818,7 +818,7 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
               }
 \newcommand{\annotate}[2]{\multirow{#1}{\mrlen}{\scriptsize #2}}
 
-              \begin{specification}[Malloc v.2]
+              \begin{specification}[Malloc Specification]
                 \label{spec:malloc}
                 $c_\malloc$ satisfies the specification for malloc iff
                 \[  
