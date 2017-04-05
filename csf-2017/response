@@ -1,0 +1,105 @@
+We thank the reviewers for thoruoghly reading the paper. We will take all comments into
+consideration for the final version of the paper.
+
+## Review 19A:
+"One limitation whose importance I have a hard time gauging: local capabilities may only be kept in
+registers or stack.  We can't have arbitrary heap data structures full of different local
+capabilities.  Is that an important limitation?"
+As we write in the paper in the first paragraph of the second column of page 3, local capabilities
+can be temporarily passed to an adversary for the duration of an invocation, i.e. from we transfer
+control to the adversary to control is returned to us. At the point, we regain control, we overwrite
+all copies of the local capability in order which is what makes it temporary. The limitation to
+where local capabilities can be stored is what enable us to make sure all copies have been
+overwritten.
+From the point of view of the operational semantics, the limitation on where local capabilities can
+be stored is the place where the operational semantics really distinguishes between the two as seen
+in Figure 3.
+
+"...   Do we ever want to do efficient lookup of local capabilities from semantically meaningful
+keys?"
+We do not fully understand this question. As mentioned in Section 3 under "Program start-up", the
+stack is merely an abstraction put on a piece of memory, so the same memory may be used for
+something else than a stack - say a data structure full of local capabilities. This data structure
+would, however, be temporary which is well in line with the temporary nature of local capabilities.
+
+""For simplicity, we assume that memory allocated through malloc cannot be freed." Is this a
+show-stopper assumption to scale up to realistic code?" 
+-
+
+"... And is it essential that malloc is a built-in instruction rather than a library function?"
+As mentioned in the last paragraph of Section 2, malloc is assumed to be part of the trusted
+computing base and it is assumed to satisfy a certain specification (which we did not find room for
+in the paper). In the examples, what appears to be a malloc instruction is a macro. This macro was
+not mentioned in Section 3 "Reusable macro instructions" and we will make sure to correct this short
+coming for the final version. 
+
+"How does all this adapt to the multicore setting?  Does a zero-out-range instruction appear to run
+atomically?  What about context switches in the midst of other standard code snippets you insert?" 
+In the paper, we do not make any claims as to whether or not this will scale to a multicore
+setting and do thus not answer any of the above questions (we admit that they are important
+questions that must be addressed if this work should be extended to a concurrent setting).
+
+"At one point in the paper, there is a "throw-away" remark that stack-smashing attacks are
+straightforward to block.  I don't see how, if each function receives a pointer conveying access to
+its full stack area.  Such pointers must be carefully restricted into subpointers for particular
+local variables, like arrays.  Wouldn't it be easy to forget to restrict or to do it incorrectly? 
+I suppose the main arguments of this paper are about protecting *well-written* programs from
+attackers, but then don't well-written programs just avoid buffer overflows statically?"
+In a high-level languge with sufficient abstractions, the programmer would not have direct control
+over the stack capabilitiy. Instead they would use high-level statements to ask for say a stack
+allocated array. The compiler would then take care of protection against stack smashing by
+restricting the stack capability as appropriate before giving the programmer access to it. If the
+compiler has done this correctly, then an attempt to write outside the array would cause an
+error. We should of course not trust our compiler blindly which is why we would want a
+fully-abstract compiler from the high-level language to the assembly language. We believe the
+proposed future work in first paragraph of Section 6, would be a first step towards such a
+fully-abstract compiler.
+
+"I'm stuck on type-level details of the future-worlds relations in Section 4.1.1.  Temporary and
+permanent regions are expressed as 4-tuples, but the inference rules for future worlds operate on
+5-tuples.  Why is that?"
+In Theorem 1, the set Rels consists of pairs of relations which is why what appears to be a 4-tuple
+is really a 5-tuple.
+
+"Can you give an intuition for why the logical relations should be step-indexed?  The restricted
+nature of local capabilities seems to suggest that they won't be involved in the kinds of
+self-reference that motivated the invention of step indexing.  Is it the global references that
+force step indexing?"
+The logical relation is recursively defined, so it is step-indexed in order for it to be
+well-defined. The recursiveness is not explicit because of a definition we left out, namely the
+definition of the standard region mentioned on the bottom of page 7. This region informally requires
+all words the region governs to be "safe". As mentioned in the fourth paragraph of Section 4.2, we
+take "safe" for words to mean that they are in the value relation.
+
+
+"... In general, can you give an intuition for why simpler proof techniques
+wouldn't suffice?  (It's hard not to suspect a bit of overkill when the only example programs are as
+short as they are.)"
+Simpler proof techniques, such as reference graphs, are much weaker because they are syntax driven
+and do not take the meaning of programs into account. As mentioned in bottom of first collumn of
+page 10, the program labelled with g1 along with f4 9 is a faithful translation of an example also
+known as the awkward example. While the program may look simple, it is deceivingly difficult to
+reason about. Had we used a simpler proof technique, then we would not have been able to prove Lemma
+4. 
+
+"In Figure 9, is the beginning of `g1` right, where the 3rd line seems to overwrite the program
+counter, effectively jumping elsewhere without saving a new return pointer?  Should the operand
+order be reversed?"
+Yes, thank you for pointing this out.
+
+## Review 19B
+We do not see the capability machine formalisation as the next capability machine. Instead we see
+this work as general work on developing proof techniques for capability machines that match
+state-of-the-art proof techniques for high-level lanuages. This is also why we in the first
+contribution write that it is a "simple but representative capability machine". We hope and believe
+that the proof techniques presented here can be used on real capability machines, such as CHERI, as
+well.
+Like-wise for the calling convention, we believe that it can be used on real machines with the
+necessary capabilities.
+
+"The second contribution in the Intro states that the capability machine "does not
+use separate per-component stacks but a single, fairly standard, contiguous stack", why is this a
+good idea?"
+-
+
+## Review 19C
