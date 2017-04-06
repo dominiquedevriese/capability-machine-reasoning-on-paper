@@ -1,43 +1,51 @@
 We thank the reviewers for thoruoghly reading the paper. We will take all comments into
 consideration for the final version of the paper.
 
-## Review 19A:
-"One limitation whose importance I have a hard time gauging: local capabilities may only be kept in
-registers or stack.  We can't have arbitrary heap data structures full of different local
-capabilities.  Is that an important limitation?"
-As we write in the paper in the first paragraph of the second column of page 3, local capabilities
-can be temporarily passed to an adversary for the duration of an invocation, i.e. from we transfer
-control to the adversary to control is returned to us. At the point, we regain control, we overwrite
-all copies of the local capability in order which is what makes it temporary. The limitation to
-where local capabilities can be stored is what enable us to make sure all copies have been
-overwritten.
-From the point of view of the operational semantics, the limitation on where local capabilities can
-be stored is the place where the operational semantics really distinguishes between the two as seen
-in Figure 3.
+Several reviewers comment on the complexity of the techniques we used:
 
-"...   Do we ever want to do efficient lookup of local capabilities from semantically meaningful
-keys?"
-We do not fully understand this question. As mentioned in Section 3 under "Program start-up", the
-stack is merely an abstraction put on a piece of memory, so the same memory may be used for
-something else than a stack - say a data structure full of local capabilities. This data structure
-would, however, be temporary which is well in line with the temporary nature of local capabilities.
+* Review 19A: "My main reservation about the paper is that it depends on substantial experience with step-indexed Kripke logical relations, to appreciate the details of the formal framework.
+  I don't have that experience, so I didn't manage to form a sufficient intuition of the details."
+* Review 19B: "Second, the formal machine is still very complex and extremely difficult to follow (even after reading through the 82-page extended technical report)."
+* Review 19C: "Where the paper is weakest is in the explanation of the logical relation that captures the capability safety of the machine, and in explaining how this relates to reasoning about the safety of the calling convention (e.g. scall and the other macros)."
+
+We understand this reservation.
+However, from our point of view, the techniques we used are very natural to use here: for a lambda calculus with similar features, they would be considered reasonably standard.
+We have spent quite some effort on explaining these techniques to a security audience that is unfamiliar with them, and we can of course always do better (particularly in Section 4, as pointed out by review 19C).
+However, reviewer 19C's comment is very accurate: "The authors have a very large amount of material to summarise in a relatively small amount of space, and the logical machinery is highly sophisticated and builds on years of advanced work in this space. So this was always going to be a non-trivial task."
+At the end of the day, what we are using are simply (more or less) the state of the art in reasoning techniques available today.
+We are worried that if CSF consistently assesses this sort of techniques as too hard, then the result will be that state-of-the-art reasoning techniques from PL research will end up not being applied to security applications, which we consider highly undesirable.
+
+## Review 19A:
+"(It doesn't help that the only examples discussed are assembly programs that fit in quarter-page figures. Limitations might become apparent connecting to, say, a fully abstract compiler for a typed source language.)"
+
+For what it's worth, we have some experience with proofs of full abstraction for compilers and such a result would be a very substantial additional result, that could easily fill a separate paper.
+We see the current paper as a step towards that goal that is independently useful.
+
+"One limitation whose importance I have a hard time gauging: local capabilities may only be kept in registers or stack.  We can't have arbitrary heap data structures full of different local capabilities.  Is that an important limitation?  Do we ever want to do efficient lookup of local capabilities from semantically meaningful keys?"
+
+You seem to be asking about storing local capabilities in data structures like hashtables or trees which are typically allocated on the heap.
+In our setting, local capabilities cannot be stored on the heap because there can be no store-local pointers for it.
+However, it's perfectly valid to allocate data structures containing local capabilities on the stack.
+They will of course be temporary, just like the local capabilities they contain, but we believe that's reasonable.  
 
 ""For simplicity, we assume that memory allocated through malloc cannot be freed." Is this a
 show-stopper assumption to scale up to realistic code?" 
--
+We do believe reuse of malloc-allocated memory is important in real code.
+However, an explicit free call is hard to support in capability-machine because use-after-frees may allow an adversary to access memory that has been recycled and now contains capabilities of the trusted code.
+Supporting a free would require a notion of capability revocation, which is hard to support efficiently.
+A better solution for reuse of malloc-allocated memory would be the use of a trusted garbage collector which can guarantee the absence of use-after-frees and which we believe would combine well with our approach.
 
 "... And is it essential that malloc is a built-in instruction rather than a library function?"
-As mentioned in the last paragraph of Section 2, malloc is assumed to be part of the trusted
-computing base and it is assumed to satisfy a certain specification (which we did not find room for
-in the paper). In the examples, what appears to be a malloc instruction is a macro. This macro was
-not mentioned in Section 3 "Reusable macro instructions" and we will make sure to correct this short
-coming for the final version. 
+Malloc is not really a built-in instruction.
+In the examples, what appears to be a malloc instruction is actually a macro that invokes a trusted malloc function implemented in software.
+It's trusted in the sense that there is a specification that we assume it will satisfy.
+The specification is in the technical report, and specifies a very standard contract for malloc.
 
 "How does all this adapt to the multicore setting?  Does a zero-out-range instruction appear to run
 atomically?  What about context switches in the midst of other standard code snippets you insert?" 
-In the paper, we do not make any claims as to whether or not this will scale to a multicore
-setting and do thus not answer any of the above questions (we admit that they are important
-questions that must be addressed if this work should be extended to a concurrent setting).
+
+Generally, the stack is (as always) assumed to be thread-local.
+Since we only apply plan to apply the zero-out instruction (or its equivalent loop-based implementation) to stack memory, we don't think this will be an issue, even if we extend the approach to a concurrent setting (which is currently out of scope).
 
 "At one point in the paper, there is a "throw-away" remark that stack-smashing attacks are
 straightforward to block.  I don't see how, if each function receives a pointer conveying access to
@@ -45,42 +53,29 @@ its full stack area.  Such pointers must be carefully restricted into subpointer
 local variables, like arrays.  Wouldn't it be easy to forget to restrict or to do it incorrectly? 
 I suppose the main arguments of this paper are about protecting *well-written* programs from
 attackers, but then don't well-written programs just avoid buffer overflows statically?"
-In a high-level languge with sufficient abstractions, the programmer would not have direct control
-over the stack capabilitiy. Instead they would use high-level statements to ask for say a stack
-allocated array. The compiler would then take care of protection against stack smashing by
-restricting the stack capability as appropriate before giving the programmer access to it. If the
-compiler has done this correctly, then an attempt to write outside the array would cause an
-error. We should of course not trust our compiler blindly which is why we would want a
-fully-abstract compiler from the high-level language to the assembly language. We believe the
-proposed future work in first paragraph of Section 6, would be a first step towards such a
-fully-abstract compiler.
+Well, this was indeed poorly explained but the idea is that a compiler for a high-level language might be able to guarantee that the code it generates itself is well-written, but not that the programmer's code is well-written too.
+In such a setting, stack-smashing could be prevented by the compiler code even in the presence of not-well-written programmer code, by only giving the programmer access to appropriately-bounded stack capabilities.
 
 "I'm stuck on type-level details of the future-worlds relations in Section 4.1.1.  Temporary and
 permanent regions are expressed as 4-tuples, but the inference rules for future worlds operate on
 5-tuples.  Why is that?"
-In Theorem 1, the set Rels consists of pairs of relations which is why what appears to be a 4-tuple
-is really a 5-tuple.
+In Theorem 1, the set Rels consists of pairs of relations which is why what appears to be a 4-tuple is really a 5-tuple.
+We apologise for the confusion.
 
 "Can you give an intuition for why the logical relations should be step-indexed?  The restricted
 nature of local capabilities seems to suggest that they won't be involved in the kinds of
 self-reference that motivated the invention of step indexing.  Is it the global references that
 force step indexing?"
-The logical relation is recursively defined, so it is step-indexed in order for it to be
-well-defined. The recursiveness is not explicit because of a definition we left out, namely the
-definition of the standard region mentioned on the bottom of page 7. This region informally requires
-all words the region governs to be "safe". As mentioned in the fourth paragraph of Section 4.2, we
-take "safe" for words to mean that they are in the value relation.
-
+No, local capabilities also require step-indexing.
+An intuitive way to see this is that it's easily possible to construct cycles in memory, both through global capabilities and non-write-local memory, but also just as easily through local capabilities and write-local memory. 
+Once you have a memory with cycles, you need a way to break loops to prevent cyclic reasoning and that loop-breaking is provided by step-indexing.
 
 "... In general, can you give an intuition for why simpler proof techniques
 wouldn't suffice?  (It's hard not to suspect a bit of overkill when the only example programs are as
 short as they are.)"
-Simpler proof techniques, such as reference graphs, are much weaker because they are syntax driven
-and do not take the meaning of programs into account. As mentioned in bottom of first collumn of
-page 10, the program labelled with g1 along with f4 9 is a faithful translation of an example also
-known as the awkward example. While the program may look simple, it is deceivingly difficult to
-reason about. Had we used a simpler proof technique, then we would not have been able to prove Lemma
-4. 
+This question is hard to answer since it's not really clear what "simpler proof techniques" you have in mind.
+However, the system that we are trying to reason about is non-trivial: it contains encapsulation primitives, mutable references and a high-order heap that may contain cycles.
+For a lambda calculus with similar features, the techniques we use are more or less standard and we are not aware of simpler proof techniques that can derive results similar to the ones we prove. 
 
 "In Figure 9, is the beginning of `g1` right, where the 3rd line seems to overwrite the program
 counter, effectively jumping elsewhere without saving a new return pointer?  Should the operand
@@ -88,19 +83,34 @@ order be reversed?"
 Yes, thank you for pointing this out.
 
 ## Review 19B
-We do not see the capability machine formalisation as the next capability machine. Instead we see
-this work as general work on developing proof techniques for capability machines that match
-state-of-the-art proof techniques for high-level lanuages. This is also why we in the first
-contribution write that it is a "simple but representative capability machine". We hope and believe
-that the proof techniques presented here can be used on real capability machines, such as CHERI, as
-well.
-Like-wise for the calling convention, we believe that it can be used on real machines with the
-necessary capabilities.
+"..."
+We want to start by clarifying what we believe to be a misunderstanding. 
+We do not see the capability machine formalisation as the next capability machine.
+Instead we see this work as general work on developing proof techniques for capability machines that match state-of-the-art proof techniques for high-level lanuages.
+This is also why we in the first contribution write that it is a "simple but representative capability machine".
+We hope and believe that the proof techniques presented here can be used on real capability machines, such as CHERI, as well.
+Like-wise for the calling convention, we believe that it can be used on real machines with the necessary capabilities.
 
-"The second contribution in the Intro states that the capability machine "does not
-use separate per-component stacks but a single, fairly standard, contiguous stack", why is this a
-good idea?"
--
+"The second contribution in the Intro states that the capability machine "does not use separate per-component stacks but a single, fairly standard, contiguous stack", why is this a good idea?"
+Well, the phrasing suggests otherwise, but the fact that it uses a single stack was not really intended as a quality in itself.
+It does mean that we stay relatively close to established practice in compilers in this respect, which may be considered an advantage perhaps.
+
+"In any case, the paper would benefit from a high-level overview of the capability-based runtime architecture. Will there be any operating system running on the machine? How many different types of runtime components do we see on the machine? What are cross-component calls like? Are these supposed to run at the user level or within the OS kernel? Is there concurrency? How will kernel threads or user processes fit into the overall picture?"
+
+Well, essentially, we assume a single-threaded application running in a private address space.
+The components all live in this address space and may communicate over higher-order interfaces.
+Cross-component calls are scalls and returns.
+Whether there is a kernal outside of this private address space (as in CHERI's hybrid architecture) or whether the current application is the only code running on the system does not really matter for our results. 
+
+"What benefits will capabilities bring over the existing non-capability-based hardware?"
+Well, in a capability-machine, a component is a much more fine-grained notion than, for example, a process in a standard OS.
+You may imagine an OO application where every object is a component, and its private state is protected from interference by every other object, and our calling convention is used to guarantee well-bracketed control flow.
+
+"One way to control the complexity of [call,scall,push,pop macros] is to probably introduce a more abstract notion of "stacks" and treat these function call/return macros as actual built-in instructions in Figure 3. This way, we can see clearly how function calls/returns would work under various settings described in Section 3."
+
+That would work, but that amounts to a system with a trusted stack manager.
+The point of our paper is that this is not needed and we can implement an efficient calling convention with the same effect in terms of a more lower-level primitive, namely local capabilities.
+In future work, we are considering an approach such as what you suggest and show a formal correspondence.
 
 ## Review 19C
 "As an aside, to the above, the system wide limitation in the calling convention that local capabilities be used only for the single stack seems suboptimal."
@@ -110,4 +120,10 @@ It is not correct that local capabilities can only used for the stack and there 
 One use of local capabilities is to pass arguments by reference without releasing permanent authority over said reference. If everyone only has local capabilities belonging to their own domain, then they cannot be used to pass arguments by reference.
 
 "I can't say I was convinced by the footnote claiming that an adversary wanting to give temporary access to a callback that doesn't live on the single stack is not essential. What evidence is there for this claim?"
--
+
+
+
+
+"In general, the proposed approach is couched in terms of defending against an adversary (who is bad), who might be trying to attack "us" (who are necessarily good). In practice, capability systems are for programming in the presence of mutual distrust. In this case, the adversary wants to know they have enough stack space, might want to provide their own etc., and so one can't help but feel that the presented model is limited."
+
+This is precisely what we hinted at in TODO
