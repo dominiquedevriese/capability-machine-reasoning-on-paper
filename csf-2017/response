@@ -8,12 +8,11 @@ Several reviewers comment on the complexity of the techniques we used:
 * Review 19B: "Second, the formal machine is still very complex and extremely difficult to follow (even after reading through the 82-page extended technical report)."
 * Review 19C: "Where the paper is weakest is in the explanation of the logical relation that captures the capability safety of the machine, and in explaining how this relates to reasoning about the safety of the calling convention (e.g. scall and the other macros)."
 
-We understand this reservation.
-However, from our point of view, the techniques we used are very natural to use here: for a lambda calculus with similar features, they would be considered reasonably standard.
-We have spent quite some effort on explaining these techniques to a security audience that is unfamiliar with them, and we can of course always do better (particularly in Section 4, as pointed out by review 19C).
+We understand this reservation and we are thankful for the concrete suggestions of what we can try to explain better. 
+However, we would also like to point out that from our point of view, the techniques we used are very natural here: for a lambda calculus with similar features, they would be considered reasonably standard.
+We have spent quite some effort on explaining these techniques to a security audience that is unfamiliar with them, and we can of course always do better (particularly in Section 4, as pointed out by review 19C and in some other places).
 However, reviewer 19C's comment is very accurate: "The authors have a very large amount of material to summarise in a relatively small amount of space, and the logical machinery is highly sophisticated and builds on years of advanced work in this space. So this was always going to be a non-trivial task."
-At the end of the day, what we are using are simply (more or less) the state of the art in reasoning techniques available today.
-We are worried that if CSF consistently assesses this sort of techniques as too hard, then the result will be that state-of-the-art reasoning techniques from PL research will end up not being applied to security applications, which we consider highly undesirable.
+Apart from the valid remarks about explanations that can be improved, we are worried that if CSF consistently assesses this sort of techniques as too complicated, then the result will be that state-of-the-art reasoning techniques from PL research will end up not being applied to security applications, which we consider highly undesirable.
 
 ## Review 19A:
 "(It doesn't help that the only examples discussed are assembly programs that fit in quarter-page figures. Limitations might become apparent connecting to, say, a fully abstract compiler for a typed source language.)"
@@ -108,7 +107,7 @@ You may imagine an OO application where every object is a component, and its pri
 
 "One way to control the complexity of [call,scall,push,pop macros] is to probably introduce a more abstract notion of "stacks" and treat these function call/return macros as actual built-in instructions in Figure 3. This way, we can see clearly how function calls/returns would work under various settings described in Section 3."
 
-That would work, but that amounts to a system with a trusted stack manager.
+That would work, but that amounts to considering a system with a trusted stack manager.
 The point of our paper is that this is not needed and we can implement an efficient calling convention with the same effect in terms of a more lower-level primitive, namely local capabilities.
 In future work, we are considering an approach such as what you suggest and show a formal correspondence.
 
@@ -116,4 +115,17 @@ In future work, we are considering an approach such as what you suggest and show
 
 "In general, the proposed approach is couched in terms of defending against an adversary (who is bad), who might be trying to attack "us" (who are necessarily good). In practice, capability systems are for programming in the presence of mutual distrust. In this case, the adversary wants to know they have enough stack space, might want to provide their own etc., and so one can't help but feel that the presented model is limited."
 
-This is precisely what we hinted at in TODO
+This is a misunderstanding: our model is not limited in this way, as we discuss this in the discussion section under "Modularity": "It is important that our calling convention is modular, i.e. we do not assume that our code is specially privileged w.r.t. the adversary, and they can apply the same measures to protect themselves from us as we do to protect ourselves from them."
+
+"As an aside, to the above, the system wide limitation in the calling convention that local capabilities be used only for the single stack seems suboptimal. Why not adopt a model in which local capabilities also denote a "region" or "domain" to which they belong, of which there can be an arbitrary number, and stipulate that the adversary must have local capabilities only to their own distinct domain. One expects that a more general calling convention would emerge (necessarily complicating the logical relation and its existing notion of regions) that would e.g. allow the adversary to have their own stack if they wished (desirable if it wishes to ensure it won't run out of stack space) and allowing a more expressive style of programming."
+
+The limitation is actually less severe than you describe: it's perfectly fine to pass a local read-write capability to an adversary (or vice versa) and our calling convention allows this.
+However, we cannot allow the same for callbacks, i.e. *executable* capabilities that are not the return pointer.
+There are several problems with the model you describe: where would the adversary store its return pointer (a local capability coming from someone else's "domain")?
+Additionally, it's far from clear how your proposed system would scale to higher-order settings, i.e. how do callbacks get access to their (local) stack pointer when they are invoked?  
+
+"I can't say I was convinced by the footnote claiming that an adversary wanting to give temporary access to a callback that doesn't live on the single stack is not essential. What evidence is there for this claim?":
+
+Well, that's indeed a matter of perspective, as it depends on what you want to enforce.
+What we mean with this footnote is that it's not a goal of the current work.
+We will rephrase it.
