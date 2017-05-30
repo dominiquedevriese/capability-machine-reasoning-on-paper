@@ -1006,7 +1006,7 @@ infinite address space and unbounded integers.
     \hline
     $\move{\refreg{r_1}}{r_2}$& $\stdUpdatePc{}(\updateReg{r_1}{w})$&$w = \memreg(r_2)$\\
     \hline
-    $\load{\refreg{r_1}}{\refheap{r_2}}$&$\stdUpdatePc{\updateReg{r_1}{w}}$&$\memreg(r_2) = \stdcap{}$ and $w = \memheap(\addr)$ and$\start \leq \addr \leq \addrend$\newline and $\perm \in \{ \rwx, \rwlx, \exec, \readwrite, \readwritel, \readonly \}$ \\
+    $\load{\refreg{r_1}}{\refheap{r_2}}$&$\stdUpdatePc{\updateReg{r_1}{w}}$&$\memreg(r_2) = \stdcap{}$ and $w = \memheap(\addr)$ \newline and $\start \leq \addr \leq \addrend$ and $\perm \in \{ \rwx, \rwlx, \exec, \readwrite, \readwritel, \readonly \}$ \\
     \hline
     $\restricttwo{\refreg{r_1}}{r_2}$&$\stdUpdatePc{}(\updateReg{r_1}{w})$  & $\memreg(r_2) = \stdcap$ and $(\perm',g') = \decodePermPair{\memreg(r_2)}$
                                                       and $(\perm',g') \sqsubseteq (\perm,g)$ and  $w =((\perm',g'),\start,\addrend,\addr)$\\
@@ -1266,8 +1266,8 @@ adversary. As above, we clear all the non-argument registers, as well as the
 part of the stack that we are not using (because, as above, it may contain local
 capabilities from previously executed code that the adversary could exploit in
 the same way). We leave a copy of the stack pointer in $r_\stk$, but only after
-we have used the $\subseg{}{}{}$ to shrink its authority to the part that we are
-not using ourselves.
+we have used the $\subseg{}{}{}$ instruction to shrink its authority to the part
+that we are not using ourselves.
 
 In one of the registers, we also provide a return pointer, which must be a local
 capability. If it were global, the adversary would be able to store away the
@@ -1289,8 +1289,8 @@ second invocation.
 %   often highlight that the return pointer is local which in most cases
 %   is so important that we do not want to leave it out.}
 By making the return pointer local, we prevent such attacks: the adversary can
-only store local capabilities through write-local capabilities, which (because
-of our assumptions above) means: on the stack. Since the stack pointer itself is
+only store local capabilities through write-local capabilities, which means (because
+of our assumptions above): on the stack. Since the stack pointer itself is
 also local, it can also only be stored on the stack. Because we clear the part
 of the stack that the adversary has had access to before we pass control back,
 there is no way for them to recover either of these local capabilities.
@@ -1313,9 +1313,8 @@ restored to the instruction after the jump to the adversary, so the activation
 record should store this old program counter. Additionally, the stack pointer
 should also be restored to its original value. Since the adversary has a more
 restricted authority over the stack than the code making the call, we cannot
-hope to reconstruct the return pointer from the stack pointer owned by the
-adversary. Instead, the old stack pointer should be stored as part of the
-activation record.
+hope to reconstruct the original stack pointer from the stack pointer owned by the
+adversary. Instead, it should be stored as part of the activation record.
 
 \begin{figure}
   \begin{tikzpicture}[scale=.7, every node={scale=.7}]
@@ -1357,7 +1356,7 @@ pointers and data. This means that our calling convention should be combined
 with protection against stack smashing attacks (i.e.\ buffer overflows on the
 stack overwriting activation records' contents). Luckily, such protection is
 easy to provide thanks to the capability machine's fine-grained memory
-protection.
+protection\todo{explain this point better}.
 
 \textbf{Invoking an adversary callback} If we have a higher-order interface to
 the adversary, we may need to invoke an adversary callback. In this case, not so
@@ -1381,13 +1380,13 @@ the adversary to construct callbacks on the stack.\footnote{Note that it does
 
 \textbf{Having a callback invoked by the adversary} The above leaves us with
 perhaps the hardest scenario: how to provide a callback to the adversary. The
-basic idea is that we allocate blocks of memory using malloc that we fill with
-the capabilities and data that the callback needs access to, as well as some
+basic idea is that we allocate a block of memory using malloc that we fill with
+the capabilities and data that the callback needs, as well as some
 prelude instructions that load the data into registers and jumps to the right
 code. Note that this implies that no local capabilities can be stored as part of
 a closure. We can then provide the adversary with an enter-capability covering
 the allocated block and pointing to the contained prelude instructions. However,
-the question that remains in this setup is: where do we get a stack pointer from when
+the question that remains in this setup is: from where do we get a stack pointer when
 the callback is invoked?
 
 Our answer is that the adversary should provide it to us, much like we provide
@@ -1414,11 +1413,11 @@ let us summarize our proposed calling convention:
   Restrict the stack capability to the unused part and clear it. Clear
   non-argument registers.
 \item[Before invoking an adversary callback] Make sure callback is global.
-\item[When called by an adversary] Make sure received stack pointer has permission $\rwlx$.
+\item[When invoked by an adversary] Make sure received stack pointer has permission $\rwlx$.
 \end{description}
 \textbf{Reusable macro instructions} We define a number of reusable
 macros capturing the calling convention and other conveniences. All
-macros that uses the stack assumes a stack pointer in register
+macros that use the stack assume a stack pointer in register
 $r_\stk$. The macro \texttt{\footnotesize{fetch $r$ $\var{name}$}} fetches the
 capability related to $\var{name}$ from the linking table and stores
 it in register $r$.  The macros \texttt{\footnotesize{push $r$}} and
@@ -1429,8 +1428,8 @@ checking that it has permission $\rwlx$.  The macro \texttt{\footnotesize{scall
     $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}}
 jumps to the capability in register $r$ in the manner described
 above. That is, it pushes local state (the contents of registers
-$\overline{r_{\var{priv}}}$), the necessary on stack return code,
-return pointer, stack pointer to the stack, and creates an $\entry$
+$\overline{r_{\var{priv}}}$) and the activation record (return code,
+return pointer, stack pointer) to the stack, creates an $\entry$
 return pointer, restricts the stack pointer, clears the unused part of
 the stack, clears the necessary registers and jumps to $r$.  Upon
 return, the private state is restored. The macro \texttt{\footnotesize{mclear
@@ -2174,7 +2173,7 @@ configuration that \texttt{\footnotesize{scall}} will jump to is safe and (2)
 that the configuration just after \texttt{\footnotesize{scall}} is done cleaning
 up is safe. We use the Fundamental Theorem to reason about the unknown code, but
 notice that the adversary capability is an enter capability, which the
-Fundamental Theorem says nothing about. Luckily the enter capability becomes
+Fundamental Theorem says nothing about.\todo{why doesn't it?}  Luckily the enter capability becomes
 $\exec$ after the jump and then the Fundamental Theorem applies.
 
 We have a similar lemma for \texttt{\footnotesize{f2}}:
