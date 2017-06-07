@@ -186,14 +186,14 @@
 \newcommand{\encodeLoc}{\mathit{encodeLoc}{}}
 \newcommand{\decodePermPair}{\plainfun{decodePermPair}}
 \newcommand{\decodePerm}[1]{\plainfun{decodePerm}{#1}}
-\newcommand{\updatePcPerm}[1]{\plainfun{updatePcPerm}{#1}}
+\newcommand{\updatePcPerm}[1]{\plainfun{updPcPerm}{#1}}
 
 \newcommand{\executeAllowed}[1]{\plainfun{executeAllowed}{#1}}
 \newcommand{\nonZero}[1]{\plainfun{nonZero}{#1}}
 \newcommand{\readAllowed}[1]{\plainfun{readAllowed}{#1}}
 \newcommand{\writeAllowed}[1]{\plainfun{writeAllowed}{#1}}
 \newcommand{\withinBounds}[1]{\plainfun{withinBounds}{#1}}
-\newcommand{\stdUpdatePc}[1]{\plainfun{updatePc}{#1}}
+\newcommand{\stdUpdatePc}[1]{\plainfun{updPc}{#1}}
 
 \newcommand{\readCond}[1]{\plainfun{readCondition}{#1}}
 \newcommand{\writeCond}[1]{\plainfun{writeCondition}{#1}}
@@ -240,7 +240,6 @@
 \newcommand{\Regs}{\plaindom{Reg}}
 \newcommand{\Heaps}{\plaindom{Mem}}
 \newcommand{\Mems}{\Heaps}
-%\newcommand{\HeapSegments}{\plaindom{MemSegment}}
 \newcommand{\HeapSegments}{\plaindom{MemSeg}}
 \newcommand{\MemSegments}{\HeapSegments}
 \newcommand{\Confs}{\plaindom{Conf}}
@@ -906,15 +905,15 @@ CHERI~\citep{Watson2015Cheri}. To avoid uninteresting details, we assume an
 infinite address space and unbounded integers.
 
 \begin{figure}
-\[
-  \begin{array}{rlrcl p{2cm}rlrcl}
-    \addr   &\in& \Addrs &\isdef& \nats & & r &\in& \RegName&\bnfdef& \pcreg\mid r_0\mid r_1\mid\ldots\\
-    w &\in&\Words &\isdef& \ints + \Caps & & \reg &\in& \Regs  &\isdef& \RegName \rightarrow \Words\\
-    \perm   &\in& \Perms &::= & \noperm \mid \readonly\mid \readwrite\mid \readwritel\mid  & & m&\in& \Heaps &\isdef& \Addrs \rightarrow \Words \\
-    & & & &\exec\mid \entry\mid \rwx\mid \rwlx & & \Phi &\in& \ExecConfs  &\isdef& \Regs \times \Heaps \\
-    \gl&\in&\Globals & ::= &\glob \mid \local & & \ms &\in& \MemSegments &::= & \Addrs \parfun \Words \\
-    &&\Confs &::=& \multicolumn{5}{l}{\ExecConfs + \{\failed \} + \{\halted\} \times \Heaps}\\
-     && \Caps  &::= & \multicolumn{5}{l}{\left\{
+\[\arraycolsep=1.4pt
+  \begin{array}{rlrcl p{5cm}rlrcl}
+    \addr   &\in& \Addrs &\isdef& \nats &\phantom{makesomero}                                & r    &\in & \RegName     &\bnfdef& \pcreg\mid r_0\mid r_1\mid\ldots\\
+    w &\in&\Words &\isdef& \ints + \Caps &                                                   & \reg &\in & \Regs        &\isdef& \RegName \rightarrow \Words\\
+    \perm   &\in& \Perms &::= & \noperm \mid \readonly\mid \readwrite\mid \readwritel\mid  & & m    &\in & \Heaps       &\isdef& \Addrs \rightarrow \Words \\
+    & & & &\exec\mid \entry\mid \rwx\mid \rwlx &                                             & \Phi &\in & \ExecConfs   &\isdef& \Regs \times \Heaps \\
+    \gl&\in&\Globals & ::= &\glob \mid \local &                                              & \ms  &\in & \MemSegments &::= & \Addrs \parfun \Words \\
+    &&\Confs &::=& \multicolumn{6}{l}{\ExecConfs + \{\failed \} + \{\halted\} \times \Heaps}\\
+     && \Caps  &::= & \multicolumn{6}{l}{\left\{
                          ((\perm,\gl),\start,\addrend,\addr)\mid
                          \start,\addr\in\Addrs,\addrend \in
                          \Addrs\cup \{\infty\}\right\}}
@@ -930,14 +929,14 @@ infinite address space and unbounded integers.
                  \load{\lv}{\hv} \mid 
                  \store{\hv}{\rv} \mid \plus{\lv}{\rv}{\rv} \mid 
                  \minus{\lv}{\rv}{\rv} \mid 
-                 \lea{\lv}{\rv} \mid 
-                 \restricttwo{\lv}{\rv} \mid \\
-           &   & \subseg{\lv}{\rv}{\rv} \mid  
+                 \lea{\lv}{\rv} \mid \\
+          &   &  \restricttwo{\lv}{\rv} \mid
+                 \subseg{\lv}{\rv}{\rv} \mid  
                  \isptr{\lv}{\rv} \mid 
                  \getp{\lv}{\lv} \mid 
                  \getl{\lv}{\lv} \mid \getb{\lv}{\lv} \mid
-                 \gete{\lv}{\lv} \mid
-                 \geta{\lv}{\lv} \mid 
+                 \gete{\lv}{\lv} \mid \\
+          &   &  \geta{\lv}{\lv} \mid 
                  \fail \mid
                  \halt 
   \end{array}
@@ -982,7 +981,8 @@ infinite address space and unbounded integers.
     \begin{cases}
       \sem{\decode(n)}(\Phi) & \arraycolsep=0pt
       \begin{array}[t]{l}
-\text{if $\memreg(\pcreg) = \stdcap$ and $\start \leq \addr \leq \addrend$}\\ \text{\;\;and $\perm \in \{ \exec,\rwx, \rwlx \}$ and $\memheap(\addr) = n$ }
+        \text{if $\memreg(\pcreg) = \stdcap$ and $\start \leq \addr \leq \addrend$}\\ 
+        \text{\;\;and $\perm \in \{ \exec,\rwx, \rwlx \}$ and $\memheap(\addr) = n$ }
       \end{array}
 \\
       \failed                                 & \text{otherwise}
@@ -992,11 +992,15 @@ infinite address space and unbounded integers.
     \stdUpdatePc{\Phi} &=
                          \begin{cases}
                            \updateReg{\pcreg}{\var{newPc}} & \arraycolsep=0pt
-                             \text{if $\memreg(\pcreg) = \stdcap$ and $\var{newPc} = ((\perm,\gl),\start,\addrend,\addr + 1)$}\\
+                           \begin{array}[t]{l}
+                             \text{if $\memreg(\pcreg) = \stdcap$}\\
+                             \text{\;\;and $\var{newPc} = ((\perm,\gl),\start,\addrend,\addr + 1)$}
+                           \end{array}
+\\
                              \failed & \text{otherwise}
                          \end{cases}
   \end{align*}
-  \begin{tabular}{|c|p{3.9cm}|p{8.3cm}|}
+  \begin{tabular}{|c|p{3.4cm}|p{7.3cm}|}
     \hline
     $i$&$\sem{i}(\Phi)$&Conditions\\
     \hline 
@@ -1006,7 +1010,7 @@ infinite address space and unbounded integers.
     \hline
     $\move{\refreg{r_1}}{r_2}$& $\stdUpdatePc{}(\updateReg{r_1}{w})$&$w = \memreg(r_2)$\\
     \hline
-    $\load{\refreg{r_1}}{\refheap{r_2}}$&$\stdUpdatePc{\updateReg{r_1}{w}}$&$\memreg(r_2) = \stdcap{}$ and $w = \memheap(\addr)$ \newline and $\start \leq \addr \leq \addrend$ and $\perm \in \{ \rwx, \rwlx, \exec, \readwrite, \readwritel, \readonly \}$ \\
+    $\load{\refreg{r_1}}{\refheap{r_2}}$&$\stdUpdatePc{\updateReg{r_1}{w}}$&$\memreg(r_2) = \stdcap{}$ and  $w = \memheap(\addr)$ and $\start \leq \addr \leq \addrend$ and $\perm \in \{ \rwx, \rwlx, \exec, \readwrite, \readwritel, \readonly \}$ \\
     \hline
     $\restricttwo{\refreg{r_1}}{r_2}$&$\stdUpdatePc{}(\updateReg{r_1}{w})$  & $\memreg(r_2) = \stdcap$ and $(\perm',g') = \decodePermPair{\memreg(r_2)}$
                                                       and $(\perm',g') \sqsubseteq (\perm,g)$ and  $w =((\perm',g'),\start,\addrend,\addr)$\\
@@ -1014,7 +1018,7 @@ infinite address space and unbounded integers.
     $\geta{\refreg{r_1}}{\refreg{r_2}}$ & $\stdUpdatePc{\updateReg{r_1}{\addr}}$ &
                                                 $\memreg(r_2) = ((\_,\_),\_,\_,\addr)$\\
     \hline
-    $\jmp{\lv}$&$\updateReg{\pcreg}{\var{newPc}}$& if $\memreg(r) = ((\entry,\gl),\start,\addrend,\addr)$, then $\var{newPc} = ((\exec,\gl),\start,\addrend,\addr)$\newline otherwise $\var{newPc} = \memreg(r)$\\
+    $\jmp{\lv}$&$\updateReg{\pcreg}{\var{newPc}}$& if $\memreg(r) = ((\entry,\gl),\start,\addrend,\addr)$, then $\var{newPc} = ((\exec,\gl),\start,\addrend,\addr)$ otherwise $\var{newPc} = \memreg(r)$\\
     \hline
     $\store{\refheap{r_1}}{\refreg{r_2}}$&$\stdUpdatePc{\updateHeap{\addr}{\var{w}}}$&$\memreg(r_1) = \stdcap$ and $\perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\}$  and $\start \leq \addr \leq \addrend$ and $\var{w} = \memreg(r_2)$
                                                                                        and if $\var{w} = ((\_,\local),\_,\_,\_)$, then $\perm \in \{\rwlx,\readwritel \}$\\
@@ -1838,16 +1842,14 @@ temporary) region.
 %  \begin{withmathindent}{0cm}
     \begin{align*}
       & \observations \; : \;  \Worlds \nefun \UPred{\Regs \times \HeapSegments} \\
-      & \observations (W) \defeq \\
-      & \;\left\{ \npair{(\reg,\ms)} \; \middle| \;
+      & \observations (W) \defeq 
+        \;\left\{ \npair{(\reg,\ms)} \; \middle| \;
         \begin{aligned}
-          & \forall \ms_f, \heap', i \leq n \ldotp \\
-          & (\reg,\ms \uplus \ms_f) \step[i] (\halted,\heap')  \\
+          & \forall \ms_f, \heap', i \leq n \ldotp  (\reg,\ms \uplus \ms_f) \step[i] (\halted,\heap')  \\
           & \;\; \Rightarrow
           \begin{aligned}[t]
             & \exists W' \futurestr W, \ms_r, \ms' \ldotp\\
-            & \;\; \heap' = \ms' \uplus \ms_r \uplus \ms_f \text{ and } \\
-            & \;\; \heapSat[\hs']{n-i}{W'}
+            & \;\; \heap' = \ms' \uplus \ms_r \uplus \ms_f \text{ and } \heapSat[\hs']{n-i}{W'}
           \end{aligned}
         \end{aligned}\right\}\\
       & \stdrr \; : \; \Worlds \monwknefun \UPred{\Regs} \\
@@ -1863,65 +1865,63 @@ temporary) region.
         \end{multlined} \right\} \\
       & \\
       &\stdvr \; : \; \Worlds \monwknefun \UPred{\Words} \\
-      &\stdvr(W)\defeq  \\
-      &\;\;\begin{aligned}[t] & \{ \npair{i} \mid i \in \ints \}
-        \union \\
-        & \{ \npair{\stdcap[(\noperm,\gl)] } \}
+      &\stdvr(W)\defeq 
+        \begin{aligned}[t] & \{ \npair{i} \mid i \in \ints \} \union \{ \npair{\stdcap[(\noperm,\gl)] } \}
         \union \\
         & \left\{
-          \begin{multlined}
-            \npair{\stdcap[(\readonly,\gl)] } \mid \\
-            \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)
-          \end{multlined} \right\}
+            \npair{\stdcap[(\readonly,\gl)] } \mid \npair{(\start,\addrend)} \in \readCond{}(\gl)(W)
+          \right\}
         \union \\
         & \left\{
-          \begin{aligned}
-            &\npair{\stdcap[(\readwrite,\gl)] } \mid \\
-             &\quad\npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{ and } \\
-             &\quad\npair{(\start,\addrend)} \in
-            \writeCond{}(\iota^\nwl,\gl)(W)
-          \end{aligned} \right\} \union \\
+            \npair{\stdcap[(\readwrite,\gl)] } \; \middle| \;
+            \begin{array}{l}
+              \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{ and } \\
+              \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W)
+            \end{array}
+          \right\} \union \\
         & \left\{
-          \begin{aligned}
-            &\npair{\stdcap[(\readwritel,\gl)] } \mid \\
-             &\quad\npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{ and } \\
-             &\quad\npair{(\start,\addrend)} \in
-            \writeCond{}(\iota^\pwl,\gl)(W)
-          \end{aligned} \right\}
+            \npair{\stdcap[(\readwritel,\gl)] } \;\middle| \;
+            \begin{array}{l}
+             \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{ and } \\
+             \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W)
+            \end{array}
+           \right\}
         \union \\
         & \left\{
-          \begin{aligned}
-            &\npair{\stdcap[(\exec,\gl)]} \mid \\
-             &\quad\npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{ and } \\
-             &\quad\npair{(\{\exec\},\start,\addrend)} \in \execCond{}(\gl)(W)
-          \end{aligned} \right\}
+          \npair{\stdcap[(\exec,\gl)]} \; \middle| \;
+          \begin{array}{l}
+             \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{ and } \\
+             \npair{(\{\exec\},\start,\addrend)} \in \execCond{}(\gl)(W)
+          \end{array}
+           \right\}
         \union \\
         & \left\{
-          \begin{multlined}
-            \npair{\stdcap[(\entry,\gl)]} \mid \\
+            \npair{\stdcap[(\entry,\gl)]} \; \middle| \;
             \npair{(\start,\addrend,\addr)} \in \entryCond{}(\gl)(W)
-          \end{multlined} \right\}
+          \right\}
         \union \\
         & \left\{
-          \begin{aligned}
-            &\npair{\stdcap[(\rwx,\gl)]} \mid \\
-            &\quad\npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{ and } \\
-            &\quad\npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W) \text{ and }\\
-            &\quad\npair{(\{\rwx,\exec\},\start,\addrend)} \in \execCond{}(\gl)(W)
-          \end{aligned} \right\}
+          \npair{\stdcap[(\rwx,\gl)]}\; \middle| \; 
+          \begin{array}{l}
+            \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{ and } \\
+            \npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W) \text{ and }\\
+            \npair{(\{\rwx,\exec\},\start,\addrend)} \in \execCond{}(\gl)(W)
+          \end{array}
+          \right\}
         \union \\
         & \left\{
-          \begin{aligned}
-            &\npair{\stdcap[(\rwlx,\gl)]} \mid \\
-             &\quad\npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{ and } \\
-             &\quad\npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W) \text{ and }\\
-             &\quad\npair{(\{\rwlx,\rwx,\exec\},\start,\addrend)} \in
+            \npair{\stdcap[(\rwlx,\gl)]} \; \middle| \;
+            \begin{array}{l}
+             \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{ and } \\
+             \npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W) \text{ and }\\
+             \npair{(\{\rwlx,\rwx,\exec\},\start,\addrend)} \in
             \execCond{}(\gl)(W)
-          \end{aligned} \right\}
+            \end{array}
+          \right\}
       \end{aligned}
     \end{align*}
 %  \end{withmathindent}
-  \caption{Logical Relation}
+  \caption{Logical relation}
   \label{fig:logrel}            
 \end{figure}
 
@@ -1961,23 +1961,19 @@ temporary) region.
 \begin{figure}[htbp]
   \centering
   \begin{align*}
-  & \readCond{}(\gl)(W) =  \\
-  & \left\{ \npair{(\start,\addrend)} \; \middle| \;
-    \begin{aligned}
-      & \exists r \in \var{localityReg}(g,W) \ldotp \\
-      & \;\; \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r)\nsubsim[n] \iota_{\start',\addrend'}^\pwl 
-    \end{aligned} \right\}\\
-  & \writeCond{}(\iota,\gl)(W) =  \\
-  & \left\{
+  & \readCond{}(\gl)(W) =  \left\{ \npair{(\start,\addrend)} \; \middle| \;
+       \exists r \in \var{localityReg}(g,W) \ldotp 
+       \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r)\nsubsim[n] \iota_{\start',\addrend'}^\pwl 
+    \right\}\\
+  & \writeCond{}(\iota,\gl)(W) =  \left\{
     \npair{(\start,\addrend)}
     \; \middle| \;
     \begin{aligned}
-      & \exists r \in \var{localityReg}(g,W) \ldotp \\
-      & \;\; W(r) \text{ is address-stratified and} \\
+      & \exists r \in \var{localityReg}(g,W) \ldotp W(r) \text{ is address-stratified and} \\
       & \;\; \exists [\start',\addrend'] \supseteq [\start,\addrend] \ldotp W(r)\nsupsim[n-1] \iota_{\start',\addrend'}
     \end{aligned} \right\}\\
-  & \execCond{}(\gl)(W) = \\
-  & \left\{
+  & \execCond{}(\gl)(W) = 
+    \left\{
     \begin{multlined}
       \npairP{(\var{perms}, \\
         \start,\addrend)}
@@ -1987,12 +1983,10 @@ temporary) region.
       & \forall n' < n, W' \future W, a \in [\start,\addrend], \perm \in \var{perms} \ldotp \\
       & \;\;\;\; \npair[n']{((\perm,\gl),\start,\addrend,\addr)} \in \stder(W')\\
     \end{aligned} \right\} \\
-  & \entryCond{}(\gl)(W) = \\
-  & \left\{ \npair{(\start,\addrend,\addr)} \; \middle| \;
-    \begin{aligned}
- &  \forall n' < n \ldotp \forall W' \future W \ldotp\\
-      & \quad \npair[n']{((\exec,\gl),\start,\addrend,\addr)} \in \stder(W')
-    \end{aligned} \right\} \\
+  & \entryCond{}(\gl)(W) = 
+    \left\{ \npair{(\start,\addrend,\addr)} \; \middle| \;
+    \forall n' < n \ldotp \forall W' \future W \ldotp \npair[n']{((\exec,\gl),\start,\addrend,\addr)} \in \stder(W')
+    \right\} \\
   & \quad \text{where } \gl = \local \Rightarrow \future = \futurewk \\
   & \quad \text{and } \gl = \glob \Rightarrow \future = \futurestr
   \end{align*}
@@ -2097,14 +2091,12 @@ safe authority is capability safe as a program counter.
       \end{aligned} \\
     & \bullet 
       \begin{aligned}[t]
-        &\perm = \rwx \text{ and } \\
-        &\npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{ and }\\
+        &\perm = \rwx \text{ and } \npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{ and }\\
         &\npair{(\start,\addrend)} \in \writeCond{}(\iota^\nwl,\gl)(W)
       \end{aligned} \\
     & \bullet 
       \begin{aligned}[t]
-        &\perm = \rwlx \text{ and }\\
-        &\npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{ and }\\
+        &\perm = \rwlx \text{ and }\npair{(\start,\addrend)} \in \readCond{}(\gl)(W) \text{ and }\\
         &\npair{(\start,\addrend)} \in \writeCond{}(\iota^\pwl,\gl)(W),
       \end{aligned}
   \end{align*}
@@ -2258,8 +2250,7 @@ for \texttt{\footnotesize{f1}} then states:
     c_\adv & \;\defeq ((\entry,\glob),\dots) & c_{\var{stk}} & \;\defeq ((\rwlx,\local),\dots)\\
     c_{f1} & \;\defeq ((\rwx,\glob),\dots) & c_\link &\; \defeq ((\readonly,\glob),\dots)\\
     c_\malloc &\; \defeq ((\entry,\glob),\dots) & \reg& \; \in \Regs \\
-    m &  \multicolumn{3}{@{}l}{\;\defeq \ms_{f1} \uplus \ms_\flag \uplus \ms_{\var{link}} \uplus \hs_\adv \uplus \ms_{\malloc} \uplus} \\
-      & \multicolumn{3}{@{}l}{\phantom{\;\defeq \;}  \ms_{\var{stk}} \uplus \ms_{\var{frame}}} \\
+    m &  \multicolumn{3}{@{}l}{\;\defeq \ms_{f1} \uplus \ms_\flag \uplus \ms_{\var{link}} \uplus \hs_\adv \uplus \ms_{\malloc} \uplus \ms_{\var{stk}} \uplus \ms_{\var{frame}}} \\
     \end{array}
 \]
 where each of the capabilities have an appropriate range of authority and
