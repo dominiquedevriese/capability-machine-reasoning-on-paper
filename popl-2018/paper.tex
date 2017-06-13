@@ -2603,6 +2603,50 @@ store the old stack pointer, but the adversary's return pointers are also
 allowed to be local. Adversary callbacks on the other hand are required to
 be global but the callbacks we construct ourselves are allocated on the heap and
 also global. \\\\
+
+\noindent \textbf{Reasoning about capability machine programs} \emph{Semantic,
+  but not syntactic properties} The logical relation defined in
+Section~\ref{sec:logical-relation} allows us to reason about capability machine
+programs. A limitation w.r.t. previous work is that the logical relation is
+tailored exclusively towards semantic properties, not syntactic ones.
+
+Imagine, for example, that we invoke a block of adversary code in such a way
+that it only ever receives capabilities within a specific range of memory. After
+the code returns, we may try to prove that any capabilities passed back to us in
+the registers are still confined to that range of memory. The property of
+falling in a certain address range is syntactic in the sense that it talks about
+the specific implementation of a higher-order value rather than its behavior,
+like the invariants that are required/preserved when we use it.
+
+Such syntactic properties are hard to prove in our system. For the example
+cited, it would be easy to conclude that the returned values are in the value
+relation (see Figure~\ref{fig:logrel}). This gives us a lot of semantic
+information, like conditions under which they are safe to use and invariants
+that will be preserved when we do, but it does not tell us much about the
+address of the capability.
+
+To make this very concrete, consider how capabilities with permission $\noperm$
+are always in the value relation, irrespective of their properties.
+Semantically, this makes perfect sense, since they are always safe since they
+cannot be used for anything. However, it also means we do not get syntactic
+information about them.
+
+For our purposes, this restriction is unproblematic, since we are only
+interested in proving semantic properties (e.g., an assertion will never fail).
+However, in other situations, we may be interested in proving more syntactic
+properties like the more syntactic properties, that are often considered in
+object capability literature like confinement, no authority amplification etc.
+Although such properties are typically more restrictive and less easy to use for
+reasoning, \cite{Devriese:2016ObjCap} have demonstrated how a logical relation
+much like ours can be adapted to also support them, by quantifying the logical
+relation over a custom interpretation of effectful computations and the type of
+references. We expect their solution can be readily adapted to our setting,
+modulo some details (like the fact that we do not just have read-write
+capabilities, but also other types).
+
+% \emph{No program logic} TODO: discuss this? 
+\\\\
+
 \noindent\textbf{Logical relation}\\
 \emph{Single orthogonal closure} The definitions of $\stder$ and $\stdvr$ in
 Figure~\ref{fig:logrel} apply a single orthogonal closure, a new variant of an
@@ -2667,7 +2711,7 @@ permanent.
 local capabilities are quite similar to a feature proposed for the high-level
 language Scala: \citet{osvald_gentrification_2016}'s second-class or local
 values. They are a kind of values that can be provided to other code for
-immediate use without allowing it to be stored in a closure or reference for
+immediate use without allowing them to be stored in a closure or reference for
 later use. We believe reasoning about such values will require techniques similar 
 to what we provide for local capabilities.
 
