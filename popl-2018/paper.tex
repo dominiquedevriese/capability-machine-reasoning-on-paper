@@ -1573,22 +1573,39 @@ literature (essentially an advanced application of step-indexing).
 
 \paragraph{Local capabilities}
 A final thing we explain here is how our results take into account local
-capabilities and their special treatment by the hardware. Our idea here is to
-introduce a distinction between temporary and permanent invariants. At any point
-in a proof, we may decide to revoke temporary invariants. Global capabilities
-are then guaranteed to remain safe, but local ones aren't. Concretely, we will
-perform such revocations when we need to break the validity of capabilities that
-we previously provided to the adversary as a local capability (for example,
-return or stack pointers from a previous invocation). In such situations, the
-hardware guarantees that global capabilities (which cannot have write-local
-permission because of a central assumption\dominique{highlight earlier}) cannot
-have been used to store local capabilities and therefore remain safe even after
-revoking temporary invariants. Formally, this leads to two distinct future world
-relations: we say that $W' \futurewk W$ if a future world $W'$ preserves
-temporary invariants and $W' \futurestr W$ if it doesn't. Interestingly, this
-is a variant of a notion of public/private future worlds that has been previously
-used in the literature (see Section~\ref{sec:discussion}).
-%
+capabilities and their special treatment by the hardware. Normally, when we
+invoke an untrusted piece of code and provide it with certain global
+capabilities, it may have stored those capabilities in memory and we will only
+be able to reinvoke the code if we can guarantee that those values are still
+valid. Formally, worlds will represent the invariants that the global
+capabilities' safety relies on and reinvocation will only be possible in future
+worlds.
+
+However, if we provide the adversary with local capabilities in that first
+invocation, then the situation is a bit different. Since the adversary has no
+way to store local capabilities, we can allow the second invocation to happen in
+\emph{private} future worlds ($W' \futurestr W$), in which global capabilities
+remain safe, but local ones don't. This private future world relation is more
+liberal than the public one ($W' \futurewk W$, in which \emph{all} safe
+capabilities remain safe). In particular, worlds may contain \emph{temporary}
+regions, representing invariants that only local capabilties may rely on for
+their safety, and which may be revoked (disabled) in private future worlds.
+
+Interestingly, this idea is a variant of a notion of public/private future
+worlds that has been previously used in the literature (see
+Section~\ref{sec:discussion}). However, temporary regions are new in our setting
+and there is an interesting interplay with the recursiveness of the worlds: for
+a temporary region, the predicate $H \in \Worlds \rightarrow
+\powerset{\MemSegments}$ (which defines which memory segments are safe in the
+current state of the world) is only required to be monotonous w.r.t.\ public
+future worlds (i.e.\ safe memory segments remain safe in public future worlds),
+but for permanent regions, it must be monotonous w.r.t.\ private future worlds.
+As a consequence, the memory for a permanent region may not contain local
+capabilities (as their safety would be broken in private future worlds), which
+in turn implies that only local capabilities may have store-local permission (a
+general sanity requirement when using local capabilities\footnote{In fact, local
+  capabilities become useless as soon as the adversary has access to a single
+  global, store-local capability.}).
 
 \subsection{Worlds}
 \begin{figure}
@@ -2622,8 +2639,8 @@ allowed to be local. Adversary callbacks on the other hand are required to
 be global but the callbacks we construct ourselves are allocated on the heap and
 also global. \\\\
 
-\noindent \textbf{Reasoning about capability machine programs} \emph{Semantic,
-  but not syntactic properties} The logical relation defined in
+\noindent \textbf{Reasoning about capability machine programs}\\
+\emph{Semantic, but not syntactic properties} The logical relation defined in
 Section~\ref{sec:logical-relation} allows us to reason about capability machine
 programs. A limitation w.r.t. previous work is that the logical relation is
 tailored exclusively towards semantic properties, not syntactic ones.
@@ -2660,7 +2677,7 @@ much like ours can be adapted to also support them, by quantifying the logical
 relation over a custom interpretation of effectful computations and the type of
 references. We expect their solution can be readily adapted to our setting,
 modulo some details (like the fact that we do not just have read-write
-capabilities, but also other types).
+capabilities, but also other types).\\\\
 % \emph{No program logic} TODO: discuss this? 
 
 \noindent\textbf{Logical relation}\\
