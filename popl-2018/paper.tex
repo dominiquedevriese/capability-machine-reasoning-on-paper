@@ -1482,6 +1482,7 @@ intuition about how all of this machinery comes into play in our setting, in the
 next section.
 
 \subsection{Formalizing the guarantees of the capability machine}
+\label{sec:formalizing-guarantees}
 What differentiates a capability machine from a more standard assembly language
 is that we can bound the authority of an executing block of code, based solely
 on the capabilities it has access to. Specifically, it does not matter which
@@ -1534,7 +1535,7 @@ cyclic reasoning is related to similar challenges in languages with recursive
 types or higher-order ML-style references, and a standard solution is
 to use step-indexing: Essentially, the cycle is broken by defining safety up to a
 certain number of interaction steps. All words will be considered
-safe up to $0$ steps (since if there no interactions, nothing unsafe
+safe up to $0$ steps (since if there is no interaction, nothing unsafe
 can happen), and, for example, a read capability will be safe up to $n$
 steps if the world guarantees that the words at the corresponding addresses are
 safe up to $n - 1$ steps. We can then prove that the above read capability for
@@ -1568,7 +1569,7 @@ safe in the current world''. As explained, worlds may evolve, and the
 set of safe values may grow in future worlds, and therefore we need to
 index $H$ over worlds, i.e., take
 $H \in \Worlds \rightarrow \powerset{\MemSegments}$. We then end up
-with worlds containing regions and regions that are world-indexed,
+with worlds containing regions with world-indexed predicates,
 i.e., the set of worlds must be recursively defined. We will see how such a recursive
 definition can be accommodated using techniques from the
 literature (essentially an advanced application of step-indexing).
@@ -1583,7 +1584,7 @@ valid. Formally, worlds will represent the invariants that the global
 capabilities' safety relies on and reinvocation will only be possible in future
 worlds.
 
-However, if we provide the adversary with local capabilities in that first
+However, if we provide the adversary with local capabilities in the first
 invocation, then the situation is a bit different. Since the adversary has no
 way to store local capabilities, we can allow the second invocation to happen in
 \emph{private} future worlds ($W' \futurestr W$), in which global capabilities
@@ -1625,13 +1626,18 @@ general sanity requirement when using local capabilities\footnote{In fact, local
 %\todo[inline]{Find a good place to describe monotonicity of
 %interpretation function.}
 % \lau{this may not be an important enough point to include it.}
-Formally, a world is a finite map from region names, modeled as natural numbers, to regions.
-We have three types of regions: \emph{permanent}, \emph{temporary}, and \emph{revoked}.
+
+As describe above, worlds are a collection of invariants. Formally, a world is a
+finite map from region names, modeled as natural numbers, to regions that each
+correspond to an invariant of part of the memory.  We have three types of
+regions: \emph{permanent}, \emph{temporary}, and \emph{revoked}.
 %$\perma$, $\temp$, and $\revoked$. The
 %$\perma$ and $\temp$ 
 Each permanent and temporary region contains a state transition system, with
-public and private transitions, to describe a protocol for the region's memory,
-similarly to what has been used in logical relations for high-level
+public and private transitions, to describe how the invariants are allowed to
+change over time. In other words, they are protocols for the region's
+memory. These are similar to what has been used in logical relations for
+high-level
 languages~\citep{Ahmed:popl09,Dreyer:jfp12,Devriese:2016ObjCap}. Protocols
 imposed by permanent regions stay in place indefinitely. Any capability, local
 or global, can depend on these protocols. Protocols imposed by temporary regions
@@ -1659,12 +1665,16 @@ region. Masking a region like this goes back to earlier work of
 % memory which is described by the world.
 
 %\dominique{``end up being defined recursively'' does not sound very insightful}
-A region defines what its part of memory can legally look like. However,
-validity of the memory's contents may itself depend on the state of other parts
-of memory. To accommodate this, worlds need to be defined recursively: Worlds
-describe memory, which can contain capabilities, whose safety is
-world-dependent. Recursive worlds are a common requirement in Kripke models and
-the following lemma uses the method of
+% A region defines what its part of memory can legally look like. However,
+% validity of the memory's contents may itself depend on the state of other parts
+% of memory. To accommodate this, worlds need to be defined recursively: Worlds
+% describe memory, which can contain capabilities, whose safety is
+% world-dependent. 
+As described in Section~\ref{sec:formalizing-guarantees}, the safety of a world
+depends on the safety of its regions which in turn may depend on the safety of
+the values it contain which depend on the safety of a world. In other words, we
+need recursive worlds. Recursive worlds are a common requirement in Kripke
+models and the following lemma uses the method of
 \citet{Birkedal:2011:SKM:1926385.1926401,Birkedal:tutorial-notes} for
 constructing them. The formulation of the lemma is technical, so we recommend
 that non-expert readers ignore the technicalities and accept that there exists a
