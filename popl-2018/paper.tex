@@ -327,12 +327,12 @@
 \newcommand{\minus}[3]{\threeinstr{minus}{#1}{#2}{#3}}
 
 % Permissions
-\newcommand{\plainperm}[1]{\mathrm{#1}}
+\newcommand{\plainperm}[1]{\textsc{#1}}
 \newcommand{\noperm}{\plainperm{o}}
 \newcommand{\readonly}{\plainperm{ro}}
 \newcommand{\readwrite}{\plainperm{rw}}
 \newcommand{\exec}{\plainperm{rx}}
-\newcommand{\entry}{\bar{\plainperm{e}}}
+\newcommand{\entry}{\plainperm{e}}
 \newcommand{\rwx}{\plainperm{rwx}}
 % PWL permissions
 \newcommand{\readwritel}{\plainperm{rwl}}
@@ -340,8 +340,9 @@
 \newcommand{\rwlx}{\plainperm{rwlx}}
 
 % Global/local
-\newcommand{\local}{\plainperm{local}}
-\newcommand{\glob}{\plainperm{global}}
+\newcommand{\plainlocality}[1]{\mathrm{#1}}
+\newcommand{\local}{\plainlocality{local}}
+\newcommand{\glob}{\plainlocality{global}}
 
 \newcommand{\localityReg}{\var{localityReg}}
 \newcommand{\localReg}{\var{localReg}}
@@ -1210,7 +1211,7 @@ One of the contributions in this paper is a demonstration that local
 capabilities on a capability machine support a calling convention that enforces
 control-flow correctness in a way that is provably watertight, potentially
 efficient, does not rely on a trusted central stack manager, and supports
-higher-order interfaces to an adversary. In this section, we explain this
+higher-order interfaces to an adversary where an adversary is just some unknown piece of code. In this section, we explain this
 convention's high-level approach, the security measures to be taken in a number
 of situations (motivating each separately with a summary table at the end).
 After that, we define a number of reusable macro-instructions that can be used
@@ -1301,12 +1302,14 @@ there is no way for them to recover either of these local capabilities.
 
 Note that storing stack pointers for use during future invocations would also be
 dangerous in itself, i.e. not just because it can be used to store return
-pointers. Imagine the adversary stores their stack pointer, invokes trusted
-code that uses part of the stack to store private data and then invokes the
-adversary again with a stack pointer restricted to exclude the part containing
-the private data. If the adversary had a way of keeping hold of their old stack
-pointer, it could access the private data stored there by the trusted code and
-break local-state encapsulation.
+pointers. Imagine the adversary stores their stack pointer, invokes trusted code
+that uses part of the stack to store private data and then invokes the adversary
+again with a stack pointer restricted to exclude the part containing the private
+data. If the adversary had a way of keeping hold of their old stack pointer, it
+could access the private data stored there by the trusted code and break
+local-state encapsulation.  
+\lau{Do we say anything about arguments to the callback? Specifically, it should not be okay to uncritically pass on argument we recieved from an adversary. Can we even to any extend allow local arguments that we pass on from an unknown source?}
+
 
 \textbf{Returning from the adversary} So return pointers must be passed as local
 capabilities. But what should their permissions be, what memory should they
@@ -1359,8 +1362,8 @@ and executing instructions on the stack, i.e.\ it will not just contain code
 pointers and data. This means that our calling convention should be combined
 with protection against stack smashing attacks (i.e.\ buffer overflows on the
 stack overwriting activation records' contents). Luckily, such protection is
-easy to provide thanks to the capability machine's fine-grained memory
-protection\dominique{explain this point better}.
+easy for a reasonable compiler to provide thanks to the capability machine's
+fine-grained memory protection\dominique{explain this point better}.
 
 \textbf{Invoking an adversary callback} If we have a higher-order interface to
 the adversary, we may need to invoke an adversary callback. In this case, not so
@@ -1419,6 +1422,11 @@ let us summarize our proposed calling convention:
 \item[Before invoking an adversary callback] Make sure callback is global.
 \item[When invoked by an adversary] Make sure received stack pointer has permission $\rwlx$.
 \end{description}
+
+\textbf{A word on local capabilities} Local capabilities are an essential part
+of the calling convention. The use of local capabilities is, however, not
+limitted to the stack and return pointer.
+
 \textbf{Reusable macro instructions} We define a number of reusable
 macros capturing the calling convention and other conveniences. All
 macros that use the stack assume a stack pointer in register
@@ -1691,7 +1699,7 @@ safely ignored).
   \end{align*}
 \end{theorem}
 In the above theorem, $\States \times \Rels$ corresponds to the
-aforementioned state transition system where $\Rel$ is a set of pairs
+aforementioned state transition system where $\Rels$ is a set of pairs
 of relations corresponding to the public and private transition, and
 $\States$ is a sufficiently large set of states containing at least the
 states we use. The last part of the temporary and permanent regions is
@@ -2167,9 +2175,10 @@ ensure these properties. Since we are dealing with assembly language,
 there are many details to the formal treatment, and therefore we
 necessarily have to omit some details in the lemmas we state here. The
 examples may look deceivingly short, but it is because they use the
-previously described macro instructions, which expands to multiple basic instructions. The examples would be unintelligible without the macros. The interested
-reader can find all the technical details in the technical
-appendix~\citep{technical_appendix}.
+previously described macro instructions, which expands to multiple
+basic instructions. The examples would be unintelligible without the
+macros. The interested reader can find all the technical details in
+the technical appendix~\citep{technical_appendix}.
 
 \subsection{Encapsulation of local state}
 \texttt{\footnotesize{f1}} and \texttt{\footnotesize{f2}} in
@@ -2318,9 +2327,12 @@ steps. We then use a general lemma for reasoning about
 \texttt{\footnotesize{scall}}, by which it suffices to show that (1) the
 configuration that \texttt{\footnotesize{scall}} will jump to is safe and (2)
 that the configuration just after \texttt{\footnotesize{scall}} is done cleaning
-up is safe. We use the Fundamental Theorem to reason about the unknown code, but
+up is safe. We use the Fundamental Theorem to reason about the unknown adversarial code, but
 notice that the adversary capability is an enter capability, which the
-Fundamental Theorem says nothing about.\dominique{why doesn't it?} \lau{The FTLR says nothing about enter capabilities, because an enter capability cannot directly be used as a program counter. The reason being that the computation would fail immediately and the condition in the observation relation would immediately be true (as it requires the computation to terminate and not fail). It would be trivial to show that the enter capability, data and other capabilities without execute permission is in the expression relation.}  Luckily the enter capability becomes
+Fundamental Theorem says nothing about.
+\dominique{why doesn't it?}
+\lau{The FTLR says nothing about enter capabilities, because an enter capability cannot directly be used as a program counter. The reason being that the computation would fail immediately and the condition in the observation relation would immediately be true (as it requires the computation to terminate and not fail). It would be trivial to show that the enter capability, data and other capabilities without execute permission is in the expression relation.}
+Luckily the enter capability becomes
 $\exec$ after the jump and then the Fundamental Theorem applies.
 
 We have a similar lemma for \texttt{\footnotesize{f2}}:
