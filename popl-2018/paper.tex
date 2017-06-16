@@ -2663,7 +2663,89 @@ store the old stack pointer, but the adversary's return pointers are also
 allowed to be local. Adversary callbacks on the other hand are required to
 be global but the callbacks we construct ourselves are allocated on the heap and
 also global. 
+
+\emph{Arguments and local capabilities} 
+%Stack and return pointer
+%Local capabilities cannot be "freely used"
+%Safety dictated by LR
+%Need to dynamical check whether we overwrite our local stuff.
+Local capabilities are a central part of the calling convention as they are used
+to construct stack and return pointer. The use of local capabilities for the
+calling convention unfortunately limits the extend of which local capabilties
+can be used for other things. Say we are using the calling convention and
+receive a local capability other than the stack and return pointer, then we need
+to be careful if we want to use it because it may be an alias to the stack
+pointer. That is, if we first push something to the stack and then write to the
+local capability, then we may overwrite our local state. While this sounds
+unsafe, the safety actually depends on what our memory invariants we want to
+establish, so the safety is actually dictated by the logical relation. This may,
+however, not be a satisfactory requirement for say compiler developers as it is
+impossible to figure out what local capabilities are safe to use. A different
+approach would be to do dynamic checks on local capabilities, but this may be to
+costly to do in practice.
+
+%Pass capability on
+%Stack example
+%Pass argument by reference
+%Sofisticated deep safety analysis
+We also need to be careful when we receive a capability from an adversary that
+we want to pass on to a different adversary. It turns out that the logical
+relation again dictates when this is safe. Namely, the logical relation says
+that we can only pass on safe arguments. For instance, when we receive a stack
+pointer from an adversary, then we may at some point want to pass on part of
+this stack pointer to say a callback. In order to do so, we need to make sure
+the stack pointer is safe which means that it must only point to safe
+values. When received from an adversary, we have to consider the contents of the
+stack unsafe, so before we pass it on we clear which corresponds to filling it
+with safe values as integers are always safe to pass on. In general, if we want
+to pass on a local capability we received from an adversary, we have to make
+sure it is safe, for instance by clearing everything it points to (if possible,
+the capability might be a readonly capability). Clearing everthing is, however,
+not always a desirable approach as we may have an array or data structure with
+important values we want to pass on by reference in which case it is
+unacceptable to just clear the entire thing. In this case, it might be possible
+to make a deep safety analysis to make sure that the capability points to
+nothing dangerous. What we are left with is a too conservative approach or an
+non-obvious expensive dynamic safety analysis.
+
+% Can local capabilities be used for other things?/Local capabilities only for stack?
+%Not unheard of - other machine also have things specific for language features.
+The use of local capabilities for other things than stack and return pointer
+turns out to be somewhat limitted. It is, however, not unusual that machines
+have builtin special constructs that are used for just one language feature. A
+machine could for instance have call and return instructions with the sole
+prupose of handling everything related to calls.
 \\\\
+% Old version of the above:
+% Carefully constructing stack and return
+% pointer plays a big part in the calling convention, but it is completely
+% undermined if an unsafe argument, say the full stack pointer that include the
+% caller's local stack frame, is passed as an argument of the call. The logical
+% relation dictates when it is safe to pass an argument to an adversary, namely it
+% must be a safe value. In order to illustrate what this means for local
+% capabilities, consider the stack capability. When the stack capability is
+% received from an adversary, then the contents of the stack is unknown and must
+% thus be considered unsafe, so before the stack capability can be passed on, we
+% must make sure that it only gives access to safe values. In order to meet this
+% requirement, we take a conservative approcah and simply clear everything on the
+% stack. Integers are always safe, so the stack capability can now safely be
+% passed on. While this approach works for the stack, it may in practice be a bit
+% too naive for other local capabilities received form an adversary. Say we
+% receive a capability from an adversary that happens to be the first part of the
+% stack. We want to pass this capability on, so we naively clear the contents it
+% gives access to which in the worst case means we overwrite our local data or the
+% activation record. While this is strictly speaking not unsafe (integers are
+% always) safe, it is not desirable in a real system. We would in principle also
+% like to be able to pass on arguments by reference, e.g a local capability for
+% some array of values. In this case, it would not be satisfactory to just clear the
+% entire thing. However, the capability still needs to be safe, so there would
+% need to be some kind of deep dynamic check that ensures that everything the
+% capability gives access to is indeed safe. In a real setting, this may again be
+% undesirable.
+% This also points to a more
+% general problem: When can we use local capabilities we have received from an
+% adversary. We at least need to do some kind of dynamic range check to make sure
+% that we do not inadverdently overwrite our local stack frame.
 
 \noindent \textbf{Reasoning about capability machine programs}\\
 \emph{Semantic, but not syntactic properties} The logical relation defined in
