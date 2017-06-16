@@ -114,9 +114,9 @@
 \newcommand\lars[1]{{\color{purple} \sf \footnotesize {LB: #1}}\\}
 
 % Uncomment me to disable comments
-\renewcommand\lau[1]{}
-\renewcommand\dominique[1]{}
-\renewcommand\lars[1]{}
+% \renewcommand\lau[1]{}
+% \renewcommand\dominique[1]{}
+% \renewcommand\lars[1]{}
 
 % Variables
 \newcommand{\var}[1]{\mathit{#1}}
@@ -2075,59 +2075,86 @@ explanations in the following paragraphs. We omit some definitions and explain
 them only verbally, but precise definitions can be found in the technical
 appendix~\citep{technical_appendix}.
 
-The \emph{observation relation} $\observations$ defines configurations that we
-consider safe. Roughly speaking, a configuration is safe if whenever it halts,
-there is a private future world that the resulting memory satisfies. Notice that
-failing is considered safe behavior. In fact, the machine often resorts to
-failing when an unauthorized access is attempted, like loading from a capability
-without read permission. This is similar to \citet{Devriese:2016ObjCap}'s logical
-relation for an untyped language, but unlike typical logical relations
-for typed languages, which require that programs do not fail.
+The \emph{observation relation} $\observations$ defines what configurations we
+consider safe. As previously states, a configuration is safe with respect to a
+world when the execution of said configuration does not break the memory
+protocols of the world. Roughly speaking, this means that when the execution of
+a configuration halts, then there is a private future world that the resulting
+memory satisfies.  Notice that failing is considered safe behavior. In fact, the
+machine often resorts to failing when an unauthorized access is attempted, like
+loading from a capability without read permission. This is similar to
+\citet{Devriese:2016ObjCap}'s logical relation for an untyped language, but
+unlike typical logical relations for typed languages, which require that
+programs do not fail.
 
 The \emph{register-file relation} $\stdrr$ defines safe register-files as those
 that contain safe words (i.e.\ words in $\stdvr$) in all registers but $\pcreg$.
 The \emph{expression relation} $\stder$ defines that a word is safe to use as a
 program counter if it can be plugged into a safe register file (i.e.\ a register
-file in $\stdrr$) and paired with a memory satisfying the world to produce a
-safe configuration.
+file in $\stdrr$) and paired with a memory satisfying the world to become a
+safe configuration. This means that integers and non-executable capabilities
+(e.g. readonly and enter capabilities) are considered safe as program counters
+because when they are plugged into a register file and paired with a memory, the
+execution will immediately fail, which is safe.
 
 The \emph{value relation} $\stdvr$ defines when words are safe, i.e.\ when they
-cannot be used to break the protocols defined by the world. Non-capability data
-is always safe because it provides no authority. Capabilities give the authority
-to manipulate memory and potentially break memory protocols, so they need to
-satisfy certain conditions to be safe. In \figurename~\ref{fig:perm-conds}, we
-define such a condition for each kind of permission a capability can have (we
-will call these permission-based conditions).
+cannot be used to break the memory protocols defined by the world. We make the
+value relation as liberal as possible by considering what is the most we can
+allow an adversary to use a capability for without breaking the memory
+protocols. Non-capability data is always safe because it provides no
+authority. Capabilities give the authority to manipulate memory and potentially
+break memory protocols, so they need to satisfy certain conditions to be
+safe. In \figurename~\ref{fig:perm-conds}, we define such a condition for each
+kind of permission a capability can have (we will call these permission-based
+conditions).
 
 For capabilities with read permission, the $\readCond{}$ ensures that it can
-only be used to read safe words, by requiring that the region governing the
-relevant part of memory, guarantees that it contains only words in the value
-relation. Generally speaking, global capabilities should only depend on
-permanent regions. Therefore we use the function $\var{localityReg}(\gl,W)$,
-which projects out all active regions when $\gl$ (the locality) is local, but
-only the permanent regions when $\gl$ is global. The read condition is defined
-in terms of a standard region $\iota^\pwl_{\start,\addrend}$ which requires all
-the words in the range $[\start,\addrend]$ to be safe.
+only be used to read safe words by putting an upper bound on what can be
+required by the region governing the memory the read capability gives access
+to. An adversary can read anything the capability governs, so all the words they
+can possibly read must be safe - that is they must be in the value relation. The
+read condition also depends on the locality of the capability because, generally
+speaking, global capabilities should only depend on permanent
+regions. Concretely to make sure global capabilities only depend on permanent
+regions, we use the function $\var{localityReg}(\gl,W)$, which projects out all
+active regions when $\gl$ (the locality) is local, but only the permanent
+regions when $\gl$ is global. The upper bound on the region is enforced in terms
+of a standard region $\iota^\pwl_{\start,\addrend}$ which requires all the words
+in the range $[\start,\addrend]$ to be safe.  The region in the world that
+actually governs the part of memory the capability gives access to must as most
+be as restrictive as the standard region.  \lau{Here I would have liked to point
+  back to the bit about step-indexing in the intuition section, but
+  unfortunately the ``step down'' happens in the standard region which we have
+  not included.}
 
-For a capability with write permission, $\writeCond{}$ must be
-satisfied for the capability's range of authority. Such a capability
-may be used to write any word, so the region governing the relevant
-memory must (at least) allow any safe word to be stored. More
-precisely, for write-local capabilities it needs to allow arbitrary
-safe values to be stored, while for write capabilities, storing values
-that are both non-local and safe is sufficient.  This is done in the
-value relation by the regions the write condition is applied with. For
-write-local capabilities $\iota^\pwl$ is used, and for write
-capabilities we use another standard region
-$\iota^\nwl_{\start,\addrend}$ which requires that the words in
-$[\start,\addrend]$ are non-local and safe.  Like before, we use
-$\var{localityReg}$ to pick an appropriate region for the capability's
-locality. The condition for the region to be address-stratified is a
-technical requirement, defined in the technical appendix.
-An interesting property of the read and write condition is that they
-prohibit global write-local capabilities which, as discussed in
-Section~\ref{sec:stack-and-return-pointer}, is necessary for the safe
-use of local capabilities.
+For a capability with write permission, $\writeCond{}$ must be satisfied for the
+capability's range of authority. An adversary can use such a capability to write
+any word they can get a hold of, and we can safely assume that they can get a
+hold of any safe word, so the region governing the relevant memory must allow
+any safe word to reside there. In the name of making the logical relation as
+liberal as possible, we make this a lower bound of what the region may allow.
+\lau{Maybe add: Conceptually, the lower bound also conveys the amount of faith
+  one can put in the contents of a piece of memory that an adversary has been
+  given write access to.}  For write capabilities, we also have to take into
+account that we have two flavours of write permissions namely write and
+write-local. In the case of write-local capabilities, the region needs to at
+least require any safe word to be written, but in the case of write
+capabilities, the capability cannot be used to write local capabilties, so the
+region needs only to at least require safe non-local values.  In the write
+condition, this is handled by parameterising it with a region. For the
+write-local capabilities the write condition is applied with the standard region
+$\iota^\pwl$ and for the write capabilities we use a different standard region
+namely $\iota^\nwl_{\start,\addrend}$ which requires that the words in
+$[\start,\addrend]$ are non-local and safe. Like before, we use
+$\var{localityReg}$ to pick an appropriate region based on the capability's
+locality. Finally the region is required to be address-stratified. Intuitively,
+this means that if a region accepts two memory segments, then it must also
+accept every memory segment ``inbetween'' that is every memory segment where
+each address contains a value from one of the two memory segments. An
+interesting property of the read and write condition is that they prohibit
+global write-local capabilities which, as discussed in
+Section~\ref{sec:stack-and-return-pointer}, is necessary for the safe use of
+local capabilities.
 
 The conditions $\entryCond{}$ and $\execCond{}$ are very similar. Both require
 that the capability can be safely jumped to. However, executable capabilities
