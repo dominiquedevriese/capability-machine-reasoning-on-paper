@@ -737,6 +737,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                     \stdUpdatePc{\updateReg{r_1}{0}} & \text{otherwise} 
                                   \end{cases}
 \end{align*}
+\lau{Our instruction set could use a less than operator.}
 \lau{Dominique, apparently there was a reason I had not added the new condition in store to $\writeAllowed{}$. The new condition depends on a case distinction on $w$. It is only if $w$ is a capability that we look into whether it is local or not. But even if $w$ is just an integer, we still need the capability we write through to have some kind of write permission.}
 \dominique{I see, but maybe writeAllowed could take $w$ and $c$ as an argument, rather than just $\perm$? It is now weird that some conditions for writing are in $\writeAllowed{}$, but not all.}
 
@@ -884,7 +885,20 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
 
               \subsection{Macro definitions}
               \begin{description}
-              \item[\texttt{fetch} $r$ $f$] load the entry of the linking table corresponding to $f$ to register $r$.
+              \item[\texttt{fetch} $r$ $f$] load the entry of the linking table corresponding to $f$ to register $r$.\\
+One possible malloc implementation (r\_t1 and r\_t2 are registers in RegName\_t).
+\begin{lstlisting}
+move r pc
+getb r_t1 r
+geta r_t2 r
+minus r_t1 r_t1 r_t2 // Offset to first address, i.e., linking table (b-a)
+lea r r_t1
+load r r
+lea r ... // ... replaced with offset to f in the linking table
+move r_t1 0
+move r_t2 0
+load r r // f capability loaded to register r
+\end{lstlisting}
               \item[\texttt{call} $r(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] \forcenewline
                 $\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. An overview of this call:
                 \begin{itemize}
@@ -920,501 +934,740 @@ Define the following macros: $\mathtt{restrict}$, $\mathtt{subseg}$, and $\matht
                   \end{itemize}
                 \end{description}
               \item[\texttt{malloc $r$ $n$}] Calls malloc to allocates a piece of memory of size $n$. The capability will be stored in register $r$. 
-% Suggestion for malloc impl (r_t1 and r_t2 are registers in RegName_t), r_1 should not contain important stuff
-% move r_1 n
-% move r pc
-% getb r_t1 r
-% geta r_t2 r
-% minus r_t1 r_t2 r_t1
-% lea r r_t1
-% move r_0 r_t1
-% lea r_0 3 // 3 is offset to just after jmp
-% restrict r_0 encodePerm(e)
-% jmp r
-% move r r_1
-% move r_1 0
-% move r_0 r_t1
-% move r_t1 r_0
+One possible malloc implementation (r\_t1 is a register in RegName\_t) and r\_1 is the register from the malloc specification.
+\begin{lstlisting}
+fetch r malloc
+move r_1 n 
+// save return pointer
+move r_t1 r_0 
+// setup new return pointer
+move r_0 pc
+lea r_0 4 // 4 is the offset to just after jmp r
+restrict r_0 encodePerm(e)
+jmp r
+move r r_1
+move r_0 r_t1 // restore return pointer
+move r_1 0
+move r_t1 0
+\end{lstlisting}
+              \item[\texttt{assert$_{\var{flag}}$ $r_1$ $r_2$}] Compares the words in register $r_1$ and $r_2$ (if one of them is an integer, then use that in the comparison). If they are equal, then execution continues. If they are unequal, then the assertion flag named $\var{flag}$ in the flag list is set to 1 and execution halts (if no flag is specified, then the first flag in the list is set to 1).\\
+There are four different asserts based on whether $r_1$ and $r_2$ are registers or numbers. If $r_1$ and $r_2$ are registers:
+\begin{lstlisting}
+          // setup pointer to fail.
+          move r_t3 pc
+          lea r_t3 ... // ... is the offset to fail
+          // make sure both registers contain either capability or integer
+          isptr r_t1 r_1
+          isptr r_t2 r_2
+          minus r_t1 r_t1 r_t2
+          jnz   r_t3 r_t1
+          // set up capability for cap case:
+          move r_t4 pc
+          lea r_t4 ... // ... is the offset to caps
+          jnz r_t4 r_t2 // jump to caps if r_t2 contains a capability
+          // the two registers contain an integer
+          minus r_t1 r_1 r_2
+          jnz r_t3 r_t1
+          // the two integers in the registers are equal
+          move r_t4 pc
+          lea r_t4 ... // .. offset to success
+caps:
+          geta r_t1 r_1
+          geta r_t2 r_2
+          minus r_t1 r_t1 r_t2
+          jnz   r_t3 r_t1          
+          getb r_t1 r_1
+          getb r_t2 r_2
+          minus r_t1 r_t1 r_t2
+          jnz   r_t3 r_t1          
+          gete r_t1 r_1
+          gete r_t2 r_2
+          minus r_t1 r_t1 r_t2
+          jnz   r_t3 r_t1          
+          getp r_t1 r_1
+          getp r_t2 r_2
+          minus r_t1 r_t1 r_t2
+          jnz   r_t3 r_t1          
+          getl r_t1 r_1
+          getl r_t2 r_2
+          minus r_t1 r_t1 r_t2
+          jnz   r_t3 r_t1          
+          // the two capabilities in the registers are equal
+          move r_t4 pc
+          lea r_t4 ... // .. offset to success
+fail:
+          // get the flag capability
+          move r_t3 pc
+          getb r_t1 pc
+          geta r_t2 pc
+          minus r_t1 r_t1 r_t2
+          lea r_t3 r_t1
+          lea r_t3 1 // the flag table capability is at the second address of cap.
+          load r_t1 r_t3
+          lea r_t1 ... // ... is the offset of flag in the table
+          store r_t1 1
+          halt
+success:                   
+          // clean up
+          move r_t1 0
+          move r_t2 0
+          move r_t3 0
+          move r_t4 0
+\end{lstlisting}
+If $r_1$ is a register, but $r_2$ is a constant:
+\begin{lstlisting}
+          // setup pointer to fail.
+          move r_t3 pc
+          lea r_t3 ... // ... is the offset to fail
+          // make sure both registers contain either capability or integer
+          isptr r_t1 r_1
+          jnz   r_t3 r_t1
+          minus r_t1 r_1 r_2
+          jnz r_t3 r_t1
+          // the two integers in the registers are equal
+          move r_t3 pc
+          lea r_t3 ... // .. offset to success
+fail:
+          // get the flag capability
+          move r_t3 pc
+          getb r_t1 pc
+          geta r_t2 pc
+          minus r_t1 r_t1 r_t2
+          lea r_t3 r_t1
+          lea r_t3 1 // the flag table capability is at the second address of cap.
+          load r_t1 r_t3
+          lea r_t1 ... // ... is the offset of flag in the table
+          store r_t1 1
+          halt
+success:                   
+          // clean up
+          move r_t1 0
+          move r_t3 0
+\end{lstlisting}
+The case where $r_1$ is a constant and $r_2$ is a register is omitted. The case where both are constant is also omitted - if the constants are the same, then the macro is nothing. If they are different, then it corresponds to the failed part of both of the above implementations.
+              \item[\texttt{mclear $r$}] Stores 0 to all the memory cells the capability $r$ governs.\footnote{This may in some cases seem like an unreasonable slow instruction. In a real system it would probably be implemented as a vector operation which allows modification of continuous segments of memory rather fast.} \\
+Possible implementation:
+\begin{lstlisting}
+        move r_t r
+        getb r_t1 r_t
+        geta r_t2 r_t
+        minus r_t2 r_t1 r_t2
+        lea r_t r_t2
+        gete r_t2
+        minus r_t1 r_t2 r_t1
+        plus r_t1 r_t1 1
+        move r_t2 pc
+        lea r_t2 ... // ... is the offset to end
+        move r_t3 pc
+        lea r_t3 ... // ... is the offset to iter
+iter:
+        jnz r_t2 r_t1
+        store r_t 0
+        lea r_t 1
+        plus r_t1 r_t1 1
+        jmp r_t3
+end:
+        move r_t 0
+        move r_t1 0
+        move r_t2 0
+        move r_t3 0
+\end{lstlisting}
+              \item[\texttt{rclear $\bar{r}$}] Moves 0 to all the registers in the list $\bar{r}$.\\
+Possible implementation: Say $\bar{r} = r_1,\dots, r_n$
+\begin{lstlisting}
+move r_1 0
+move r_2 0
+// ...
+move r_n 0
+\end{lstlisting}
 
-              \item[\texttt{assert$_{\var{flag}}$ $r_1$ $r_2$}] Compares the words in register $r_1$ and $r_2$ (if one of them is an integer, then use that in the comparison). If they are equal, then execution continues. If they are unequal, then the assertion flag named $\var{flag}$ in the flag list is set to 1 and execution halts (if no flag is specified, then the first flag in the list is set to 1).
-              \item[\texttt{mclear $r$}] Stores 0 to all the memory cells the capability $r$ governs.\footnote{This may in some cases seem like an unreasonable slow instruction. In a real system it would probably be implemented as a vector operation which allows modification of continuous segments of memory rather fast.}
-              \item[\texttt{rclear $\bar{r}$}] Moves 0 to all the registers in the list $\bar{r}$.
-              \end{description}
-              Note:
-              \begin{itemize}
-              \item \texttt{call} will fail if we have local capabilities in one of the registers of the ``private'' register list as it relies on a capability returned by malloc which will not be permit-write-local. This severely limits how \texttt{scall} can be used and it provides very little in terms of control-flow integrety when nested. Below, we introduce \texttt{scall} which can handle local capabilities in the ``private'' state. 
-              \end{itemize}
-              \subsection{Stack}
-              Some programs will assume access to a stack which will be in part indicated by the program macros but also in the correctness lemma. The stack is accessed through a local $\rwlx$-capability. Programs will assume that the stack resides in some register, say $r_{\var{stk}}$.
+\end{description}
+Note:
+\begin{itemize}
+\item \texttt{call} will fail if we have local capabilities in one of the registers of the ``private'' register list as it relies on a capability returned by malloc which will not be permit-write-local. This severely limits how \texttt{scall} can be used and it provides very little in terms of control-flow integrety when nested. Below, we introduce \texttt{scall} which can handle local capabilities in the ``private'' state. 
+\end{itemize}
+\subsection{Stack}
+Some programs will assume access to a stack which will be in part indicated by the program macros but also in the correctness lemma. The stack is accessed through a local $\rwlx$-capability. Programs will assume that the stack resides in some register, say $r_{\var{stk}}$.
 
-              The stack resides entirely in memory. There is no separation between the memory and the stack, so when we talk about the stack it is as a conceptual thing. %
+The stack resides entirely in memory. There is no separation between the memory and the stack, so when we talk about the stack it is as a conceptual thing. %
 
-              Even though the memory is infinite, we will only use a finite part for the stack. If we have allocated too little memory for the stack, and we try to push something anyway, then the execution will fail. As we consider failing admissible, we are okay with this. 
+Even though the memory is infinite, we will only use a finite part for the stack. If we have allocated too little memory for the stack, and we try to push something anyway, then the execution will fail. As we consider failing admissible, we are okay with this. 
 
-              When not in the middle of a push or a pop, the stack capability points to the top word of the stack. For an empty stack, the stack capability points to the address just below of the range of authority for the stack capability.
+When not in the middle of a push or a pop, the stack capability points to the top word of the stack. For an empty stack, the stack capability points to the address just below of the range of authority for the stack capability.
 
-              The stack grows upwards
+The stack grows upwards
 
-              \begin{description}
-              \item[\texttt{push $r$}] Pushes the word in register \texttt{r} to the stack by incrementing the address of the stack capability by one and storing the word through the stack capability.
-              \item[\texttt{pop $r$}] Pops the top word of the stack by loading it to register $r$, and decrementing the address of the stack capability.
-              \item[\texttt{scall} $r(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] \forcenewline$\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. This call assumes $r_{\var{stk}}$ contains a stack capability. An overview of this call:
-                \begin{itemize}
-                \item Push ``private'' registers to the stack.
-                \item Push the restore code to the stack.
-                \item Push return address capability 
-                \item Push stack capability
-                \item Create protected return pointer
-                \item Restrict stack capability to unused part 
-                \item Clear the part of the stack we release control over
-                \item Clear unused registers
-                \item Jump
-                \item Upon return: Run the on stack restore code
-                \item Return address in caller-code:  Restore ``private'' state
-                \end{itemize}
-                A more detailed description of the above steps:
-                \begin{description}
-                \item [Push ``private'' registers to the stack]
-                  Push all the words in the registers in  $\bar{r}_{\var{priv}}$ to the stack.
-                \item [Push the restore code to the stack]
-                  Push the restore code to the stack (described later). This code needs to be on the stack to make sure the stack capability can be restored. We keep the restore code on the stack minimal. The caller code does the rest of the restoration.
-                \item [Push return address capability]
-                  Push a capability for the return address (in the memory) to the stack.
-                \item [Push stack capability]
-                  Push the full stack capability to the stack.
-                \item [Create protected return pointer]
-                  Make a new version of the stack pointer that points to the beginning of the restoration code. Restrict it to a local enter-capability and put it in $r_0$. \lau{Do we want to use ``protected return pointer'' to mean a local enter capability?} \lau{It is also used when we want to call code for the first time, so calling it a protected return pointer is more of a conceptual thing.}
-                \item [Restrict stack capability to unused part]
-                  Make the stack capability only govern the unused part.
-                \item [Clear the part of the stack we release control over]
-                  Store 0 to all the memory cells the restricted stack pointer has authority over.
-                \item [Clear unused registers]
-                  Clear all registers but $\pcreg$, $r$, $r_0$, $r_{\var{stk}}$, and $\bar{r}_{\var{args}}$.
-                \item [Jump] Jump to register $r$.
-\\ \lau{scall used to be dependent on linking, but now this part has been extracted to the fetch macro to make scall independent of linking.}
-%Load the entry $f$ from the linking table to a free register and jump to it.
-                \item [Run the on stack restore code]
-                  Load the stack capability to $r_{\var{stk}}$. Pop the old program counter (the return address in caller-code) from the stack to $\pcreg$.
-                \item [Return address in caller-code: Restore ``private'' state] \forcenewline
-                  \begin{itemize}
-                  \item Pop the restore code of the stack
-                  \item Pop the private state on the stack into their respective $\bar{r}_{\var{priv}}$ registers.
-                  \end{itemize}\
-                \end{description}
-              \end{description}
-              Note:
-              \begin{itemize}
-              \item If we want to have local capabilities as part of our private state, then we need to have a stack and use \texttt{scall}. If we do not have any local capabilities we want to keep around, then we can use \texttt{call}, but it will incur a small memory leak as the activation records cannot be recycled! It is also possible to use a combination of \texttt{scall} and \texttt{call}, but when \texttt{call} is used, then we have no way to store the stack, so we cannot use \texttt{scall} after that.
-              \item As a rule of thumb: If you have provided an untrusted entity access to part of the stack, then it needs to be cleared before it is passed to an untrusted party.
-              \item As a rule of thumb: If you receive a stack from an untrusted source, then you need to check that it is a local $\rwlx$-capability and clear it! If any callbacks are provided, then they need to be global.
-              \end{itemize}
-              \begin{description}
-              \item[\texttt{crtcls $[(x_1,r_1),\dots(x_n,r_n)]$ $r_{\var{code}}$}] \forcenewline
-                $[(x_1,r_1),\dots(x_n,r_n)]$ is a list of variable bindings. If an instruction refers to a variable, then it will assume that an environment is available in a designated register (say $r_{\var{env}}$). The register $r_{\var{code}}$ should contain a capability governs the code of the closure and that is executable when jumped to.
-                \begin{description}
-                \item[Allocate memory for variable environment]
-                \item[Store register contents to environment]
-                \item[Allocate memory for record with environment capability, code capability, and activation code]
-                \item[Store capabilities and activation code to record]
-                \item[Restrict the capability for the ``closure pair'' to an enter capability]
-                \item[Activation code:] \forcenewline
-                  \begin{itemize}
-                  \item Load the environment capability to a designated register
-                  \item Load the code capability.
-                  \item Jump to the code.
-                  \end{itemize}
-                \end{description}
-                A more detailed description of each step:
-                \begin{description}
-                \item[Allocate memory for variable environment] Have malloc allocate a piece of memory of size $n$ (the size of the variable environment). 
-                \item[Store register contents to environment] Store the contents of each of the registers $r_1,\dots,r_n$ to the newly allocated memory.
-                \item[Allocate memory for record with environment capability, code capability, and activation code] Allocate a new piece of memory with room for a capability for the environment.
-                \item[Store capabilities and activation code to record] Store the environment capability and code capability in the record followed by the activation code. 
-                \item[Restrict the capability for the ``closure pair'' to an enter capability] Adjust the capability to point to the start of the activation code and restrict it to a global enter-capability.
-                \item[Activation code:] \forcenewline
-                  \begin{itemize}
-                  \item Load the environment capability to a designated register.
-                  \item Load the code capability.
-                  \item Jump to the code.
-                  \end{itemize}
-                \end{description}
-%Possible implementation of crtcls \overline{(x,r_v)} r_code where |\overline{(x,r_v)}| = n (i_1,...,i_6 under)
-% malloc r_t1 n
-% store r_t1 r_v1
-% lea r_t1 1
-% store r_t1 r_v2
-% lea r_t1 1
-% ...
-% lea r_t1 1
-% store r_t1 r_vn
-% lea r_t1 -n
-% restrict r_t1 encodePerm(rw)
-% malloc r_1 8 //length of activation record
-% store r_1 r_code
-% lea r_1 1
-% store r_1 r_t1
-% move r_t1 0
-% lea r_1 1
-% store r_1 encode(i_1)
-% lea r_1 1
-% store r_1 encode(i_2)
-% lea r_1 1
-% ...
-% lea r_1 1
-% store r_1 encode(i_6)
-% lea r_1 -5 //offset to first instruction
-% restrict r_1 encodePerm(e)
+\begin{description}
+\item[\texttt{push $r$}] Pushes the word in register \texttt{r} to the stack by incrementing the address of the stack capability by one and storing the word through the stack capability.\\
+Possible implementation:
+\begin{lstlisting}
+  lea r_stk 1
+  store r_stk r
+\end{lstlisting}
 
-%Activation code (i_1,...,i_6)
-% i_1 = move r_t1 pc
-% i_2 = lea r_t1 -2
-% i_3 = load r_env r_t1
-% i_4 = lea r_t1 1
-% i_5 = load r_t1 r_t1
-% i_6 = jmp r_t1
+\item[\texttt{pop $r$}] Pops the top word of the stack by loading it to register $r$, and decrementing the address of the stack capability.
+\begin{lstlisting}
+  load r r_stk
+  minus r_t1 0 1
+  lea r_stk r_t1
+\end{lstlisting}
 
-              \item[\texttt{load $r$ $x$}] Assumes environment capability available in register $r_{\var{env}}$. Loads the word at the index associated with $x$ in the environment list. Loads from this capability into $r$.
-              \item[\texttt{store $x$ $r$}] Assumes environment capability available in register $r_{\var{env}}$. Loads the word at the index associated with $x$ in the environment list. Stores the contents of register $r$ through this capability.
-              \item[\texttt{reqglob $r$}] Tests if register $r$ contains a $\glob$ capability. If not fail, otherwise continue execution.
-              \item[\texttt{reqperm $r$ $n$}] Tests if register $r$ contains a capability with permission $\decodePerm{n}$. If not fail, otherwise continue execution.
-              \item[\texttt{prepstack} $r$] Tests if register $r$ contains a capability with permission $\rwlx$. If not fail, otherwise assume $r$ points to $((\rwlx,\gl),\start,\addrend,\addr)$ adjust it to $((\rwlx,\gl),\start,\addrend,\start - 1)$. 
-                \lau{What if the stack starts at address 0? Changing the stack convention to always point at the first free cell will get rid of this problem (because our memory us uncapped.)}
-              \item[\texttt{mclear $r$}] Clears all cells $r$ has authority over. 
-              \end{description}
-              Note:
-              \begin{itemize}
-              \item In a real setting due to a limited number of registers, some of the arguments might be spilled to the stack. It would be possible to do something similar here, but to keep
-                matters simple, we opt not to do so.
-              \item \texttt{reqperm} can be used to test whether something can pass as a stack.
-              \item \texttt{reqglob} can be used to test whether a callback is admissible in the presence of a stack.
-              \item The code of a closure will often be found in conjunction with the code that creates it.
-              \item \texttt{prepstack} as ``prepare stack''. This ensures that the register contains something that looks like a stack and it is prepared for our stack convention.
-              \end{itemize}
-              \begin{figure}
-                \label{fig:stack-before-call}
-                \centering
-                \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
-                  \multicolumn{2}{l}{Stack} \\
-                  \cline{2-2}
-               & \\
-               & $\vdots$\\
-                  \cline{2-2}
-               & 0 \\
-                  \cline{2-2}
-                  $c_{\var{stk}} \rightarrow$   & local stack\\
-               & $\vdots$\\
-                  \cline{2-2}
-                \end{tabular}
-                \hspace{1cm}
-                \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
-                  \multicolumn{2}{r}{Register file} \\
-                  \cline{2-2}
-                  $\pcreg$ & $c_{\pc}$\\
-                  \cline{2-2}
-                  $r_0$  & $c_0$ \\
-                  \cline{2-2}
-                  $r_{\var{stk}}$  & $c_{\var{stk}}$ \\
-                  \cline{2-2}
-                  $r_{\var{args},1}$ & $w_{a,1}$ \\
-                  \cline{2-2}
-                           & $\vdots$ \\
-                  \cline{2-2}
-                  $r_{\var{args},n}$ & $w_{a,n}$\\
-                  \cline{2-2}
-                  $r_{\var{priv},1}$ & $w_{p,1}$\\
-                  \cline{2-2}
-                           & $\vdots$ \\
-                  \cline{2-2}
-                  $r_{\var{priv},m}$ & $w_{p,m}$\\
-                  \cline{2-2}
-                           & $\vdots$ \\
-                  \cline{2-2}
-                \end{tabular}
-                \caption{This is the first figure of 6 that illustrates how \texttt{scall} works. In this example, the call \texttt{scall $r([r_{\var{args},1},\dots,r_{\var{args},n}],[r_0,r_{\var{priv},1},\dots,r_{\var{priv},m}])$. In this example the two lists of registers are disjoint even though that does not have to be the case.}}
-              \end{figure}
+\item[\texttt{scall} $r(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$] \forcenewline$\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. This call assumes $r_{\var{stk}}$ contains a stack capability. An overview of this call:
+  \begin{itemize}
+  \item Push ``private'' registers to the stack.
+  \item Push the restore code to the stack.
+  \item Push return address capability 
+  \item Push stack capability
+  \item Create protected return pointer
+  \item Restrict stack capability to unused part 
+  \item Clear the part of the stack we release control over
+  \item Clear unused registers
+  \item Jump
+  \item Upon return: Run the on stack restore code
+  \item Return address in caller-code:  Restore ``private'' state
+  \end{itemize}
+  A more detailed description of the above steps:
+  \begin{description}
+  \item [Push ``private'' registers to the stack]
+    Push all the words in the registers in  $\bar{r}_{\var{priv}}$ to the stack.
+  \item [Push the restore code to the stack]
+    Push the restore code to the stack (described later). This code needs to be on the stack to make sure the stack capability can be restored. We keep the restore code on the stack minimal. The caller code does the rest of the restoration.
+  \item [Push return address capability]
+    Push a capability for the return address (in the memory) to the stack.
+  \item [Push stack capability]
+    Push the full stack capability to the stack.
+  \item [Create protected return pointer]
+    Make a new version of the stack pointer that points to the beginning of the restoration code. Restrict it to a local enter-capability and put it in $r_0$. \lau{Do we want to use ``protected return pointer'' to mean a local enter capability?} \lau{It is also used when we want to call code for the first time, so calling it a protected return pointer is more of a conceptual thing.}
+  \item [Restrict stack capability to unused part]
+    Make the stack capability only govern the unused part.
+  \item [Clear the part of the stack we release control over]
+    Store 0 to all the memory cells the restricted stack pointer has authority over.
+  \item [Clear unused registers]
+    Clear all registers but $\pcreg$, $r$, $r_0$, $r_{\var{stk}}$, and $\bar{r}_{\var{args}}$.
+  \item [Jump] Jump to register $r$.
+    \\ \lau{scall used to be dependent on linking, but now this part has been extracted to the fetch macro to make scall independent of linking.}
+    % Load the entry $f$ from the linking table to a free register and jump to it.
+  \item [Run the on stack restore code]
+    Load the stack capability to $r_{\var{stk}}$. Pop the old program counter (the return address in caller-code) from the stack to $\pcreg$.
+  \item [Return address in caller-code: Restore ``private'' state] \forcenewline
+    \begin{itemize}
+    \item Pop the restore code of the stack
+    \item Pop the private state on the stack into their respective $\bar{r}_{\var{priv}}$ registers.
+    \end{itemize}
+  \end{description}
+\end{description}
+Possible implementation, say $\bar{r}_{\var{args}} = r_{\var{args},1},\dots, r_{\var{args},m}$ and $\bar{r}_{\var{priv}} = r_{\var{priv},1},\dots, r_{\var{priv},n}$:
+\begin{lstlisting}
+// push private state
+  push r_priv,1
+  ...
+  push r_priv,n
+// push activation code
+  push encode(i_1)
+  ...
+  push encode(i_4)
+// push old pc
+  move r_t1 pc
+  lea r_t1 ... // ... is the offset to after
+  push r_t1
+// push stack pointer
+  push r_stk
+// set up protected return pointer
+  move r_0 r_stk
+  lea r_0 -5 // -5 is the offset to the first instruction of the activation code
+  restrict r_0 encodePermPair((Local,e))
+// restrict stack capability
+  geta r_t1 r_stk
+  plus r_t1 r_t1 1
+  getb r_t2 r_stk
+  subseg r_stk r_t1 r_t2
+// clear unused part of the stack
+  mclear r_stk
+// clear non-argument registers
+  rclear R // where R = RegisterName - {pc,r_stk,r_0,r,r_args}
+  jmp r
+after:
+// pop the restore code
+  pop r_t1
+  pop r_t1
+  pop r_t1
+  pop r_t1
+// pop the private state into approriate registers
+  pop r_priv,1
+  ...
+  pop r_priv,n
+  
+\end{lstlisting}
+where the restore code is as follows:
+\begin{lstlisting}
+ i_1 = move r_t1 pc
+ i_2 = lea r_t1 5 // 5 is the offset to the address where the old stack pointer is located
+ i_3 = load r_stk r_t1
+ i_4 = pop pc
+\end{lstlisting}
+Note:
+\begin{itemize}
+\item If we want to have local capabilities as part of our private state, then we need to have a stack and use \texttt{scall}. If we do not have any local capabilities we want to keep around, then we can use \texttt{call}, but it will incur a small memory leak as the activation records cannot be recycled! It is also possible to use a combination of \texttt{scall} and \texttt{call}, but when \texttt{call} is used, then we have no way to store the stack, so we cannot use \texttt{scall} after that.
+\item As a rule of thumb: If you have provided an untrusted entity access to part of the stack, then it needs to be cleared before it is passed to an untrusted party.
+\item As a rule of thumb: If you receive a stack from an untrusted source, then you need to check that it is a local $\rwlx$-capability and clear it! If any callbacks are provided, then they need to be global.
+\end{itemize}
+\begin{description}
+\item[\texttt{crtcls $[(x_1,r_1),\dots(x_n,r_n)]$ $r_{\var{code}}$}] \forcenewline
+  $[(x_1,r_1),\dots(x_n,r_n)]$ is a list of variable bindings. If an instruction refers to a variable, then it will assume that an environment is available in a designated register (say $r_{\var{env}}$). The register $r_{\var{code}}$ should contain a capability governs the code of the closure and that is executable when jumped to.
+  \begin{description}
+  \item[Allocate memory for variable environment]
+  \item[Store register contents to environment]
+  \item[Allocate memory for record with environment capability, code capability, and activation code]
+  \item[Store capabilities and activation code to record]
+  \item[Restrict the capability for the ``closure pair'' to an enter capability]
+  \item[Activation code:] \forcenewline
+    \begin{itemize}
+    \item Load the environment capability to a designated register
+    \item Load the code capability.
+    \item Jump to the code.
+    \end{itemize}
+  \end{description}
+  A more detailed description of each step:
+  \begin{description}
+  \item[Allocate memory for variable environment] Have malloc allocate a piece of memory of size $n$ (the size of the variable environment). 
+  \item[Store register contents to environment] Store the contents of each of the registers $r_1,\dots,r_n$ to the newly allocated memory.
+  \item[Allocate memory for record with environment capability, code capability, and activation code] Allocate a new piece of memory with room for a capability for the environment.
+  \item[Store capabilities and activation code to record] Store the environment capability and code capability in the record followed by the activation code. 
+  \item[Restrict the capability for the ``closure pair'' to an enter capability] Adjust the capability to point to the start of the activation code and restrict it to a global enter-capability.
+  \item[Activation code:] \forcenewline
+    \begin{itemize}
+    \item Load the environment capability to a designated register.
+    \item Load the code capability.
+    \item Jump to the code.
+    \end{itemize}
+  \end{description}
+Possible implementation of \texttt{crtcls $\overline{(x,r_v)}$ $r_{\var{code}}$} where $|\overline{(x,r_v)}| = n$ ($i_1$,...,$i_6$, i.e. the activation code, is defined later):
+\begin{lstlisting}
+malloc r_t1 n
+store r_t1 r_v1
+lea r_t1 1
+store r_t1 r_v2
+lea r_t1 1
+...
+lea r_t1 1
+store r_t1 r_vn
+lea r_t1 -n
+restrict r_t1 encodePermPair((Global,rw))
+malloc r_1 8 //length of activation record
+store r_1 r_code // code capability
+lea r_1 1
+store r_1 r_t1 // environment capability
+move r_t1 0
+lea r_1 1
+store r_1 encode(i_1)
+lea r_1 1
+store r_1 encode(i_2)
+lea r_1 1
+...
+lea r_1 1
+store r_1 encode(i_6)
+lea r_1 -5 //offset to first instruction
+restrict r_1 encodePerm(e)
+\end{lstlisting}
+Activation code ($i_1$,...,$i_6$):
+\begin{lstlisting}
+i_1 = move r_t1 pc
+i_2 = lea r_t1 -2
+i_3 = load r_env r_t1
+i_4 = lea r_t1 1
+i_5 = load r_t1 r_t1
+i_6 = jmp r_t1
+\end{lstlisting}
 
+\item[\texttt{load $r$ $x$}] Assumes environment capability available in register $r_{\var{env}}$. Loads the word at the index associated with $x$ in the environment list. Loads from this capability into $r$.\\
+Possible implementation:
+\begin{lstlisting}
+  move r_t1 r_env
+  lea r_t1 ... // ... corresponds to offset of x in environment
+  load r r_t1
+  move r_t1 0
+\end{lstlisting}
+\item[\texttt{store $x$ $r$}] Assumes environment capability available in register $r_{\var{env}}$. Loads the word at the index associated with $x$ in the environment list. Stores the contents of register $r$ through this capability.
+\begin{lstlisting}
+  move r_t1 r_env
+  lea r_t1 ... // ... corresponds to offset of x in environment
+  store r_t1 r
+  move r_t1 0
+\end{lstlisting}
+\item[\texttt{reqglob $r$}] Tests if register $r$ contains a $\glob$ capability. If not fail, otherwise continue execution.\\
+Possible implementation:
+\begin{lstlisting}
+  getl r_t1 r
+  minus r_t1 r_t1 encodeLoc(Global)
+  move r_t2 pc
+  lea r_t2 4 // 4 is the offset to just after fail
+  jnz r_t1 r_t2
+  fail
+  move r_t1 0
+  move r_t2 0
+\end{lstlisting}
+\item[\texttt{reqperm $r$ $n$}] Tests if register $r$ contains a capability with permission $\decodePerm{n}$. If not fail, otherwise continue execution.\\
+Possible implementation:
+\begin{lstlisting}
+  getp r_t1 r
+  minus r_t1 r_t1 n
+  move r_t2 pc
+  lea r_t2 4 // 4 is the offset to just after fail
+  jnz r_t1 r_t2
+  fail
+  move r_t1 0
+  move r_t2 0
+\end{lstlisting}
 
-              \begin{figure}
-                \label{fig:stack-after-push}
-                \centering
-                \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
-                  \multicolumn{2}{l}{Stack} \\
-                  \cline{2-2}
-               & \\
-               & $\vdots$\\
-                  \cline{2-2}
-                  $c_{\var{stk}}' \rightarrow$  & $c_{\var{stk}}'$ \\
-                  \cline{2-2}
-               & $c_\pc'$ \\
-                  \cline{2-2}
-               & $c_0$ \\
-                  \cline{2-2}
-               & $w_{p,1}$ \\
-                  \cline{2-2}
-               & $\vdots$ \\
-                  \cline{2-2}
-               & $w_{p,m}$ \\
-                  \cline{2-2}
-               & Restore code \\
-                  \cline{2-2}
-               & local stack\\
-               & $\vdots$ \\
-                  \cline{2-2}
-                \end{tabular}
-                \hspace{1cm}
-                \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
-                  \multicolumn{2}{r}{Register file} \\
-                  \cline{2-2}
-                  $\pcreg$ & $c_{\pc}''$\\
-                  \cline{2-2}
-                  $r_0$  & $c_0$ \\
-                  \cline{2-2}
-                  $r_{\var{stk}}$  & $c_{\var{stk}}'$ \\
-                  \cline{2-2}
-                  $r_{\var{args},1}$ & $w_{a,1}$ \\
-                  \cline{2-2}
-                           & $\vdots$ \\
-                  \cline{2-2}
-                  $r_{\var{args},n}$ & $w_{a,n}$\\
-                  \cline{2-2}
-                  $r_{\var{priv},1}$ & $w_{p,1}$\\
-                  \cline{2-2}
-                           & $\vdots$ \\
-                  \cline{2-2}
-                  $r_{\var{priv},m}$ & $w_{p,m}$\\
-                  \cline{2-2}
-                           & $\vdots$ \\
-                  \cline{2-2}
-                \end{tabular}
-                \caption{Stack and register-file after the restore code, ``private'' registers (remember $r_0$ is here private.), return address ($c_\pc'$), and stack capability ($c_{\var{stk}}'$) have been pushed to the stack.}
-              \end{figure}
-
-              \begin{figure}
-                \label{fig:stack-after-restrict-and-zero}
-                \centering
-                \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
-                  \multicolumn{2}{l}{Stack} \\
-                  \cline{2-2}
-               & \\
-               & $\vdots$\\
-                  \cline{2-2}
-               & $?$\\
-                  \cline{2-2}
-                  $c_{\var{stk}}'' \rightarrow$  & $c_{\var{stk}}'$ \\
-                  \cline{2-2}
-               & $c_\pc'$ \\
-                  \cline{2-2}
-               & $c_0$ \\
-                  \cline{2-2}
-               & $w_{p,1}$ \\
-                  \cline{2-2}
-               & $\vdots$ \\
-                  \cline{2-2}
-               & $w_{p,m}$ \\
-                  \cline{2-2}
-                  $c_0' \rightarrow$   & Restore code \\
-               & $\vdots$\\
-                  \cline{2-2}
-               & local stack\\
-               & $\vdots$\\
-                  \cline{2-2}
-                \end{tabular}
-                \hspace{1cm}
-                \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
-                  \multicolumn{2}{r}{Register file} \\
-                  \cline{2-2}
-                  $\pcreg$ & $c_{\pc}^{(3)}$\\
-                  \cline{2-2}
-                  $r_0$  & $c_0'$ \\
-                  \cline{2-2}
-                  $r_{\var{stk}}$  & $c_{\var{stk}}''$ \\
-                  \cline{2-2}
-                  $r_{\var{args},1}$ & $w_{a,1}$ \\
-                  \cline{2-2}
-                           & $\vdots$ \\
-                  \cline{2-2}
-                  $r_{\var{args},n}$ & $w_{a,n}$\\
-                  \cline{2-2}
-                  $r_{\var{priv},1}$ & 0\\
-                  \cline{2-2}
-                           & $\vdots$ \\
-                  \cline{2-2}
-                  $r_{\var{priv},m}$ & 0 \\
-                  \cline{2-2}
-                           & $\vdots$ \\
-                  \cline{2-2}
-                \end{tabular}
-                \caption{ Stack and register-file after the $c_{\var{stk}}'$ has been limited to only give authority over the empty part of the stack (the new capability is $c_{\var{stk}}''$). The empty part of the stack has been cleared. $c_0'$ is made from $c_{\var{stk}}'$ by setting it to point to the restore code and restricting it to a local enter-capability. The ``private'' registers have been cleared.}
-              \end{figure}
-
-
-              \begin{figure}
-                \label{fig:stack-upon-return}
-                \centering
-                \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
-                  \multicolumn{2}{l}{Stack} \\
-                  \cline{2-2}
-               & \\
-               & $\vdots$\\
-                  \cline{2-2} 
-               & $?$\\
-                  \cline{2-2} 
-                  $c_{\var{stk}}' \rightarrow$  & $c_{\var{stk}}'$ \\
-                  \cline{2-2}
-               & $c_\pc'$ \\
-                  \cline{2-2}
-               & $c_0$ \\
-                  \cline{2-2}
-               & $w_{p,1}$ \\
-                  \cline{2-2}
-               & $\vdots$ \\
-                  \cline{2-2}
-               & $w_{p,m}$ \\
-                  \cline{2-2}
-                  $c_0' \rightarrow$   & Restore code \\
-               & $\vdots$\\
-                  \cline{2-2}
-               & local stack\\
-               & $\vdots$\\
-                  \cline{2-2}
-                \end{tabular}
-                \hspace{1cm}
-                \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
-                  \multicolumn{2}{r}{Register file} \\
-                  \cline{2-2}
-                  $\pcreg$ & $c_0'$\\
-                  \cline{2-2}
-                  $r_0$  &  ? \\
-                  \cline{2-2}
-                  $r_{\var{stk}}$  & ? \\
-                  \cline{2-2}
-                  $r_1$ & $w_1$ \\
-                  \cline{2-2}
-                  $r_{\var{priv},1}$ & ?\\
-                  \cline{2-2}
-                           & $\vdots$ \\
-                  \cline{2-2}
-                  $r_{\var{priv},m}$ & ? \\
-                  \cline{2-2}
-                           & $\vdots$ \\
-                  \cline{2-2}
-                \end{tabular}
-                \caption{ Stack and register-file upon return from $f$. At this point we have no idea what is in the register-file apart from the $\pcreg$ which we know points to the restore code. The contents of the stack we released access to is also unknown. (Notice that we have changed the order of the registers as we are no longer interested in the argument registers. By convention we expect a return value to be in $r_1$, which is why we have named that word, but the words in the remaining non-special-purpose registers could also be considered return values.)}
-              \end{figure}
-
-
-              \begin{figure}
-                \label{fig:stack-after-restore-code}
-                \centering
-                \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
-                  \multicolumn{2}{l}{Stack} \\
-                  \cline{2-2}
-               & \\
-               & $\vdots$\\
-                  \cline{2-2}
-               & ? \\
-                  \cline{2-2}
-                  $c_{\var{stk}}^{(3)} \rightarrow$  & $c_0$ \\
-                  \cline{2-2}
-               & $w_{p,1}$ \\
-                  \cline{2-2}
-               & $\vdots$ \\
-                  \cline{2-2}
-               & $w_{p,m}$ \\
-                  \cline{2-2}
-               & Restore code \\
-               & $\vdots$\\
-                  \cline{2-2}
-               & local stack\\
-               & $\vdots$\\
-                  \cline{2-2}
-                \end{tabular}
-                \hspace{1cm}
-                \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
-                  \multicolumn{2}{r}{Register file} \\
-                  \cline{2-2}
-                  $\pcreg$ & $c_\pc'$\\
-                  \cline{2-2}
-                  $r_0$  &  ? \\
-                  \cline{2-2}
-                  $r_{\var{stk}}$  & $c_{\var{stk}}^{(3)}$ \\
-                  \cline{2-2}
-                  $r_1$ & $w_1$ \\
-                  \cline{2-2}
-                  $r_{\var{priv},1}$ & ?\\
-                  \cline{2-2}
-                           & $\vdots$ \\
-                  \cline{2-2}
-                  $r_{\var{priv},m}$ & ? \\
-                  \cline{2-2}
-                           & $\vdots$ \\
-                  \cline{2-2}
-                \end{tabular}
-                \caption{ Stack and register-file after executing the restore code. The old stack capability has been restored and the  $\pcreg$-register now points to the return address in memory. }
-              \end{figure}
-
-              \begin{figure}
-                \label{fig:stack-after-restore-code}
-                \centering
-                \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
-                  \multicolumn{2}{l}{Stack} \\
-                  \cline{2-2}
-               & \\
-               & $\vdots$\\
-                  \cline{2-2}
-               & ? \\
-                  \cline{2-2}
-                  $ \rightarrow$  & $c_0$ \\
-                  \cline{2-2}
-               & $w_{p,1}$ \\
-                  \cline{2-2}
-               & $\vdots$ \\
-                  \cline{2-2}
-               & $w_{p,m}$ \\
-                  \cline{2-2}
-               & Restore code \\
-               & $\vdots$\\
-                  \cline{2-2}
-                  $c_\stk \rightarrow$  & local stack\\
-               & $\vdots$\\
-                  \cline{2-2}
-                \end{tabular}
-                \hspace{1cm}
-                \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
-                  \multicolumn{2}{r}{Register file} \\
-                  \cline{2-2}
-                  $\pcreg$ & $c_\pc^{(3)}$\\
-                  \cline{2-2}
-                  $r_0$  &  $c_0$ \\
-                  \cline{2-2}
-                  $r_{\var{stk}}$  & $c_{\var{stk}}$ \\
-                  \cline{2-2}
-                  $r_1$ & $w_1$ \\
-                  \cline{2-2}
-                  $r_{\var{priv},1}$ & $w_{p,1}$\\
-                  \cline{2-2}
-                           & $\vdots$ \\
-                  \cline{2-2}
-                  $r_{\var{priv},m}$ & $w_{p,m}$ \\
-                  \cline{2-2}
-                           & $?$ \\
-                  \cline{2-2}
-                           & $\vdots$ \\
-                  \cline{2-2}
-                \end{tabular}
-                \caption{ Stack and register-register file after the clean up code has been run. The ``private'' words have been popped to their respective registers. The restore code has been popped off the stack. }
-              \end{figure}
+\item[\texttt{prepstack} $r$] Tests if register $r$ contains a capability with permission $\rwlx$. If not fail, otherwise assume $r$ points to $((\rwlx,\gl),\start,\addrend,\addr)$ adjust it to $((\rwlx,\gl),\start,\addrend,\start - 1)$.\\
+Possible implementation
+\begin{lstlisting}
+  reqperm r encodePerm(rwlx)
+  getb r_t1 r
+  geta r_t2 r
+  minus r_t1 r_t1 r_t2
+  lea r r_t1
+  minus r_t1 0 1
+  lea r r_t1
+  move r_t1 0
+  move r_t2 0
+\end{lstlisting}
+  \lau{What if the stack starts at address 0? Changing the stack convention to always point at the first free cell will get rid of this problem (because our memory us uncapped.)}\lau{Seeing as we did not change this: It does not give a problem as such because this would cause the machine to fail which is considered acceptable. It would also be possible to make a more ``sofisticated'' implementation that special cases on this and simply throws the first address away.}
+\end{description}
+Note:
+\begin{itemize}
+\item In a real setting due to a limited number of registers, some of the arguments might be spilled to the stack. It would be possible to do something similar here, but to keep
+  matters simple, we opt not to do so.
+\item \texttt{reqperm} can be used to test whether something can pass as a stack.
+\item \texttt{reqglob} can be used to test whether a callback is admissible in the presence of a stack.
+\item The code of a closure will often be found in conjunction with the code that creates it.
+\item \texttt{prepstack} as ``prepare stack''. This ensures that the register contains something that looks like a stack and it is prepared for our stack convention.
+\end{itemize}
+\begin{figure}
+  \label{fig:stack-before-call}
+  \centering
+  \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+    \multicolumn{2}{l}{Stack} \\
+    \cline{2-2}
+ & \\
+ & $\vdots$\\
+    \cline{2-2}
+ & 0 \\
+    \cline{2-2}
+    $c_{\var{stk}} \rightarrow$   & local stack\\
+ & $\vdots$\\
+    \cline{2-2}
+  \end{tabular}
+  \hspace{1cm}
+  \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
+    \multicolumn{2}{r}{Register file} \\
+    \cline{2-2}
+    $\pcreg$ & $c_{\pc}$\\
+    \cline{2-2}
+    $r_0$  & $c_0$ \\
+    \cline{2-2}
+    $r_{\var{stk}}$  & $c_{\var{stk}}$ \\
+    \cline{2-2}
+    $r_{\var{args},1}$ & $w_{a,1}$ \\
+    \cline{2-2}
+             & $\vdots$ \\
+    \cline{2-2}
+    $r_{\var{args},n}$ & $w_{a,n}$\\
+    \cline{2-2}
+    $r_{\var{priv},1}$ & $w_{p,1}$\\
+    \cline{2-2}
+             & $\vdots$ \\
+    \cline{2-2}
+    $r_{\var{priv},m}$ & $w_{p,m}$\\
+    \cline{2-2}
+             & $\vdots$ \\
+    \cline{2-2}
+  \end{tabular}
+  \caption{This is the first figure of 6 that illustrates how \texttt{scall} works. In this example, the call \texttt{scall $r([r_{\var{args},1},\dots,r_{\var{args},n}],[r_0,r_{\var{priv},1},\dots,r_{\var{priv},m}])$. In this example the two lists of registers are disjoint even though that does not have to be the case.}}
+\end{figure}
 
 
-              \subsection{Labels}
-              \texttt{l:} is a meta level label that can be used to refer to a specific address. When placed on the line of a macro, it refers to the first instruction of this macro.
+\begin{figure}
+  \label{fig:stack-after-push}
+  \centering
+  \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+    \multicolumn{2}{l}{Stack} \\
+    \cline{2-2}
+ & \\
+ & $\vdots$\\
+    \cline{2-2}
+    $c_{\var{stk}}' \rightarrow$  & $c_{\var{stk}}'$ \\
+    \cline{2-2}
+ & $c_\pc'$ \\
+    \cline{2-2}
+ & $c_0$ \\
+    \cline{2-2}
+ & $w_{p,1}$ \\
+    \cline{2-2}
+ & $\vdots$ \\
+    \cline{2-2}
+ & $w_{p,m}$ \\
+    \cline{2-2}
+ & Restore code \\
+    \cline{2-2}
+ & local stack\\
+ & $\vdots$ \\
+    \cline{2-2}
+  \end{tabular}
+  \hspace{1cm}
+  \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
+    \multicolumn{2}{r}{Register file} \\
+    \cline{2-2}
+    $\pcreg$ & $c_{\pc}''$\\
+    \cline{2-2}
+    $r_0$  & $c_0$ \\
+    \cline{2-2}
+    $r_{\var{stk}}$  & $c_{\var{stk}}'$ \\
+    \cline{2-2}
+    $r_{\var{args},1}$ & $w_{a,1}$ \\
+    \cline{2-2}
+             & $\vdots$ \\
+    \cline{2-2}
+    $r_{\var{args},n}$ & $w_{a,n}$\\
+    \cline{2-2}
+    $r_{\var{priv},1}$ & $w_{p,1}$\\
+    \cline{2-2}
+             & $\vdots$ \\
+    \cline{2-2}
+    $r_{\var{priv},m}$ & $w_{p,m}$\\
+    \cline{2-2}
+             & $\vdots$ \\
+    \cline{2-2}
+  \end{tabular}
+  \caption{Stack and register-file after the restore code, ``private'' registers (remember $r_0$ is here private.), return address ($c_\pc'$), and stack capability ($c_{\var{stk}}'$) have been pushed to the stack.}
+\end{figure}
 
-              \section{Examples}
-              \label{sec:examples}
-%               \lau{This text regards the ML-like programs and can be removed when they are.}
-%               In the below, let \texttt{assert(e)} do the following: evaluate \texttt{e} if it evaluates to true, then continue execution, otherwise terminate where a designated assertion flag is set to 1. The assertion flag is assumed to start as 0 and is different from function to function (so in the program below, \texttt{adv} cannot directly use the assertion flag of \texttt{f}). Notice that an assertion will never terminate in a $\failed$ state.
-%               \subsubsection{Simple use of local capabilities}
-%               The following programs only use local capabilities when they create protected return pointers. The strength of this is, however, not shown as the untrusted code only gets one chance to execute.
+\begin{figure}
+  \label{fig:stack-after-restrict-and-zero}
+  \centering
+  \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+    \multicolumn{2}{l}{Stack} \\
+    \cline{2-2}
+ & \\
+ & $\vdots$\\
+    \cline{2-2}
+ & $?$\\
+    \cline{2-2}
+    $c_{\var{stk}}'' \rightarrow$  & $c_{\var{stk}}'$ \\
+    \cline{2-2}
+ & $c_\pc'$ \\
+    \cline{2-2}
+ & $c_0$ \\
+    \cline{2-2}
+ & $w_{p,1}$ \\
+    \cline{2-2}
+ & $\vdots$ \\
+    \cline{2-2}
+ & $w_{p,m}$ \\
+    \cline{2-2}
+    $c_0' \rightarrow$   & Restore code \\
+ & $\vdots$\\
+    \cline{2-2}
+ & local stack\\
+ & $\vdots$\\
+    \cline{2-2}
+  \end{tabular}
+  \hspace{1cm}
+  \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
+    \multicolumn{2}{r}{Register file} \\
+    \cline{2-2}
+    $\pcreg$ & $c_{\pc}^{(3)}$\\
+    \cline{2-2}
+    $r_0$  & $c_0'$ \\
+    \cline{2-2}
+    $r_{\var{stk}}$  & $c_{\var{stk}}''$ \\
+    \cline{2-2}
+    $r_{\var{args},1}$ & $w_{a,1}$ \\
+    \cline{2-2}
+             & $\vdots$ \\
+    \cline{2-2}
+    $r_{\var{args},n}$ & $w_{a,n}$\\
+    \cline{2-2}
+    $r_{\var{priv},1}$ & 0\\
+    \cline{2-2}
+             & $\vdots$ \\
+    \cline{2-2}
+    $r_{\var{priv},m}$ & 0 \\
+    \cline{2-2}
+             & $\vdots$ \\
+    \cline{2-2}
+  \end{tabular}
+  \caption{ Stack and register-file after the $c_{\var{stk}}'$ has been limited to only give authority over the empty part of the stack (the new capability is $c_{\var{stk}}''$). The empty part of the stack has been cleared. $c_0'$ is made from $c_{\var{stk}}'$ by setting it to point to the restore code and restricting it to a local enter-capability. The ``private'' registers have been cleared.}
+\end{figure}
+
+
+\begin{figure}
+  \label{fig:stack-upon-return}
+  \centering
+  \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+    \multicolumn{2}{l}{Stack} \\
+    \cline{2-2}
+ & \\
+ & $\vdots$\\
+    \cline{2-2} 
+ & $?$\\
+    \cline{2-2} 
+    $c_{\var{stk}}' \rightarrow$  & $c_{\var{stk}}'$ \\
+    \cline{2-2}
+ & $c_\pc'$ \\
+    \cline{2-2}
+ & $c_0$ \\
+    \cline{2-2}
+ & $w_{p,1}$ \\
+    \cline{2-2}
+ & $\vdots$ \\
+    \cline{2-2}
+ & $w_{p,m}$ \\
+    \cline{2-2}
+    $c_0' \rightarrow$   & Restore code \\
+ & $\vdots$\\
+    \cline{2-2}
+ & local stack\\
+ & $\vdots$\\
+    \cline{2-2}
+  \end{tabular}
+  \hspace{1cm}
+  \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
+    \multicolumn{2}{r}{Register file} \\
+    \cline{2-2}
+    $\pcreg$ & $c_0'$\\
+    \cline{2-2}
+    $r_0$  &  ? \\
+    \cline{2-2}
+    $r_{\var{stk}}$  & ? \\
+    \cline{2-2}
+    $r_1$ & $w_1$ \\
+    \cline{2-2}
+    $r_{\var{priv},1}$ & ?\\
+    \cline{2-2}
+             & $\vdots$ \\
+    \cline{2-2}
+    $r_{\var{priv},m}$ & ? \\
+    \cline{2-2}
+             & $\vdots$ \\
+    \cline{2-2}
+  \end{tabular}
+  \caption{ Stack and register-file upon return from $f$. At this point we have no idea what is in the register-file apart from the $\pcreg$ which we know points to the restore code. The contents of the stack we released access to is also unknown. (Notice that we have changed the order of the registers as we are no longer interested in the argument registers. By convention we expect a return value to be in $r_1$, which is why we have named that word, but the words in the remaining non-special-purpose registers could also be considered return values.)}
+\end{figure}
+
+
+\begin{figure}
+  \label{fig:stack-after-restore-code}
+  \centering
+  \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+    \multicolumn{2}{l}{Stack} \\
+    \cline{2-2}
+ & \\
+ & $\vdots$\\
+    \cline{2-2}
+ & ? \\
+    \cline{2-2}
+    $c_{\var{stk}}^{(3)} \rightarrow$  & $c_0$ \\
+    \cline{2-2}
+ & $w_{p,1}$ \\
+    \cline{2-2}
+ & $\vdots$ \\
+    \cline{2-2}
+ & $w_{p,m}$ \\
+    \cline{2-2}
+ & Restore code \\
+ & $\vdots$\\
+    \cline{2-2}
+ & local stack\\
+ & $\vdots$\\
+    \cline{2-2}
+  \end{tabular}
+  \hspace{1cm}
+  \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
+    \multicolumn{2}{r}{Register file} \\
+    \cline{2-2}
+    $\pcreg$ & $c_\pc'$\\
+    \cline{2-2}
+    $r_0$  &  ? \\
+    \cline{2-2}
+    $r_{\var{stk}}$  & $c_{\var{stk}}^{(3)}$ \\
+    \cline{2-2}
+    $r_1$ & $w_1$ \\
+    \cline{2-2}
+    $r_{\var{priv},1}$ & ?\\
+    \cline{2-2}
+             & $\vdots$ \\
+    \cline{2-2}
+    $r_{\var{priv},m}$ & ? \\
+    \cline{2-2}
+             & $\vdots$ \\
+    \cline{2-2}
+  \end{tabular}
+  \caption{ Stack and register-file after executing the restore code. The old stack capability has been restored and the  $\pcreg$-register now points to the return address in memory. }
+\end{figure}
+
+\begin{figure}
+  \label{fig:stack-after-restore-code}
+  \centering
+  \begin{tabular}[!h]{r | >{\raggedright\arraybackslash}p{3cm} |}
+    \multicolumn{2}{l}{Stack} \\
+    \cline{2-2}
+ & \\
+ & $\vdots$\\
+    \cline{2-2}
+ & ? \\
+    \cline{2-2}
+    $ \rightarrow$  & $c_0$ \\
+    \cline{2-2}
+ & $w_{p,1}$ \\
+    \cline{2-2}
+ & $\vdots$ \\
+    \cline{2-2}
+ & $w_{p,m}$ \\
+    \cline{2-2}
+ & Restore code \\
+ & $\vdots$\\
+    \cline{2-2}
+    $c_\stk \rightarrow$  & local stack\\
+ & $\vdots$\\
+    \cline{2-2}
+  \end{tabular}
+  \hspace{1cm}
+  \begin{tabular}{r | >{\centering\arraybackslash}p{0.75cm} |}
+    \multicolumn{2}{r}{Register file} \\
+    \cline{2-2}
+    $\pcreg$ & $c_\pc^{(3)}$\\
+    \cline{2-2}
+    $r_0$  &  $c_0$ \\
+    \cline{2-2}
+    $r_{\var{stk}}$  & $c_{\var{stk}}$ \\
+    \cline{2-2}
+    $r_1$ & $w_1$ \\
+    \cline{2-2}
+    $r_{\var{priv},1}$ & $w_{p,1}$\\
+    \cline{2-2}
+             & $\vdots$ \\
+    \cline{2-2}
+    $r_{\var{priv},m}$ & $w_{p,m}$ \\
+    \cline{2-2}
+             & $?$ \\
+    \cline{2-2}
+             & $\vdots$ \\
+    \cline{2-2}
+  \end{tabular}
+  \caption{ Stack and register-register file after the clean up code has been run. The ``private'' words have been popped to their respective registers. The restore code has been popped off the stack. }
+\end{figure}
+
+
+\subsection{Labels}
+\texttt{l:} is a meta level label that can be used to refer to a specific address. When placed on the line of a macro, it refers to the first instruction of this macro.
+
+\section{Examples}
+\label{sec:examples}
+% \lau{This text regards the ML-like programs and can be removed when they are.}
+% In the below, let \texttt{assert(e)} do the following: evaluate \texttt{e} if it evaluates to true, then continue execution, otherwise terminate where a designated assertion flag is set to 1. The assertion flag is assumed to start as 0 and is different from function to function (so in the program below, \texttt{adv} cannot directly use the assertion flag of \texttt{f}). Notice that an assertion will never terminate in a $\failed$ state.
+% \subsubsection{Simple use of local capabilities}
+% The following programs only use local capabilities when they create protected return pointers. The strength of this is, however, not shown as the untrusted code only gets one chance to execute.
 
 %               ML-like program we had before:
 % \begin{verbatim}
@@ -1793,7 +2046,7 @@ f2: push 1
     \item $W' = \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk\uplus\ms_{\mathit{act}}),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}'))]$,
     \item $\memSat[n-k-1]{\ms''}{W'}$
     \item $\reg' \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}}'$ unused}$
-    \item $\reg'= \reg_0[\pcreg\mapsto\updatePcPerm{c_\adv},r_0 \mapsto c_{\mathit{ret}}, r_\stk \mapsto c_\stk, r_\adv \mapsto c_\adv]$ 
+    \item $\reg'= \reg_0[\pcreg\mapsto\updatePcPerm{c_\adv},r_0 \mapsto c_{\mathit{ret}}, r_\stk \mapsto c_\stk', r_\adv \mapsto c_\adv]$ 
     \item $\npair[n-k-1]{c_{\mathit{ret}}} \in \stdvr(W')$
     \item $\npair[n-k-1]{c_\stk'} \in \stdvr(W')$
     \end{itemize}
@@ -1807,7 +2060,7 @@ f2: push 1
     \]
     getting the desired result amounts to\footnote{We have memory satisfaction by assumption and the above entails the register-file is in the register-file relation.}
     \begin{enumproof}
-      \item $\npair[n-k-1]{c_\adv} \in \stdvr{W}$ \\
+      \item $\npair[n-k-1]{c_\adv} \in \stdvr(W)$ \\
         To this end let $n' < n-k-1$ and $W'' \futurestr W'$ be given and show
         \[
           \npair[n']{\updatePcPerm{c_\adv}} \in \stder(W'')
@@ -1821,7 +2074,7 @@ f2: push 1
     \item $W'' \futurewk \revokeTemp{W}$
     \item $\memSat[n']{\ms''}{\revokeTemp{W''}}$ 
     \item $\reg''(\pcreg) = c_{\mathit{next}}$
-    \item $\reg'' \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}''$ unused}$ for some $\ms_{\mathit{unused}}''$
+   \item $\reg'' \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}''$ unused}$ for some $\ms_{\mathit{unused}}''$
     \end{itemize}
     and show
     \[
@@ -2556,7 +2809,7 @@ We use Lemma~\ref{lem:scall-works} (we do not use the local frame in the lemma) 
 \subsection{Inverted Control and Return From Closure}
 The following example is constructed to investigate the difficulties of preserving an adversary's local frame. There is no assertion as this is (slightly) beside the point. The lemma we would prove about this should look like Lemma~\ref{lem:correctness-g1}, but it is not state and proven here.
 \begin{lstlisting}
-g2:  move $\pcreg$ $r_3$
+g2:  move $r_3$ $\pcreg$
      lea $r_3$ $\dots$
      crtcls $[]$ $r_3$
      rclear $\RegName \setminus \{\pcreg,r_0,r_1 \}$
@@ -3282,7 +3535,7 @@ Memory segment satisfaction:
 Standard regions for when writing locally is permitted:
 \begin{align*}
   &\iota^\pwl : \cal{P} \fun \Regions\\
-  &\iota^\pwl\;A \defeq (\temp,1,=,=,H^\pwl \; S) \\
+  &\iota^\pwl\;A \defeq (\temp,1,=,=,H^\pwl \; A) \\
   \\
   &H^\pwl : \cal{P}(\Addrs) \fun \States \fun (\Wor \monwknefun \UPred{\HeapSegments})\\
   &H^\pwl\; A \; s \; \hat{W} \defeq \left\{\npair{\hs} \middle|
