@@ -932,7 +932,56 @@ load r r // f capability loaded to register r
                     % \item Clear all registers but $r_1$, $\pcreg$, and $\bar{r}_{\var{priv}}$.
                   \item Load the return capability to $\pcreg$
                   \end{itemize}
-                \end{description}
+                \end{description} 
+Possible implementation. We will use $\texttt{malloc $r$ $n$}$ and \texttt{rclear $\bar{r}$} (defined below). Assume $\bar{r_{\var{priv}}} = r_{\var{priv},1}, \dots, r_{\var{priv},n}$
+\begin{lstlisting}
+  malloc r_t ... // ... is the size of activation record
+// store private state in activation record
+  store r_t r_priv,1
+  lea r_t 1
+  store r_t r_priv,2
+  lea r_t 1
+  ...
+  lea r_t 1
+  store r_t r_priv,n
+  lea r_t 1
+// store old pc
+  move r_t1 pc
+  lea r_t1 ... // ... is the offset to return address
+  store r_t r_t1
+  lea r_t1 1
+// store activation record
+  store r_t encode(i_1)
+  lea r_t1 1
+  ...
+  lea r_t1 1  
+  store r_t encode(i_m)
+  lea r_t1 k //  k is m-1, i.e. the offset to the first instruction of the activation code.
+  restrict r_t1 encodePermPair((Local,e))
+  move r_0 r_t1
+  rclear R // R = RegisterName - {r,pc,r_0,r_args}
+  jmp r
+\end{lstlisting}
+Activation record. The instructions correspond to $i_1,\dots,i_m$ in the above.
+\begin{lstlisting}
+  move r_t pc
+  getb r_t1 r_t
+  geta r_t2 r_t
+  minus r_t1 r_t1 r_t2
+// load private state
+  lea r_t r_t1
+  load r_priv,1 r_t
+  lea r_t 1
+  load r_priv,2 r_t
+  lea r_t 1
+  ...
+  lea r_t 1
+  load r_priv,n r_t
+  lea r_t 1
+// load old pc
+  load pc r_t
+\end{lstlisting}
+ 
               \item[\texttt{malloc $r$ $n$}] Calls malloc to allocates a piece of memory of size $n$. The capability will be stored in register $r$. 
 One possible malloc implementation (r\_t1 is a register in RegName\_t) and r\_1 is the register from the malloc specification.
 \begin{lstlisting}
