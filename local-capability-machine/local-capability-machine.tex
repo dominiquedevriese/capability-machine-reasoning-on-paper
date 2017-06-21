@@ -116,6 +116,7 @@
 \newcommand{\word}{\var{w}}
 \newcommand{\start}{\var{base}}
 \newcommand{\addrend}{\var{end}}
+\newcommand{\inftyend}{-42}
 \newcommand{\pwlv}{\var{pwl}}
 \newcommand{\mem}{\var{mem}}
 \newcommand{\reg}{\var{reg}}
@@ -353,7 +354,7 @@
 
 \begin{align*}
   \Addrs &\isdef \nats\\
-  \Words &\isdef \Caps + \ints + \{ \infty \} \\
+  \Words &\isdef \Caps + \ints \\
   \Regs  &\isdef \RegName \rightarrow \Words\\
   \Heaps &\isdef \Addrs \rightarrow \Words \\
   \Perms &\bnfdef  \noperm\mid \readonly\mid \readwrite\mid \readwritel\mid \exec\mid \entry\mid \rwx\mid \rwlx\\
@@ -365,7 +366,7 @@
 \end{align*}
 Local capabilities have been added by adding a new domain $\Globals$ which represents whether a capability is local or global. There are two new permissions $\readwritel$ and $\rwlx$ that permits writing local capabilities. They are otherwise the same as their non-''permit write local'' counterparts.
 
-Infinity is a possible end address because we want to be able to have a capability for all of the memory. It is also a word, so it is possible to have the end address of such a capability in memory and compare it to other values.
+As we have $\infty$ as a possible address, but our words cannot express $\infty$. We pick $\inftyend$ as a representative for $\infty$ when it is in memory (we could have picked any negative noumber). Note that $\inftyend$ is not an address, so for address operations $\inftyend$ only represents $\infty$. It is the responsible of the programmer to keep track of what represents addresses (and take necessary precautions).
 
 Define the following predicate:
 \begin{definition}
@@ -667,13 +668,6 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                                               \quad\text{$n_i = \rv_i$ or $n_i = \memreg(\rv_i)$}\\
                                                               \quad\text{and in either case $n_i \in \ints$}
                                                             \end{array}\\
-                                                            \stdUpdatePc{\updateReg{r_1}{0}} &
-                                                            \arraycolsep=0pt
-                                                            \begin{array}[t]{l}
-                                                              \text{if for $i \in \{1,2\}$}\\
-                                                              \quad\text{$n_i = \rv_i$ or $n_i = \memreg(\rv_i)$}\\
-                                                              \quad\text{and in either case $n_i = \infty$}
-                                                            \end{array}\\
                                                             \failed & \text{otherwise}
                                                           \end{cases}\\
   \sem{\lt{\refreg{r_1}}{\rv_1}{\rv_2}}(\Phi)               & =
@@ -683,19 +677,12 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                                             \begin{array}[t]{l}
                                                               \text{if for $i \in \{1,2\}$}\\
                                                               \quad\text{$n_i = \rv_i$ or $n_i = \memreg(\rv_i)$}\\
-                                                              \quad\text{and in either case $n_1 \in \ints$ and $n_2 \in \ints \union \{\infty\}$}\\
+                                                              \quad\text{and in either case $n_i \in \ints$}\\
                                                               \quad\text{and $n_1 < n_2$}\\                                                              
                                                             \end{array}\\
-                                                            \stdUpdatePc{\updateReg{r_1}{0}} &
-                                                            \arraycolsep=0pt
-                                                            \begin{array}[t]{l}
-                                                              \text{if for $i \in \{1,2\}$}\\
-                                                              \quad\text{$n_i = \rv_i$ or $n_i = \memreg(\rv_i)$}\\
-                                                              \quad\text{and in either case $n_1 \in \ints$ and $n_2 \in \ints \union \{\infty\}$}\\
-                                                              \quad\text{and $n_1 \nless n_2$}\\                                                              
-                                                            \end{array}\\
                                                             \failed & \text{otherwise}
-                                                          \end{cases}\\
+                                                          \end{cases}
+\\
   \sem{\subseg{\refreg{r}}{\rv_1}{\rv_2}}(\Phi) & = 
                                             \begin{cases}
                                               \stdUpdatePc{\updateReg{r}{\var{c}}} &
@@ -704,8 +691,10 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                                 \text{if $\memreg(r) = \stdcap$} \\
                                                 \quad\text{and for $i \in \{1,2\}$}\\
                                                 \quad\text{$n_i = \rv_i$ or $n_i = \memreg(\rv_i)$}\\
-                                                \quad\text{and in either case $n_1 \in \ints$ and $n_2 \in \ints \union \{\infty\}$}\\
-                                                \quad\text{and $\start \leq n_1$ and $n_2 \leq \addrend$}\\
+                                                \quad\text{and in either case $n_1 \in \nats$}\\
+                                                \quad\text{and $\start \leq n_1$}\\
+                                                \quad\text{and $n_2 \leq \addrend$ where $n_2 \in \nats$}\\
+                                                \quad\quad\text{or $n_2=\inftyend$ and $\addrend = \infty$}\\
                                                 \quad\text{and $\perm \neq \entry$}\\
                                                 \quad\text{and $c = ((\perm,\gl),n_1,n_2,\addr)$}
                                               \end{array} \\
@@ -737,7 +726,12 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
                                               \stdUpdatePc{\updateReg{r_1}{\addrend}} &
                                               \arraycolsep=0pt
                                               \begin{array}[t]{l}
-                                                \text{if $\memreg(r_2) = ((\_,\_),\_,\addrend,\_)$}
+                                                \text{if $\memreg(r_2) = ((\_,\_),\_,\addrend,\_)$ and $\addrend \neq \infty$}
+                                              \end{array} \\
+                                              \stdUpdatePc{\updateReg{r_1}{\inftyend}} &
+                                              \arraycolsep=0pt
+                                              \begin{array}[t]{l}
+                                                \text{if $\memreg(r_2) = ((\_,\_),\_,\infty,\_)$}
                                               \end{array} \\
                                               \failed & \text{otherwise}
                                             \end{cases}
@@ -770,7 +764,7 @@ A number of functions and predicates used in the definition of $\sem{-}$ (define
 \end{align*}
 \lau{Our instruction set could use a less than operator.}
 \lau{Dominique, apparently there was a reason I had not added the new condition in store to $\writeAllowed{}$. The new condition depends on a case distinction on $w$. It is only if $w$ is a capability that we look into whether it is local or not. But even if $w$ is just an integer, we still need the capability we write through to have some kind of write permission.}
-\dominique{I see, but maybe writeAllowed could take $w$ and $c$ as an argument, rather than just $\perm$? It is now weird that some conditions for writing are in $\writeAllowed{}$, but not all.}
+\dominique{I see, but maybe writeAllowed could take $w$ and $c$ as an argument, ratheppppr than just $\perm$? It is now weird that some conditions for writing are in $\writeAllowed{}$, but not all.}
 
 \dominique{factor out reoccurring conditions of the form $n_i = \rv_i$ or $n_i =
   \memreg(\rv_i)$ into a function that evaluates an $\rv$ using a system state?
@@ -1741,7 +1735,7 @@ Note:
 
 \subsection{Labels}
 \texttt{l:} is a meta level label that can be used to refer to a specific address. When placed on the line of a macro, it refers to the first instruction of this macro.
-
+\clearpage
 \section{Examples}
 \label{sec:examples}
 % \lau{This text regards the ML-like programs and can be removed when they are.}
