@@ -1,5 +1,5 @@
 %% For double-blind review submission
-\documentclass[acmsmall,review]{acmart}\settopmatter{printfolios=true}
+\documentclass[anonymous,acmsmall,review]{acmart}\settopmatter{printfolios=true}
 %% For single-blind review submission
 %\documentclass[acmlarge,review]{acmart}\settopmatter{printfolios=true}
 %% For final camera-ready submission
@@ -672,7 +672,8 @@ capability machines. Specifically, we make the following contributions:
 %\lau{I have left out the discussion/future work, related work and conclussion sections from the outline given with the contribution. Do you feel like there should be a dedicated outline instead and if not should we mention the last sections (I don't feel it contributes anything to mention them).}
 
 For reasons of space, some details and all proofs have been omitted; please
-refer to the technical appendix~\citep{technical_appendix} for those.
+refer to the technical appendix~\citep{technical_appendix} for
+those.\dominique{upload TA as supplementary material instead?}
 
 % % Possible high-level intros:
 % % 0) Arms race compilers
@@ -1320,7 +1321,6 @@ could access the private data stored there by the trusted code and break
 local-state encapsulation.  
 \lau{Do we say anything about arguments to the callback? Specifically, it should not be okay to uncritically pass on argument we recieved from an adversary. Can we even to any extend allow local arguments that we pass on from an unknown source?}
 
-
 \textbf{Returning from the adversary} So return pointers must be passed as local
 capabilities. But what should their permissions be, what memory should they
 point to and what should that memory (the activation record) contain? Let us
@@ -1371,9 +1371,11 @@ write-local access, i.e.\ on the stack. Note that this means we will be placing
 and executing instructions on the stack, i.e.\ it will not just contain code
 pointers and data. This means that our calling convention should be combined
 with protection against stack smashing attacks (i.e.\ buffer overflows on the
-stack overwriting activation records' contents). Luckily, such protection is
-easy for a reasonable compiler to provide thanks to the capability machine's
-fine-grained memory protection\dominique{explain this point better}.
+stack overwriting activation records' contents). Luckily, the capability
+machine's fine-grained memory protection should make it reasonably easy for a
+compiler to implement such protection, by making sure that only appropriately
+bounded versions of the stack pointer are made available to source language
+code.
 
 \textbf{Invoking an adversary callback} If we have a higher-order interface to
 the adversary, we may need to invoke an adversary callback. In this case, not so
@@ -1384,7 +1386,7 @@ an $\exec$ capability if they are not worried about that. However, there is one
 scenario that we need to prevent: if they construct the callback capability to
 point into the stack, it may contain local capabilities that they should not
 have access to upon invocation of the callback. As before, this includes return
-pointers and stack pointers from previous stack frames that they may be
+and stack pointers from previous stack frames that they may be
 trying to illegally use inside the callback.
 
 To prevent this, we only accept callbacks from the adversary in the form of
@@ -1406,25 +1408,26 @@ the allocated block and pointing to the contained prelude instructions. However,
 the question that remains in this setup is: from where do we get a stack pointer when
 the callback is invoked?
 
-Our answer is that the adversary should provide it to us, much like we provide
+Our answer is that the adversary should provide it to us, just as we provide
 them with a stack pointer when we invoke their code. However, it is important
 that we do not just accept any capability as a stack pointer but check that it
-is safe to use. Specifically, we check that it is indeed a $\rwlx$ capability. Without
+is safe to use. Specifically, we check that it is indeed an $\rwlx$ capability. Without
 this check, an adversary could potentially get control over our local stack
-frame during a callback by passing us a local $\rwx$ capability to a global data
+frame during a subsequent callback by passing us a local $\rwx$ capability to a global data
 structure instead of a proper stack pointer
 and a global callback for our callback to invoke. If our local state contains no
 local capabilities, then, following our calling convention, the callback would
 not fail and the adversary could use a stored capability for the global data
 structure to access our local state. To prevent this from happening, we need to
-make sure the stack capability gives $\rwlx$ authority, since the system wide assumption then
+make sure the stack capability carries $\rwlx$ authority, since the system wide assumption then
 tells us that the adversary cannot have global capabilities to our local stack.
 
 \textbf{Calling convention} With the security measures introduced and motivated,
 let us summarize our proposed calling convention:
 \begin{description}[font=\normalfont\itshape]
 \item[At program start-up] A local $\rwlx$ stack pointer resides in register $r_\stk$. No global write-local capabilities.
-\item[Before returning to the adversary] Clear non-return-value registers. Clear the part of the stack we had access to.
+\item[Before returning to the adversary] Clear non-return-value registers. Clear
+  the part of the stack we had access to (not just the part we used).
 \item[Before invoking the adversary] Push activation record to the stack. Create
   return pointer as local $\entry$-capability to the instructions in the record.
   Restrict the stack capability to the unused part and clear it. Clear
@@ -1485,6 +1488,10 @@ not immediately dive into the details, but we first try to provide some informal
 intuition about how all of this machinery comes into play in our setting, in the
 next section.
 
+Note: even though the calling convention is the main application in this paper,
+the logical relation we construct is very general and should be regarded as an
+independent contribution.
+
 \subsection{Formalizing the guarantees of the capability machine}
 \label{sec:formalizing-guarantees}
 What differentiates a capability machine from a more standard assembly language
@@ -1522,7 +1529,7 @@ To make this more precise, we need to define the set $\stdvr(W) \in
 should only include words that preserve $W$'s invariants under any interaction,
 but should otherwise be as liberal as possible. Numbers are clearly always safe,
 as they cannot be used to break invariants. Whether a capability is safe depends
-on the authority that it grants. In the above-described world, a read capability
+on the authority that it carries. In the above-described world, a read capability
 for address $0$ is safe, as it can only be used to read the value $42$, which is
 itself safe. However, a write capability for address $0$ is not safe: it can be
 used to overwrite the memory at that address with a value other than $42$,
@@ -1534,10 +1541,10 @@ $[b,e]$ is safe, if the world guarantees that the words at those addresses are
 themselves safe. However, this definition is cyclic: what if the world
 guarantees that the memory at address $a$ will contain a read capability for
 address $a$? The definition then just says that a read capability for address
-$a$ is safe iff the same read capability for address $a$ is safe. This form of
+$a$ is safe if and only if the same read capability for address $a$ is safe. This form of
 cyclic reasoning is related to similar challenges in languages with recursive
 types or higher-order ML-style references, and a standard solution is
-to use step-indexing: Essentially, the cycle is broken by defining safety up to a
+to use step-indexing \citep{Appel:2001:IMR:504709.504712}: essentially, the cycle is broken by defining safety up to a
 certain number of interaction steps. All words will be considered
 safe up to $0$ steps (since if there is no interaction, nothing unsafe
 can happen), and, for example, a read capability will be safe up to $n$
@@ -1556,7 +1563,7 @@ we define valid ways for a world $W$ to evolve into a new world $W'$ through a
 future-world relation $W' \future W$ and we ensure that the set of safe words in
 world $W$ must remain safe in any future world $W'$. Defining safety w.r.t.\ a
 notion of evolvable worlds makes our logical relation into a \emph{Kripke}
-logical relation.
+logical relation \citep{pitts_operational_1998}.
 
 \paragraph{Invariants and Recursive Worlds}
 So worlds group a set of memory invariants, but how are they actually
@@ -1584,7 +1591,7 @@ capabilities and their special treatment by the hardware. Normally, when we
 invoke an untrusted piece of code and provide it with certain global
 capabilities, it may have stored those capabilities in memory and we will only
 be able to reinvoke the code if we can guarantee that those values are still
-valid. Formally, worlds represent the invariants that the global capabilities'
+valid. Formally, worlds represent the invariants that global capabilities'
 safety relies on and the reinvocation is only safe in future worlds, where the
 invariants are respected.
 
@@ -1610,8 +1617,8 @@ worlds that has been previously used in the literature (see
 Section~\ref{sec:discussion}). However, temporary regions are new in our setting
 and there is an interesting interplay with the recursiveness of the worlds: for
 a temporary region, the predicate $H \in \Worlds \rightarrow
-\powerset{\MemSegments}$ (which defines which memory segments are safe in the
-current state of the world) is only required to be monotone w.r.t.\ public
+\powerset{\MemSegments}$ (which defines the safe memory segments in the
+current world) is only required to be monotone w.r.t.\ public
 future worlds (i.e.\ safe memory segments remain safe in public future worlds),
 but for permanent regions, it must be monotone w.r.t.\ private future worlds.
 As a consequence, the memory for a permanent region may not contain local
@@ -1622,7 +1629,7 @@ general sanity requirement when using local capabilities\footnote{In fact, local
   global, write-local capability.})\footnote{For explanation purposes, this
   discussion ignores certain ways to allow for local capabilities in a permanent
   region, for example, by not requiring that they are valid or requiring that
-  they are local versions of valid global capabilities etc.}.
+  they are local versions of valid global capabilities.}.
 
 \subsection{Worlds}
 \begin{figure}
@@ -1655,8 +1662,8 @@ high-level
 languages~\citep{Ahmed:popl09,Dreyer:jfp12,Devriese:2016ObjCap}. Protocols
 imposed by permanent regions stay in place indefinitely. Any capability, local
 or global, can depend on these protocols. Protocols imposed by temporary regions
-can be revoked at certain points during execution, on the condition that we
-clear local capabilities when this happens. This means that local capabilities
+can be revoked in private future worlds. Doing this may break the safety of
+local capbalities but not global ones. This means that local capabilities
 can safely depend on the protocols imposed by temporary regions, but global
 capabilities cannot, since a global capability may outlive a temporary region
 that is revoked. This is illustrated in \figurename~\ref{fig:cap-world}.
@@ -1684,11 +1691,10 @@ region. Masking a region like this goes back to earlier work of
 % of memory. To accommodate this, worlds need to be defined recursively: Worlds
 % describe memory, which can contain capabilities, whose safety is
 % world-dependent. 
-As described in Section~\ref{sec:formalizing-guarantees}, the safety of a world
-depends on the safety of its regions which in turn may depend on the safety of
-the values it contain which depend on the safety of a world. In other words, we
-need recursive worlds. Recursive worlds are a common requirement in Kripke
-models and the following lemma uses the method of
+As described in Section~\ref{sec:formalizing-guarantees}, regions define sets of
+safe memory segments, but this set may itself be world-dependent. In other
+words, our worlds are defined recursively. Recursive worlds are a common
+requirement in Kripke models and the following lemma uses the method of
 \citet{Birkedal:2011:SKM:1926385.1926401,Birkedal:tutorial-notes} for
 constructing them. The formulation of the lemma is technical, so we recommend
 that non-expert readers ignore the technicalities and accept that there exists a
@@ -1717,21 +1723,21 @@ safely ignored).
     W' \futurewk W & \Leftrightarrow \xi(W') \futurewk \xi(W)
   \end{align*}
 \end{theorem}
-In the above theorem, $\States \times \Rels$ corresponds to the
-aforementioned state transition system where $\Rels$ is a set of pairs
-of relations corresponding to the public and private transitions, and
-$\States$ is a sufficiently large set of states containing at least the
-states we use. The last part of the temporary and permanent regions is
-a state interpretation function that determines what memory segments
-the region permits in each state of its states. The different
-monotonicity requirements in the two interpretation functions reflects
-how permanent regions rely only on permanent protocols whereas
+In the above theorem, $\States \times \Rels$ corresponds to the aforementioned
+state transition system where $\Rels$ contains pairs of relations corresponding
+to the public and private transitions, and $\States$ is an unspecified set that
+we assume to contain at least the states we use in this paper. The last part of
+the temporary and permanent regions is a state interpretation function that
+determines what memory segments the region permits in each state of its states.
+The different monotonicity requirements in the two interpretation functions
+reflects how permanent regions rely only on permanent protocols whereas
 temporary regions can rely on both temporary and permanent protocols.
-$\UPred{\HeapSegments}$ is a step-indexed, downwards closed predicate
-on memory segments.
+$\UPred{\HeapSegments}$ is a step-indexed, downwards closed predicate on memory
+segments.
 
-With the recursive domain equation solved, we use the $\Regions$ from
-Theorem~\ref{thm:world-existence} to define the worlds:
+With the recursive domain equation solved, we could take $\Wor$ as our notion of
+worlds, but it is technically more convenient to work with the following
+definition instead:
 \[
   \Worlds = \nats \finparfun \Regions
 \]
@@ -1763,7 +1769,7 @@ the following properties:
 Both temporary and permanent regions are only allowed to transition according to
 the public part of their transition system. Additionally, revoked regions must
 either remain revoked or be replaced by a temporary region. This means that the
-public future world relations allows us to reuse a region that has been revoked
+public future world relations allows us to reinstate a region that has been revoked
 earlier.
 
 The \emph{private future region} relation satisfies:
@@ -1777,18 +1783,19 @@ The \emph{private future region} relation satisfies:
   \inferrule{ r \in \Regions }
   { r \futurestr \revoked }
 \end{mathpar}
-Here, revocation of temporary regions is allowed. As explained above, this can
-be done by replacing them with a special revoked region, which does not describe
-any memory, but in fact, any other region can also be used to replace both
-revoked and temporary regions. On the other hand, permanent regions cannot be
-masked away. They are only allowed to transition according to the private part
-of the transition system.
+Here, revocation of temporary regions is allowed. In fact, temporary regions can
+be replaced by an arbitrary other region, not just the special $\revoked$.
+Conversely, $\revoked$ regions may also be replaced by any other region. On
+the other hand, permanent regions cannot be masked away. They are only allowed
+to transition according to the private part of the transition system.
 
 Notice that the public future region relation is a subset of the private future
-region relation. The public future region relation only allows revoked regions
-to be reused as temporary region. This means that it is always possible to turn
-it back into a revoked region in a private future region. This requirement turns
-out to be important in order to be able to restore the invariants of a caller.
+region relation.
+%domi: the below seems hard to understand at this moment.
+% The public future region relation only allows revoked regions
+% to be reused as temporary region. This means that it is always possible to turn
+% it back into a revoked region in a private future region. This requirement turns
+% out to be important in order to be able to restore the invariants of a caller.
 
 %%%%%%%%
 
@@ -1894,7 +1901,7 @@ out to be important in order to be able to restore the invariants of a caller.
 \subsubsection{World satisfaction}
 A memory satisfies a world, written $\memSat{\ms}{W}$, if it can be partitioned
 into disjoint parts such that each part is accepted by an active (permanent or
-temporary) region. The revoked regions are not taken into account as their memory protocols are no longer in effect.
+temporary) region.  Revoked regions are not taken into account as their memory protocols are no longer in effect.
 \begin{align*}
   &\memSat{\ms}{W}
     \text{ iff }\quad \left\{\begin{aligned}
@@ -1902,8 +1909,8 @@ temporary) region. The revoked regions are not taken into account as their memor
         &\quad \forall r \in \activeReg{W} \ldotp \exists H,s \ldotp W(r) = (\_,s,\_,\_,H) \text{ and } \npair[n]{P(r)} \in H(s)(\xi^{-1}(W))\\
       \end{aligned}\right.
 \end{align*}
-It is possible to state nonsensical worlds in which say a global
-read-write-local capability would be a safe word. There would, however, be no
+Note that it is possible to state nonsensical worlds with conflicting
+requirements for the same part of memory. There would, however, be no
 memory that would satisfy such a world which for all intents and purposes would
 make it discounted by the logical relation.
 
@@ -1917,12 +1924,9 @@ make it discounted by the logical relation.
       & \observations (W) \defeq 
         \;\left\{ \npair{(\reg,\ms)} \; \middle| \;
         \begin{aligned}
-          & \forall \ms_f, \heap', i \leq n \ldotp  (\reg,\ms \uplus \ms_f) \step[i] (\halted,\heap')  \\
-          & \;\; \Rightarrow
-          \begin{aligned}[t]
-            & \exists W' \futurestr W, \ms_r, \ms' \ldotp\\
-            & \;\; \heap' = \ms' \uplus \ms_r \uplus \ms_f \text{ and } \heapSat[\hs']{n-i}{W'}
-          \end{aligned}
+          & \forall \ms_f, \heap', i \leq n \ldotp  (\reg,\ms \uplus \ms_f) \step[i] (\halted,\heap') \Rightarrow \\
+          & \;\; %\Rightarrow
+            \exists W' \futurestr W, \ms_r, \ms' \ldotp \heap' = \ms' \uplus \ms_r \uplus \ms_f \text{ and } \heapSat[\hs']{n-i}{W'}
         \end{aligned}\right\}\\
       & \stdrr \; : \; \Worlds \monwknefun \UPred{\Regs} \\
       & \stdrr(W) \defeq \left\{ \npair{\reg} \; \middle| \;
@@ -1932,7 +1936,7 @@ make it discounted by the logical relation.
       & \stder \; : \; \Worlds \nefun \UPred{\Words} \\
       & \stder(W) \defeq \left\{ \npair{\pc} \; \middle| \;
         \begin{multlined}
-          \forall n' \leq n, \npair[n']{\reg} \in \stdrr(W), \heapSat[\hs]{n'}{W} \ldotp \\
+          \forall n' \leq n, \npair[n']{\reg} \in \stdrr(W), \heapSat[\hs]{n'}{W} \ldotp 
           \npair[n']{(\reg\update{\pcreg}{\pc},\hs)} \in \observations(W)
         \end{multlined} \right\} \\
       & \\
@@ -2046,10 +2050,7 @@ make it discounted by the logical relation.
     \end{aligned} \right\}\\
   & \execCond{}(\gl)(W) = 
     \left\{
-    \begin{multlined}
-      \npairP{(\var{perms}, \\
-        \start,\addrend)}
-    \end{multlined}
+      \npairP{(\var{perms}, \start,\addrend)}
      \; \middle| \;
     \begin{aligned}
       & \forall n' < n, W' \future W, a \in [\start,\addrend], \perm \in \var{perms} \ldotp \\
@@ -2060,7 +2061,7 @@ make it discounted by the logical relation.
     \forall n' < n \ldotp \forall W' \future W \ldotp \npair[n']{((\exec,\gl),\start,\addrend,\addr)} \in \stder(W')
     \right\} \\
   & \quad \text{where } \gl = \local \Rightarrow \future = \futurewk \\
-  & \quad \text{and } \gl = \glob \Rightarrow \future = \futurestr
+  & \quad\;\; \text{and } \gl = \glob \Rightarrow \future = \futurestr
   \end{align*}
 \caption{Permission-based conditions}
 \label{fig:perm-conds}
@@ -2072,36 +2073,32 @@ make it discounted by the logical relation.
 %   has access to values respecting the invariants in a world, then it will
 %   respect them itself too.} 
 The logical relation defines semantically when values, program counters, and
-configurations are safe. In Section~\ref{sec:formalizing-guarantees}, we
-introduced what is meant by safe values. Similarly for program counters and
-configurations, they are safe with respect to a world when they stick to the
-memory protocols described by the world.
-
-The definition of the logical relation is found in
+configurations are safe according to the intuitions described in
+Section~\ref{sec:formalizing-guarantees}. The definition is found in
 \figurename{}s~\ref{fig:logrel} and~\ref{fig:perm-conds} and we provide some
 explanations in the following paragraphs. We omit some definitions and explain
 them only verbally, but precise definitions can be found in the technical
 appendix~\citep{technical_appendix}.
 
-The \emph{observation relation} $\observations$ defines what configurations we
-consider safe. As previously states, a configuration is safe with respect to a
-world when the execution of said configuration does not break the memory
-protocols of the world. Roughly speaking, this means that when the execution of
-a configuration halts, then there is a private future world that the resulting
-memory satisfies.  Notice that failing is considered safe behavior. In fact, the
-machine often resorts to failing when an unauthorized access is attempted, like
-loading from a capability without read permission. This is similar to
-\citet{Devriese:2016ObjCap}'s logical relation for an untyped language, but
-unlike typical logical relations for typed languages, which require that
-programs do not fail.
+First, the \emph{observation relation} $\observations$ defines what
+configurations we consider safe. As previously states, a configuration is safe
+with respect to a world when the execution of said configuration does not break
+the memory protocols of the world. Roughly speaking, this means that when the
+execution of a configuration halts, then there is a private future world that
+the resulting memory satisfies. Notice that failing is considered safe behavior.
+In fact, the machine often resorts to failing when an unauthorized access is
+attempted, like loading from a capability without read permission. This is
+similar to \citet{Devriese:2016ObjCap}'s logical relation for an untyped
+language, but unlike typical logical relations for typed languages, which
+require that programs do not fail.
 
 The \emph{register-file relation} $\stdrr$ defines safe register-files as those
 that contain safe words (i.e.\ words in $\stdvr$) in all registers but $\pcreg$.
 The \emph{expression relation} $\stder$ defines that a word is safe to use as a
 program counter if it can be plugged into a safe register file (i.e.\ a register
-file in $\stdrr$) and paired with a memory satisfying the world to become a
-safe configuration. This means that integers and non-executable capabilities
-(e.g. readonly and enter capabilities) are considered safe as program counters
+file in $\stdrr$) and paired with a memory satisfying the world to become a safe
+configuration. Note that integers and non-executable capabilities (e.g.
+$\readonly$ and $\entry$ capabilities) are considered safe program counters
 because when they are plugged into a register file and paired with a memory, the
 execution will immediately fail, which is safe.
 
@@ -2117,51 +2114,49 @@ kind of permission a capability can have (we will call these permission-based
 conditions).
 
 For capabilities with read permission, the $\readCond{}$ ensures that it can
-only be used to read safe words by putting an upper bound on what can be
-required by the region governing the memory the read capability gives access
-to. An adversary can read anything the capability governs, so all the words they
-can possibly read must be safe - that is they must be in the value relation. The
-read condition also depends on the locality of the capability because, generally
-speaking, global capabilities should only depend on permanent
-regions. Concretely to make sure global capabilities only depend on permanent
-regions, we use the function $\var{localityReg}(\gl,W)$, which projects out all
-active regions when $\gl$ (the locality) is local, but only the permanent
-regions when $\gl$ is global. The upper bound on the region is enforced in terms
-of a standard region $\iota^\pwl_{\start,\addrend}$ which requires all the words
-in the range $[\start,\addrend]$ to be safe.  The region in the world that
-actually governs the part of memory the capability gives access to must as most
-be as restrictive as the standard region.  \lau{Here I would have liked to point
-  back to the bit about step-indexing in the intuition section, but
-  unfortunately the ``step down'' happens in the standard region which we have
-  not included.}
+only be used to read safe words, i.e.\ words that are in the value relation.
+This is done by imposing a lower bound on the memory requirements of the region
+governing the addressed memory. The lower bound is formulated in terms of a
+standard region $\iota^\pwl_{\start,\addrend}$, which requires all the words in
+the range $[\start,\addrend]$ to be safe, i.e.\ in the value relation. The
+region governing the addressed memory must be at least as restrictive as the
+standard region. The read condition also takes into account the locality of the
+capability because, generally speaking, global capabilities should only depend
+on permanent regions. Concretely, we use the function
+$\var{localityReg}(\gl,W)$, which projects out all active (non-revoked) regions
+when the locality $\gl$ is local, but only the permanent regions when $\gl$ is
+global. Note finally that the step-indexing described in
+Section~\ref{sec:formalizing-guarantees} is effectively at play here, but hidden
+in the definition of the standard region $\iota^\pwl_{\start,\addrend}$, which
+we omit for space reasons.
 
 For a capability with write permission, $\writeCond{}$ must be satisfied for the
 capability's range of authority. An adversary can use such a capability to write
-any word they can get a hold of, and we can safely assume that they can get a
-hold of any safe word, so the region governing the relevant memory must allow
-any safe word to reside there. In the name of making the logical relation as
-liberal as possible, we make this a lower bound of what the region may allow.
-\lau{Maybe add: Conceptually, the lower bound also conveys the amount of faith
-  one can put in the contents of a piece of memory that an adversary has been
-  given write access to.}  For write capabilities, we also have to take into
-account that we have two flavours of write permissions namely write and
-write-local. In the case of write-local capabilities, the region needs to at
-least require any safe word to be written, but in the case of write
-capabilities, the capability cannot be used to write local capabilties, so the
-region needs only to at least require safe non-local values.  In the write
-condition, this is handled by parameterising it with a region. For the
-write-local capabilities the write condition is applied with the standard region
-$\iota^\pwl$ and for the write capabilities we use a different standard region
-namely $\iota^\nwl_{\start,\addrend}$ which requires that the words in
-$[\start,\addrend]$ are non-local and safe. Like before, we use
+any word they can get a hold of, and we can safely assume that they can only get
+a hold of safe words, so the region governing the relevant memory must allow any
+safe word to be written there. In order to make the logical relation as liberal
+as possible, we make this a lower bound of what the region may allow. From
+another point of view, this lower bound is also an upper bound on the amount of
+trust that can be placed in the contents of memory that an adversary has been
+given write access to. For write capabilities, we also have to take into account
+the two flavours of write permissions: write and write-local. In the case of
+write-local capabilities, the region needs to allow (at least) any safe word to
+be written, but in the case of write capabilities, the capability cannot be used
+to write local capabilties, so the region only needs to allow safe non-local
+values. In the write condition, this is handled by parameterising it with a
+region. For the write-local capabilities the write condition is applied with the
+standard region $\iota^\pwl_{\start,\addrend}$ that we saw before and for the
+write capabilities we use a different standard region
+$\iota^\nwl_{\start,\addrend}$ which requires that the words in
+$[\start,\addrend]$ are non-local and safe. As before, we use
 $\var{localityReg}$ to pick an appropriate region based on the capability's
-locality. Finally the region is required to be address-stratified. Intuitively,
-this means that if a region accepts two memory segments, then it must also
-accept every memory segment ``inbetween'' that is every memory segment where
-each address contains a value from one of the two memory segments. An
-interesting property of the read and write condition is that they prohibit
-global write-local capabilities which, as discussed in
-Section~\ref{sec:stack-and-return-pointer}, is necessary for the safe use of
+locality. Finally, there is a technical requirement that the region must be
+\emph{address-stratified}. Intuitively, this means that if a region accepts two
+memory segments, then it must also accept every memory segment ``in between'',
+that is every memory segment where each address contains a value from one of the
+two memory segments. An interesting property of the write condition is that they
+prohibit global write-local capabilities which, as discussed in
+Section~\ref{sec:stack-and-return-pointer}, is necessary for any safe use of
 local capabilities.
 
 The conditions $\entryCond{}$ and $\execCond{}$ are very similar. Both require
@@ -2170,13 +2165,12 @@ can be updated to point anywhere in their range, so they must be safe as a
 program counter (in the $\stder$-relation) no matter where they point to. In
 contrast, enter capabilities are opaque and can only be used to jump to the
 address they point to. They also change permission when jumped to, so we require
-them to be safe as a program counter when the permission is changed to $\exec$.
+them to be safe as a program counter after the permission is changed to $\exec$.
 Because the capabilities are not necessarily invoked immediately, this must be
-true in any future world, but it depends on the locality of the capability which
-future worlds we consider. If it is global, then it should only depend on
-permanent regions, so we require safety as a program counter in \emph{private}
-future worlds (recall that temporary regions may be revoked in a private future
-world). For local capabilities, it suffices to be safe in \emph{public} future
+true in any future world, but it depends on the capability's locality which
+future worlds we consider. If it is global, then we require safety as a program
+counter in \emph{private} future worlds (where temporary regions may be
+revoked). For local capabilities, it suffices to be safe in \emph{public} future
 worlds, where temporary regions are still present.
 
 \subsection{Safety of the capability machine}
@@ -2222,7 +2216,7 @@ theorem expresses the capability safety of the machine, which guarantees that
 \emph{any} instruction is fine and will not be able to go beyond the authority
 of the values it has access to. We demonstrate this in
 Section~\ref{sec:examples} where Theorem~\ref{thm:ftlr} is used to reason about
-capabilities that points to arbitrary instructions. The relation between
+capabilities that point to arbitrary instructions. The relation between
 Theorem~\ref{thm:ftlr} and local-state encapsulation and control-flow
 correctness, will also be shown by example in Section~\ref{sec:examples} as the
 examples depend on these properties for correctness.
@@ -2239,7 +2233,7 @@ correctness properties for challenging program examples. The security
 measures of Section~\ref{sec:stack-and-return-pointer} are deployed to
 ensure these properties. Since we are dealing with assembly language,
 there are many details to the formal treatment, and therefore we
-necessarily have to omit some details in the lemmas we state here. The
+necessarily omit some details in the lemma statements. The
 examples may look deceivingly short, but it is because they use the
 previously described macro instructions, which expands to multiple
 basic instructions. The examples would be unintelligible without the
@@ -2393,13 +2387,11 @@ steps. We then use a general lemma for reasoning about
 \texttt{\footnotesize{scall}}, by which it suffices to show that (1) the
 configuration that \texttt{\footnotesize{scall}} will jump to is safe and (2)
 that the configuration just after \texttt{\footnotesize{scall}} is done cleaning
-up is safe. We use the Fundamental Theorem to reason about the unknown adversarial code, but
-notice that the adversary capability is an enter capability, which the
-Fundamental Theorem says nothing about.
-\dominique{why doesn't it?}
-\lau{The FTLR says nothing about enter capabilities, because an enter capability cannot directly be used as a program counter. The reason being that the computation would fail immediately and the condition in the observation relation would immediately be true (as it requires the computation to terminate and not fail). It would be trivial to show that the enter capability, data and other capabilities without execute permission is in the expression relation.}
-Luckily the enter capability becomes
-$\exec$ after the jump and then the Fundamental Theorem applies.
+up is safe. We use the Fundamental Theorem to reason about the unknown
+adversarial code, but notice that the adversary capability is an enter
+capability, which the Fundamental Theorem says nothing about. Luckily the enter
+capability becomes $\exec$ after the jump and then the Fundamental Theorem
+applies.
 
 We have a similar lemma for \texttt{\footnotesize{f2}}:
 \begin{lemma}
@@ -2524,21 +2516,21 @@ f3: push 1
 \end{lemma}
 
 The final example, \texttt{\footnotesize{g1}} with \texttt{\footnotesize{f4}},
-is a faithful translation of a tricky example  known from the
-literature (known as the awkward example)~\citep{pitts_operational_1998,Dreyer:jfp12}. It consists of two
-parts, \texttt{\footnotesize{g1}} and \texttt{\footnotesize{f4}}.
+is a faithful translation of a tricky example known from the literature (known
+as the awkward example)~\citep{pitts_operational_1998,Dreyer:jfp12}. It consists
+of two parts, \texttt{\footnotesize{g1}} and \texttt{\footnotesize{f4}}.
 \texttt{\footnotesize{g1}} is a closure generator that generates closures with
 one variable $x$ set to $0$ in its environment and \texttt{\footnotesize{f4}} as
-the program (note we can omit some calling convention security measures
-because the stack is not used or passed to the adversary in the closure
-generator). \texttt{\footnotesize{f4}} expects one argument, a callback. It sets
-$x$ to $0$ and calls the callback. When it returns, it sets $x$ to $1$ and calls
-the callback a second time. When it returns again, it asserts $x$ is $1$
-and returns. This example is more complicated than the previous ones because it
-involves a closure invoked by the adversary and an adversary callback invoked by
-us. As explained in Section~\ref{sec:stack-and-return-pointer}, this means that we
-need to check (1) that the stack pointer that the closure receives from the
-adversary has write-local permission and (2) that the adversary callback is global.
+the program (note we can omit some calling convention security measures because
+the stack is not used in the closure generator). \texttt{\footnotesize{f4}}
+expects one argument, a callback. It sets $x$ to $0$ and calls the callback.
+When it returns, it sets $x$ to $1$ and calls the callback a second time. When
+it returns again, it asserts $x$ is $1$ and returns. This example is more
+complicated than the previous ones because it involves a closure invoked by the
+adversary and an adversary callback invoked by us. As explained in
+Section~\ref{sec:stack-and-return-pointer}, this means that we need to check (1)
+that the stack pointer that the closure receives from the adversary has
+write-local permission and (2) that the adversary callback is global.
 
 To illustrate how subtle this program is, consider how an adversary could try to
 make the assertion fail. In the second callback an adversary can get to the
@@ -2599,28 +2591,29 @@ to allocate the activation record on the stack (just like we do) so
 they can store and recover their old stack pointer after
 \texttt{\footnotesize{f4}} returns.
 
-In Figure~\ref{fig:worlds-in-pf-g1}, we illustrate how we accommodate this in the
-proof of Lemma~\ref{lem:correctness-g1} by constructing appropriate worlds for
-all the situations where control is passed to the adversary. The potentially
-local return pointer received by \texttt{\footnotesize{f4}} from the adversary is safe in
-$W_1$, so it can only be used in public future worlds. Let us see how $W_6$ is
-constructed as a public future world. The worlds $W_2$ and $W_4$ are constructed
-by revoking all temporary regions and adding a $\iota^\pwl$ region for the stack
-we pass away and static temporary regions (a region that accepts exactly one
-memory) for our local stack as well as the adversary's local stack. The given
-worlds $W_3$ and $W_5$ are public future worlds in which the adversary chooses
-to return to us. None of these worlds can have masked the temporary regions of
-$W_1$ with permanent regions. $W_6$ is constructed by revoking the temporary
-regions of $W_5$ and reinstating the temporary regions of $W_1$. This makes
-$W_6$ a public future world of $W_1$. It is therefore safe to use the return
-pointer to return to the adversary, since we have restored validity of any local
-state they might have stashed away.
+In Figure~\ref{fig:worlds-in-pf-g1}, we illustrate how we accommodate this in
+the proof of Lemma~\ref{lem:correctness-g1} by constructing appropriate worlds
+for all the situations where control is passed to the adversary. The potentially
+local return pointer received by \texttt{\footnotesize{f4}} from the adversary
+is safe in $W_1$, so it can only be used in public future worlds. Let us see how
+$W_6$ is constructed as a public future world of $W_1$, as well as a private
+future world of $W_5$. The worlds $W_2$ and $W_4$ are constructed by revoking
+all temporary regions and adding a $\iota^\pwl$ region for the stack we pass
+away and static temporary regions (a region that accepts exactly one memory) for
+our local stack as well as the adversary's local stack. The given worlds $W_3$
+and $W_5$ are public future worlds in which the adversary chooses to return to
+us. None of these worlds can have masked the temporary regions of $W_1$ with
+permanent regions. $W_6$ is constructed by revoking the temporary regions of
+$W_5$ and reinstating the temporary regions of $W_1$. This makes $W_6$ a public
+future world of $W_1$. It is therefore safe to use the return pointer to return
+to the adversary, since we have restored validity of any local state they might
+have stashed away.
 
 \begin{figure}[t]
   \centering
 \begin{tikzpicture}[main node/.style={}, node distance=1.5cm]
   \node[main node] (1) {$W_1$};
-  \node[main node] (label1) [below of=1,yshift=1cm] {\footnotesize{\textit{\texttt{f3} called}}};
+  \node[main node] (label1) [below of=1,yshift=1cm] {\footnotesize{\textit{\texttt{f4} called}}};
   \node[main node,left] (given) [left of=1,yshift=0.05cm] {\parbox{1.5cm}{\footnotesize{Given:}}};
 
   \node[main node] (2) [above right of=1]{$W_2$};
@@ -2638,7 +2631,7 @@ state they might have stashed away.
   \node[main node] (label5) [below of=5,yshift=1cm] {\footnotesize{\textit{callback returns}}};
 
   \node[main node] (6) [above right of=5]{$W_6$};
-  \node[main node] (label6) [above of=6,yshift=-1cm] {\footnotesize{\textit{\texttt{f3} returns}}};
+  \node[main node] (label6) [above of=6,yshift=-1cm] {\footnotesize{\textit{\texttt{f4} returns}}};
   \path(1) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\priv$} (2)
        (2) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\pub$} (3)
        (3) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\priv$} (4)
@@ -2700,8 +2693,8 @@ capabilities and capability machines like CHERI should consider to provide
 special support for this requirement, in the form of a highly-optimized
 instruction for erasing a large block of memory.
 
-\emph{Modularity} It is important that our calling convention is modular, i.e.
-we do not assume that our code is specially privileged w.r.t. the adversary, and
+\emph{Modularity} It is important that our calling convention is modular, i.e.\ 
+we do not assume that our code is specially privileged w.r.t.\ the adversary, and
 they can apply the same measures to protect themselves from us as we do to
 protect ourselves from them. More concretely, the requirements we have on
 callbacks and return pointers received from the adversary are also satisfied by
@@ -2718,51 +2711,45 @@ also global.
 %Safety dictated by LR
 %Need to dynamical check whether we overwrite our local stuff.
 Local capabilities are a central part of the calling convention as they are used
-to construct stack and return pointer. The use of local capabilities for the
-calling convention unfortunately limits the extend of which local capabilties
+to construct stack and return pointers. The use of local capabilities for the
+calling convention unfortunately limits the extent to which local capabilties
 can be used for other things. Say we are using the calling convention and
 receive a local capability other than the stack and return pointer, then we need
 to be careful if we want to use it because it may be an alias to the stack
 pointer. That is, if we first push something to the stack and then write to the
-local capability, then we may overwrite our local state. While this sounds
-unsafe, the safety actually depends on what our memory invariants we want to
-establish, so the safety is actually dictated by the logical relation. This may,
-however, not be a satisfactory requirement for say compiler developers as it is
-impossible to figure out what local capabilities are safe to use. A different
-approach would be to do dynamic checks on local capabilities, but this may be to
-costly to do in practice.
+local capability, then we may be (tricked into) overwriting our own local state.
+The logical relation helps by telling us what we need to ascertain or check in
+such scenario's to guarantee safety and preserve our invariants, but such checks
+may be costly and it is not clear to us whether there are practical scenario's
+where this might be realistic.
 
 %Pass capability on
 %Stack example
 %Pass argument by reference
 %Sofisticated deep safety analysis
 We also need to be careful when we receive a capability from an adversary that
-we want to pass on to a different adversary. It turns out that the logical
-relation again dictates when this is safe. Namely, the logical relation says
-that we can only pass on safe arguments. For instance, when we receive a stack
-pointer from an adversary, then we may at some point want to pass on part of
-this stack pointer to say a callback. In order to do so, we need to make sure
-the stack pointer is safe which means that it must only point to safe
-values. When received from an adversary, we have to consider the contents of the
-stack unsafe, so before we pass it on we clear which corresponds to filling it
-with safe values as integers are always safe to pass on. In general, if we want
-to pass on a local capability we received from an adversary, we have to make
-sure it is safe, for instance by clearing everything it points to (if possible,
-the capability might be a readonly capability). Clearing everthing is, however,
-not always a desirable approach as we may have an array or data structure with
-important values we want to pass on by reference in which case it is
-unacceptable to just clear the entire thing. In this case, it might be possible
-to make a deep safety analysis to make sure that the capability points to
-nothing dangerous. What we are left with is a too conservative approach or an
-non-obvious expensive dynamic safety analysis.
+we want to pass on to a different (instance of the) adversary. It turns out that
+the logical relation again tells us when this is safe. Namely, the logical
+relation says that we can only pass on safe arguments. For instance, when we
+receive a stack pointer from an adversary, then we may at some point want to
+pass on part of this stack pointer to, say, a callback. In order to do so, we
+need to make sure the stack pointer is safe which means that, if we have revoked
+temporary invariants, the stack must not directly or indirectly allow access to
+local values that we cannot guarantee safety of. When received from an
+adversary, we have to consider the contents of the stack unsafe, so before we
+pass it on, we have to clear it, or perform a dynamic safety analysis of the
+stack contents and anything it points to. Clearing everything is not always
+desirable and a dynamic safety analysis is hard to get right and potentially
+expensive.
 
 % Can local capabilities be used for other things?/Local capabilities only for stack?
 %Not unheard of - other machine also have things specific for language features.
-The use of local capabilities for other things than stack and return pointer
-turns out to be somewhat limitted. It is, however, not unusual that machines
-have builtin special constructs that are used for just one language feature. A
-machine could for instance have call and return instructions with the sole
-prupose of handling everything related to calls.
+In summary, the use of local capabilities for other things than stack and return
+pointers is likely only possible in very specific scenario's when using our
+calling convention. While this is unfortunate, it is not unheard of that
+processors have builtin constructs that are exclusively used for handling
+control flow, such as, for example, the call and return instructions that exist
+in some instruction sets.
 \\\\
 % Old version of the above:
 % Carefully constructing stack and return
@@ -2796,19 +2783,17 @@ prupose of handling everything related to calls.
 % that we do not inadverdently overwrite our local stack frame.
 
 \emph{Single stack} A single stack is a good choice for the simple capability
-machine presented here, because it works well with higher-order functions. The
-alternative to a single stack would be to have one stack per component. With
-multiple stacks on this simple capability machine, it is not entirely obvious
-how each component would retrieve their stack pointer. Further with higher-order
-functions, it is not clear which stack the higher-order function should
-use. Should it use the stack of the component that created it or the stack of
-the component in which it is called. If we let it use the stack of the component
-that uses the higher-order function, then what is the purpose of having multiple
-stacks when the stack is not exclusive to each component. If we let it use the
-stack of its creator, then the question is how do you obtain this stack
-pointer. We do not claim that it is impossible to make it work with multiple
-stack in the context of higher-order functions, but it is not obvious how it
-would work.
+machine presented here, because it works well with higher-order functions. An
+alternative to a single stack would be to have a separate stack per component.
+The trouble with this approach is that, with multiple stacks and local stack
+pointers, it is not clear how components would retrieve their stack pointer upon
+invocation without compromising safety. A safe approach could be to have stack
+pointers stored by a central, trusted stack management component, but it is not
+clear how that could scale to large numbers of separate components. Handling
+large numbers of components is a requirement if we want to use
+capability machines to enforce encapsulation of, for example, every object in an
+object-oriented program or every closure in a functional program.
+
 
 \noindent \textbf{Reasoning about capability machine programs}\\
 \emph{Semantic, but not syntactic properties} The logical relation defined in
@@ -2829,26 +2814,24 @@ cited, it would be easy to conclude that the returned values are in the value
 relation (see Figure~\ref{fig:logrel}). This gives us a lot of semantic
 information, like conditions under which they are safe to use and invariants
 that will be preserved when we do, but it does not tell us much about the
-address of the capability.
-
-To make this very concrete, consider how capabilities with permission $\noperm$
-are always in the value relation, irrespective of their properties.
-Semantically, this makes perfect sense, since they are always safe since they
-cannot be used for anything. However, it also means we do not get syntactic
-information about them.
+address of the capability. As a very concrete example, capabilities with
+permission $\noperm$ are always in the value relation, irrespective of their
+address. Semantically, this makes perfect sense, since they are always safe
+since they cannot be used for anything anyway. However, it also means we do not
+get syntactic information about them.
 
 For our purposes, this restriction is unproblematic, since we are only
 interested in proving semantic properties (e.g., an assertion will never fail).
 However, in other situations, we may be interested in proving more syntactic
-properties like the more syntactic properties, that are often considered in
-object capability literature like confinement, no authority amplification etc.
-Although such properties are typically more restrictive and less easy to use for
-reasoning, \citet{Devriese:2016ObjCap} have demonstrated how a logical relation
-much like ours can be adapted to also support them, by quantifying the logical
-relation over a custom interpretation of effectful computations and the type of
+properties like the ones that are often considered in object capability
+literature: confinement, no authority amplification etc. Although such
+properties are more restrictive and less easy to use for reasoning,
+\citet{Devriese:2016ObjCap} have demonstrated how a logical relation like
+ours can be adapted to also support them, by quantifying the logical relation
+over a custom interpretation of effectful computations and the type of
 references. We expect their solution can be readily adapted to our setting,
 modulo some details (like the fact that we do not just have read-write
-capabilities, but also other types).\\\\
+capabilities, but also others).\\\\
 % \emph{No program logic} TODO: discuss this? 
 
 \noindent\textbf{Logical relation}\\
@@ -2867,9 +2850,9 @@ call/cc. Our definitions can be seen as a variant of biorthogonality, where we
 take only a single orthogonal closure: we do not define safe evaluation contexts
 but immediately define safe terms as those that produce safe observations when
 plugged with safe values. This is natural because we model arbitrary assembly
-code that does not necessarily respect a particular calling convention. As a
-result, return pointers are in principle values like all others and there is no
-reason to treat them specially in the logical relation.
+code that does not necessarily respect a particular calling convention: return
+pointers are in principle values like all others and there is no reason to treat
+them specially in the logical relation.
 
 Interestingly, \citet{Hur:2011:KLR:1926385.1926402} also use a step-indexed,
 Kripke logical relation for an assembly language (for reasoning about correct
@@ -2957,7 +2940,7 @@ seems hard to use for reasoning.
 More closely related to our work are papers that use a trusted stack manager and
 some form of memory isolation to enforce control-flow correctness as part of a
 secure compilation
-result~\citep{patrignani_modular_2016-1,juglaret_beyond_2016-1}. Our work
+result \citep{patrignani_modular_2016-1,juglaret_beyond_2016-1}. Our work
 differs from theirs in that we use a different form of low-level security
 primitive (a capability machine with local capabilities rather than a machine
 with a primitive notion of compartments) and we do not use a trusted stack
@@ -2969,7 +2952,7 @@ specific programs that rely on well-bracketed control flow.
 
 Our logical relation is a unary, step-indexed Kripke logical relation
 with recursive
-worlds~\citep{Appel:2001:IMR:504709.504712,Ahmed2004semantics,Birkedal:2011:SKM:1926385.1926401},
+worlds \citep{pitts_operational_1998,Appel:2001:IMR:504709.504712,Ahmed2004semantics,Birkedal:2011:SKM:1926385.1926401},
 closely related to the one used by \citet{Devriese:2016ObjCap} to formulate
 capability safety in a high-level JavaScript-like lambda calculus. Our
 Fundamental Theorem is similar to theirs and expresses
@@ -2977,15 +2960,14 @@ capability safety of the capability machine. Because we are not interested in
 externally observable side-effects (like console output or memory access
 traces), we do not require their notion of effect parametricity. Our logical
 relation uses several ideas from previous work, like Kripke worlds with regions
-containing state transition systems~\citep{Ahmed:popl09}, public/private future
-worlds~\citep{Dreyer:jfp12} (see Section~\ref{sec:discussion} for a discussion), and
-biorthogonality~\citep{pitts_operational_1998,benton_biorthogonality_2009-1,Hur:2011:KLR:1926385.1926402}.
+containing state transition systems \citep{Ahmed:popl09}, public/private future
+worlds \citep{Dreyer:jfp12} (see Section~\ref{sec:discussion} for a discussion), and
+biorthogonality \citep{pitts_operational_1998,benton_biorthogonality_2009-1,Hur:2011:KLR:1926385.1926402}.
 Swasey et. al.\ have recently developed a \emph{logic}, OCPL,  for verification of
-object capability patterns\citep{swasey:2017}. The logic is based on
-Iris~\citep{iris,iris2,iris3}, a state of the art higher-order
+object capability patterns \citep{swasey:2017}. The logic is based on
+Iris \citep{iris,iris2,iris3}, a state of the art higher-order
 concurrent separation logic and is formalized in Coq, building on the
-Iris Proof Mode for Coq~\citep{ipm}.  
-XXX HERE
+Iris Proof Mode for Coq \citep{ipm}.  
 
 
 
