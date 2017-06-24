@@ -92,12 +92,14 @@
 \newcommand{\slea}[2]{\twoinstr{\src{lea}}{#1}{#2}}
 \newcommand{\ssload}[2]{\twoinstr{\src{sload}}{#1}{#2}}
 \newcommand{\scall}[2]{\twoinstr{\src{call}}{#1}{#2}}
+\newcommand{\sxjmp}[2]{\twoinstr{\trg{xjmp}}{#1}{#2}}
 
 % Three arguments
 \newcommand{\srestrict}[3]{\threeinstr{\src{restrict}}{#1}{#2}{#3}}
 \newcommand{\ssubseg}[3]{\threeinstr{\src{subseg}}{#1}{#2}{#3}}
 \newcommand{\splus}[3]{\threeinstr{\src{plus}}{#1}{#2}{#3}}
 \newcommand{\sminus}[3]{\threeinstr{\src{minus}}{#1}{#2}{#3}}
+\newcommand{\scseal}[3]{\threeinstr{\trg{cseal}}{#1}{#2}{#3}}
 
 %%% Target language
 % No arguments
@@ -121,13 +123,13 @@
 \newcommand{\tload}[2]{\twoinstr{\trg{load}}{#1}{#2}}
 \newcommand{\tlea}[2]{\twoinstr{\trg{lea}}{#1}{#2}}
 \newcommand{\txjmp}[2]{\twoinstr{\trg{xjmp}}{#1}{#2}}
-\newcommand{\tcseal}[2]{\twoinstr{\trg{cseal}}{#1}{#2}}
 
 % Three arguments
 \newcommand{\trestrict}[3]{\threeinstr{\trg{restrict}}{#1}{#2}{#3}}
 \newcommand{\tsubseg}[3]{\threeinstr{\trg{subseg}}{#1}{#2}{#3}}
 \newcommand{\tplus}[3]{\threeinstr{\trg{plus}}{#1}{#2}{#3}}
 \newcommand{\tminus}[3]{\threeinstr{\trg{minus}}{#1}{#2}{#3}}
+\newcommand{\tcseal}[3]{\threeinstr{\trg{cseal}}{#1}{#2}{#3}}
 
 %%% Domains
 \newcommand{\plaindom}[1]{\mathrm{#1}}
@@ -206,6 +208,8 @@
 \newcommand{\pc}{\var{pc}}
 \newcommand{\stk}{\var{stk}}
 \newcommand{\opc}{\var{opc}}
+\newcommand{\vsc}{\var{sc}}
+\newcommand{\cb}{\var{cb}}
 
 %%% Named registers
 \newcommand{\pcreg}{\mathrm{pc}}
@@ -249,8 +253,9 @@
 }
 \newcommand{\updPcAddr}[1]{\plainfun{updatePc}{#1}}
 \newcommand{\updPcPerm}[1]{\plainfun{updatePcPerm}{#1}}
-\newcommand{\clearms}[1]{\plainfun{clear_{ms}}{#1}}
-\newcommand{\clearlocreg}[1]{\plainfun{clear_{loc,reg}}{#1}}
+\newcommand{\nonexec}[1]{\plainfun{nonExecutable}{#1}}
+\newcommand{\noRetStkReg}[1]{\plainfun{noRetStk_{reg}}{#1}}
+\newcommand{\noRetStkMs}[1]{\plainfun{noRetStk_{ms}}{#1}}
 
 \begin{document}
 \section{The two capability machines}
@@ -302,7 +307,7 @@ n &\in & \nats \\
 \trg{i} &::= & \tfail \mid \thalt \mid \tjmp{\trg{r}} \mid \tjnz{\trg{r}}{\trg{\rn}} \mid \tisptr{\trg{r}}{\trg{r}} \mid \tgeta{\trg{r}}{\trg{r}} \mid \tgetb{\trg{r}}{\trg{r}} \mid \\
       & &  \tgete{\trg{r}}{\trg{r}}\mid \tgetp{\trg{r}}{\trg{r}} \mid \tgetl{\trg{r}}{\trg{r}} \mid \tmove{\trg{r}}{\trg{\rn}} \mid \tstore{\trg{r}}{\trg{r}} \mid\\
       & &  \tload{\trg{r}}{\trg{r}} \mid \tlea{\trg{r}}{\trg{\rn}} \mid \trestrict{\trg{r}}{\trg{r}}{\trg{\rn}} \mid \tsubseg{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \\
-      & & \tplus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tminus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tsetatob{\trg{r}} \mid \txjmp{r}{r} \mid \tcseal{r}{r}
+      & & \tplus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tminus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tsetatob{\trg{r}} \mid \txjmp{r}{r} \mid \tcseal{r}{r}{r}
 \end{array}
 \]
 
@@ -410,51 +415,109 @@ Target language:
 
 \subsubsection{Helpful functions}
 \[
-  \updPcAddr \defeq \dots
+  \updPcAddr{} \defeq \dots
 \]
 
 \[
-  \updPcPerm \defeq \dots
+  \updPcPerm{} \defeq \dots
+\]
+
+
+\[
+  \nonexec{} \defeq \dots
 \]
 
 \[
-  \clearms \defeq \dots
+  \noRetStkReg{} \defeq \dots %remember to ignore certain registers
 \]
 
 \[
-  \clearlocreg \defeq \dots
+  \noRetStkMs{} \defeq \dots %remember to ignore certain registers
 \]
+
 
 \subsubsection{Source Language}
 \lau{23-03-2017: $\sjmp{}$ and $\scall{}{}$ needs an update.}
 \begin{align*}
-  \ssem{\sjmp{r}} = & 
-    \begin{cases}
-      \Phi
-      \begin{aligned}[t]
-        & \update{\reg.\pcreg}{\opc} \\
-        & \update{\smsstk}{\ms_\stk' \uplus \clearms{\ms_\stk}}\\
-        & \update{\sastk}{a_\stk'}\\
-        & \update{\sstk}{\stk'}
-      \end{aligned} & \Phi(r) = \retptr \text{ and }
-      \Phi.\sstk = (\opc,\ms_\stk',a_\stk') :: \stk'\\
-      & \\
-      \updPc{\updPcPerm{\Phi(r)}} & \text{otherwise}
-    \end{cases} \\
-\end{align*}
-\begin{align*}
   \ssem{\scall{r_1}{r_2}} = & 
     \begin{cases}
-      (\mem,\reg',\stk',\ms_\stk') & \Phi = (\mem,\reg,\stk,\ms_\stk) \text{ and }\\
+      (\mem,\reg',\stk',\ms_\stk') & \Phi = (\mem,\reg,\stk,\ms_\stk) \text{ and } \dots\\
       \\
       \failed & \text{otherwise}
     \end{cases}
 \end{align*}
+
+The $\scseal{}{}{}$ instruction seals a sealable capability with a seal.
+\begin{align*}
+  \ssem{\scseal{r_1}{r_2}{r_3}} = & 
+                                    \begin{cases}
+                                      \updReg{r_1}{\vsc} & 
+                                      \arraycolsep=0pt
+                                      \begin{array}[t]{l}
+                                        \Phi(r_2) = c \in \SealableCaps \text{ and } \\
+                                        \Phi(r_3) = \seal{\sigma,\_} \text{ and } \\
+                                        \vsc = \sealed{c,\sigma}
+                                      \end{array}\\
+                                      & \\
+                                      \failed & \text{otherwise}
+                                    \end{cases}
+\end{align*}
+
+Unlike CHERI, we want sealed capabilies to be useable in a somewhat normal jump as well as the $\scall{}{}$. We cannot just use $\sjmp{}$ because it only takes one argument and we need to be able to jump to a code/data pair. To this end we introduce $\sxjmp{}{}$:
+\begin{align*}
+  \ssem{\sxjmp{r_1}{r_2}} = & 
+                              \begin{cases}
+                                \Phi
+                                \arraycolsep=0pt
+                                \begin{array}[t]{l}
+                                  [\reg.\pcreg \mapsto c_1] \\
+                                  [\reg.\rdata \mapsto c_2]
+                                \end{array} & 
+                                \arraycolsep=0pt
+                                \begin{array}[t]{l}
+                                  \Phi(r_1) = \sealed{c_1,\sigma} \text{ and } \\
+                                  \Phi(r_2) = \sealed{c_2,\sigma} \text{ and } \\
+                                  \nonexec{c_2}
+                                \end{array}\\
+%
+                                \\
+%
+                                \failed & \text{otherwise}
+                              \end{cases}
+\end{align*}
+\lau{This is $\sxjmp{}{}$ for the target language - this one also needs to allow jumps to the return pointer}
+Notice, $\rdata$ serves the same function as the IDC register in CHERI, i.e.\ this is where the data capability is put. In the interpretation of $\sxjmp{}{}$, we require $c_2$ to be non-executable because CHERI does it. We are, however, not certain whether this requirement is strictly necessary (maybe it is dangerous to $\sxjmp{r}{r}$ where $r$ points to the same capability? Maybe it can be use to unseal a code capability by first sealing another code capability with the seal, $\sxjmp{}{}$ with the newly sealed and the old sealed capability. Now both capabilities are unsealed). CHERI also checks whether $c_1$ is executable and in range, but we do this on every step of the operational semantics, so we do not repeat that check.
+
+\begin{align*}
+  \ssem{\sjmp{r}} = & \dots
+\end{align*}
+
+
 \begin{itemize}
 \item $\scall{}{}$ does not do argument spilling anymore. We leave it to the caller to push the arguments for spilling to the stack and update the stack pointer accordingly.
 \end{itemize}
 
 \subsubsection{Target Language}
+
+\begin{align*}
+  \ssem{\sxjmp{r_1}{r_2}} = & 
+                              \begin{cases}
+                                \Phi
+                                \arraycolsep=0pt
+                                \begin{array}[t]{l}
+                                  [\reg.\pcreg \mapsto c_1] \\
+                                  [\reg.\rdata \mapsto c_2]
+                                \end{array} & 
+                                \arraycolsep=0pt
+                                \begin{array}[t]{l}
+                                  \Phi(r_1) = \sealed{c_1,\sigma} \text{ and } \\
+                                  \Phi(r_2) = \sealed{c_2,\sigma} \text{ and } \\
+                                  \nonexec{c_2}
+                                \end{array}
+\\
+\failed & \text{otherwise}
+                              \end{cases}
+\end{align*}
 
 \subsection{Compiler}
 \[
