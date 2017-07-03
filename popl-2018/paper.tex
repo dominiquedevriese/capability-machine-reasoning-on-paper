@@ -522,7 +522,7 @@
 \begin{abstract}
   Capability machines provide security guarantees at machine level which makes
   them an interesting target for compilation schemes that provably enforce
-  properties like control-flow correctness, encapsulation of local state. We
+  properties like control-flow correctness and encapsulation of local state. We
   provide a formalization of a representative capability machine with local
   capabilities and propose a novel calling convention for enforcing control-flow
   correctness and encapsulation of local state on it. To prove these properties,
@@ -1073,7 +1073,7 @@ The machine's instruction set is rather basic. Instructions $i$ include
 relatively standard jump ($\jmp{}$), conditional jump ($\jnz{}{}$) and move
 ($\move{}{}$, copies words between registers) instructions. Also familiar are
 load and store instructions for reading from and writing to memory ($\load{}{}$
-and $\store{}{}$) and arithmetic addition operators ($\lt{}{}{}$, $\plus{}{}{}$ and
+and $\store{}{}$) and arithmetic addition operators ($\lt{}{}{}$ (less than), $\plus{}{}{}$ and
 $\minus{}{}{}$, operating only on numbers). There are three instructions for
 modifying capabilities: $\lea{}{}$ (modifies the current address),
 $\restricttwo{}{}$ (modifies the permission and local/global tag) and
@@ -1176,10 +1176,10 @@ contains local state (data or capabilities) and $[\addr,\addrend]$ contains
 instructions. The package is opaque to an adversary holding $c$ but when $c$ is
 jumped to, the instructions can start executing and have access to the local
 data through the updated version of $c$ that is then in $\pcreg$\footnote{Note
-  that the capability in the $\pcreg$-register can be used to load from.}.
-% \lau{As we
-%   talked about what is described here, is not how we make closures in the TR, so
-%   we should consider whether we should refrain from using that word here. }
+that the capability in the $\pcreg$-register can be used to load from.}.  %
+\lau{As we % talked about what is described here, is not how we make closures in
+the TR, so % we should consider whether we should refrain from using that word
+here. }
 
 Finally, the $\store{}{}$ instruction updates the memory to the requested value
 if the capability has write authority for the requested location. However, the
@@ -1193,9 +1193,9 @@ passed back to us, they will not have been able to store the capability.
 However, there is one exception to the rule above: local capabilities can be
 stored to memory for which we have a capability with write-local authority
 (i.e.\ permission $\rwl$ or $\rwlx$). This is intended to accommodate a stack,
-where register contents can be stored, including local capabilities. As long as all
-capabilities with write-local authority are themselves local and the stack is
-cleared after control is passed back by the adversary, we will see that this
+where register contents can be stored, including local capabilities. As long as
+all capabilities with write-local authority are themselves local and the stack
+is cleared after control is passed back by the adversary, we will see that this
 does not break the intended behavior of local capabilities.
 
 We point out that our local capabilities capture only a part of the semantics of
@@ -1206,8 +1206,8 @@ breaks our calling convention, since we pass around local return pointers and
 stack capabilities. However, CHERI's CCall is not implemented in hardware, but
 in software, precisely to allow experimenting with alternative models like ours.
 
-% Contrary to more traditional assembly languages, capability machines do not
-% allow literal addresses to appear as part of instructions. This means that we 
+% Contrary to more traditional assembly languages, capability machines do not %
+allow literal addresses to appear as part of instructions. This means that we
 
 In order to have a reasonably realistic system, we use a simple model of
 linking, so programs can have access to other programs through a linking table.
@@ -1217,12 +1217,12 @@ next section, but we refer to the technical appendix~\citep{technical_appendix}
 for full details.
 
 \section{Stack and return pointer management using local capabilities}
-\label{sec:stack-and-return-pointer}
-One of the contributions in this paper is a demonstration that local
-capabilities on a capability machine support a calling convention that enforces
-control-flow correctness in a way that is provably watertight, potentially
-efficient, does not rely on a trusted central stack manager, and supports
-higher-order interfaces to an adversary where an adversary is just some unknown piece of code. In this section, we explain this
+\label{sec:stack-and-return-pointer} One of the contributions in this paper is a
+demonstration that local capabilities on a capability machine support a calling
+convention that enforces control-flow correctness in a way that is provably
+watertight, potentially efficient, does not rely on a trusted central stack
+manager and supports higher-order interfaces to an adversary, where an adversary
+is just some unknown piece of code. In this section, we explain this
 convention's high-level approach, the security measures to be taken in a number
 of situations (motivating each separately with a summary table at the end).
 After that, we define a number of reusable macro-instructions that can be used
@@ -1478,7 +1478,7 @@ state encapsulation for the interaction with the adversary? Clearly, such a
 proof should depend on a formal expression of the guarantees provided by the
 capability machine, including the specific guarantees for local capabilities.
 
-In this section, we construct such a formalisation. We make use of some
+In this section, we construct such a formalization. We make use of some
 well-studied and powerful (but non-trivial) machinery from the literature.
 Specifically, we employ a unary step-indexed Kripke logical relation with
 recursive worlds, and some additional special characteristics of our own.
@@ -1587,7 +1587,7 @@ definition can be accommodated using techniques from the
 literature (essentially an advanced application of step-indexing).
 
 \paragraph{Local capabilities}
-A final thing we explain here is how our results take into account local
+A final thing we provide informal intuition for is how our results take into account local
 capabilities and their special treatment by the hardware. Normally, when we
 invoke an untrusted piece of code and provide it with certain global
 capabilities, it may have stored those capabilities in memory and we will only
@@ -1606,7 +1606,7 @@ capability being invoked), then the adversary cannot use them any more.%
   invocation, then the memory they address must entirely be cleared before the
   second invocation in order for the reinvocation to remain safe.} Therefore, we
 can allow the second invocation to happen in \emph{private} future worlds ($W'
-\futurestr W$), in which global safe capabilities remain safe, but local ones
+\futurestr W$), in which safe global capabilities remain safe, but local ones
 don't. This private future world relation is more liberal than the standard,
 public one ($W' \futurewk W$, in which \emph{all} safe capabilities remain
 safe). Concretely, worlds may contain \emph{temporary} regions, representing
@@ -1729,12 +1729,12 @@ state transition system where $\Rels$ contains pairs of relations corresponding
 to the public and private transitions, and $\States$ is an unspecified set that
 we assume to contain at least the states we use in this paper. The last part of
 the temporary and permanent regions is a state interpretation function that
-determines what memory segments the region permits in each state of its states.
-The different monotonicity requirements in the two interpretation functions
-reflects how permanent regions rely only on permanent protocols whereas
-temporary regions can rely on both temporary and permanent protocols.
-$\UPred{\HeapSegments}$ is a step-indexed, downwards closed predicate on memory
-segments.
+determines what memory segments the region permits in each state of the state
+transition system.  The different monotonicity requirements in the two
+interpretation functions reflects how permanent regions rely only on permanent
+protocols whereas temporary regions can rely on both temporary and permanent
+protocols.  $\UPred{\HeapSegments}$ is a step-indexed, downwards closed
+predicate on memory segments.
 
 With the recursive domain equation solved, we could take $\Wor$ as our notion of
 worlds, but it is technically more convenient to work with the following
@@ -2082,7 +2082,7 @@ them only verbally, but precise definitions can be found in the technical
 appendix~\citep{technical_appendix}.
 
 First, the \emph{observation relation} $\observations$ defines what
-configurations we consider safe. As previously states, a configuration is safe
+configurations we consider safe. As previously stated, a configuration is safe
 with respect to a world when the execution of said configuration does not break
 the memory protocols of the world. Roughly speaking, this means that when the
 execution of a configuration halts, then there is a private future world that
@@ -2111,13 +2111,12 @@ protocols. Non-capability data is always safe because it provides no
 authority. Capabilities give the authority to manipulate memory and potentially
 break memory protocols, so they need to satisfy certain conditions to be
 safe. In \figurename~\ref{fig:perm-conds}, we define such a condition for each
-kind of permission a capability can have (we will call these permission-based
-conditions).
+kind of permission a capability can have.
 
 For capabilities with read permission, the $\readCond{}$ ensures that it can
-only be used to read safe words, i.e.\ words that are in the value relation.
-This is done by imposing a lower bound on the memory requirements of the region
-governing the addressed memory. The lower bound is formulated in terms of a
+only be used to read safe words, i.e.\ words in the value relation.
+This is done by imposing an upper bound on the memory requirements of the region
+governing the addressed memory. The upper bound is formulated in terms of a
 standard region $\iota^\pwl_{\start,\addrend}$, which requires all the words in
 the range $[\start,\addrend]$ to be safe, i.e.\ in the value relation. The
 region governing the addressed memory must be at least as restrictive as the
@@ -2146,8 +2145,8 @@ be written, but in the case of write capabilities, the capability cannot be used
 to write local capabilities, so the region only needs to allow safe non-local
 values. In the write condition, this is handled by parameterizing it with a
 region. For the write-local capabilities the write condition is applied with the
-standard region $\iota^\pwl_{\start,\addrend}$ that we saw before and for the
-write capabilities we use a different standard region
+standard region $\iota^\pwl_{\start,\addrend}$ that we described previously. For
+the write capabilities we use a different standard region
 $\iota^\nwl_{\start,\addrend}$ which requires that the words in
 $[\start,\addrend]$ are non-local and safe. As before, we use
 $\var{localityReg}$ to pick an appropriate region based on the capability's
@@ -2155,8 +2154,8 @@ locality. Finally, there is a technical requirement that the region must be
 \emph{address-stratified}. Intuitively, this means that if a region accepts two
 memory segments, then it must also accept every memory segment ``in between'',
 that is every memory segment where each address contains a value from one of the
-two memory segments. An interesting property of the write condition is that they
-prohibit global write-local capabilities which, as discussed in
+two accepted memory segments. An interesting property of the write condition is
+that they prohibit global write-local capabilities which, as discussed in
 Section~\ref{sec:stack-and-return-pointer}, is necessary for any safe use of
 local capabilities.
 
