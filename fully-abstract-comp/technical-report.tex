@@ -231,6 +231,8 @@
 \newcommand{\rstk}{\mathrm{r}_\mathrm{stk}}
 \newcommand{\rO}{\mathrm{r}_\mathrm{ret}}
 \newcommand{\rret}{\rO}
+\newcommand{\rretc}{\mathrm{r}_\mathrm{ret code}}
+\newcommand{\rretd}{\mathrm{r}_\mathrm{ret data}}
 \newcommand{\rdata}{\mathrm{r}_\mathrm{data}}
 
 %%% locality
@@ -287,13 +289,14 @@ Source language domains:
     & \aendbnf & \in & \Addr \uplus \{\infty \} \\
     &  \sealendbnf & \in & \Seal \uplus \{\infty \} \\
     &\scbnf &\defbnf & ((\permbnf,\glbnf),\basebnf,\aendbnf,\addrbnf) \mid \seal{\glbnf,\sealbasebnf,\sealendbnf}\\
-    & & & {\sourcecolor{} \mid \stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}}\\     &\cbnf & \defbnf &  \scbnf \mid \sealed{\scbnf,\sigma}{\sourcecolor{} \; \mid \retptr}\\ 
-    &\RegName & \defbnf &\pcreg \mid \rO \mid \rstk \mid \rdata \mid \dots \\
+    & & & {\sourcecolor{} \mid \stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}}\\ 
+    &\cbnf & \defbnf &  \scbnf \mid \sealed{\scbnf,\sigma}{\sourcecolor{} \; \mid \retptrd \mid \retptrc}\\ 
+    &\RegName & \defbnf &\pcreg \mid \rretc \mid \rretd \mid \rstk \mid \rdata \mid \dots \\
     &\Reg & \defeq & \RegName \fun \Word\\
     &\Mem & \defeq & \Addr \fun \Word \\
     &\MemSeg & \defeq & \Addr \parfun \Word \\
-    {\sourcecolor{} \sstkframe \in} & {\sourcecolor{} \StkFrame} & {\sourcecolor{} \defeq} & {\sourcecolor{} \Caps \times \MemSeg \times \Addr}\\
-    {\sourcecolor{} \sstk \in}& {\sourcecolor{} \Stack} & {\sourcecolor{} \defeq} & {\sourcecolor{} \StkFrame^*} \\
+    {\sourcecolor{} \sstkframe \in} & {\sourcecolor{} \StkFrame} & {\sourcecolor{} \defeq} & {\sourcecolor{} \Caps \times \Caps \times \MemSeg \times \Addr}\\
+    \src{\sstk \in}& \src{ \Stack} & \src{ \defeq} & \src{ \StkFrame^*} \\
     \Phi \in & \ExecConf & \defeq & \Mem \times \Reg {\sourcecolor{} \; \times \; \Stack \times \MemSeg }\\
     &\Conf & \defeq & \ExecConf \uplus \{\failed\} \uplus (\{\halted\} \times \Mem)
   \end{array}
@@ -303,7 +306,10 @@ The target language domains are all the non blue parts in the above. The source 
 \item $\glbnf$ defines domain $\Global$
 \item $\scbnf$ defines domain $\SealableCaps$
 \item $\cbnf$ defines domain $\Caps$
+\item $\Perm$ is defined as the permissions in Figure~\ref{fig:perm-hier}.
 \end{itemize}
+
+In the source language, $\src{\Stack}$ is a call stack that contains the data for each call. The call stack consists of a number of $\src{\StkFrame}$'s that contains 1) the old pc, 2) the old data capability, 3) caller private stack, and 4) the address of the old stack pointer.
 
 More convenient definitions
 \[
@@ -331,7 +337,7 @@ The source machine is also a capability machine with memory capabilities, local 
 \[
   \begin{array}{rcl}
     n & \in & \nats \\
-    \src{r} &\in &  \RegName \setminus \{\rO,\rstk\}\\
+    \src{r} &\in &  \RegName \setminus \{\rretc, \rretd, \rstk\}\\
     \src{\rn} &\defbnf & \src{r} \mid n \\
     \src{i} & \defbnf &  \trg{i} \mid \scall{\src{r}}{\src{r}}
   \end{array}
@@ -444,11 +450,11 @@ Target language:
 \]
 
 \[
-  \noRetStkReg{\reg} \defeq \forall r \in \reg \setminus \{ \pcreg, \rstk, \rO, \rdata \} \ldotp \reg(r) \neq \stkptr(\_)
+  \noRetStkReg{\reg} \defeq \forall r \in \reg \setminus \{ \pcreg, \rstk, \rretc, \rretd, \rdata \} \ldotp \reg(r) \neq \stkptr{\_}
 \]
 
 \[
-  \noRetStkMs{\ms} \defeq \defeq \forall \aaddr \in \dom(\ms) \ldotp \ms(\aaddr) \neq \stkptr(\_)
+  \noRetStkMs{\ms} \defeq \forall \aaddr \in \dom(\ms) \ldotp \ms(\aaddr) \neq \stkptr{\_}
 \]
 
 
@@ -479,13 +485,15 @@ If we are not in one of the two cases above, then the execution fails.
                                         \nonLoc{\cb_1,\cb_2} \text{ and } \\
                                         \reg' = \reg
                                         \begin{array}[t]{l}
-                                        \update{\pcreg}{\cb_1}\update{\rstk}{\stkptr{\perm,[\aaddr,eaddr],\aaddr}}\\
-                                        \update{\rO}{\retptr}\update{\rdata}{\cb_2} \text{ and }
+                                        \update{\pcreg}{\cb_1}\update{\rdata}{\cb_2}\\
+                                        \update{\rretc}{\retptrc}\\
+                                        \update{\rretd}{\retptrd}\\
+                                        \update{\rstk}{\stkptr{\perm,[\aaddr,\eaddr],\aaddr}} \text{ and }
                                         \end{array}
  \\
                                         \opc = \Phi(\pcreg)\update{a}{\Phi(\pcreg).a+\calllen} \text{ and } \\
                                         \ms_\priv = \ms_\stk \setminus [\aaddr,\eaddr] \text{ and } \\
-                                        \stk' = (\opc,\ms_\priv,\perm,\stdrng,\aaddr) :: \stk \text{ and } \\
+                                        \stk' = (\opc,\Phi(\rdata),\ms_\priv,\perm,\stdrng,\aaddr) :: \stk \text{ and } \\
                                         \ms_\stk' = \ms_\stk |_{[\baddr,\eaddr]}
                                       \end{array}\\
                                       & \\
@@ -510,6 +518,7 @@ If we are not in one of the two cases above, then the execution fails.
       \failed & \text{otherwise}
     \end{cases}
 \end{align*}
+\lau{do we need to require anything on the data capability we put on the call stack?}
 
 The $\scseal{}{}{}$ instruction seals a sealable capability with a seal.
 \begin{align*}
