@@ -454,6 +454,13 @@ Target language:
 
 \subsubsection{Source Language}
 \lau{23-03-2017: $\sjmp{}$ and $\scall{}{}$ needs an update.}
+\textbf{Call}\\
+Call has three cases, a successful call, undefined and failed. For a call to be successful, it needs two sealed capabilities - a data and a code capability. The code capability must be non-executable and the stack register must contain a stack pointer. Futher the code and data capability must be local and there must be no attempt at passing on the stack capability.
+\lau{Add more description here.}
+
+For the call to be undefined, the conditions necessary for a legal call must be met and there must be an attempt at passing the stack pointer to the callee or the called capabilities must be non-local \lau{I have forgotten why this is an issue, but I think it is because we are crossing a security domain?}
+
+If we are not in one of the two cases above, then the execution fails.
 \begin{align*}
   \ssem{\scall{r_1}{r_2}} = & 
     \begin{cases}
@@ -465,14 +472,19 @@ Target language:
                                         \Phi(r_2) = \sealed{\cb_2,\sigma} \text{ and } \\
                                         \nonExec{cb_2} \text{ and } \\
                                         \Phi(\rstk) = \stkptr{\perm, \stdrng, \aaddr} \text{ and } \\
-                                        \ms_\priv = \ms_\stk \setminus [\aaddr,\eaddr] \text{ and } \\
                                         % "yellow conditions"
                                         \cb_2 \neq \stkptr{\_,\_,\_,\_} \text{ and } \\
                                         \noRetStkReg{\reg} \text{ and } \\
                                         \noRetStkMs{\ms_\stk'} \text{ and } \\
                                         \nonLoc{\cb_1,\cb_2} \text{ and } \\
-                                        \reg' = \reg\update{\pcreg}{\cb_1}\update{\rstk}{\stkptr{\perm,[\aaddr,eaddr],\aaddr}}\update{\rO}{\retptr}\update{\rdata}{\cb_2} \text{ and } \\
+                                        \reg' = \reg
+                                        \begin{array}[t]{l}
+                                        \update{\pcreg}{\cb_1}\update{\rstk}{\stkptr{\perm,[\aaddr,eaddr],\aaddr}}\\
+                                        \update{\rO}{\retptr}\update{\rdata}{\cb_2} \text{ and }
+                                        \end{array}
+ \\
                                         \opc = \Phi(\pcreg)\update{a}{\Phi(\pcreg).a+\calllen} \text{ and } \\
+                                        \ms_\priv = \ms_\stk \setminus [\aaddr,\eaddr] \text{ and } \\
                                         \stk' = (\opc,\ms_\priv,\perm,\stdrng,\aaddr) :: \stk \text{ and } \\
                                         \ms_\stk' = \ms_\stk |_{[\baddr,\eaddr]}
                                       \end{array}\\
@@ -485,7 +497,6 @@ Target language:
                                         \Phi(r_2) = \sealed{\cb_2,\sigma} \text{ and } \\
                                         \nonExec{cb_2} \text{ and } \\
                                         \Phi(\rstk) = \stkptr{\perm, \stdrng, \aaddr} \text{ and } \\
-                                        \ms_\priv = \ms_\stk \setminus [\aaddr,\eaddr] \text{ and } \\
                                         % "yellow conditions"
                                         \text{not } \arraycolsep=0pt
                                         \left(\begin{array}{l}
