@@ -35,6 +35,7 @@
 \newcommand{\defbnf}{::=}
 \newcommand{\sem}[1]{\left\llbracket #1 \right\rrbracket}
 \newcommand{\ssem}[2][\Phi]{\sem{#2}_{\mathrm{src}}(#1)}
+\newcommand{\dom}{\mathrm{dom}}
 
 % Function arrows
 \newcommand{\fun}{\rightarrow}
@@ -195,6 +196,7 @@
 \newcommand{\sealed}[1]{\shareddom{sealed}(#1)}
 
 \newcommand{\failed}{\mathrm{failed}}
+\newcommand{\undefined}{\mathrm{undefined}}
 \newcommand{\halted}{\mathrm{halted}}
 
 %%% Target domain
@@ -209,9 +211,20 @@
 \newcommand{\ms}{\var{ms}}
 \newcommand{\pc}{\var{pc}}
 \newcommand{\stk}{\var{stk}}
+\newcommand{\ret}{\var{ret}}
+\newcommand{\data}{\var{data}}
+\newcommand{\priv}{\var{priv}}
 \newcommand{\opc}{\var{opc}}
 \newcommand{\vsc}{\var{sc}}
 \newcommand{\cb}{\var{cb}}
+\newcommand{\baddr}{\var{b}}
+\newcommand{\eaddr}{\var{e}}
+\newcommand{\aaddr}{\var{a}}
+\newcommand{\stdrng}{[\baddr,\eaddr]}
+
+%%% Constants
+\newcommand{\constant}[1]{\mathrm{#1}}
+\newcommand{\calllen}{\constant{call\_len}}
 
 %%% Named registers
 \newcommand{\pcreg}{\mathrm{pc}}
@@ -255,7 +268,8 @@
 }
 \newcommand{\updPcAddr}[1]{\plainfun{updatePc}{#1}}
 \newcommand{\updPcPerm}[1]{\plainfun{updatePcPerm}{#1}}
-\newcommand{\nonexec}[1]{\plainfun{nonExecutable}{#1}}
+\newcommand{\nonExec}[1]{\plainfun{nonExecutable}{#1}}
+\newcommand{\nonLoc}[1]{\plainfun{nonLocal}{#1}}
 \newcommand{\noRetStkReg}[1]{\plainfun{noRetStk_{reg}}{#1}}
 \newcommand{\noRetStkMs}[1]{\plainfun{noRetStk_{ms}}{#1}}
 
@@ -273,7 +287,7 @@ Source language domains:
     & \aendbnf & \in & \Addr \uplus \{\infty \} \\
     &  \sealendbnf & \in & \Seal \uplus \{\infty \} \\
     &\scbnf &\defbnf & ((\permbnf,\glbnf),\basebnf,\aendbnf,\addrbnf) \mid \seal{\glbnf,\sealbasebnf,\sealendbnf}\\
-    & & & {\sourcecolor{} \mid \stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}}\\     &\cbnf & \defbnf &  \scbnf \mid \sealed{\scbnf,\sigma}{\sourcecolor{} \; \mid \retptrd \mid \retptrc}\\ 
+    & & & {\sourcecolor{} \mid \stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}}\\     &\cbnf & \defbnf &  \scbnf \mid \sealed{\scbnf,\sigma}{\sourcecolor{} \; \mid \retptr}\\ 
     &\RegName & \defbnf &\pcreg \mid \rO \mid \rstk \mid \rdata \mid \dots \\
     &\Reg & \defeq & \RegName \fun \Word\\
     &\Mem & \defeq & \Addr \fun \Word \\
@@ -305,8 +319,8 @@ The target machine is a simple capability machine with memory capabilities, loca
 \begin{array}{rcl}
 n &\in & \nats \\
 \trg{r} &\in &  \tRegName \\
-\trg{\rn} &::= &  \trg{r} \mid n \\
-\trg{i} &::= & \tfail \mid \thalt \mid \tjmp{\trg{r}} \mid \tjnz{\trg{r}}{\trg{\rn}} \mid \tisptr{\trg{r}}{\trg{r}} \mid \tgeta{\trg{r}}{\trg{r}} \mid \tgetb{\trg{r}}{\trg{r}} \mid \\
+\trg{\rn} &\defbnf &  \trg{r} \mid n \\
+\trg{i} &\defbnf & \tfail \mid \thalt \mid \tjmp{\trg{r}} \mid \tjnz{\trg{r}}{\trg{\rn}} \mid \tisptr{\trg{r}}{\trg{r}} \mid \tgeta{\trg{r}}{\trg{r}} \mid \tgetb{\trg{r}}{\trg{r}} \mid \\
       & &  \tgete{\trg{r}}{\trg{r}}\mid \tgetp{\trg{r}}{\trg{r}} \mid \tgetl{\trg{r}}{\trg{r}} \mid \tmove{\trg{r}}{\trg{\rn}} \mid \tstore{\trg{r}}{\trg{r}} \mid\\
       & &  \tload{\trg{r}}{\trg{r}} \mid \tlea{\trg{r}}{\trg{\rn}} \mid \trestrict{\trg{r}}{\trg{r}}{\trg{\rn}} \mid \tsubseg{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tlt{\trg{r}}{\trg{r}}{\trg{r}} \mid \\
       & & \tplus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tminus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tsetatob{\trg{r}} \mid \txjmp{r}{r} \mid \tcseal{r}{r}{r}
@@ -318,8 +332,8 @@ The source machine is also a capability machine with memory capabilities, local 
   \begin{array}{rcl}
     n & \in & \nats \\
     \src{r} &\in &  \RegName \setminus \{\rO,\rstk\}\\
-    \src{\rn} &::= & \src{r} \mid n \\
-    \src{i} & ::= &  \trg{i} \mid \scall{\src{r}}{\src{r}}
+    \src{\rn} &\defbnf & \src{r} \mid n \\
+    \src{i} & \defbnf &  \trg{i} \mid \scall{\src{r}}{\src{r}}
   \end{array}
 \]
 There is one syntactic difference between the source language and the target language, namely the target language has an extra instruction in the $\scall{}{}$ instruction.
@@ -426,15 +440,15 @@ Target language:
 
 
 \[
-  \nonexec{} \defeq \dots
+  \nonExec{\cb} \defeq \dots
 \]
 
 \[
-  \noRetStkReg{} \defeq \dots %remember to ignore certain registers
+  \noRetStkReg{\reg} \defeq \forall r \in \reg \setminus \{ \pcreg, \rstk, \rO, \rdata \} \ldotp \reg(r) \neq \stkptr(\_)
 \]
 
 \[
-  \noRetStkMs{} \defeq \dots %remember to ignore certain registers
+  \noRetStkMs{\ms} \defeq \defeq \forall \aaddr \in \dom(\ms) \ldotp \ms(\aaddr) \neq \stkptr(\_)
 \]
 
 
@@ -443,8 +457,45 @@ Target language:
 \begin{align*}
   \ssem{\scall{r_1}{r_2}} = & 
     \begin{cases}
-      (\mem,\reg',\stk',\ms_\stk') & \Phi = (\mem,\reg,\stk,\ms_\stk) \text{ and } \dots\\
-      \\
+      (\mem,\reg',\stk',\ms_\stk') & \arraycolsep=0pt
+                                      \begin{array}[t]{l}
+                                        % "red conditions" (reference to blackboard picture)
+                                        \Phi = (\mem,\reg,\stk,\ms_\stk) \text{ and } \\
+                                        \Phi(r_1) = \sealed{\cb_1,\sigma} \text{ and } \\
+                                        \Phi(r_2) = \sealed{\cb_2,\sigma} \text{ and } \\
+                                        \nonExec{cb_2} \text{ and } \\
+                                        \Phi(\rstk) = \stkptr{\perm, \stdrng, \aaddr} \text{ and } \\
+                                        \ms_\priv = \ms_\stk \setminus [\aaddr,\eaddr] \text{ and } \\
+                                        % "yellow conditions"
+                                        \cb_2 \neq \stkptr{\_,\_,\_,\_} \text{ and } \\
+                                        \noRetStkReg{\reg} \text{ and } \\
+                                        \noRetStkMs{\ms_\stk'} \text{ and } \\
+                                        \nonLoc{\cb_1,\cb_2} \text{ and } \\
+                                        \reg' = \reg\update{\pcreg}{\cb_1}\update{\rstk}{\stkptr{\perm,[\aaddr,eaddr],\aaddr}}\update{\rO}{\retptr}\update{\rdata}{\cb_2} \text{ and } \\
+                                        \opc = \Phi(\pcreg)\update{a}{\Phi(\pcreg).a+\calllen} \text{ and } \\
+                                        \stk' = (\opc,\ms_\priv,\perm,\stdrng,\aaddr) :: \stk \text{ and } \\
+                                        \ms_\stk' = \ms_\stk |_{[\baddr,\eaddr]}
+                                      \end{array}\\
+                                      & \\
+      \undefined & \arraycolsep=0pt
+                                      \begin{array}[t]{l}
+                                        % "red conditions" (reference to blackboard picture)
+                                        \Phi = (\mem,\reg,\stk,\ms_\stk) \text{ and } \\
+                                        \Phi(r_1) = \sealed{\cb_1,\sigma} \text{ and } \\
+                                        \Phi(r_2) = \sealed{\cb_2,\sigma} \text{ and } \\
+                                        \nonExec{cb_2} \text{ and } \\
+                                        \Phi(\rstk) = \stkptr{\perm, \stdrng, \aaddr} \text{ and } \\
+                                        \ms_\priv = \ms_\stk \setminus [\aaddr,\eaddr] \text{ and } \\
+                                        % "yellow conditions"
+                                        \text{not } \arraycolsep=0pt
+                                        \left(\begin{array}{l}
+                                          \cb_2 \neq \stkptr{\_,\_,\_,\_} \text{ and } \\
+                                          \noRetStkReg{\reg} \text{ and } \\
+                                          \noRetStkMs{\ms_\stk'} \text{ and } \\
+                                          \nonLoc{\cb_1,\cb_2}
+                                        \end{array} \right)
+                                      \end{array}\\
+                                      & \\
       \failed & \text{otherwise}
     \end{cases}
 \end{align*}
@@ -479,7 +530,7 @@ Unlike CHERI, we want sealed capabilies to be useable in a somewhat normal jump 
                                 \begin{array}[t]{l}
                                   \Phi(r_1) = \sealed{c_1,\sigma} \text{ and } \\
                                   \Phi(r_2) = \sealed{c_2,\sigma} \text{ and } \\
-                                  \nonexec{c_2}
+                                  \nonExec{c_2}
                                 \end{array}\\
 %
                                 \\
@@ -514,7 +565,7 @@ Notice, $\rdata$ serves the same function as the IDC register in CHERI, i.e.\ th
                                 \begin{array}[t]{l}
                                   \Phi(r_1) = \sealed{c_1,\sigma} \text{ and } \\
                                   \Phi(r_2) = \sealed{c_2,\sigma} \text{ and } \\
-                                  \nonexec{c_2}
+                                  \nonExec{c_2}
                                 \end{array}
 \\
 \failed & \text{otherwise}
