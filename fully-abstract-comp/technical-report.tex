@@ -35,11 +35,16 @@
 \newcommand{\defbnf}{::=}
 \newcommand{\sem}[1]{\left\llbracket #1 \right\rrbracket}
 \newcommand{\ssem}[2][\Phi]{\sem{#2}_{\mathrm{src}}(#1)}
+\newcommand{\tsem}[2][\Phi]{\sem{#2}_{\mathrm{trg}}(#1)}
 \newcommand{\dom}{\mathrm{dom}}
 
 % Function arrows
 \newcommand{\fun}{\rightarrow}
 \newcommand{\parfun}{\rightharpoonup}
+
+% Text
+\newcommand{\tand}{\text{ and }}
+\newcommand{\totherwise}{\text{otherwise }}
 
 
 %%% Instruction formatting
@@ -67,6 +72,13 @@
   {\zinstr{#1} \; #2 \; #3 \; #4}
 }
 
+\newcommand{\fourinstr}[5]{
+  \ifthenelse{\equal{#2#3#4#5}{}}
+  {\zinstr{#1}}
+  {\zinstr{#1} \; #2 \; #3 \; #4 \; #5}
+}
+
+
 %%% Source language
 % No arguments
 \newcommand{\sfail}{\zinstr{\src{fail}}}
@@ -75,7 +87,6 @@
 
 % One argument
 \newcommand{\sjmp}[1]{\oneinstr{\src{jmp}}{#1}}
-\newcommand{\ssetatob}[1]{\oneinstr{\src{seta2b}}{#1}}
 \newcommand{\spush}[1]{\oneinstr{\src{push}}{#1}}
 \newcommand{\spop}[1]{\oneinstr{\src{pop}}{#1}}
 
@@ -94,14 +105,17 @@
 \newcommand{\ssload}[2]{\twoinstr{\src{sload}}{#1}{#2}}
 \newcommand{\scall}[2]{\twoinstr{\src{call}}{#1}{#2}}
 \newcommand{\sxjmp}[2]{\twoinstr{\trg{xjmp}}{#1}{#2}}
+\newcommand{\ssetatob}[2]{\twoinstr{\src{seta2b}}{#1}{#2}}
 
 % Three arguments
 \newcommand{\srestrict}[3]{\threeinstr{\src{restrict}}{#1}{#2}{#3}}
-\newcommand{\ssubseg}[3]{\threeinstr{\src{subseg}}{#1}{#2}{#3}}
 \newcommand{\slt}[3]{\threeinstr{\src{lt}}{#1}{#2}{#3}}
 \newcommand{\splus}[3]{\threeinstr{\src{plus}}{#1}{#2}{#3}}
 \newcommand{\sminus}[3]{\threeinstr{\src{minus}}{#1}{#2}{#3}}
 \newcommand{\scseal}[3]{\threeinstr{\trg{cseal}}{#1}{#2}{#3}}
+
+% Four arguments
+\newcommand{\ssubseg}[4]{\fourinstr{\src{subseg}}{#1}{#2}{#3}{#4}}
 
 %%% Target language
 % No arguments
@@ -110,7 +124,6 @@
 
 % One argument
 \newcommand{\tjmp}[1]{\oneinstr{\trg{jmp}}{#1}}
-\newcommand{\tsetatob}[1]{\oneinstr{\trg{seta2b}}{#1}}
 
 % Two arguments
 \newcommand{\tjnz}[2]{\twoinstr{\trg{jnz}}{#1}{#2}}
@@ -125,14 +138,18 @@
 \newcommand{\tload}[2]{\twoinstr{\trg{load}}{#1}{#2}}
 \newcommand{\tlea}[2]{\twoinstr{\trg{lea}}{#1}{#2}}
 \newcommand{\txjmp}[2]{\twoinstr{\trg{xjmp}}{#1}{#2}}
+\newcommand{\tsetatob}[2]{\twoinstr{\trg{seta2b}}{#1}{#2}}
 
 % Three arguments
 \newcommand{\trestrict}[3]{\threeinstr{\trg{restrict}}{#1}{#2}{#3}}
-\newcommand{\tsubseg}[3]{\threeinstr{\trg{subseg}}{#1}{#2}{#3}}
 \newcommand{\tlt}[3]{\threeinstr{\trg{lt}}{#1}{#2}{#3}}
 \newcommand{\tplus}[3]{\threeinstr{\trg{plus}}{#1}{#2}{#3}}
 \newcommand{\tminus}[3]{\threeinstr{\trg{minus}}{#1}{#2}{#3}}
 \newcommand{\tcseal}[3]{\threeinstr{\trg{cseal}}{#1}{#2}{#3}}
+
+% Four arguments
+\newcommand{\tsubseg}[4]{\fourinstr{\trg{subseg}}{#1}{#2}{#3}{#4}}
+
 
 %%% Domains
 \newcommand{\plaindom}[1]{\mathrm{#1}}
@@ -215,6 +232,7 @@
 \newcommand{\data}{\var{data}}
 \newcommand{\priv}{\var{priv}}
 \newcommand{\opc}{\var{opc}}
+\newcommand{\odata}{\var{odata}}
 \newcommand{\vsc}{\var{sc}}
 \newcommand{\cb}{\var{cb}}
 \newcommand{\baddr}{\var{b}}
@@ -268,10 +286,16 @@
   {\mathit{#1}}
   {\mathit{#1}(#2)}
 }
+\newcommand{\encPerm}[1]{\plainfun{encPerm}{#1}}
 \newcommand{\updPcAddr}[1]{\plainfun{updatePc}{#1}}
 \newcommand{\updPcPerm}[1]{\plainfun{updatePcPerm}{#1}}
 \newcommand{\nonExec}[1]{\plainfun{nonExecutable}{#1}}
+\newcommand{\opaquePerm}[1]{\plainfun{opaquePerm}{#1}}
+\newcommand{\readAllowed}[1]{\plainfun{readAllowed}{#1}}
+\newcommand{\writeAllowed}[1]{\plainfun{writeAllowed}{#1}}
+\newcommand{\writeLocalAllowed}[1]{\plainfun{writeLocalAllowed}{#1}}
 \newcommand{\nonLoc}[1]{\plainfun{nonLocal}{#1}}
+\newcommand{\isLoc}[1]{\plainfun{isLocal}{#1}}
 \newcommand{\noRetStkReg}[1]{\plainfun{noRetStk_{reg}}{#1}}
 \newcommand{\noRetStkMs}[1]{\plainfun{noRetStk_{ms}}{#1}}
 
@@ -291,11 +315,11 @@ Source language domains:
     &\scbnf &\defbnf & ((\permbnf,\glbnf),\basebnf,\aendbnf,\addrbnf) \mid \seal{\glbnf,\sealbasebnf,\sealendbnf}\\
     & & & {\sourcecolor{} \mid \stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}}\\ 
     &\cbnf & \defbnf &  \scbnf \mid \sealed{\scbnf,\sigma}{\sourcecolor{} \; \mid \retptrd \mid \retptrc}\\ 
-    &\RegName & \defbnf &\pcreg \mid \rretc \mid \rretd \mid \rstk \mid \rdata \mid \dots \\
+    &\RegName & \defbnf &\pcreg \mid \rret \mid \rstk \mid \rdata \mid \dots \\
     &\Reg & \defeq & \RegName \fun \Word\\
     &\Mem & \defeq & \Addr \fun \Word \\
     &\MemSeg & \defeq & \Addr \parfun \Word \\
-    {\sourcecolor{} \sstkframe \in} & {\sourcecolor{} \StkFrame} & {\sourcecolor{} \defeq} & {\sourcecolor{} \Caps \times \Caps \times \MemSeg \times \Addr}\\
+    {\sourcecolor{} \sstkframe \in} & {\sourcecolor{} \StkFrame} & {\sourcecolor{} \defeq} & {\sourcecolor{} \Caps \times \MemSeg \times \Addr}\\
     \src{\sstk \in}& \src{ \Stack} & \src{ \defeq} & \src{ \StkFrame^*} \\
     \Phi \in & \ExecConf & \defeq & \Mem \times \Reg {\sourcecolor{} \; \times \; \Stack \times \MemSeg }\\
     &\Conf & \defeq & \ExecConf \uplus \{\failed\} \uplus (\{\halted\} \times \Mem)
@@ -309,7 +333,7 @@ The target language domains are all the non blue parts in the above. The source 
 \item $\Perm$ is defined as the permissions in Figure~\ref{fig:perm-hier}.
 \end{itemize}
 
-In the source language, $\src{\Stack}$ is a call stack that contains the data for each call. The call stack consists of a number of $\src{\StkFrame}$'s that contains 1) the old pc, 2) the old data capability, 3) caller private stack, and 4) the address of the old stack pointer.
+In the source language, $\src{\Stack}$ is a call stack that contains the data for each call. The call stack consists of a number of $\src{\StkFrame}$'s that contains 1) the old pc, 2) caller private stack, and 3) the address of the old stack pointer.
 
 More convenient definitions
 \[
@@ -317,7 +341,7 @@ More convenient definitions
     \Phi(r) & \defeq & \Phi.\reg(r)
   \end{array}
 \]
-where $r\in \RegName$
+where $r\in \RegName$.
 
 \subsection{Syntax}
 The target machine is a simple capability machine with memory capabilities, local capabilities and sealed capabilities\footnote{In previous work, we used enter capabilities but for this the complexity introduced by mixing writable and executable memory is difficult to handle.} (Inspired by CHERI). The syntax of the instructions of the target machine is defined as follows:
@@ -328,8 +352,8 @@ n &\in & \nats \\
 \trg{\rn} &\defbnf &  \trg{r} \mid n \\
 \trg{i} &\defbnf & \tfail \mid \thalt \mid \tjmp{\trg{r}} \mid \tjnz{\trg{r}}{\trg{\rn}} \mid \tisptr{\trg{r}}{\trg{r}} \mid \tgeta{\trg{r}}{\trg{r}} \mid \tgetb{\trg{r}}{\trg{r}} \mid \\
       & &  \tgete{\trg{r}}{\trg{r}}\mid \tgetp{\trg{r}}{\trg{r}} \mid \tgetl{\trg{r}}{\trg{r}} \mid \tmove{\trg{r}}{\trg{\rn}} \mid \tstore{\trg{r}}{\trg{r}} \mid\\
-      & &  \tload{\trg{r}}{\trg{r}} \mid \tlea{\trg{r}}{\trg{\rn}} \mid \trestrict{\trg{r}}{\trg{r}}{\trg{\rn}} \mid \tsubseg{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tlt{\trg{r}}{\trg{r}}{\trg{r}} \mid \\
-      & & \tplus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tminus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tsetatob{\trg{r}} \mid \txjmp{r}{r} \mid \tcseal{r}{r}{r}
+      & &  \tload{\trg{r}}{\trg{r}} \mid \tlea{\trg{r}}{\trg{\rn}} \mid \trestrict{\trg{r}}{\trg{r}}{\trg{\rn}} \mid \tsubseg{\trg{r}}{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tlt{\trg{r}}{\trg{r}}{\trg{r}} \mid \\
+      & & \tplus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tminus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tsetatob{\trg{r}}{\trg{r}} \mid \txjmp{r}{r} \mid \tcseal{r}{r}{r}
 \end{array}
 \]
 
@@ -337,7 +361,7 @@ The source machine is also a capability machine with memory capabilities, local 
 \[
   \begin{array}{rcl}
     n & \in & \nats \\
-    \src{r} &\in &  \RegName \setminus \{\rretc, \rretd, \rstk\}\\
+    \src{r} &\in &  \RegName \setminus \{\rret, \rstk\}\\
     \src{\rn} &\defbnf & \src{r} \mid n \\
     \src{i} & \defbnf &  \trg{i} \mid \scall{\src{r}}{\src{r}}
   \end{array}
@@ -435,7 +459,9 @@ Target language:
 \item 
 \end{itemize}
 
-\subsubsection{Helpful functions}
+\subsubsection{Helpful functions and sets}
+
+
 \[
   \updPcAddr{} \defeq \dots
 \]
@@ -444,13 +470,37 @@ Target language:
   \updPcPerm{} \defeq \dots
 \]
 
+\[
+  \readAllowed{} \defeq \dots
+\]
+
+\[
+  \writeAllowed{} \defeq \dots
+\]
+
+\[
+  \writeLocalAllowed{} \defeq \dots
+\]
+
+\[
+  % Lau: this should work for everything that might be local - used in store.
+  \isLoc{c} \defeq \dots
+\]
+
+\[
+  \nonLoc{c} \defeq \dots
+\]
 
 \[
   \nonExec{\cb} \defeq \dots
 \]
 
 \[
-  \noRetStkReg{\reg} \defeq \forall r \in \reg \setminus \{ \pcreg, \rstk, \rretc, \rretd, \rdata \} \ldotp \reg(r) \neq \stkptr{\_}
+  \opaquePerm{} \defeq \dots
+\]
+
+\[
+  \noRetStkReg{\reg} \defeq \forall r \in \reg \setminus \{ \pcreg, \rstk, \rret, \rdata \} \ldotp \reg(r) \neq \stkptr{\_}
 \]
 
 \[
@@ -472,7 +522,7 @@ If we are not in one of the two cases above, then the execution fails.
     \begin{cases}
       (\mem,\reg',\stk',\ms_\stk') & \arraycolsep=0pt
                                       \begin{array}[t]{l}
-                                        % "red conditions" (reference to blackboard picture)
+                                        % "red conditions" (in reference to blackboard picture)
                                         \Phi = (\mem,\reg,\stk,\ms_\stk) \text{ and } \\
                                         \Phi(r_1) = \sealed{\cb_1,\sigma} \text{ and } \\
                                         \Phi(r_2) = \sealed{\cb_2,\sigma} \text{ and } \\
@@ -483,17 +533,18 @@ If we are not in one of the two cases above, then the execution fails.
                                         \noRetStkReg{\reg} \text{ and } \\
                                         \noRetStkMs{\ms_\stk'} \text{ and } \\
                                         \nonLoc{\cb_1,\cb_2} \text{ and } \\
-                                        \reg' = \reg
+                                        \reg' = \reg''
                                         \begin{array}[t]{l}
                                         \update{\pcreg}{\cb_1}\update{\rdata}{\cb_2}\\
-                                        \update{\rretc}{\retptrc}\\
-                                        \update{\rretd}{\retptrd}\\
+                                        \update{\rretc}{\retptr}\\
                                         \update{\rstk}{\stkptr{\perm,[\aaddr,\eaddr],\aaddr}} \text{ and }
                                         \end{array}
- \\
+\\
+                                        \text{where $\forall r \in \RegName \ldotp \nonLoc{\reg''(r)} \text{ and } \reg''(r) = \reg(r)$}\\
+                                        \quad \text{$\text{ or } \reg''(r)=0 $}\\
                                         \opc = \Phi(\pcreg)\update{a}{\Phi(\pcreg).a+\calllen} \text{ and } \\
                                         \ms_\priv = \ms_\stk \setminus [\aaddr,\eaddr] \text{ and } \\
-                                        \stk' = (\opc,\Phi(\rdata),\ms_\priv,\perm,\stdrng,\aaddr) :: \stk \text{ and } \\
+                                        \stk' = (\opc,\ms_\priv,\perm,\stdrng,\aaddr) :: \stk \text{ and } \\
                                         \ms_\stk' = \ms_\stk |_{[\baddr,\eaddr]}
                                       \end{array}\\
                                       & \\
@@ -518,9 +569,8 @@ If we are not in one of the two cases above, then the execution fails.
       \failed & \text{otherwise}
     \end{cases}
 \end{align*}
-\lau{do we need to require anything on the data capability we put on the call stack?}
 
-The $\scseal{}{}{}$ instruction seals a sealable capability with a seal.
+The $\scseal{}{}{}$ instruction seals a sealable capability with a seal. The base of the seal is used for the seal. The used seal only works if it still grants authority to seal (that is the base of the seal is smaller than or equal to the end).
 \begin{align*}
   \ssem{\scseal{r_1}{r_2}{r_3}} = & 
                                     \begin{cases}
@@ -551,19 +601,65 @@ Unlike CHERI, we want sealed capabilies to be useable in a somewhat normal jump 
                                   \Phi(r_1) = \sealed{c_1,\sigma} \text{ and } \\
                                   \Phi(r_2) = \sealed{c_2,\sigma} \text{ and } \\
                                   \nonExec{c_2}
-                                \end{array}\\
+                                \end{array}\\\\
 %
-                                \\
+                                (\mem,\reg',\stk',\ms_\stk') &
+                                \arraycolsep=0pt
+                                \begin{array}[t]{l}
+                                  \Phi(r_1) = \retptrc \text{ and } \\
+                                  \Phi(r_2) = \retptrd \text{ and } \\
+                                  \Phi = (\mem, \reg, \stk, \ms_\stk) \text{ and } \\
+                                  \stk = (\opc,\ms_\priv,\aaddr_\stk) :: \stk' \text{ and } \\
+                                  \reg \arraycolsep=0pt
+                                  \begin{array}[t]{l}
+                                    \update{\pcreg}{\opc}\update{\rstk}{\stkptr{\dots,\aaddr_\stk}}\\
+                                  \end{array}
+                                \end{array}\\\\
 %
                                 \failed & \text{otherwise}
                               \end{cases}
 \end{align*}
-\lau{This is $\sxjmp{}{}$ for the target language - this one also needs to allow jumps to the return pointer}
+\lau{questions: what do we allow to be left in the registers? Everything? Only global capabilities? Whatever we do should be matched in the compilation to the target.}
+
 Notice, $\rdata$ serves the same function as the IDC register in CHERI, i.e.\ this is where the data capability is put. In the interpretation of $\sxjmp{}{}$, we require $c_2$ to be non-executable because CHERI does it. We are, however, not certain whether this requirement is strictly necessary (maybe it is dangerous to $\sxjmp{r}{r}$ where $r$ points to the same capability? Maybe it can be use to unseal a code capability by first sealing another code capability with the seal, $\sxjmp{}{}$ with the newly sealed and the old sealed capability. Now both capabilities are unsealed). CHERI also checks whether $c_1$ is executable and in range, but we do this on every step of the operational semantics, so we do not repeat that check.
 
 \begin{align*}
   \ssem{\sjmp{r}} = & \dots
 \end{align*}
+
+\begin{align*}
+  \ssem{\sload{r_1}{r_2}} = & 
+                              \begin{cases}
+                                \dots & \\
+                                \updPcAddr{\Phi\update{\reg.r_1}{\var{w}}} &
+                                \arraycolsep=0pt
+                                \begin{array}[t]{l}
+                                  \Phi = (\_, \_, \_, \ms_\stk) \tand \\
+                                  \Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
+                                  \perm \in \readAllowed{} \tand \baddr \leq \aaddr \leq \eaddr \tand\\
+                                  \var{w} = \ms_\stk(\addr) 
+                                \end{array}\\
+                              \end{cases}
+\end{align*}
+
+\begin{align*}
+  \ssem{\sstore{r_1}{r_2}} = & 
+                               \begin{cases}
+                                 \dots & \\
+                                 \updPcAddr{\Phi\update{\ms_\stk.a}{w}} & 
+                                 \arraycolsep=0pt
+                                 \begin{array}[t]{l}
+                                   \Phi = (\_, \_, \_, \ms_\stk) \tand \\
+                                   \Phi(r_1) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
+                                   \perm \in \writeAllowed{} \tand \baddr \leq \aaddr \leq \eaddr \tand \\
+                                   \aaddr \in \dom(\ms_\stk) \tand \\
+                                   \var{w} = \Phi(r_2) \tand \\
+                                   \text{if } \isLoc{\var{w}} \text{,} \\
+                                   \text{ then } \perm \in \writeLocalAllowed{}
+                                 \end{array}
+                               \end{cases}
+\end{align*}
+
 
 
 \begin{itemize}
@@ -573,13 +669,144 @@ Notice, $\rdata$ serves the same function as the IDC register in CHERI, i.e.\ th
 \subsubsection{Target Language}
 
 \begin{align*}
-  \ssem{\sxjmp{r_1}{r_2}} = & 
+  \tsem{\tfail} = & \failed
+\end{align*}
+
+\begin{align*}
+  \tsem{\thalt} = & \halted
+\end{align*}
+
+\begin{align*}
+  \tsem{\tjmp{r}} = & \dots
+\end{align*}
+
+\begin{align*}
+  \tsem{\tjnz{r_1}{r_2}} = & \dots
+\end{align*}
+
+\begin{align*}
+  \tsem{\tisptr{r_1}{r_2}} = & \dots
+\end{align*}
+
+\begin{align*}
+  \tsem{\tgeta{r_1}{r_2}} = &
+                              \begin{cases}
+                                \updPcAddr{\Phi\update{\reg.r_1}{a}} & 
+                                \arraycolsep=0pt
+                                \begin{array}[t]{l}
+                                  \Phi(r_2) = ((\perm,\_),\_,\_,a) \text{ and }\\
+                                  \perm \not\in \opaquePerm{}
+                                \end{array} \\
+                                \failed & \totherwise
+                              \end{cases}
+\end{align*}
+
+\begin{align*}
+  \tsem{\tgetb{r_1}{r_2}} = & \dots
+\end{align*}
+
+\begin{align*}
+  \tsem{\tgete{r_1}{r_2}} = & \dots
+\end{align*}
+
+\begin{align*}
+  \tsem{\tgetp{r_1}{r_2}} = & 
+                              \begin{cases}
+                                \updPcAddr{}(\Phi\update{\reg.r_1}{\encPerm{\perm}}) & \Phi(r_1) = ((\perm,\_),\_,\_,\_)\\
+                                \failed & \totherwise
+                              \end{cases}
+\end{align*}
+
+\begin{align*}
+  \tsem{\tgetl{r_1}{r_2}} = & \dots
+\end{align*}
+
+\begin{align*}
+  \tsem{\tmove{r_1}{r_2}} = & \dots
+\end{align*}
+
+\begin{align*}
+  \tsem{\tstore{r_1}{r_2}} = & \dots
+\end{align*}
+
+\begin{align*}
+  \tsem{\tload{r_1}{r_2}} = & \dots
+\end{align*}
+
+\begin{align*}
+  \tsem{\tlea{r_1}{r_2}} = & \dots
+\end{align*}
+
+\begin{align*}
+  \tsem{\trestrict{r_1}{r_2}{r_3}} = & \dots
+\end{align*}
+
+\begin{align*}
+  \tsem{\tsubseg{r_1}{r_2}{r_3}{r_4}} = &
+                                     \begin{cases}
+                                       \updPcAddr{\Phi\update{r_1}{\var{c}}} &
+                                       \arraycolsep=0pt
+                                       \begin{array}[t]{l}
+                                         \Phi(r_2) = ((\perm,\gl),\baddr, \eaddr, \aaddr) \tand \\
+                                         \text{for $i \in \{3,4\}$ and} \\
+                                         \quad n_i = r_i \text{ or } n_i = \Phi(r_i) \tand \\
+                                         \quad \text{in either case $n_i \in \ints$ and} \\
+                                         \quad \baddr \leq n_3 \tand \\
+                                         \quad n_4 \leq \eaddr \text{ or } n_4 = \infty \tand \\
+                                         \quad \perm \neq \enter \tand \\
+                                         \quad c = ((\perm,\gl),n_3,n_4,\aaddr)
+                                       \end{array} \\
+                                       \updPcAddr{\Phi\update{r_1}{\var{s}}} &
+                                       \arraycolsep=0pt
+                                       \begin{array}[t]{l}
+                                         \Phi(r_2) = \seal{\perm,\phi_{\var{base}},\phi_{\var{end}}} \tand \\
+                                         \text{for $i \in \{3,4\}$ and} \\
+                                         \quad n_i = r_i \text{ or } n_i = \Phi(r_i) \tand \\
+                                         \quad \text{in either case $n_i \in \ints$ and} \\
+                                         \quad \phi_{\var{base}} \leq n_3 \tand \\
+                                         \quad n_4 \leq \phi_{\var{end}} \text{ or } n_4 = \infty \tand \\
+                                         \quad \perm \neq \enter \tand \\
+                                         \quad c = \seal{\perm, n_3,n_4}
+                                       \end{array} \\
+                                       \failed & \totherwise
+                                     \end{cases}
+\end{align*}
+
+\begin{align*}
+  \tsem{\tlt{r_1}{r_2}{r_3}} = & \dots
+\end{align*}
+
+\begin{align*}
+  \tsem{\tplus{r_1}{r_2}{r_3}} = & \dots
+\end{align*}
+
+\begin{align*}
+  \tsem{\tminus{r_1}{r_2}{r_3}} = & \dots
+\end{align*}
+
+\begin{align*}
+  \tsem{\tsetatob{r_1}{r_2}} = & 
+                                 \begin{cases}
+                                   \updPcAddr{\Phi\update{\reg.r_1}{c}} &
+                                   \arraycolsep=0pt
+                                   \begin{array}[t]{l}
+                                     \Phi(r_2) = ((\perm,\gl),\baddr,\eaddr,\aaddr) \tand \\
+                                     c = ((\perm,\gl),\baddr,\eaddr,\baddr) \\
+                                     \perm \neq \enter \tand \perm \not\in \opaquePerm{}
+                                   \end{array}
+                                   \\
+                                   \failed & \totherwise
+                                 \end{cases}
+\end{align*}
+
+\begin{align*}
+  \tsem{\txjmp{r_1}{r_2}} = & 
                               \begin{cases}
                                 \Phi
                                 \arraycolsep=0pt
                                 \begin{array}[t]{l}
-                                  [\reg.\pcreg \mapsto c_1] \\
-                                  [\reg.\rdata \mapsto c_2]
+                                  \update{\reg.\pcreg}{c_1} \\
+                                  \update{\reg.\rdata}{c_2}
                                 \end{array} & 
                                 \arraycolsep=0pt
                                 \begin{array}[t]{l}
@@ -592,10 +819,64 @@ Notice, $\rdata$ serves the same function as the IDC register in CHERI, i.e.\ th
                               \end{cases}
 \end{align*}
 
+Sealing a capability: $\tcseal{}{}{}$ seals a sealable capability
+\begin{align*}
+  \tsem{\tcseal{r_1}{r_2}{r_3}} = & 
+                                    \begin{cases}
+                                      \updPcAddr{\Phi\update{\reg.r_1}{\sealed{\Phi(r_2),\phi_{\var{base}}}}} &
+                                      \arraycolsep=0pt
+                                      \begin{array}[t]{l}
+                                        \Phi(r_2) \in \SealableCaps \text{ and } \\
+                                        \Phi(r_3) = \seal{\gl,\phi_{\var{base}},\phi_{\var{end}}} \\
+                                        \phi_{\var{base}} \leq \phi_{\var{end}} % This allows one to restrict a seal to not have any authority
+                                      \end{array} \\
+                                      \failed & \text{otherwise}
+                                    \end{cases}
+\end{align*}
+
+\subsection{Target program linking and layout}
+For a $\scall{}{}$ to be secure after compilation, we need to use the seal mechanism. In order for a program to seal a capability, it must have a seal available. We propose that a compiled program must have the layout sketched in Figure~\ref{fig:trg-prog-link}. The first address of a program contains a seal (unique to this program), the second address contains a capability for a linking table, and the following addresses contain the instructions of the program. The capability for the program points to the first address of the program and it has permission no greater then global read-execute (notice that it does not have write).
+
+The capability for the linking table is a global read-write capability, which means that it does not grant access to alter the table (which means that the table could potentially be shared between multiple parties). The linking table contains pairs of sealed code and data capabilities.
+
+The program should also have access to a persistent memory which it has in the register $\rdata$ where it has a global read-write capability (or something less) (notice that this capabilty should not have execute permission). Finally the program also has access to local memory in the form of a stack. The capability for the stack resides in $\rstk$ and the capability should have local read-write-local permission (or less)
+\lau{The stack capability may even need to be opaque for the sake of making the setup general (we will be handing over opaque stack capabilities).}
+
+\lau{should the capability for the ``persistent'' memory reside along side the code?}
+
+Notice that the linking part is not strictly necessary for the compilation, but we would like to be able to link our known programs with other programs.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=\textwidth]{img/prog_layout.jpg}
+  \caption{Target program linking and layout (there is a typo in the figure: the pc capability should be global rather than local).}
+  \label{fig:trg-prog-link}
+\end{figure}
+
 \subsection{Compiler}
 \[
 \comp{\cdot} : \src{i}^* \fun \trg{i}^*
 \]
+
+\[
+  \comp{\scall{r_1}{r_2}} = 
+  \begin{array}[t]{l}
+    % Make the stack capability into the return capability and seal it:
+    %   Push r_data to the stack (should this be made the responsibility of the programmer? If it happens here, then it should probably also be part of the call semantics. Especially, the call semantics should "eat" another piece of memory on the stack to make sure there is no discrepancy.)
+    %   Seal the stack capability (with what? where does the seal come from? I think we talked about this, and it is something that should be handled like linking (a fresh seal is available in the beginning of a programs code along with a capability for a linking table)).
+    % restrict the stack capability to the unused part (and clear this part).
+    % make return capability and ceal it:
+    %   Move a copy of pc to a different register.
+    %   Adjust the pc copy to point to the return address.
+    %   Seal it with the seal.
+    % remove all data from temp registers (that is at least the seal).
+    % jmpx to r1 and r2
+    % restore code:
+    %   move the stack pointer to the proper register
+    %   pop the data capability
+  \end{array}
+\]
+
 \clearpage
 \section{Examples}
 \subsection{Capability Opacity}
