@@ -310,9 +310,13 @@
 \newcommand{\writeAllowed}[1]{\plainfun{writeAllowed}{#1}}
 \newcommand{\writeLocalAllowed}[1]{\plainfun{writeLocalAllowed}{#1}}
 \newcommand{\nonLoc}[1]{\plainfun{nonLocal}{#1}}
+\newcommand{\nonLinear}[1]{\plainfun{nonLinear}{#1}}
 \newcommand{\isLoc}[1]{\plainfun{isLocal}{#1}}
+\newcommand{\isLinear}[1]{\plainfun{isLinear}{#1}}
 \newcommand{\noRetStkReg}[1]{\plainfun{noRetStk_{reg}}{#1}}
 \newcommand{\noRetStkMs}[1]{\plainfun{noRetStk_{ms}}{#1}}
+\newcommand{\withinBounds}[1]{\plainfun{withinBounds}{#1}}
+
 
 \begin{document}
 \section{The two capability machines}
@@ -322,7 +326,7 @@ Source language domains:
   \begin{array}{rrcl}
    \addrbnf,\basebnf \in & \Addr & \defeq & \nats \\
     \sealbasebnf, \sigma \in & \Seal & \defeq & \nats \\
-    &\Word & \defeq & \ints \uplus \Caps\\
+    &\Word & \defeq & \ints \uplus \SealableCaps\\
     \permbnf \in& \Perm & \defbnf & \dots \\
     &\glbnf & \defbnf & \glob \mid \local \\
     &\linbnf & \defbnf & \linear \mid \normal \\
@@ -347,10 +351,10 @@ The target language domains are all the non blue parts in the above. The source 
 \item $\linbnf$ defines domain $\Linear$
 \item $\scbnf$ defines domain $\SealableCaps$
 \item $\cbnf$ defines domain $\Caps$
-\item $\Perm$ is defined as the permissions in Figure~\ref{fig:perm-hier}.
+\item $\Perm$ is defined as the set of permissions in Figure~\ref{fig:perm-hier}.
 \end{itemize}
 
-In the source language, $\src{\Stack}$ is a call stack that contains the data for each call. The call stack consists of a number of $\src{\StkFrame}$'s that contains 1) the old pc, 2) caller private stack, and 3) the address of the old stack pointer.
+In the source language, $\src{\Stack}$ is a call stack that contains the data for each call. The call stack consists of a number of $\src{\StkFrame}$'s that contains 1) the old pc, 2) caller's private stack, and 3) the address of the old stack pointer.
 
 More convenient definitions
 \[
@@ -361,7 +365,7 @@ More convenient definitions
 where $r\in \RegName$.
 
 \subsection{Syntax}
-The target machine is a simple capability machine with memory capabilities, local capabilities and sealed capabilities\footnote{In previous work, we used enter capabilities but for this the complexity introduced by mixing writable and executable memory is difficult to handle.} (Inspired by CHERI). The syntax of the instructions of the target machine is defined as follows:
+The target machine is a simple capability machine with memory capabilities, local capabilities and sealed capabilities\footnote{In previous work, we used enter capabilities but for this the complexity introduced by mixing writable and executable memory is difficult to handle.} (inspired by CHERI). The syntax of the instructions of the target machine is defined as follows:
 \[
 \begin{array}{rcl}
 n &\in & \nats \\
@@ -379,11 +383,12 @@ The source machine is also a capability machine with memory capabilities, local 
 \[
   \begin{array}{rcl}
     n & \in & \nats \\
-    \src{r} &\in &  \RegName \setminus \{\rret, \rstk\}\\
+    \src{r} &\in &  \RegName \setminus \{\rstk\}\\
     \src{\rn} &\defbnf & \src{r} \mid n \\
     \src{i} & \defbnf &  \trg{i} \mid \scall{\src{r}}{\src{r}}
   \end{array}
 \]
+\lau{We had $\rret$ as not being one of the registers on the source machine. I could not recall why we had this, so I removed it. (I think it may have been from when we had call and return instructions?)}
 There is one syntactic difference between the source language and the target language, namely the target language has an extra instruction in the $\scall{}{}$ instruction.
 
 \subsection{Permissions}
@@ -484,11 +489,11 @@ Target language:
 
 
 \[
-  \updPcAddr{} \defeq \dots
+  \updPcAddr{c} \defeq \dots
 \]
 
 \[
-  \updPcPerm{} \defeq \dots
+  \updPcPerm{c} \defeq \dots
 \]
 
 \[
@@ -509,6 +514,14 @@ Target language:
 \]
 
 \[
+  \isLinear{\cb} \defeq \dots
+\]
+
+\[
+  \nonLinear{\cb} \defeq \dots
+\]
+
+\[
   \nonLoc{c} \defeq \dots
 \]
 
@@ -526,6 +539,10 @@ Target language:
 
 \[
   \noRetStkMs{\ms} \defeq \forall \aaddr \in \dom(\ms) \ldotp \ms(\aaddr) \neq \stkptr{\_}
+\]
+
+\[
+  \withinBounds{c} \defeq \dots
 \]
 
 
@@ -648,25 +665,93 @@ Notice, $\rdata$ serves the same function as the IDC register in CHERI, i.e.\ th
   \ssem{\sjmp{r}} = & \dots
 \end{align*}
 
+\lau{how should the interaction between read-only memory and linear capabilities be? That is, if a linear capability resides in read-only memory and you attempt to load it what happens? Do the load succeed with the memory cell being cleared or do the load fail (because we need to clear the cell, but we do not have the necessary permissions)? }
 \begin{align*}
   \ssem{\sload{r_1}{r_2}} = & 
                               \begin{cases}
-                                \dots & \\
+                                \updPcAddr{\update{\reg.r_1}{\var{w}}} &
+                                \arraycolsep=0pt
+                                \begin{array}[t]{l}
+                                  \Phi = (\mem, \_, \_, \_) \tand \\
+                                  \Phi(r_2) = ((\perm,\gl,\lin),\baddr,\eaddr,\aaddr) = \var{c} \tand\\
+                                  \perm \in \readAllowed{} \tand \withinBounds{\var{c}} \tand \\
+                                  \var{w} = \mem(\aaddr) \tand \\
+                                  \nonLinear{\var{w}}
+                                \end{array}\\
+                                \updPcAddr{\update{\reg.r_1}{\var{w}}}\update{\mem(\aaddr)}{0} &
+                                \arraycolsep=0pt
+                                \begin{array}[t]{l}
+                                  \Phi = (\mem, \_, \_, \_) \tand \\
+                                  \Phi(r_2) = ((\perm,\gl,\lin),\baddr,\eaddr,\aaddr) = \var{c} \tand\\
+                                  \perm \in \readAllowed{} \cup \writeAllowed{} \\
+                                  \tand \withinBounds{\var{c}} \tand \\
+                                  \var{w} = \mem(\aaddr) \tand \\
+                                  \isLinear{\var{w}}
+                                \end{array}\\
+                                \updPcAddr{\Phi\update{\reg.r_1}{\var{w}}\update{\ms_\stk(\aaddr)}{0}} & 
+                                % linear capability
+                                \arraycolsep=0pt
+                                \begin{array}[t]{l}
+                                  \begin{array}[t]{l}
+                                  \Phi = (\_, \_, \_, \ms_\stk) \tand \\
+                                  \Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
+                                  \perm \in \readAllowed{} \cup \writeAllowed{} \tand \\
+                                  \baddr \leq \aaddr \leq \eaddr \tand \var{w} = \ms_\stk(\aaddr) \tand \\
+                                  \isLinear{\var{w}}
+                                \end{array}
+                                \\
+                                \end{array}
+                                \\
                                 \updPcAddr{\Phi\update{\reg.r_1}{\var{w}}} &
                                 \arraycolsep=0pt
+                                % non-linear capability
                                 \begin{array}[t]{l}
                                   \Phi = (\_, \_, \_, \ms_\stk) \tand \\
                                   \Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
                                   \perm \in \readAllowed{} \tand \baddr \leq \aaddr \leq \eaddr \tand\\
-                                  \var{w} = \ms_\stk(\addr) 
+                                  \var{w} = \ms_\stk(\aaddr) \tand \\
+                                  \nonLinear{\var{w}}
                                 \end{array}\\
+                                \failed & \totherwise
                               \end{cases}
 \end{align*}
 
 \begin{align*}
   \ssem{\sstore{r_1}{r_2}} = & 
                                \begin{cases}
-                                 \dots & \\
+                                 \updPcAddr{\Phi\update{\ms.a}{w}}\update{\reg.r_2}{0} &
+                                 \arraycolsep=0pt
+                                 \begin{array}[t]{l}
+                                   \Phi(r_1) = ((\perm,\gl,\lin),\baddr,\eaddr,\aaddr) = \var{c} \tand\\
+                                   \perm \in \writeAllowed{} \tand \withinBounds{\var{c}} \tand \\
+                                   \var{w} = \Phi(r_2) \tand \\
+                                   \isLinear{\var{w}} \tand \\
+                                   \text{if } \var{w} = ((\_,\local,\_),\_,\_,\_) \\
+                                   \text{ then } \perm \in \writeLocalAllowed{}
+                                 \end{array} \\
+                                 \updPcAddr{\Phi\update{\ms.a}{w}} &
+                                 \arraycolsep=0pt
+                                 \begin{array}[t]{l}
+                                   \Phi(r_1) = ((\perm,\gl,\lin),\baddr,\eaddr,\aaddr) = \var{c} \tand\\
+                                   \perm \in \writeAllowed{} \tand \withinBounds{\var{c}} \tand \\
+                                   \var{w} = \Phi(r_2) \tand \\
+                                   \nonLinear{\var{w}} \tand \\
+                                   \text{if } \var{w} = ((\_,\local,\_),\_,\_,\_) \\
+                                   \text{ then } \perm \in \writeLocalAllowed{}
+                                 \end{array} \\
+%
+                                 \updPcAddr{\Phi\update{\ms_\stk.a}{w}}\update{reg.r_2}{0} & 
+                                 \arraycolsep=0pt
+                                 \begin{array}[t]{l}
+                                   \Phi = (\_, \_, \_, \ms_\stk) \tand \\
+                                   \Phi(r_1) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
+                                   \perm \in \writeAllowed{} \tand \baddr \leq \aaddr \leq \eaddr \tand \\
+                                   \aaddr \in \dom(\ms_\stk) \tand \\
+                                   \var{w} = \Phi(r_2) \tand \\
+                                   \isLinear{w} \tand \\
+                                   \text{if } \isLoc{\var{w}} \text{,} \\
+                                   \text{ then } \perm \in \writeLocalAllowed{}
+                                 \end{array} \\
                                  \updPcAddr{\Phi\update{\ms_\stk.a}{w}} & 
                                  \arraycolsep=0pt
                                  \begin{array}[t]{l}
@@ -675,9 +760,11 @@ Notice, $\rdata$ serves the same function as the IDC register in CHERI, i.e.\ th
                                    \perm \in \writeAllowed{} \tand \baddr \leq \aaddr \leq \eaddr \tand \\
                                    \aaddr \in \dom(\ms_\stk) \tand \\
                                    \var{w} = \Phi(r_2) \tand \\
+                                   \nonLinear{w} \tand \\
                                    \text{if } \isLoc{\var{w}} \text{,} \\
                                    \text{ then } \perm \in \writeLocalAllowed{}
-                                 \end{array}
+                                 \end{array} \\
+                                 \failed & \totherwise
                                \end{cases}
 \end{align*}
 
@@ -743,7 +830,11 @@ Notice, $\rdata$ serves the same function as the IDC register in CHERI, i.e.\ th
 \end{align*}
 
 \begin{align*}
-  \tsem{\tmove{r_1}{r_2}} = & \dots
+  \tsem{\tmove{r_1}{r_2}} = & 
+                              \begin{cases}
+                                \updPcAddr{\Phi\update{\reg.r_1}{\Phi(r_2)}} & \nonLinear{\Phi(r_2)}\\
+                                \updPcAddr{\Phi\update{\reg.r_1}{\Phi(r_2)}}\update{\reg.r_2}{0} & \totherwise 
+                              \end{cases}
 \end{align*}
 
 \begin{align*}
