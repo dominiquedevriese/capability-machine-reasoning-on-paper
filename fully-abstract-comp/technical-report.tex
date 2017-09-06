@@ -92,12 +92,13 @@
 
 % Two arguments
 \newcommand{\sjnz}[2]{\twoinstr{\src{jnz}}{#1}{#2}}
-\newcommand{\sisptr}[2]{\twoinstr{\src{isptr}}{#1}{#2}}
+\newcommand{\sisptr}[2]{\twoinstr{\src{gettype}}{#1}{#2}}
 \newcommand{\sgeta}[2]{\twoinstr{\src{geta}}{#1}{#2}}
 \newcommand{\sgetb}[2]{\twoinstr{\src{getb}}{#1}{#2}}
 \newcommand{\sgete}[2]{\twoinstr{\src{gete}}{#1}{#2}}
 \newcommand{\sgetp}[2]{\twoinstr{\src{getp}}{#1}{#2}}
-\newcommand{\sgetl}[2]{\twoinstr{\src{getl}}{#1}{#2}}
+\newcommand{\sgetloc}[2]{\twoinstr{\src{getloc}}{#1}{#2}}
+\newcommand{\sgetlin}[2]{\twoinstr{\src{getlin}}{#1}{#2}}
 \newcommand{\smove}[2]{\twoinstr{\src{move}}{#1}{#2}}
 \newcommand{\sstore}[2]{\twoinstr{\src{store}}{#1}{#2}}
 \newcommand{\sload}[2]{\twoinstr{\src{load}}{#1}{#2}}
@@ -129,12 +130,13 @@
 
 % Two arguments
 \newcommand{\tjnz}[2]{\twoinstr{\trg{jnz}}{#1}{#2}}
-\newcommand{\tisptr}[2]{\twoinstr{\trg{isptr}}{#1}{#2}}
+\newcommand{\tisptr}[2]{\twoinstr{\trg{gettype}}{#1}{#2}}
 \newcommand{\tgeta}[2]{\twoinstr{\trg{geta}}{#1}{#2}}
 \newcommand{\tgetb}[2]{\twoinstr{\trg{getb}}{#1}{#2}}
 \newcommand{\tgete}[2]{\twoinstr{\trg{gete}}{#1}{#2}}
 \newcommand{\tgetp}[2]{\twoinstr{\trg{getp}}{#1}{#2}}
-\newcommand{\tgetl}[2]{\twoinstr{\trg{getl}}{#1}{#2}}
+\newcommand{\tgetloc}[2]{\twoinstr{\trg{getloc}}{#1}{#2}}
+\newcommand{\tgetlin}[2]{\twoinstr{\trg{getlin}}{#1}{#2}}
 \newcommand{\tmove}[2]{\twoinstr{\trg{move}}{#1}{#2}}
 \newcommand{\tstore}[2]{\twoinstr{\trg{store}}{#1}{#2}}
 \newcommand{\tload}[2]{\twoinstr{\trg{load}}{#1}{#2}}
@@ -165,8 +167,8 @@
 
 %%% Updates
 \newcommand{\update}[2]{[#1 \mapsto #2]}
-\newcommand{\updReg}[3][\Phi]{#1\update{\reg.#2}{#3}}
-\newcommand{\updPc}[2][\Phi]{\updReg[#1]{\pcreg}{#2}}
+\newcommand{\updReg}[2]{\update{\reg.#1}{#2}}
+\newcommand{\updPc}[1]{\Phi\updReg{\pcreg}{#1}}
 
 %%% Source dom
 \newcommand{\shareddom}[1]{\mathrm{#1}}
@@ -204,9 +206,9 @@
 \newcommand{\sstkframe}{\shareddom{frame}}
 \newcommand{\sopc}{\shareddom{opc}}
 \newcommand{\sastk}{\shareddom{a_{stk}}}
-\newcommand{\perm}{\shareddom{perm}}
-\newcommand{\gl}{\shareddom{g}}
-\newcommand{\lin}{\shareddom{l}}
+\newcommand{\perm}{\var{perm}}
+\newcommand{\gl}{\var{g}}
+\newcommand{\lin}{\var{l}}
 \newcommand{\base}{\shareddom{base}}
 \newcommand{\aend}{\shareddom{end}}
 \newcommand{\addr}{\shareddom{a}}
@@ -304,7 +306,9 @@
   {\mathit{#1}}
   {\mathit{#1}(#2)}
 }
-\newcommand{\encPerm}[1]{\plainfun{encPerm}{#1}}
+
+\newcommand{\encType}[1]{\plainfun{encodeType}{#1}}
+\newcommand{\encPerm}[1]{\plainfun{encocePermission}{#1}}
 \newcommand{\updPcAddr}[1]{\plainfun{updatePc}{#1}}
 \newcommand{\updPcPerm}[1]{\plainfun{updatePcPerm}{#1}}
 \newcommand{\nonExec}[1]{\plainfun{nonExecutable}{#1}}
@@ -319,6 +323,7 @@
 \newcommand{\noRetStkReg}[1]{\plainfun{noRetStk_{reg}}{#1}}
 \newcommand{\noRetStkMs}[1]{\plainfun{noRetStk_{ms}}{#1}}
 \newcommand{\withinBounds}[1]{\plainfun{withinBounds}{#1}}
+\newcommand{\nonZero}[1]{\plainfun{nonZero}{#1}}
 
 
 \begin{document}
@@ -348,6 +353,7 @@ Source language domains:
     &\Conf & \defeq & \ExecConf \uplus \{\failed\} \uplus (\{\halted\} \times \Mem)
   \end{array}
 \]
+\lau{Should seals also have the option to be linear?}
 The target language domains are all the non blue parts in the above. The source language domains are the black and blue parts in the above. Further
 \begin{itemize}
 \item $\glbnf$ defines domain $\Global$
@@ -375,7 +381,7 @@ n &\in & \nats \\
 \trg{r} &\in &  \tRegName \\
 \trg{\rn} &\defbnf &  \trg{r} \mid n \\
 \trg{i} &\defbnf & \tfail \mid \thalt \mid \tjmp{\trg{r}} \mid \tjnz{\trg{r}}{\trg{\rn}} \mid \tisptr{\trg{r}}{\trg{r}} \mid \tgeta{\trg{r}}{\trg{r}} \mid \tgetb{\trg{r}}{\trg{r}} \mid \\
-      & &  \tgete{\trg{r}}{\trg{r}}\mid \tgetp{\trg{r}}{\trg{r}} \mid \tgetl{\trg{r}}{\trg{r}} \mid \tmove{\trg{r}}{\trg{\rn}} \mid \tstore{\trg{r}}{\trg{r}} \mid\\
+      & &  \tgete{\trg{r}}{\trg{r}}\mid \tgetp{\trg{r}}{\trg{r}} \mid \tgetloc{\trg{r}}{\trg{r}} \mid \tgetlin{\trg{r}}{\trg{r}} \mid \tmove{\trg{r}}{\trg{\rn}} \mid \tstore{\trg{r}}{\trg{r}} \mid\\
       & &  \tload{\trg{r}}{\trg{r}} \mid \tlea{\trg{r}}{\trg{\rn}} \mid \trestrict{\trg{r}}{\trg{r}}{\trg{\rn}} \mid \tsubseg{\trg{r}}{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tlt{\trg{r}}{\trg{r}}{\trg{r}} \mid \\
       & & \tplus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tminus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tsetatob{\trg{r}}{\trg{r}} \mid \txjmp{\trg{r}}{\trg{r}} \mid \tcseal{\trg{r}}{\trg{r}}{\trg{r}} \\
       & & \tsplice{\trg{r}}{\trg{r}} \mid  \tsplit{\trg{r}}{\trg{r}}
@@ -548,9 +554,14 @@ Target language:
   \withinBounds{c} \defeq \dots
 \]
 
+\[
+  \nonZero{c} \defeq \dots
+\]
+
 
 \subsubsection{Source Language}
-\lau{23-03-2017: $\sjmp{}$ and $\scall{}{}$ needs an update.}
+\lau{23-03-2017: $\sjmp{}$ and $\scall{}{}$ needs an update. Update: they have been updated. It was $\sxjmp{}{}$ that needed an update.}
+
 \textbf{Call}\\
 Call has three cases, a successful call, undefined and failed. For a call to be successful, it needs two sealed capabilities - a data and a code capability. The code capability must be non-executable and the stack register must contain a stack pointer. Futher the code and data capability must be local and there must be no attempt at passing on the stack capability.
 \lau{Add more description here.}
@@ -582,7 +593,8 @@ If we are not in one of the two cases above, then the execution fails.
                                         \end{array}
 \\
                                         \text{where $\forall r \in \RegName \ldotp \nonLoc{\reg''(r)} \text{ and } \reg''(r) = \reg(r)$}\\
-                                        \quad \text{$\text{ or } \reg''(r)=0 $}\\
+                                        \quad \text{$\text{ or } \reg''(r)=0 $} \tand \\
+                                        \text{ for $i \in \{1,2\}$ if $\isLinear{\Phi(r_i)}$, then $\reg''(r_i) = 0$ and} \\
                                         \opc = \Phi(\pcreg)\update{a}{\Phi(\pcreg).a+\calllen} \text{ and } \\
                                         \ms_\priv = \ms_\stk \setminus [\aaddr,\eaddr] \text{ and } \\
                                         \stk' = (\opc,\ms_\priv,\perm,\stdrng,\aaddr) :: \stk \text{ and } \\
@@ -615,7 +627,7 @@ The $\scseal{}{}{}$ instruction seals a sealable capability with a seal. The bas
 \begin{align*}
   \ssem{\scseal{r_1}{r_2}{r_3}} = & 
                                     \begin{cases}
-                                      \updReg{r_1}{\vsc} & 
+                                      \Phi\updReg{r_1}{\vsc} & 
                                       \arraycolsep=0pt
                                       \begin{array}[t]{l}
                                         \Phi(r_2) = c \in \SealableCaps \text{ and } \\
@@ -631,7 +643,7 @@ Unlike CHERI, we want sealed capabilies to be useable in a somewhat normal jump 
 \begin{align*}
   \ssem{\sxjmp{r_1}{r_2}} = & 
                               \begin{cases}
-                                \Phi
+                                \Phi'
                                 \arraycolsep=0pt
                                 \begin{array}[t]{l}
                                   [\reg.\pcreg \mapsto c_1] \\
@@ -641,6 +653,9 @@ Unlike CHERI, we want sealed capabilies to be useable in a somewhat normal jump 
                                 \begin{array}[t]{l}
                                   \Phi(r_1) = \sealed{c_1,\sigma} \text{ and } \\
                                   \Phi(r_2) = \sealed{c_2,\sigma} \text{ and } \\
+                                  \text{ for $i \in \{1,2\}$ if $\isLinear{c_i}$, then $\Phi'(r_i) = 0$} \\
+                                  \text{ otherwise $\Phi'(r_i) = \Phi(r_i)$ and} \\
+                                  \text{ $ \Phi(r) = \Phi'(r) \text{ for } r\in \tRegName \setminus \{r_1,r_2\}$ and} \\
                                   \nonExec{c_2}
                                 \end{array}\\\\
 %
@@ -653,7 +668,7 @@ Unlike CHERI, we want sealed capabilies to be useable in a somewhat normal jump 
                                   \stk = (\opc,\ms_\priv,\aaddr_\stk) :: \stk' \text{ and } \\
                                   \reg \arraycolsep=0pt
                                   \begin{array}[t]{l}
-                                    \update{\pcreg}{\opc}\update{\rstk}{\stkptr{\dots,\aaddr_\stk}}\\
+                                    \update{\pcreg}{\opc}\update{\rstk}{\stkptr{\dots,\aaddr_\stk}}\update{r_2}{0}\\
                                   \end{array}
                                 \end{array}\\\\
 %
@@ -664,9 +679,11 @@ Unlike CHERI, we want sealed capabilies to be useable in a somewhat normal jump 
 
 Notice, $\rdata$ serves the same function as the IDC register in CHERI, i.e.\ this is where the data capability is put. In the interpretation of $\sxjmp{}{}$, we require $c_2$ to be non-executable because CHERI does it. We are, however, not certain whether this requirement is strictly necessary (maybe it is dangerous to $\sxjmp{r}{r}$ where $r$ points to the same capability? Maybe it can be use to unseal a code capability by first sealing another code capability with the seal, $\sxjmp{}{}$ with the newly sealed and the old sealed capability. Now both capabilities are unsealed). CHERI also checks whether $c_1$ is executable and in range, but we do this on every step of the operational semantics, so we do not repeat that check.
 
+\textbf{jmp}\\
 \begin{align*}
-  \ssem{\sjmp{r}} = & \dots
+  \ssem{\sjmp{r}} = & 
 \end{align*}
+
 
 \lau{how should the interaction between read-only memory and linear capabilities be? That is, if a linear capability resides in read-only memory and you attempt to load it what happens? Do the load succeed with the memory cell being cleared or do the load fail (because we need to clear the cell, but we do not have the necessary permissions)? }
 \begin{align*}
@@ -681,7 +698,7 @@ Notice, $\rdata$ serves the same function as the IDC register in CHERI, i.e.\ th
                                   \var{w} = \mem(\aaddr) \tand \\
                                   \nonLinear{\var{w}}
                                 \end{array}\\
-                                \updPcAddr{\update{\reg.r_1}{\var{w}}}\update{\mem(\aaddr)}{0} &
+                                \updPcAddr{\update{\reg.r_1}{\var{w}}\update{\mem(\aaddr)}{0}} &
                                 \arraycolsep=0pt
                                 \begin{array}[t]{l}
                                   \Phi = (\mem, \_, \_, \_) \tand \\
@@ -771,6 +788,88 @@ Notice, $\rdata$ serves the same function as the IDC register in CHERI, i.e.\ th
                                \end{cases}
 \end{align*}
 
+\textbf{Getters: geta, getb, gete, getp, getloc, and getlin}
+
+\begin{align*}
+  \tsem{\tgeta{r_1}{r_2}} = &
+                              \begin{cases}
+                                \updPcAddr{\Phi\update{\reg.r_1}{\aaddr}} & 
+                                \arraycolsep=0pt
+                                \begin{array}[t]{l}
+                                  \Phi(r_2) = ((\perm,\_,\_),\_,\_,\aaddr) \text{ or } \\
+                                  \quad \Phi(r_2) = \stkptr{\perm,\_,\_,\aaddr} \tand\\
+                                  \perm \not\in \opaquePerm{}
+                                \end{array} \\
+                                \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
+                              \end{cases}
+\end{align*}
+
+\begin{align*}
+  \tsem{\sgetb{r_1}{r_2}} = &
+                              \begin{cases}
+                                \updPcAddr{\Phi\update{\reg.r_1}{\baddr}} & 
+                                \arraycolsep=0pt
+                                \begin{array}[t]{l}
+                                  \Phi(r_2) = ((\perm,\_,\_),\baddr,\_,\_) \text{ or } \\
+                                  \quad \Phi(r_2) = \stkptr{\perm,\baddr,\_,\_} \tand\\
+                                  \perm \not\in \opaquePerm{}
+                                \end{array} \\
+                                \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
+                              \end{cases}
+\end{align*}
+
+\begin{align*}
+  \tsem{\sgete{r_1}{r_2}} = &
+                              \begin{cases}
+                                \updPcAddr{\Phi\update{\reg.r_1}{\eaddr}} & 
+                                \arraycolsep=0pt
+                                \begin{array}[t]{l}
+                                  \Phi(r_2) = ((\perm,\_,\_),\_,\eaddr,\_) \text{ or } \\
+                                  \quad \Phi(r_2) = \stkptr{\perm,\_,\eaddr,\_} \tand\\
+                                  \perm \not\in \opaquePerm{}
+                                \end{array} \\
+                                \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
+                              \end{cases}
+\end{align*}
+
+\lau{Notice, the opacity do not hide ``semantic properties'' such as permission, locality and linearity (this could be changed if it is an issue)}
+
+\begin{align*}
+  \tsem{\sgetp{r_1}{r_2}} = & 
+                              \begin{cases}
+                                \updPcAddr{}(\Phi\update{\reg.r_1}{\encPerm{\perm}}) & \Phi(r_2) = ((\perm,\_,\_),\_,\_,\_) \text{ or } \Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr}\\
+                                \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
+                              \end{cases}
+\end{align*}
+
+\begin{align*}
+  \tsem{\sgetloc{r_1}{r_2}} = &                              
+                              \begin{cases}
+                                \updPcAddr{}(\Phi\update{\reg.r_1}{\gl}) & \Phi(r_2) = ((\_,\gl,\_),\_,\_,\_) \\
+                                \updPcAddr{\Phi\updReg{r_1}{\local}} & \Phi(r_2) = \stkptr{\_,\_,\_,\_}\\
+                                \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
+                              \end{cases}
+\end{align*}
+
+\begin{align*}
+  \tsem{\sgetlin{r_1}{r_2}} = &                              
+                              \begin{cases}
+                                \updPcAddr{}(\Phi\update{\reg.r_1}{\lin}) & \Phi(r_2) = ((\_,\_,\lin),\_,\_,\_) \\
+                                \updPcAddr{\Phi\updReg{r_1}{\linear}} & \Phi(r_2) = \stkptr{\_,\_,\_,\_}\\
+                                \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
+                              \end{cases}
+\end{align*}
+
+\textbf{gettype}\\
+\lau{I changed \textbf{isptr} to an instruction that can tell what kind of word is located in a register (as we now have more kinds than integers and capabilities).}
+We assume a function $\encType{} : \Word \rightarrow \ints$ that encode the different types of words (that is integers, capabilities, seals and so on) as an integer.
+\lau{TODO: Write out what $\encType{}$ should satisfy}
+\begin{align*}
+  \tsem{\sisptr{r_1}{r_2}} = & 
+                               \begin{cases}
+                                 \updPcAddr{}(\Phi\updReg{r_1}{\encType{\Phi(r_2)}})
+                               \end{cases}
+\end{align*}
 
 
 \begin{itemize}
@@ -787,65 +886,139 @@ Notice, $\rdata$ serves the same function as the IDC register in CHERI, i.e.\ th
   \tsem{\thalt} = & \halted
 \end{align*}
 
+\textbf{jmp and jnz}\\
+Notice that the order of the updates of the configuration actually matters here. As it is below, a successful jump to $\pcreg$ results in a loop, but if the order of the updates to the configuration had been reversed, then the execution would fail as the $\pcreg$ register would contain 0.
 \begin{align*}
-  \tsem{\tjmp{r}} = & \dots
+  \tsem{\tjmp{r}} = & 
+                      \begin{cases}
+                        \Phi\updReg{r}{0}\updReg{\pcreg}{\Phi(r_r)}
+                             & \nonLinear{\Phi(r)} \\
+                        \Phi\updReg{\pcreg}{\Phi(r)} & \totherwise
+                      \end{cases}
 \end{align*}
 
 \begin{align*}
-  \tsem{\tjnz{r_1}{r_2}} = & \dots
+  \tsem{\tjnz{r_1}{r_2}} = &       
+                             \begin{cases}
+                               \Phi\updReg{\pcreg}{r_1} & \text{if $\nonLinear{\Phi(r_1)}$ and $\nonZero{\Phi(r_2)}$} \\
+                               \Phi\updReg{r}{0}\updReg{\pcreg}{\Phi(r_1)}
+                                               & \arraycolsep=0pt                               
+                                               \begin{array}[t]{l}
+                                                 \isLinear{\Phi(r)} \tand
+                                                 \nonZero{\Phi{r_2}}
+                                               \end{array}
+\\
+                               \updPcAddr{\Phi} & \totherwise
+                             \end{cases}
 \end{align*}
 
-\begin{align*}
-  \tsem{\tisptr{r_1}{r_2}} = & \dots
-\end{align*}
-
+\textbf{Getters: geta, getb, gete, getp, getloc, and getlin}
+Notice the difference between the getters in the target languages and their equivalents in the source language is that these do not have a case for the stack pointer as it does not exist in the language.
 \begin{align*}
   \tsem{\tgeta{r_1}{r_2}} = &
                               \begin{cases}
-                                \updPcAddr{\Phi\update{\reg.r_1}{a}} & 
+                                \updPcAddr{\Phi\update{\reg.r_1}{\aaddr}} & 
                                 \arraycolsep=0pt
                                 \begin{array}[t]{l}
-                                  \Phi(r_2) = ((\perm,\_,\_),\_,\_,a) \text{ and }\\
+                                  \Phi(r_2) = ((\perm,\_,\_),\_,\_,\aaddr) \tand \\
                                   \perm \not\in \opaquePerm{}
                                 \end{array} \\
-                                \failed & \totherwise
+                                \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
                               \end{cases}
 \end{align*}
 
 \begin{align*}
-  \tsem{\tgetb{r_1}{r_2}} = & \dots
+  \tsem{\tgetb{r_1}{r_2}} = &
+                              \begin{cases}
+                                \updPcAddr{\Phi\update{\reg.r_1}{\baddr}} & 
+                                \arraycolsep=0pt
+                                \begin{array}[t]{l}
+                                  \Phi(r_2) = ((\perm,\_,\_),\baddr,\_,\_) \tand \\
+                                  \perm \not\in \opaquePerm{}
+                                \end{array} \\
+                                \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
+                              \end{cases}
 \end{align*}
 
 \begin{align*}
-  \tsem{\tgete{r_1}{r_2}} = & \dots
+  \tsem{\tgete{r_1}{r_2}} = &
+                              \begin{cases}
+                                \updPcAddr{\Phi\update{\reg.r_1}{\eaddr}} & 
+                                \arraycolsep=0pt
+                                \begin{array}[t]{l}
+                                  \Phi(r_2) = ((\perm,\_,\_),\_,\eaddr,\_) \tand \\
+                                  \perm \not\in \opaquePerm{}
+                                \end{array} \\
+                                \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
+                              \end{cases}
 \end{align*}
+
+\lau{Notice, the opacity do not hide ``semantic properties'' such as permission, locality and linearity (this could be changed if it is an issue)}
 
 \begin{align*}
   \tsem{\tgetp{r_1}{r_2}} = & 
                               \begin{cases}
-                                \updPcAddr{}(\Phi\update{\reg.r_1}{\encPerm{\perm}}) & \Phi(r_1) = ((\perm,\_,\_),\_,\_,\_)\\
-                                \failed & \totherwise
+                                \updPcAddr{}(\Phi\update{\reg.r_1}{\encPerm{\perm}}) & \Phi(r_2) = ((\perm,\_,\_),\_,\_,\_)\\
+                                \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
                               \end{cases}
 \end{align*}
 
 \begin{align*}
-  \tsem{\tgetl{r_1}{r_2}} = & \dots
+  \tsem{\tgetloc{r_1}{r_2}} = &                              
+                              \begin{cases}
+                                \updPcAddr{}(\Phi\update{\reg.r_1}{\gl}) & \Phi(r_2) = ((\_,\gl,\_),\_,\_,\_) \\
+                                \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
+                              \end{cases}
 \end{align*}
 
+\begin{align*}
+  \tsem{\tgetlin{r_1}{r_2}} = &                              
+                              \begin{cases}
+                                \updPcAddr{}(\Phi\update{\reg.r_1}{\lin}) & \Phi(r_2) = ((\_,\_,\lin),\_,\_,\_) \\
+                                \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
+                              \end{cases}
+\end{align*}
+
+\textbf{gettype}\\
+\lau{I changed \textbf{isptr} to an instruction that can tell what kind of word is located in a register (as we now have more kinds than integers and capabilities).}
+We assume a function $\encType{} : \Word \rightarrow \ints$ that encode the different types of words (that is integers, capabilities, seals and so on) as an integer.
+\lau{TODO: Write out what $\encType{}$ should satisfy}
+\begin{align*}
+  \tsem{\tisptr{r_1}{r_2}} = & 
+                               \begin{cases}
+                                 \updPcAddr{}(\Phi\updReg{r_1}{\encType{\Phi(r_2)}})
+                               \end{cases}
+\end{align*}
+
+\textbf{move}\\
+\lau{Like previously, the order of updates in the second case matters for the case where $r_1 = r_2$.}
 \begin{align*}
   \tsem{\tmove{r_1}{r_2}} = & 
                               \begin{cases}
-                                \updPcAddr{\Phi\update{\reg.r_1}{\Phi(r_2)}} & \nonLinear{\Phi(r_2)}\\
-                                \updPcAddr{\Phi\update{\reg.r_1}{\Phi(r_2)}}\update{\reg.r_2}{0} & \totherwise 
+                                \updPcAddr{\Phi\updReg{r_1}{\Phi(r_2)}} & \nonLinear{\Phi(r_2)}\\
+                                \updPcAddr{\Phi\updReg{r_2}{0}\updReg{r_1}{\Phi(r_2)}} & \totherwise 
                               \end{cases}
 \end{align*}
 
 \begin{align*}
-  \tsem{\tstore{r_1}{r_2}} = & \dots
+  \tsem{\tstore{r_1}{r_2}} = & 
+                               \begin{cases}
+                                 \Phi\updReg{r_2}{w_2}
+                                     \update{\mem.a}{\Phi(r_2)} & \arraycolsep=0pt
+                                     \begin{array}[t]{l}
+                                       \Phi(r_1) = ((\perm,\gl,\lin),\baddr,\eaddr,\aaddr) \tand \\
+                                       \perm \in \writeAllowed{} \tand \\
+                                       \baddr \leq \aaddr \leq \eaddr \tand \\
+                                       \isLoc{\Phi(r_2)} \Rightarrow \perm \in \writeLocalAllowed{} \tand \\
+                                       \isLinear{\Phi(r_2)} \Rightarrow w_2 = 0 \tand \\
+                                       \nonLinear{\Phi(r_2)} \Rightarrow w_2 = \Phi(r_2)
+                                     \end{array} \\
+                                  \failed & \totherwise
+                               \end{cases}
 \end{align*}
 
 \begin{align*}
-  \tsem{\tload{r_1}{r_2}} = & \dots
+  \tsem{\tload{r_1}{r_2}} = & 
 \end{align*}
 
 \begin{align*}
