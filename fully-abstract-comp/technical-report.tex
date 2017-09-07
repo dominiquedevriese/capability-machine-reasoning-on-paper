@@ -1239,7 +1239,8 @@ Notice that the linking part is not strictly necessary for the compilation, but 
 This example was introduced when we envisioned a capability machine with $\spush{}$, $\spop{}$, $\ssload{}{}$, $\scall{}{}$ and $\sreturn$ instructions. The below example is a motivation for having variable length instructions in the source language because if we have enough memory to ``do the same'' in the target language as in the source language, then the below example does not work.
 
 The following pseudo program demonstrates the need of opaque capabilities. If we assume a system with no opaque capabilities, then the following programs break compiler correctness
-\begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
+\begin{lstlisting}
+[basicstyle=\sourcecolor{}\ttfamily] 
 p1 ::= if r1 is length 2 then
          call r1 with the following callback in r5:
            {put $\textit{\texttt{diverging}}$ closure in r2;
@@ -1326,8 +1327,10 @@ These design goals drove us to the current definition of our source language and
 Particularly, contrary to what one might expect in a language with a native stack, we do not use call/return and push/pop instructions.
 The reason is that we are working in a language where the length of code blocks can be observable.
 Imagine two trusted blocks of code that looks as follows:
-\begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
-p1:       <assert that r1 contains an executable capability to a block of instr_length (push) + instr_length(jmp)>
+\begin{lstlisting}
+[basicstyle=\sourcecolor{}\ttfamily] 
+p1:       <assert that r1 contains an executable capability to a block of 
+           instr_length (push) + instr_length(jmp)>
           <load return capability to p1-ret1 in r2>
           <load value 0 in r3>
           <jump to r1>
@@ -1340,7 +1343,8 @@ p1-ret2:  <assert that 1 is loaded in the next free stack position>
 p1-ret3:  <assert that 2 is loaded in the next free stack position>
           halt
 
-p2:       <assert that r1 contains an executable capability to a block of instr_length (push) + instr_length(jmp)>
+p2:       <assert that r1 contains an executable capability to a block of 
+           instr_length (push) + instr_length(jmp)>
           <load return capability to p2-ret1 in r2>
           <load value 1 in r3>
           <jump to r1>
@@ -1353,7 +1357,8 @@ p2-ret2:  <assert that 2 is loaded in the next free stack position>
 
 p1 and p2 each accept an (unprotected) closure from the context whose lenght is restricted.
 Together with the checks performed by p1 and p2, there is only one possible implementation of the closure that will not fail, namely
-\begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
+\begin{lstlisting}
+[basicstyle=\sourcecolor{}\ttfamily] 
 closure: push r3
          jmp r2
 \end{lstlisting}
@@ -1361,7 +1366,8 @@ closure: push r3
 However, this is no longer true in the target language.
 Assume that $\mathtt{push r3}$ is implemented as a store to $\rstk$ followed by an increment of $\rstk$.
 The adversary can now construct a closure that does not use the standard implementation of push, but instead does this:
-\begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
+\begin{lstlisting}
+[basicstyle=\sourcecolor{}\ttfamily] 
 evil-closure: jnz r3 (\pcreg+2)
               store \rstk r3
               jmp r2
@@ -1377,6 +1383,7 @@ Specifically, as shown in \cref{sec:domains}, there are new token capabilities $
 Rather than invoking push or pop, one would store into the $\stkptr{}$ and modify its current address and as we can see in \cref{sec:source-language}, this has the semantic effect that one would expect.
 Similarly, rather than invoking return, one would ccall the $\retptrd$ and $\retptrc$ sealed code/data pair.
 Finally, rather than invoking call, \dominique{7-9-2017: err, what's the reason we don't follow the same pattern for call?}.
+\lau{07-09-2017: One would use $\scall{}{}$ with a pair of sealed capabilities to securely jump to this pair - that is to have this pair executed in a new stack frame. The return would happen just by using $\sxjmp{}{}$ with the $\retptrd$ and $\retptrc$. However, this would work with the local capabilities as the real implementation of $\retptrd$ would be a sealed version of the entire stack pointer. In other words, upon jumping back no extra work would have to be done. Now, however, the old stack pointer should be spliced (using the new $\ssplice{}{}$ instruction) with the stack pointer we sent away in order to regain the old stack pointer. In other words, we need something to recognise when a return happens.}
 
 Note that this weird behavior is essentially just a weird syntax for something we would otherwise write using call/return and push/pop.
 However, it removes the problem described above of relying on facts that follow from code length, because we can now write exactly the same code in source and target and it will do exactly the same thing if it is well-behaved.
