@@ -5,6 +5,7 @@
 % Math packages
 \usepackage{amsmath,amsfonts,amssymb}
 \usepackage{array}
+\usepackage{cleveref}
 \usepackage{stmaryrd}
 
 % Command control packages
@@ -329,6 +330,7 @@
 \begin{document}
 \section{The two capability machines}
 \subsection{Domains}
+\label{sec:domains}
 
 \dominique{7-9-2017: Should we keep local/global and linear/non-linear?  I was thinking just the latter would suffice...}
 \lau{07-09-2017: The local/global mechanism still has some value as it now can be used for the purpose of arguments that cannot be stored by the receiver (if you are willing to ``pay'' the clearing cost). I do, however, not think that it is strictly necessary here to make things work.}
@@ -377,6 +379,7 @@ More convenient definitions
 where $r\in \RegName$.
 
 \subsection{Syntax}
+\label{sec:syntax}
 The target machine is a simple capability machine with memory capabilities, local capabilities and sealed capabilities\footnote{In previous work, we used enter capabilities but for this the complexity introduced by mixing writable and executable memory is difficult to handle.} (inspired by CHERI). The syntax of the instructions of the target machine is defined as follows:
 \[
 \begin{array}{rcl}
@@ -566,6 +569,7 @@ Target language:
 
 
 \subsubsection{Source Language}
+\label{sec:source-language}
 \lau{23-03-2017: $\sjmp{}$ and $\scall{}{}$ needs an update. Update: they have been updated. It was $\sxjmp{}{}$ that needed an update.}
 
 \textbf{Call}\\
@@ -1309,4 +1313,76 @@ The back translation is an embedding of source language into .
   \item For now, we have not done this: instead we stick with the transition systems we have and have to regions governing the stack reflecting the CSF work.
   \end{itemize}
 \end{enumerate}
+
+\subsection{Some explanation}
+\subsubsection{The source language}
+The whole idea of this paper is to show that we enforce well-bracketed control flow correctly by taking a source language with a native stack and native call and return instructions and well-bracketedness enforced by the operational semantics.
+We then prove that we can compile this source language to a regular assembly target language (without a native stack) in a fully abstract way using our stack and return pointer discipline.
+So the design goals for our source language were precisely these: it should be an intermediate language that stays as close as possible to our target language, can be fully abstractly compiled to the target and feature a native well-behaved stack.
+This source language can then be used as the second-to-last language in the compilation chain of a fully abstract compiler.
+By compiling in a fully abstract way to our source language and then composing with our compiler, fully abstract compilation to our target language follows easily.
+
+These design goals drove us to the current definition of our source language and some special design choices.
+Particularly, contrary to what one might expect in a language with a native stack, we do not use call/return and push/pop instructions.
+The reason is that we are working in a language where the length of code blocks can be observable.
+Imagine two trusted blocks of code that looks as follows:
+\begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
+p1:       <assert that r1 contains an executable capability to a block of instr_length (push) + instr_length(jmp)>
+          <load return capability to p1-ret1 in r2>
+          <load value 0 in r3>
+          <jump to r1>
+p1-ret1:  <assert that 0 is loaded in the next free stack position>
+          <repeat the above with value 1 in r3>
+          ...
+p1-ret2:  <assert that 1 is loaded in the next free stack position>
+          <repeat the above with value 2 in r3>
+          ...
+p1-ret3:  <assert that 2 is loaded in the next free stack position>
+          halt
+
+p2:       <assert that r1 contains an executable capability to a block of instr_length (push) + instr_length(jmp)>
+          <load return capability to p2-ret1 in r2>
+          <load value 1 in r3>
+          <jump to r1>
+p2-ret1:  <assert that 1 is loaded in the next free stack position>
+          <repeat the above with value 2 in r3>
+          ...
+p2-ret2:  <assert that 2 is loaded in the next free stack position>
+          halt
+\end{lstlisting}
+
+p1 and p2 each accept an (unprotected) closure from the context whose lenght is restricted.
+Together with the checks performed by p1 and p2, there is only one possible implementation of the closure that will not fail, namely
+\begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
+closure: push r3
+         jmp r2
+\end{lstlisting}
+
+However, this is no longer true in the target language.
+Assume that $\mathtt{push r3}$ is implemented as a store to $\rstk$ followed by an increment of $\rstk$.
+The adversary can now construct a closure that does not use the standard implementation of push, but instead does this:
+\begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
+evil-closure: jnz r3 (\pcreg+2)
+              store \rstk r3
+              jmp r2
+\end{lstlisting}
+\dominique{7-9-2017: the above assumes that we have a way of jnz-ing to pc + 2, which may not be true in our actual assembly, but I haven't managed to construct an example that falls entirely within our language.}
+If we now assume that the instructions in evil-closure (jnz+store+jmp) are the same length as the original closure(store+increment+jmp), then the adversary can now construct a closure that discriminates $\mathtt{p1}$ and $\mathtt{p2}$ above.
+The essential point here is that an assumption in the source language that relies on facts about instruction length (``a closure restricted to the instruction-size of push+ret that modifies the stack and returns can only be implemented in one way'') is no longer valid, because there are now more low-level ways of interacting with the stack.
+
+To remedy this, we decided to modify our source language to use a different way of interacting with the stack.
+This alternative approach stays even closer to the target language.
+Specifically, rather than using push/pop and call/return instructions, we do not add any instructions, but instead use special token values that play the role of the stack pointer/return pointer.
+Specifically, as shown in \cref{sec:domains}, there are new token capabilities $\stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}$, $\retptrd$ and $\retptrc$ which represent a copy of the stack pointer, and the code and data parts of the sealed return closure.
+Rather than invoking push or pop, one would store into the $\stkptr{}$ and modify its current address and as we can see in \cref{sec:source-language}, this has the semantic effect that one would expect.
+Similarly, rather than invoking return, one would ccall the $\retptrd$ and $\retptrc$ sealed code/data pair.
+Finally, rather than invoking call, \dominique{7-9-2017: err, what's the reason we don't follow the same pattern for call?}.
+
+Note that this weird behavior is essentially just a weird syntax for something we would otherwise write using call/return and push/pop.
+However, it removes the problem described above of relying on facts that follow from code length, because we can now write exactly the same code in source and target and it will do exactly the same thing if it is well-behaved.
+The code would look exactly the same in source and target, it would just be working with token values in the source versus real stack and return pointers in the target.
+That the problem is really gone should follow from being able to write a full-abstraction proof.
+However, our approach should also simplify that proof.
+The reason is that back-translating should become essentially trivial: rather than performing some form of emulation or a real back-translation (which would inevitably make code size larger), it should be sufficient to just use unmodified target instructions as source instructions that will just be working with different types of values.
+
 \end{document}
