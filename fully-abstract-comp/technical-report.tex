@@ -1366,7 +1366,8 @@ closure: push r3
 However, this is no longer true in the target language.
 Assume that $\mathtt{push r3}$ is implemented as a store to $\rstk$ followed by an increment of $\rstk$.
 The adversary can now construct a closure that does not use the standard implementation of push, but instead does this:
-\begin{lstlisting}[basicstyle=\targetcolor{}\ttfamily] 
+\begin{lstlisting}
+[basicstyle=\targetcolor{}\ttfamily] 
 evil-closure: jnz r3 r2
               store \rstk r3
               jmp r2
@@ -1401,6 +1402,7 @@ That the problem is really gone should follow from being able to write a full-ab
 However, our approach should also simplify that proof.
 The reason is that back-translating should become essentially trivial: rather than performing some form of emulation or a real back-translation (which would inevitably make code size larger), it should be sufficient to just use unmodified target instructions as source instructions that will just be working with different types of values.
 
+
 \subsubsection{Conditional full abstraction}
 \label{sec:conditional-full-abstraction}
 
@@ -1430,5 +1432,36 @@ Two possible approaches:
 \item \emph{A logical relation}: An alternative approach (suggested by Lars to Lau) might be to define a logical relation to express the sanity condition ``t1 and t2 never evaluate to undefined when plugged into an arbitrary program context''.
   This remains to be thought through in more detail, but it might be simpler and/or be easier to combine with dynamic code generation.
 \end{itemize}
+
+\subsection{Linear Capabilities}
+The idea with linear capabilities is to limit aliasing of a capability. We specifically wanted a linear capability for the stack pointer, to not have to erase large pieces of memory, which we have to when we use local capabilities. With linear capabilities, we would just need to find the one linear capability to be sure we have the only capability under our control.
+
+There are multiple ways that linear capabilities could work (we choose the second one):
+\begin{enumerate}
+\item A linear capability comes with a system wide guarantee that no alias for this capability (or any part of the memory it has authority over). In other words, the linear capability is the only capability for this piece of memory. 
+
+In order for this to work, the memory must initilaly be partitioned into two part. One controlled by a non-linear capability and one controled by a linear capability. The semantics of the machine would now have to make sure that the linear capability is never aliased. For instance, moving a linear capability from one register would cause the source register to be cleared. 
+
+In this scheme, it would be okay to permit linear capabilities to become non-linear (which would consume the linear capability). The reasoning would be that it is okay to remove the aliasing restriction and thus make the part of memory with the no-aliasing guarantee smaller. If some program depends on a certain capability received from an adversary to be linear, then they would simple have to check whether it is in fact linear. As the linear capability is consumed when making it non-linear, it would have no way to regain the linear capability.
+
+\item A linear capability can be created from a non-linear capability. The linear capability has no guarantee that it is not aliased, but no aliases can be made from the linear capability. The linear capability can now be passed to an adversary and if the adversary gives back the linear capability when they return, then we know that they have no alias for it (provided we did not give them one and they did not have one in the first place), because the linear capability does not permit them to creat an alias.
+
+In this scheme, the system would initially have one non-linear capability for all of the memory. The linear capabilities would then be generated as they are needed.
+\end{enumerate}
+Notice that the two schemes are incompatible as they would undermine eachother.
+
+We choose to use the second scheme for the following reasons:
+\begin{enumerate}
+\item While the stack pointer was the motivation for the linear capabilities, we believe they can also be used for other things such as return pointers. When used for return pointers, we know that the return pointer used to return to us was the only one available. However, if we used the first scheme, then all of the code would have to be in the linear part of memory. This would be undesirable if we want to provide several entities access to the same program. 
+\end{enumerate}
+
+\subsubsection{Write-linear capabilities}
+At the time is writing, it is unclear whether write-linear (in the style of write-local permission\footnote{Here it would mean that linear capabilities can only be written through capabilities with write-linear permission and all capabilities with write-linear permission must themselves be linear.}) is necessary. One might think that it is necessary to prevent ``indirect aliasing'', which here would mean that a linear capability would be stored in a piece of memory for which there are multiple non-linear capabilities. This does, however, not seem to be a problem as the aliasing invariants are never broken. The memory the linear capability governs is still not aliased and if anyone needs to use the capability, they would have to load it to a register which would remove it from memory.
+
+One thing write-linear capabilities may be useful for is to make sure that return capabilities are used in the correct order, i.e., ensuring well-bracketedness. \lau{08-09-2017: I have not thought the above completely through}
+
+We have also considered removing local capabilities as these no longer seem necessary and only add complexity. However, they may be relevant to ensure the well-bracketed control flow (this will need further consideration).
+
+
 
 \end{document}
