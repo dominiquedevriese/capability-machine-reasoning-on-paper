@@ -1376,19 +1376,59 @@ The essential point here is that an assumption in the source language that relie
 
 To remedy this, we decided to modify our source language to use a different way of interacting with the stack.
 This alternative approach stays even closer to the target language.
-Specifically, rather than using push/pop and call/return instructions, we do not add any instructions, but instead use special token values that play the role of the stack pointer/return pointer.
+The problem is not actually that we shouldn't offer push/pop and call/return instructions, but rather that our language should also offer an equivalent for the more low-level interactions with the stack that are possible in the target language.
+As such, we introduce special token values that play the role of the stack pointer/return pointer and we allow all interactions with them that are possible using instructions like \sstore{}{}, \smove{}{} etc.
 Specifically, as shown in \cref{sec:domains}, there are new token capabilities $\stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}$, $\retptrd$ and $\retptrc$ which represent a copy of the stack pointer, and the code and data parts of the sealed return closure.
-Rather than invoking push or pop, one would store into the $\stkptr{}$ and modify its current address and as we can see in \cref{sec:source-language}, this has the semantic effect that one would expect.
-Similarly, rather than invoking return, one would ccall the $\retptrd$ and $\retptrc$ sealed code/data pair.
-Finally, rather than invoking call, \dominique{7-9-2017: err, what's the reason we don't follow the same pattern for call?}.
-\lau{07-09-2017: One would use $\scall{}{}$ with a pair of sealed capabilities to securely jump to this pair - that is to have this pair executed in a new stack frame. The return would happen just by using $\sxjmp{}{}$ with the $\retptrd$ and $\retptrc$. However, this would work with the local capabilities as the real implementation of $\retptrd$ would be a sealed version of the entire stack pointer. In other words, upon jumping back no extra work would have to be done. Now, however, the old stack pointer should be spliced (using the new $\ssplice{}{}$ instruction) with the stack pointer we sent away in order to regain the old stack pointer. In other words, we need something to recognise when a return happens.}
-\lau{07-09-2017: On second thought, when compiled all the code necessary for the call will be generated based on the $\scall{}{}$ instruction. The real implementation of the $\retptrc$ will simply point to a piece of clean up code that splices together the old/private stack pointer with the one we got from the untrusted party. This may, however, give some issues when we want to reason about it because there will be a disconnect between where the clean up job is done in the operational semantics of the source language (namely as part of the $\sxjmp{}{}$), but in a translated program, the code that does the clean up origins with the $\scall{}{}$ instruction. }
+Rather than invoking \spush{} or \spop{}, one can store into the $\stkptr{}$ and modify its current address and as we can see in \cref{sec:source-language}, this has the semantic effect that one would expect.
+Similarly, rather than invoking \sreturn{}, one would ccall the $\retptrd$ and $\retptrc$ sealed code/data pair.
 
-Note that this weird behavior is essentially just a weird syntax for something we would otherwise write using call/return and push/pop.
-However, it removes the problem described above of relying on facts that follow from code length, because we can now write exactly the same code in source and target and it will do exactly the same thing if it is well-behaved.
+We do not offer primitive \sreturn{}, \spush{} and \spop{} instructions, even though there is nothing keeping us from doing that, either as an additional primitive instruction or as a macro on top of the primitive token values mentioned above.
+We do offer a primitive \scall{}{} instruction, and it offers the only way to create a new stack frame.
+It is the only instruction that does not have a target language counterpart.
+However, there is a counterpart to \sxjmp{}{}, the instruction that would be used for jumping in the code that \scall{}{} compiles to.
+We will discuss later that this means that if we backtranslate an adversary piece of code (in the full abstraction proof), then it will be backtranslated (under our trivial back-translation) to equivalent code that \emph{never} does an actual call, but always just jumps to where it wants to go.
+In other words, the back-translated code never uses call to protect its own stack frame from the code that it passes control to.
+This means that the back-translated code is quite insecure, but we don't need it to be: it just needs to be behaviorally equivalent to the target language code that it represents.
+
+% Finally, rather than invoking call, \dominique{7-9-2017: err, what's the reason we don't follow the same pattern for call?}.
+% \lau{07-09-2017: One would use $\scall{}{}$ with a pair of sealed capabilities to securely jump to this pair - that is to have this pair executed in a new stack frame. The return would happen just by using $\sxjmp{}{}$ with the $\retptrd$ and $\retptrc$. However, this would work with the local capabilities as the real implementation of $\retptrd$ would be a sealed version of the entire stack pointer. In other words, upon jumping back no extra work would have to be done. Now, however, the old stack pointer should be spliced (using the new $\ssplice{}{}$ instruction) with the stack pointer we sent away in order to regain the old stack pointer. In other words, we need something to recognise when a return happens.}
+% \lau{07-09-2017: On second thought, when compiled all the code necessary for the call will be generated based on the $\scall{}{}$ instruction. The real implementation of the $\retptrc$ will simply point to a piece of clean up code that splices together the old/private stack pointer with the one we got from the untrusted party. This may, however, give some issues when we want to reason about it because there will be a disconnect between where the clean up job is done in the operational semantics of the source language (namely as part of the $\sxjmp{}{}$), but in a translated program, the code that does the clean up origins with the $\scall{}{}$ instruction. }
+
+Note that the token values representing the stack and return pointer in our source language are essentially just a weird alternative syntax for something we would otherwise write using call/return and push/pop.
+However, it does remove the problem described above of relying on facts that follow from code length, because we can now write exactly the same code in source and target and it will do exactly the same thing if it is well-behaved.
 The code would look exactly the same in source and target, it would just be working with token values in the source versus real stack and return pointers in the target.
 That the problem is really gone should follow from being able to write a full-abstraction proof.
 However, our approach should also simplify that proof.
 The reason is that back-translating should become essentially trivial: rather than performing some form of emulation or a real back-translation (which would inevitably make code size larger), it should be sufficient to just use unmodified target instructions as source instructions that will just be working with different types of values.
+
+\subsubsection{Conditional full abstraction}
+\label{sec:conditional-full-abstraction}
+
+Another novelty in this work is the fact that we do not want to prove general full abstraction (i.e. two source programs are behaviorally equivalent if and only if they are compiled to behaviorally equivalent target programs).
+The reason is that we only want to prove a result about programs that respect the calling convention, i.e.\ that do not do anything stupid.
+For example, in the old setup with global/local capabilities, when trusted code performs an \scall{}{}, it should make sure that it does not store a copy of its stack pointer in a place that is accessible to the callee (e.g.\ in a register or in the callee's part of the stack).
+Such sanity conditions are necessary (we cannot guarantee anything for code that does such stupid things) but we do not want to spend computation time on checking them.
+Instead, we expect a reasonable compiler to guarantee in some way that its generated code never does such stupid things and then our guarantees should apply.
+
+Note that in the new setup with linear capabilities instead of local/global ones, there seems to be less opportunity for the trusted code to do stupid things, so it may be that we no lnoger need these sanity conditions, but this is not clear yet.
+
+Assuming that we need sanity conditions on the source code, the question is how we formulate them in our full abstraction.
+Our idea is to formulate a notion of conditional full abstraction: ``if source programs t1 and t2 never perform stupid things under any possible source interaction, then they are source-equivalent iff their compilations are target-equivalent.''.
+However, the question remains how we formalise the condition ``if source programs t1 and t2 never perform stupid things under any possible source interaction''.
+
+Two possible approaches:
+\begin{itemize}
+\item \emph{Blame}: the idea here would be that we introduce a notion of ``undefined behavior'' in the operational semantics.
+  ``Doing stupid things'' like leaving copies of the stack pointer around on a call, would cause the system to enter an undefined state.
+  We would then like to express the above mentioned sanity condition as ``t1 and t2 never evaluate to undefined when plugged into an arbitrary program context''.
+  However, that doesn't work, because it does not discriminate between undefined behavior caused by t1 or t2 (on the one hand) and the program context (on the other hand).
+  To remedy this, we intended to use a notion of blame assignment: the undefined state would contain the address of the pc that was active at the moment it went wrong.
+  We would then express the above mentioned sanity condition as ``t1 and t2 never evaluate to undefined(pc) where pc is within the trusted code's assigned code memory when plugged into an arbitrary program context''.
+
+  The problem with this approach is that it does not combine well with dynamically generated code (solution: exclude code-generation?) and that it adds a lot of complexity.
+
+\item \emph{A logical relation}: An alternative approach (suggested by Lars to Lau) might be to define a logical relation to express the sanity condition ``t1 and t2 never evaluate to undefined when plugged into an arbitrary program context''.
+  This remains to be thought through in more detail, but it might be simpler and/or be easier to combine with dynamic code generation.
+\end{itemize}
 
 \end{document}
