@@ -1383,16 +1383,19 @@ The idea with linear capabilities is to limit aliasing of a capability. We speci
 
 There are multiple ways that linear capabilities could work (we choose the third one):
 \begin{enumerate}
-\item A linear capability comes with a system wide guarantee that no alias for this capability (or any part of the memory it has authority over). In other words, the linear capability is the only capability for this piece of memory. 
+\item A linear capability comes with a system wide guarantee that no \emph{linear} alias exists for this capability (or any part of the memory it has authority over). In other words, the linear capability is the only \emph{linear} capability for this piece of memory.  However, non-linear aliases may exist.
 
-In order for this to work, the memory must initilaly be partitioned into two part. One controlled by a non-linear capability and one controled by a linear capability. The semantics of the machine would now have to make sure that the linear capability is never aliased. For instance, moving a linear capability from one register would cause the source register to be cleared. 
+In order for this to work, the memory must initially be partitioned into two parts. One controlled by a non-linear capability and one controled by a linear capability. The semantics of the machine would now have to make sure that the linear capability is never aliased. For instance, moving a linear capability from one register would cause the source register to be cleared (similar to destructive reads in the ownership types literature). 
 
 In this scheme, it would be okay to permit linear capabilities to become non-linear (which would consume the linear capability). The reasoning would be that it is okay to remove the aliasing restriction and thus make the part of memory with the no-aliasing guarantee smaller. If some program depends on a certain capability received from an adversary to be linear, then they would simple have to check whether it is in fact linear. As the linear capability is consumed when making it non-linear, it would have no way to regain the linear capability.
 
-\item A linear capability can be created from a non-linear capability. The linear capability has no guarantee that it is not aliased, but no aliases can be made from the linear capability. The linear capability can now be passed to an adversary and if the adversary gives back the linear capability when they return, then we know that they have no alias for it (provided we did not give them one and they did not have one in the first place), because the linear capability does not permit them to creat an alias.
+\item A linear capability can be created from a non-linear capability. The linear capability has no guarantee that it is not aliased, but no aliases can be made from the linear capability. The linear capability can now be passed to an adversary and if the adversary gives back the linear capability when they return, then we know that they have no alias for it (provided we did not give them one and they did not have one in the first place), because the linear capability does not permit them to create an alias.
 
 In this scheme, the system would initially have one non-linear capability for all of the memory. The linear capabilities would then be generated as they are needed.
-\item A linear capability is ``born'' with the guarantee that it is not aliased. This guarantee is maintained by the semantics. Linear capabilties cannot be converted to another kind of capability (in other words, this is option one but where linear capabilities cannot be changed).
+\item A linear capability is ``born'' with the guarantee that it is not aliased, either by linear or non-linear capabilities. This guarantee is maintained by the semantics. Linear capabilties cannot be converted to another kind of capability (in other words, this is option one but where linear capabilities cannot be made non-linear).
+
+Note that in this scheme, it would be good if malloc provided a way to initially obtain a linear capability in this model.
+Otherwise, there would never be any linear capabilities other than stack pointers, which seems a waste.
 \end{enumerate}
 Notice that the two first schemes are incompatible as they would undermine eachother.
 
@@ -1400,14 +1403,11 @@ We chose to use the second scheme for the following reasons:
 \begin{itemize}
 \item While the stack pointer was the motivation for the linear capabilities, we believe they can also be used for other things such as return pointers. When used for return pointers, we know that the return pointer used to return to us was the only one available. However, if we used the first scheme, then all of the code would have to be in the linear part of memory. This would be undesirable if we want to provide several entities access to the same program. 
 \end{itemize}
-We later abandonned the second option for the following reason:
+We later abandoned the second option for the following reason:
 \begin{itemize}
 \item The initial idea with linear capabilities was to use them for stack pointers, because there would only ever be one capability for a any part of the stack. However, when normal capabilities can become linear, then it is only the creator of the linear capability that can be sure that no alias is created from the linear capability. Someone who receives a linear capability would not be able to trust the linear capability as it might have come about as a normal capability that has been aliased and later turned linear.
 
 In other words, we needed a system-wide guarantee to be able to put some trust in linear capabilities from an untrusted source.
-
-Note that it would be good if malloc provided a way to initially obtain a linear capability in this model.
-Otherwise, there would never be any linear capabilities other than stack pointers, which seems a waste.
 \end{itemize}
 
 \subsubsection{Write-linear capabilities}
@@ -1419,5 +1419,7 @@ One thing write-linear capabilities may be useful for is to make sure that retur
 \lau{13-09-2017: Dominique wrote something about this in an e-mail. The splicing necessary for each call would be what is needed to make the write-linear obsolete. The splicing would fail in the cases where someone try to use the wrong data-capability. Further something like write-linear would have the same issue as write-local. We would rely on the fact that the write-linear permission limits the space where we might need to look for linear capabilties. In order to remove the desired linear capability, we would still need to search through all the places it could be which would be infeasible (like the clear memory segment instruction).}
 
 We have also considered removing local capabilities as these no longer seem necessary and only add complexity. However, they may be relevant to ensure the well-bracketed control flow (this will need further consideration).
+
+\dominique{14-9-2017: Currently, we have removed local capabilities and we believe write-linear will (a) not work (because it would require memory clearing like write-local) and (b) not be needed (because of the splicing discussed above).}
 
 \end{document}
