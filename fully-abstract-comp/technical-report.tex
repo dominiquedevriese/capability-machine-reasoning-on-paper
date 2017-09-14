@@ -1382,7 +1382,7 @@ Two possible approaches:
 \label{sec:linear-cap}
 The idea with linear capabilities is to limit aliasing of a capability. We specifically wanted a linear capability for the stack pointer, to not have to erase large pieces of memory, which we have to when we use local capabilities. With linear capabilities, we would just need to find the one linear capability to be sure we have the only capability under our control.
 
-There are multiple ways that linear capabilities could work (we choose the second one):
+There are multiple ways that linear capabilities could work (we choose the third one):
 \begin{enumerate}
 \item A linear capability comes with a system wide guarantee that no alias for this capability (or any part of the memory it has authority over). In other words, the linear capability is the only capability for this piece of memory. 
 
@@ -1393,13 +1393,20 @@ In this scheme, it would be okay to permit linear capabilities to become non-lin
 \item A linear capability can be created from a non-linear capability. The linear capability has no guarantee that it is not aliased, but no aliases can be made from the linear capability. The linear capability can now be passed to an adversary and if the adversary gives back the linear capability when they return, then we know that they have no alias for it (provided we did not give them one and they did not have one in the first place), because the linear capability does not permit them to creat an alias.
 
 In this scheme, the system would initially have one non-linear capability for all of the memory. The linear capabilities would then be generated as they are needed.
+\item A linear capability is ``born'' with the guarantee that it is not aliased. This guarantee is maintained by the semantics. Linear capabilties cannot be converted to another kind of capability (in other words, this is option one but where linear capabilities cannot be changed).
 \end{enumerate}
-Notice that the two schemes are incompatible as they would undermine eachother.
+Notice that the two first schemes are incompatible as they would undermine eachother.
 
-We choose to use the second scheme for the following reasons:
-\begin{enumerate}
+We chose to use the second scheme for the following reasons:
+\begin{itemize}
 \item While the stack pointer was the motivation for the linear capabilities, we believe they can also be used for other things such as return pointers. When used for return pointers, we know that the return pointer used to return to us was the only one available. However, if we used the first scheme, then all of the code would have to be in the linear part of memory. This would be undesirable if we want to provide several entities access to the same program. 
-\end{enumerate}
+\end{itemize}
+We later abandonned the second option for the following reason:
+\begin{itemize}
+\item The initial idea with linear capabilities was to use them for stack pointers, because there would only ever be one capability for a any part of the stack. However, when normal capabilities can become linear, then it is only the creator of the linear capability that can be sure that no alias is created from the linear capability. Someone who receives a linear capability would not be able to trust the linear capability as it might have come about as a normal capability that has been aliased and later turned linear.
+
+In other words, we needed a system-wide guarantee to be able to put some trust in linear capabilities from untrusted a source we do not trust.
+\end{itemize}
 
 \subsubsection{Write-linear capabilities}
 
