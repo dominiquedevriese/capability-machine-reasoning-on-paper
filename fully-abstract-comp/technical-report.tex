@@ -57,7 +57,7 @@
 \newcommand{\targetcolor}[1]{\color{black}}
 \newcommand{\trg}[1]{{\targetcolor{} #1}}
 
-\newcommand{\zinstr}[1]{#1}
+\newcommand{\zinstr}[1]{\texttt{#1}}
 \newcommand{\oneinstr}[2]{
   \ifthenelse{\equal{#2}{}}
   {\zinstr{#1}}
@@ -104,7 +104,7 @@
 \newcommand{\smove}[2]{\twoinstr{\src{move}}{#1}{#2}}
 \newcommand{\sstore}[2]{\twoinstr{\src{store}}{#1}{#2}}
 \newcommand{\sload}[2]{\twoinstr{\src{load}}{#1}{#2}}
-\newcommand{\slea}[2]{\twoinstr{\src{lea}}{#1}{#2}}
+\newcommand{\ssca}[2]{\twoinstr{\src{sca}}{#1}{#2}}
 \newcommand{\ssload}[2]{\twoinstr{\src{sload}}{#1}{#2}}
 \newcommand{\scall}[2]{\twoinstr{\src{call}}{#1}{#2}}
 \newcommand{\sxjmp}[2]{\twoinstr{\trg{xjmp}}{#1}{#2}}
@@ -143,7 +143,7 @@
 \newcommand{\tmove}[2]{\twoinstr{\trg{move}}{#1}{#2}}
 \newcommand{\tstore}[2]{\twoinstr{\trg{store}}{#1}{#2}}
 \newcommand{\tload}[2]{\twoinstr{\trg{load}}{#1}{#2}}
-\newcommand{\tlea}[2]{\twoinstr{\trg{lea}}{#1}{#2}}
+\newcommand{\tsca}[2]{\twoinstr{\trg{sca}}{#1}{#2}}
 \newcommand{\txjmp}[2]{\twoinstr{\trg{xjmp}}{#1}{#2}}
 \newcommand{\tsetatob}[2]{\twoinstr{\trg{seta2b}}{#1}{#2}}
 
@@ -390,7 +390,7 @@ n &\in & \nats \\
 \trg{\rn} &\defbnf &  \trg{r} \mid n \\
 \trg{i} &\defbnf & \tfail \mid \thalt \mid \tjmp{\trg{r}} \mid \tjnz{\trg{r}}{\trg{\rn}} \mid \tisptr{\trg{r}}{\trg{r}} \mid \tgeta{\trg{r}}{\trg{r}} \mid \tgetb{\trg{r}}{\trg{r}} \mid \\
       & &  \tgete{\trg{r}}{\trg{r}}\mid \tgetp{\trg{r}}{\trg{r}} \mid \tgetlin{\trg{r}}{\trg{r}} \mid \tmove{\trg{r}}{\trg{\rn}} \mid \tstore{\trg{r}}{\trg{r}} \mid\\
-      & &  \tload{\trg{r}}{\trg{r}} \mid \tlea{\trg{r}}{\trg{\rn}} \mid \trestrict{\trg{r}}{\trg{r}}{\trg{\rn}} \mid \tsubseg{\trg{r}}{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tlt{\trg{r}}{\trg{r}}{\trg{r}} \mid \\
+      & &  \tload{\trg{r}}{\trg{r}} \mid \tsca{\trg{r}}{\trg{\rn}} \mid \trestrict{\trg{r}}{\trg{r}}{\trg{\rn}} \mid \tsubseg{\trg{r}}{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tlt{\trg{r}}{\trg{r}}{\trg{r}} \mid \\
       & & \tplus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tminus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tsetatob{\trg{r}}{\trg{r}} \mid \txjmp{\trg{r}}{\trg{r}} \mid \tcseal{\trg{r}}{\trg{r}}{\trg{r}} \\
       & & \tsplice{\trg{r}}{\trg{r}}{\trg{r}} \mid  \tsplit{\trg{r}}{\trg{r}}{\trg{r}}
 \end{array}
@@ -541,7 +541,7 @@ Target language:
   \end{cases}
 \]
 
-\subsubsection{The Operational Semantics}
+\subsubsection{Instruction Interpretation}
 We have unified the two languages in the below definitions. Everything written in black is common for both source and target language. Everything written in \src{blue} is specific to the source language.
 
 \noindent\textbf{fail and halt}\\
@@ -562,14 +562,9 @@ We have unified the two languages in the below definitions. Everything written i
 \begin{align*}
   \sem{\tjnz{r_1}{r_2}}(\Phi) = &       
                              \begin{cases}
-                               \Phi\updReg{\pcreg}{r_1} & \text{if $\nonLinear{\Phi(r_1)}$ and $\nonZero{\Phi(r_2)}$} \\
+                               \Phi\updReg{\pcreg}{r_1} & \text{$\nonLinear{\Phi(r_1)}$ and $\nonZero{\Phi(r_2)}$} \\
                                \Phi\updReg{r_1}{0}\updReg{\pcreg}{\Phi(r_1)}
-                                               & \arraycolsep=0pt                               
-                                               \begin{array}[t]{l}
-                                                 \isLinear{\Phi(r_1)} \tand
-                                                 \nonZero{\Phi{r_2}}
-                                               \end{array}
-\\
+                                               & \text{$\isLinear{\Phi(r_1)}$ and $\nonZero{\Phi(r_2)}$}\\
                                \updPcAddr{\Phi} & \totherwise
                              \end{cases}
 \end{align*}
@@ -591,8 +586,8 @@ We assume function to encode and decode permissions as well as a function to enc
                                      \updPcAddr{\Phi\updReg{r_1}{\aaddr}} & 
                                      \arraycolsep=0pt
                                      \begin{array}[t]{l}
-                                       \Phi(r_2) = ((\perm,\_),\_,\_,\aaddr) \\
-                                       \quad \src{\tor \Phi(r_2) = \stkptr{\perm,\_,\_,\aaddr} } \\
+                                       \Phi(r_2) = ((\_,\_),\_,\_,\aaddr) \\
+                                       \quad \src{\tor \Phi(r_2) = \stkptr{\_,\_,\_,\aaddr} } \\
                                      \end{array} \\
                                      \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
                                    \end{cases}
@@ -604,8 +599,8 @@ We assume function to encode and decode permissions as well as a function to enc
                                      \updPcAddr{\Phi\updReg{r_1}{\baddr}} & 
                                      \arraycolsep=0pt
                                      \begin{array}[t]{l}
-                                       \Phi(r_2) = ((\perm,\_),\baddr,\_,\_) \\
-                                       \quad \src{\tor \Phi(r_2) = \stkptr{\perm,\baddr,\_,\_} } \\
+                                       \Phi(r_2) = ((\_,\_),\baddr,\_,\_) \\
+                                       \quad \src{\tor \Phi(r_2) = \stkptr{\_,\baddr,\_,\_} } \\
                                      \end{array} \\
                                      \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
                                    \end{cases}
@@ -617,12 +612,13 @@ We assume function to encode and decode permissions as well as a function to enc
                                      \updPcAddr{\Phi\updReg{r_1}{\eaddr}} & 
                                      \arraycolsep=0pt
                                      \begin{array}[t]{l}
-                                       \Phi(r_2) = ((\perm,\_),\_,\eaddr,\_) \\
-                                       \quad \src{\tor \Phi(r_2) = \stkptr{\perm,\_,\eaddr,\_} } \\
+                                       \Phi(r_2) = ((\_,\_),\_,\eaddr,\_) \\
+                                       \quad \src{\tor \Phi(r_2) = \stkptr{\_,\_,\eaddr,\_} } \\
                                      \end{array} \\
                                      \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
                                    \end{cases}
 \end{align*}
+\lau{15-09-2017: Should gete and getb do something for seals?}
 
 \begin{align*}
   \sem{\tgetp{r_1}{r_2}}(\Phi) = & 
@@ -649,6 +645,8 @@ We assume function to encode and decode permissions as well as a function to enc
                                      \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
                                    \end{cases}
 \end{align*}
+\lau{15-09-2017: Should getl do something for seals?}
+\lau{15-09-2017: Do we want to allow getl and getp to work on sealed capabilities?}
 
 \noindent\textbf{move}\\
 \begin{align*}
@@ -664,37 +662,70 @@ Notice that in the case where we are moving a linear capability and $r_1 = r_2$ 
 \begin{align*}
   \sem{\tstore{r_1}{r_2}}(\Phi) = &
                                     \begin{cases}
-                                      \updPcAddr{\Phi\update{\mem.a}{w}}\update{\reg.r_2}{w_2} & 
+                                      \updPcAddr{\Phi\update{\mem.a}{w}\update{\reg.r_2}{w_2}} & 
                                       \arraycolsep=0pt
                                       \begin{array}[t]{l}
                                         \Phi(r_1) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
                                         \perm \in \writeAllowed{} \tand \withinBounds{\Phi(r_1)} \tand \\
                                         w = \Phi(r_2) \tand \\
-                                        \isLinear{w} \tand w_2 = 0 \tor \\
-                                        \nonLinear{w} \tand w_2 = w
+                                        (\isLinear{w} \rightarrow w_2 = 0) \tand \\
+                                        (\nonLinear{w} \rightarrow w_2 = w)
                                       \end{array}
                                       \\
-                                      \src{\updPcAddr{\Phi\update{\mem_\stk.a}{w}}\update{\reg.r_2}{w_2}} & 
+                                      \src{\updPcAddr{\Phi\update{\mem_\stk.a}{w}\update{\reg.r_2}{w_2}}} & 
                                       \arraycolsep=0pt
                                       \begin{array}[t]{l}
                                         \src{\Phi(r_1) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand} \\
-                                        \src{\perm \in \writeAllowed{} \tand \withinBounds{\Phi(r_1)} \tand} \\
+                                        \src{\perm \in \writeAllowed{} \tand} \\
+                                        \src{\withinBounds{\Phi(r_1)} \tand} \\
                                         \src{w = \Phi(r_2) \tand} \\
-                                        \src{\isLinear{w} \tand w_2 = 0 \tor} \\
-                                        \src{\nonLinear{w} \tand w_2 = w}
+                                        \src{(\isLinear{w} \Rightarrow w_2 = 0) \tand} \\
+                                        \src{(\nonLinear{w} \Rightarrow w_2 = w)}
                                       \end{array}\\
                                       \failed & \totherwise
                                     \end{cases}
 \end{align*}
 
+\noindent\textbf{load}\\
 \begin{align*}
   \sem{\tload{r_1}{r_2}}(\Phi) = & 
                                   \begin{cases}
-                                    \updPcAddr{} & \dots\\
+                                    \updPcAddr{\Phi\updReg{r_1}{w}\update{\mem.a}{w_2}} & 
+                                    \arraycolsep=0pt
+                                    \begin{array}[t]{l}
+                                      \Phi(r_2) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
+                                      \perm \in \readAllowed{} \tand\\
+                                      \withinBounds{\Phi(r_2)} \tand \\
+                                      \Phi.\mem(a) = w \tand \\
+                                      (\isLinear{w} \Rightarrow w_2 = 0) \tand \\
+                                      (\nonLinear{w} \Rightarrow w_2 = \Phi(r_2))
+                                    \end{array}
+                                    \\
+                                    \src{\updPcAddr{\Phi\updReg{r_1}{w}\update{\mem_\stk.a}{w_2}}} & 
+                                    \arraycolsep=0pt
+                                    \begin{array}[t]{l}
+                                      \src{\Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand} \\
+                                      \src{\perm \in \readAllowed{} \tand} \\
+                                      \src{\withinBounds{\Phi(r_2)} \tand} \\
+                                      \src{\aaddr \in \dom(\Phi.\ms_\stk) \tand} \\
+                                      \src{\Phi.\ms_\stk(a) = w \tand} \\
+                                      \src{(\isLinear{w} \Rightarrow w_2 = 0) \tand} \\
+                                      \src{(\nonLinear{w} \Rightarrow w_2 = \Phi(r_2))}
+                                    \end{array}
+                                    \\
                                     \failed & \totherwise                                    
                                   \end{cases}
-\end{align*}
+\end{align*} 
 
+\noindent\textbf{sca}\\
+\emph{Set Current Address}
+\begin{align*}
+  \sem{\tsca{r_1}{r_2}}(\Phi) = & 
+                                  \begin{cases}
+                                    \dots & \dots \\
+                                    \failed & \totherwise
+                                  \end{cases}
+\end{align*}
 
 
 
@@ -1188,7 +1219,7 @@ We assume a function $\encType{} : \Word \rightarrow \ints$ that encode the diff
 \end{align*}
 
 \begin{align*}
-  \tsem{\tlea{r_1}{r_2}} = & \dots
+  \tsem{\tsca{r_1}{r_2}} = & \dots
 \end{align*}
 
 \begin{align*}
