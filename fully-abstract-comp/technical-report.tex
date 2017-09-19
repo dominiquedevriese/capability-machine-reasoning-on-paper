@@ -51,8 +51,8 @@
 
 %%% Instruction formatting
 \newcommand{\sourcecolortext}{blue}
-\newcommand{\sourcecolor}[1]{\color{blue}}
-\newcommand{\src}[1]{{\sourcecolor{} #1}}
+\newcommand{\sourcecolor}{\color{blue}}
+\newcommand{\src}[1]{{\sourcecolor #1}}
 \newcommand{\targetcolortext}{black}
 \newcommand{\targetcolor}[1]{\color{black}}
 \newcommand{\trg}[1]{{\targetcolor{} #1}}
@@ -107,7 +107,7 @@
 \newcommand{\scca}[2]{\twoinstr{\src{cca}}{#1}{#2}}
 \newcommand{\ssload}[2]{\twoinstr{\src{sload}}{#1}{#2}}
 \newcommand{\scall}[2]{\twoinstr{\src{call}}{#1}{#2}}
-\newcommand{\sxjmp}[2]{\twoinstr{\trg{xjmp}}{#1}{#2}}
+\newcommand{\sxjmp}[2]{\twoinstr{\src{xjmp}}{#1}{#2}}
 \newcommand{\ssetatob}[2]{\twoinstr{\src{seta2b}}{#1}{#2}}
 
 % Three arguments
@@ -506,11 +506,12 @@ Target language:
       \cb = \sealed{\cb',\_} \tand \isLinear{\cb'} 
     \end{array}\\
     \src{\top} & 
+    \sourcecolor\left.
     \arraycolsep=0pt
     \begin{array}[t]{l}
-      \src{\cb = \stkptr{\_,\_,\_,\_}}\\
-      \src{\cb = \retptrd(\_)}
-    \end{array}\\
+      \cb = \stkptr{\_,\_,\_,\_}\\
+      \cb = \retptrd(\_)
+    \end{array}\right.\\
     \bot & \totherwise
   \end{cases}
 \]
@@ -572,7 +573,11 @@ We have unified the two languages in the below definitions. Everything written i
 \begin{align*}
   \sem{\tjnz{r_1}{r_2}}(\Phi) = &       
                              \begin{cases}
-                               \Phi\updReg{r_1}{w}\updReg{\pcreg}{\Phi(r_1)}
+                               \arraycolsep=0pt
+                               \begin{array}[t]{rl}
+                                 \Phi&\updReg{r_1}{w}\\
+                                     &\updReg{\pcreg}{\Phi(r_1)}
+                               \end{array}
                                                & w = \linCons{\Phi(r_1)} \tand \nonZero{\Phi(r_2)}\\
                                \updPcAddr{\Phi} & \totherwise
                              \end{cases}
@@ -671,25 +676,40 @@ Notice that in the case where we are moving a linear capability and $r_1 = r_2$ 
 \begin{align*}
   \sem{\tstore{r_1}{r_2}}(\Phi) = &
                                     \begin{cases}
-                                      \updPcAddr{\Phi\updReg{r_2}{w_2}\update{\mem.a}{w}} & 
+                                      \updPcAddr{}\left(
+                                        \arraycolsep=0pt
+                                        \begin{array}{rl}
+                                          \Phi&\updReg{r_2}{w_2}\\
+                                              &\update{\mem.a}{w}
+                                        \end{array}
+\right) & 
                                       \arraycolsep=0pt
                                       \begin{array}[t]{l}
                                         \Phi(r_1) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
-                                        \perm \in \writeAllowed{} \tand \withinBounds{\Phi(r_1)} \tand \\
+                                        \perm \in \writeAllowed{} \tand\\
+                                        \withinBounds{\Phi(r_1)} \tand \\
                                         w = \Phi(r_2) \tand \\
                                         w_2 = \linCons{w}
                                       \end{array}
                                       \\
-                                      \src{\updPcAddr{\Phi\update{\mem_\stk.a}{w}\updReg{r_2}{w_2}}} & 
+                                      \sourcecolor\left.
+                                      \updPcAddr{}\left(
+                                      \arraycolsep=0pt
+                                      \begin{array}{rl}
+                                        \Phi&\update{\mem_\stk.a}{w}\\
+                                            &\updReg{r_2}{w_2}
+                                      \end{array}
+                                      \right) \right.& 
+                                      \sourcecolor\left.
                                       \arraycolsep=0pt
                                       \begin{array}[t]{l}
-                                        \src{\Phi(r_1) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand} \\
-                                        \src{\perm \in \writeAllowed{} \tand} \\
-                                        \src{\withinBounds{\Phi(r_1)} \tand} \\
-                                        \src{a \in \dom(\Phi.\ms_\stk) \tand} \\
-                                        \src{w = \Phi(r_2)} \\
-                                        \src{w_2 = \linCons{w}}
-                                      \end{array}\\
+                                        \Phi(r_1) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
+                                        \perm \in \writeAllowed{} \tand \\
+                                        \withinBounds{\Phi(r_1)} \tand \\
+                                        a \in \dom(\Phi.\ms_\stk) \tand \\
+                                        w = \Phi(r_2) \\
+                                        w_2 = \linCons{w}
+                                      \end{array}\right.\\
                                       \failed & \totherwise
                                     \end{cases}
 \end{align*}
@@ -698,7 +718,12 @@ Notice that in the case where we are moving a linear capability and $r_1 = r_2$ 
 \begin{align*}
   \sem{\tload{r_1}{r_2}}(\Phi) = & 
                                   \begin{cases}
-                                    \updPcAddr{\Phi\updReg{r_1}{w}\update{\mem.a}{w_2}} & 
+                                    \updPcAddr{}\left(
+                                      \arraycolsep=0pt
+                                      \begin{array}{rl}
+                                        \Phi&\updReg{r_1}{w}\\
+                                            &\update{\mem.a}{w_2}
+                                      \end{array}\right)& 
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
                                       \Phi(r_2) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
@@ -708,16 +733,24 @@ Notice that in the case where we are moving a linear capability and $r_1 = r_2$ 
                                       w_2 = \linCons{w}
                                     \end{array}
                                     \\
-                                    \src{\updPcAddr{\Phi\updReg{r_1}{w}\update{\mem_\stk.a}{w_2}}} & 
+                                    \sourcecolor\left.
+                                    \updPcAddr{}\left(
+                                      \arraycolsep=0pt
+                                      \begin{array}{rl}
+                                        \Phi&\updReg{r_1}{w}\\
+                                            & \update{\mem_\stk.a}{w_2}
+                                      \end{array}\right)\right.
+                                    & 
+                                    \sourcecolor\left.
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
-                                      \src{\Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand} \\
-                                      \src{\perm \in \readAllowed{} \tand} \\
-                                      \src{\withinBounds{\Phi(r_2)} \tand} \\
-                                      \src{\aaddr \in \dom(\Phi.\ms_\stk) \tand} \\
-                                      \src{w = \Phi.\ms_\stk(a) \tand} \\
-                                      \src{w_2 = \linCons{w}}
-                                    \end{array}
+                                      \Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
+                                      \perm \in \readAllowed{} \tand \\
+                                      \withinBounds{\Phi(r_2)} \tand \\
+                                      \in \dom(\Phi.\ms_\stk) \tand \\
+                                      w = \Phi.\ms_\stk(a) \tand \\
+                                      w_2 = \linCons{w}
+                                    \end{array}\right.
                                     \\
                                     \failed & \totherwise                                    
                                   \end{cases}
@@ -732,20 +765,23 @@ Notice that in the case where we are moving a linear capability and $r_1 = r_2$ 
                                     \updPcAddr{\Phi\updReg{r_1}{c}} &  
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
-                                      \text{either $n = r_2$ or $n = \Phi.\reg(r_2)$ and in either case $n \in \ints$ and} \\
+                                      \text{either $n = r_2$ or $n = \Phi.\reg(r_2)$}\\
+                                      \quad\text{ and in either case $n \in \ints$ and} \\
                                       \Phi(r_1) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
                                       \perm \neq \enter \tand \\
                                       c = ((\perm,\lin),\baddr,\eaddr,\aaddr + n)
                                     \end{array}
                                     \\
                                     \src{\updPcAddr{\Phi\updReg{r_1}{c}}} &  
+                                    \sourcecolor\left.
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
-                                      \src{\text{either $n = r_2$ or $n = \Phi(r_2)$ and in either case $n \in \ints$ and}} \\
-                                      \src{\Phi(r_1) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand} \\
-                                      \src{\perm \neq \enter \tand} \\
-                                      \src{c = \stkptr{\perm,\baddr,\eaddr,\aaddr + n}}
-                                    \end{array}
+                                      \text{either $n = r_2$ or $n = \Phi(r_2)$}\\
+                                      \quad\text{ and in either case $n \in \ints$ and} \\
+                                      \Phi(r_1) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
+                                      \perm \neq \enter \tand \\
+                                      c = \stkptr{\perm,\baddr,\eaddr,\aaddr + n}
+                                    \end{array}\right.
                                     \\
                                     \failed & \totherwise
                                   \end{cases}
@@ -756,30 +792,47 @@ This instruction uses the $\decPerm{}$ function.
 \begin{align*}
   \sem{\trestrict{r_1}{r_2}{r_3}} = &
                                       \begin{cases}
-                                        \Phi\updReg{r_2}{w_2}\updReg{r_1}{c} &
+                                        \updPcAddr{}\left(
+                                          \arraycolsep=0pt
+                                          \begin{array}{rl}
+                                          \Phi&\updReg{r_2}{w_2}\\
+                                              &\updReg{r_1}{c}
+                                          \end{array} \right)
+&
                                         \arraycolsep=0pt
                                         \begin{array}[t]{l}
                                           \Phi(r_2) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
-                                          \text{either $n = r_2$ or $n = \Phi.\reg(r_2)$ and in either case $n \in \ints$ and} \\
+                                          \text{either $n = r_2$ or $n = \Phi.\reg(r_2)$}\\
+                                          \quad\text{and in either case $n \in \ints$ and} \\
                                           \decPerm{n} \sqsubseteq \perm \tand \\
                                           c = ((\decPerm{n},\lin),\baddr,\eaddr,\aaddr) \tand \\
                                           w_2 = \linCons{\Phi(r_2)}
                                         \end{array}
                                         \\
-                                        \src{\Phi\updReg{r_2}{0}\updReg{r_1}{c}} &
+                                        \sourcecolor\left.
+                                        \updPcAddr{}\left(
+                                          \arraycolsep=0pt
+                                          \begin{array}{rl}
+                                          \Phi&\updReg{r_2}{0}\\
+                                                    &\updReg{r_1}{c}
+                                          \end{array}\right)\right.
+                                        &
+                                        \sourcecolor\left.
                                         \arraycolsep=0pt
                                         \begin{array}[t]{l}
-                                          \src{\Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand} \\
-                                          \src{\text{either $n = r_2$ or $n = \Phi.\reg(r_2)$ and in either case $n \in \ints$ and}} \\
-                                          \src{\decPerm{n} \sqsubseteq \perm \tand} \\
-                                          \src{c = \stkptr{\decPerm{n},\baddr,\eaddr,\aaddr}}
-                                        \end{array}
+                                          \Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
+                                          \text{either $n = r_2$ or $n = \Phi.\reg(r_2)$}\\
+                                          \quad\text{and in either case $n \in \ints$ and} \\
+                                          \decPerm{n} \sqsubseteq \perm \tand \\
+                                          c = \stkptr{\decPerm{n},\baddr,\eaddr,\aaddr}
+                                        \end{array}\right.
                                         \\
                                         \failed & \totherwise
                                       \end{cases}
 \end{align*}
 
 \noindent\textbf{subseg}\\
+\lau{19-09-2017: TODO: I am not sure the way the end points are handled makes entirely sense. Have a look at it (maybe make a function that computes the end point?)}
 \begin{align*}
   \sem{\tsubseg{r_1}{r_2}{r_3}{r_4}}(\Phi) = &
                                                \begin{cases}
@@ -805,7 +858,7 @@ This instruction uses the $\decPerm{}$ function.
                                                    \quad \text{either $n_i = r_i$ or $n_i = \Phi.\reg(r_i)$}\\
                                                    \quad \text{and in either case $n_i \in \ints$ and} \\
                                                    \Phi(r_2) = \seal{\lin,\sigma_\baddr,\sigma_\eaddr} \tand \\
-                                                   \baddr \leq n_3 \tand 
+                                                   \baddr \leq n_3 \tand \\
                                                    (n_2 \leq \eaddr \tand n_2 \in \nats) \Rightarrow \eaddr' = n_2 \tand \\
                                                    (n_2 = -42 \tand \eaddr = \infty) \Rightarrow \eaddr' = \infty \tand\\
                                                    \perm \neq \enter \tand\\
@@ -814,18 +867,19 @@ This instruction uses the $\decPerm{}$ function.
                                                  \end{array}
 \\
                                                  \src{\Phi\updReg{r_2}{0}\updReg{r_1}{c}} &
+                                                 \sourcecolor\left.
                                                  \arraycolsep=0pt
                                                  \begin{array}[t]{l}
-                                                   \src{\text{for $i \in \{3, 4\}$ }} \\
-                                                   \quad \src{\text{either $n_i = r_i$ or $n_i = \Phi.\reg(r_i)$}}\\
-                                                   \quad \src{\text{and in either case $n_i \in \ints$ and}} \\
-                                                   \src{\Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand} \\
-                                                   \src{\baddr \leq n_3 \tand } \\
-                                                   \src{(n_2 \leq \eaddr \tand n_2 \in \nats) \Rightarrow \eaddr' = n_2 \tand }\\
-                                                   \src{(n_2 = -42 \tand \eaddr = \infty) \Rightarrow \eaddr' = \infty \tand}\\
-                                                   \src{\perm \neq \enter \tand}\\
-                                                   \src{c = \stkptr{\perm,n_1,\eaddr',\aaddr}}\\
-                                                 \end{array}\\
+                                                   \text{for $i \in \{3, 4\}$ } \\
+                                                   \quad \text{either $n_i = r_i$ or $n_i = \Phi.\reg(r_i)$}\\
+                                                   \quad \text{and in either case $n_i \in \ints$ and} \\
+                                                   \Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
+                                                   \baddr \leq n_3 \tand \\
+                                                   (n_2 \leq \eaddr \tand n_2 \in \nats) \Rightarrow \eaddr' = n_2 \tand\\
+                                                   (n_2 = -42 \tand \eaddr = \infty) \Rightarrow \eaddr' = \infty \tand\\
+                                                   \perm \neq \enter \tand\\
+                                                   c = \stkptr{\perm,n_1,\eaddr',\aaddr}\\
+                                                 \end{array}\right.\\
                                                  \failed & \totherwise 
                                                \end{cases}
 \end{align*}
@@ -959,36 +1013,62 @@ This instruction uses the $\decPerm{}$ function.
 \begin{align*}
   \tsem{\tsplit{r_1}{r_2}{r_3}{r_4}} = &
                                \begin{cases}
-                                 \updPcAddr{\Phi\updReg{r_3}{w}\updReg{r_1}{c_1}\updReg{r_2}{c_2}} &
+                                 \updPcAddr{}\left(
+                                   \arraycolsep=0pt
+                                   \begin{array}{rl}
+                                     \Phi&\updReg{r_3}{w}\\
+                                         &\updReg{r_1}{c_1}\\
+                                         &\updReg{r_2}{c_2}
+                                   \end{array}\right)
+&
                                  \arraycolsep=0pt
                                  \begin{array}[t]{l}
                                    \Phi(r_3) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
                                    \perm \neq \enter \tand \\
-                                   \Phi(r_4) = n \tor r_4 = n \text{ and in either case } n \in \nats \\
+                                   \Phi(r_4) = n \tor r_4 = n \\
+                                   \quad\text{ and in either case } n \in \nats \\
                                    \baddr \leq n \tand n \leq \eaddr \tand \\
                                    c_1 = ((\perm,\lin),\baddr,n,\baddr) \tand \\
                                    c_2 = ((\perm,\lin),n+1,\eaddr,n+1) \tand \\
                                    w = \linCons{\Phi(r_3)}
                                  \end{array}\\
-                                 \updPcAddr{\Phi\updReg{r_3}{w}\updReg{r_1}{c_1}\updReg{r_2}{c_2}} &
+                                 \updPcAddr{} \left(
+                                 \arraycolsep=0pt
+                                 \begin{array}{rl}
+                                   \Phi&\updReg{r_3}{w}\\
+                                       &\updReg{r_1}{c_1}\\
+                                       &\updReg{r_2}{c_2}
+                                 \end{array} \right)
+&
                                  \arraycolsep=0pt
                                  \begin{array}[t]{l}
                                    \Phi(r_3) = \seal{\lin,\sigma_\baddr,\sigma_\eaddr} \tand \\
-                                   \Phi(r_4) = n \tor r_4 = n \text{ and in either case } n \in \nats \\
+                                   \Phi(r_4) = n \tor r_4 = n \\
+                                   \quad\text{ and in either case } n \in \nats \\
                                    \sigma_\baddr \leq n \tand n < \sigma_\eaddr \tand \\
                                    c_1 = \seal{\lin,\sigma_\baddr,n} \tand \\
                                    c_2 = \seal{\lin,n+1,\sigma_\eaddr} \tand \\
                                    w = \linCons{\Phi(r_3)}
                                  \end{array}\\
-                                 \src{\updPcAddr{\Phi\updReg{r_3}{0}\updReg{r_1}{c_1}\updReg{r_2}{c_2}}} &
+                                   \sourcecolor\left.
+                                   \updPcAddr{}\left(
+                                   \arraycolsep=0pt
+                                   \begin{array}{rl}
+                                     \Phi&\updReg{r_3}{0}\\
+                                               &\updReg{r_1}{c_1}\\
+                                               &\updReg{r_2}{c_2}
+                                   \end{array} \right)\right.
+&
+                                 \sourcecolor\left.
                                  \arraycolsep=0pt
                                  \begin{array}[t]{l}
-                                   \src{\Phi(r_3) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand} \\
-                                   \src{\Phi(r_4) = n \tor r_4 = n \text{ and in either case } n \in \nats} \\
-                                   \src{\baddr \leq n \tand n \leq \eaddr \tand} \\
-                                   \src{c_1 = \stkptr{\perm,\baddr,n,\baddr} \tand} \\
-                                   \src{c_2 = \stkptr{\perm,n+1,\eaddr,n+1} \tand} 
-                                 \end{array}\\
+                                   \Phi(r_3) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
+                                   \Phi(r_4) = n \tor r_4 = n \\
+                                   \quad\text{ and in either case } n \in \nats \\
+                                   \baddr \leq n \tand n \leq \eaddr \tand \\
+                                   c_1 = \stkptr{\perm,\baddr,n,\baddr} \tand \\
+                                   c_2 = \stkptr{\perm,n+1,\eaddr,n+1} 
+                                 \end{array} \right.\\
                                  \failed & \totherwise
                                \end{cases}
 \end{align*}
@@ -1013,7 +1093,7 @@ This instruction uses the $\decPerm{}$ function.
                                   \Phi(r_3) = ((\perm,\lin),\baddr_3,\eaddr_3,\aaddr_3) \tand \\
                                   \perm \neq \enter \tand \\
                                   \eaddr_2 + 1 = \baddr_3 \tand \baddr_2 \leq \eaddr_2 \tand \baddr_3 \leq \eaddr_3 \tand \\
-                                  c = ((\perm,\lin),\baddr_2,\eaddr_3,\aaddr_2) \\
+                                  c = ((\perm,\lin),\baddr_2,\eaddr_3,\aaddr_2) \tand\\
                                   w_2 = \linCons{\Phi(r_2)} \tand \\
                                   w_3 = \linCons{\Phi(r_3)} \\
                                 \end{array}\\
@@ -1029,18 +1109,20 @@ This instruction uses the $\decPerm{}$ function.
                                 \begin{array}[t]{l}
                                   \Phi(r_2) = \seal{\lin,\sigma_{\baddr,2},\sigma_{\eaddr,2}} \tand \\
                                   \Phi(r_3) = \seal{\lin,\sigma_{\baddr,3},\sigma_{\eaddr,3}} \tand \\
-                                  \sigma_{\eaddr,2}+1 = \sigma_{\baddr,3} \tand \sigma_{\baddr,2} \leq \sigma_{\eaddr,2} \tand \sigma_{\baddr,3} \leq \sigma_{\eaddr,3} \tand \\
-                                  c = \seal{\lin,\sigma_{\baddr,2},\sigma_{\eaddr,3}} \\
+                                  \sigma_{\eaddr,2}+1 = \sigma_{\baddr,3} \tand \sigma_{\baddr,2} \leq \sigma_{\eaddr,2} \tand\\
+                                  \sigma_{\baddr,3} \leq \sigma_{\eaddr,3} \tand \\
+                                  c = \seal{\lin,\sigma_{\baddr,2},\sigma_{\eaddr,3}} \tand \\
                                   w_2 = \linCons{\Phi(r_2)} \tand \\
                                   w_3 = \linCons{\Phi(r_3)} \\
                                 \end{array}\\
+                                \sourcecolor\left.
                                 \updPcAddr{}\left(
                                 \arraycolsep=0pt
                                 \begin{array}{r l}
                                   \Phi&\updReg{r_2}{0}\\
                                       &\updReg{r_3}{0}\\
                                       &\updReg{r_1}{c}
-                                \end{array}\right)
+                                \end{array}\right)\right.
 &
                                 \arraycolsep=0pt
                                 \begin{array}[t]{l}
