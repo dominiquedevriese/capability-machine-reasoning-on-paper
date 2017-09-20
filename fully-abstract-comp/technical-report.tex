@@ -383,7 +383,7 @@ where $r\in \RegName$.
 
 \subsection{Syntax}
 \label{sec:syntax}
-The target machine is a simple capability machine with memory capabilities, local capabilities and sealed capabilities\footnote{In previous work, we used enter capabilities but for this the complexity introduced by mixing writable and executable memory is difficult to handle.} (inspired by CHERI). The syntax of the instructions of the target machine is defined as follows:
+The target machine is a simple capability machine with memory capabilities and sealed capabilities\footnote{In previous work, we used enter capabilities but for this the complexity introduced by mixing writable and executable memory is difficult to handle.} (inspired by CHERI). The syntax of the instructions of the target machine is defined as follows:
 \[
 \begin{array}{rcl}
 n &\in & \nats \\
@@ -397,7 +397,7 @@ n &\in & \nats \\
 \end{array}
 \]
 
-The source machine is also a capability machine with memory capabilities, local capabilities and sealed capabilities. Unlike the target machine, the source machine is going to have a built in stack along with special stack and return capabilities. The syntax of the source machine language is as follows:
+The source machine is also a capability machine with memory capabilities and sealed capabilities. Unlike the target machine, the source machine is going to have a built in stack along with special stack and return capabilities. The syntax of the source machine language is as follows:
 \[
   \begin{array}{rcl}
     n & \in & \nats \\
@@ -533,15 +533,6 @@ Target language:
   \nonExec{\cb} \defeq \dots
 \]
 
-
-\[
-  \noRetStkReg{\reg} \defeq \forall r \in \reg \setminus \{ \pcreg, \rstk, \rret, \rdata \} \ldotp \reg(r) \neq \stkptr{\_}
-\]
-
-\[
-  \noRetStkMs{\ms} \defeq \forall \aaddr \in \dom(\ms) \ldotp \ms(\aaddr) \neq \stkptr{\_}
-\]
-
 \[
   \withinBounds{c} \defeq \dots
 \]
@@ -567,7 +558,7 @@ We have unified the two languages in the below definitions. Everything written i
 \begin{align*}
   \sem{\tjmp{r}}(\Phi) = &  
                      \begin{cases}
-                       \Phi\updReg{r}{w}\updReg{\pcreg}{\updPcPerm{\Phi(r)}} & w \linCons{\Phi(r)}
+                       \Phi\updReg{r}{w}\updReg{\pcreg}{\updPcPerm{\Phi(r)}} & w = \linCons{\Phi(r)}
                      \end{cases}
 \end{align*}
 
@@ -655,7 +646,7 @@ We assume function to encode and decode permissions as well as a function to enc
                                      \arraycolsep=0pt
                                      \begin{array}[t]{l}
                                        \Phi(r_2) = ((\_,\lin),\_,\_,\_) \\
-                                       \quad \src{\tor \Phi(r_2) = \stkptr{\_,\_,\_,\_} } \\
+                                       \quad \src{\tor \Phi(r_2) = \stkptr{\_,\_,\_,\_} } \tand l = \linear\\
                                      \end{array} \\
                                      \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
                                    \end{cases}
@@ -897,13 +888,13 @@ This instruction uses the $\decPerm{}$ function.
                                                       \quad\text{and in either case $n_i \in \ints$}\\
                                                       \quad\text{and $n_1 < n_2$}\\        
                                                     \end{array}\\
-                                                    \updPcAddr{\Phi\updReg{r_0}{1}} &
+                                                    \updPcAddr{\Phi\updReg{r_0}{0}} &
                                                     \arraycolsep=0pt
                                                     \begin{array}[t]{l}
                                                       \text{if for $i \in \{1,2\}$}\\
                                                       \quad\text{$n_i = r_i$ or $n_i = \Phi(r_i)$}\\
                                                       \quad\text{and in either case $n_i \in \ints$}\\
-                                                      \quad\text{and $n_1 < n_2$}\\        
+                                                      \quad\text{and $n_1 \not< n_2$}\\        
                                                     \end{array}\\
                                                     \failed & \text{otherwise}
                                                   \end{cases}  
@@ -975,6 +966,7 @@ This instruction uses the $\decPerm{}$ function.
                                      \begin{array}[t]{l}
                                        \Phi(r_1) = \sealed{c_\code,\sigma} \tand \\
                                        \Phi(r_2) = \sealed{c_\data,\sigma} \tand \\
+                                       \nonExec{c_\data} \tand \\
                                        w_1 = \linCons{\Phi(r_1)} \tand \\
                                        w_2 = \linCons{\Phi(r_2)}
                                      \end{array}
@@ -985,7 +977,7 @@ This instruction uses the $\decPerm{}$ function.
                                          \Phi' & \updReg{r_2}{0} \\
                                                & \updReg{\pcreg}{\opc}\\
                                                & \updReg{\rdata}{0}\\
-                                               & \updReg{\rstk}{\stkptr{\rw,\baddr_{\stk,\priv},\eaddr_\stk,\aaddr_\stk}}
+                                               & \updReg{\rstk}{c_\stk}
                                        \end{array}\right.& 
                                      \sourcecolor\left.
                                        \begin{array}[t]{l}
@@ -994,6 +986,7 @@ This instruction uses the $\decPerm{}$ function.
                                          \Phi(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\_} \tand \\
                                          \Phi = (\mem,\reg,\stkf::\stk,\ms_\stk) \tand \\
                                          \stkf = (\opc,\ms_{\stk,\priv},\aaddr_\stk) \tand \\
+                                         c_\stk = \stkptr{\rw,\baddr_{\stk,\priv},\eaddr_\stk,\aaddr_\stk} \tand\\
                                          \dom(\ms_\stk) = [\baddr_\stk,\eaddr_\stk]\tand \\
                                          \dom(\ms_{\stk,\priv} = [\baddr_{\stk,\priv},\baddr_\stk - 1] \tand\\
                                          \Phi' = (\mem,\reg,\stk,\ms_{\stk,\priv} \uplus \ms_\stk) 
@@ -1161,7 +1154,7 @@ This instruction uses the $\decPerm{}$ function.
                                                         &\updReg{r_2}{w_2} \\
                                                         &\updReg{\pcreg}{c_1}\\
                                                         &\updReg{\rdata}{c_2}\\
-                                                        &\updReg{\rstk}{\stkptr{\aaddr_\stk+1,\eaddr_\stk,\aaddr_\stk+1}}\\
+                                                        &\updReg{\rstk}{c_\stk}\\
                                                         &\updReg{r_{\var{ret,c}}}{\retptrc(\sigma_?)}\\
                                                         &\updReg{r_{\var{ret,d}}}{\retptrd(\sigma_?)}
                                                  \end{array}
@@ -1170,6 +1163,7 @@ This instruction uses the $\decPerm{}$ function.
                                                  \begin{array}[t]{l}
                                                    \Phi(r_1) = \sealed(c_1,\sigma) \tand \\
                                                    \Phi(r_2) = \sealed(c_2,\sigma) \tand \\
+                                                   \nonExec{c_2} \tand\\
                                                    \Phi(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk} \tand \\
                                                    \Phi = (\mem,\reg,\stk,\ms_\stk) \tand\\
                                                    \baddr_\stk \leq \aaddr_\stk \leq \eaddr_\stk \tand \\
@@ -1178,6 +1172,7 @@ This instruction uses the $\decPerm{}$ function.
                                                    \ms_{\stk,\var{rest}} = \ms_\stk|_{[\aaddr_\stk + 1,\eaddr_\stk]} \tand\\
                                                    \Phi(\pcreg) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
                                                    \opc = ((\perm,\lin),\baddr,\eaddr,\aaddr+\calllen) \tand \\
+                                                   c_\stk = \stkptr{\aaddr_\stk+1,\eaddr_\stk,\aaddr_\stk+1} \tand \\
                                                    \stk' = (\opc,\ms_{\stk,\priv},\aaddr_\stk)\tand\\
                                                    \Phi' = (\mem,\reg,\stk',\ms_{\stk,\var{rest}})\tand\\
                                                    w_1 = \linCons{\Phi(r_1)} \tand \\
