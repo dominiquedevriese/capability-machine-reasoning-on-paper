@@ -348,7 +348,7 @@ Source language domains:
     &\linbnf & \defbnf & \linear \mid \normal \\
     &\aendbnf & \in & \Addr \uplus \{\infty \} \\
     &\sealendbnf & \in & \Seal \uplus \{\infty \} \\
-    &\scbnf &\defbnf & ((\permbnf,\linbnf),\basebnf,\aendbnf,\addrbnf) \mid \seal{\linbnf,\sealbasebnf,\sealendbnf}\\
+    &\scbnf &\defbnf & ((\permbnf,\linbnf),\basebnf,\aendbnf,\addrbnf) \mid \seal{\linbnf,\sealbasebnf,\sealendbnf,\sigma}\\
     & & & {\sourcecolor{} \mid \stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}}\\ 
     &\cbnf & \defbnf &  \scbnf \mid \sealed{\scbnf,\sigma}{\sourcecolor{} \; \mid \retptrd(\sigma) \mid \retptrc(\sigma)}\\ 
     &\RegName & \defbnf &\pcreg \mid \rret \mid \rstk \mid \rdata \mid \dots \\
@@ -503,7 +503,7 @@ Target language:
     \arraycolsep=0pt
     \begin{array}[t]{l}
       \cb = ((\_,\linear),\_,\_,\_) \tor\\
-      \cb = \seal{\linear,\_,\_} \tor\\
+      \cb = \seal{\linear,\_,\_,\_} \tor\\
       \cb = \sealed{\cb',\_} \tand \isLinear{\cb'} 
     \end{array}\\
     \src{\top} & 
@@ -593,6 +593,7 @@ We assume function to encode and decode permissions as well as a function to enc
                                      \arraycolsep=0pt
                                      \begin{array}[t]{l}
                                        \Phi(r_2) = ((\_,\_),\_,\_,\aaddr) \\
+                                       \quad \tor \Phi(r_2) = \seal{\_,\_,\_,\aaddr} \\
                                        \quad \src{\tor \Phi(r_2) = \stkptr{\_,\_,\_,\aaddr} } \\
                                      \end{array} \\
                                      \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
@@ -606,6 +607,7 @@ We assume function to encode and decode permissions as well as a function to enc
                                      \arraycolsep=0pt
                                      \begin{array}[t]{l}
                                        \Phi(r_2) = ((\_,\_),\baddr,\_,\_) \\
+                                       \quad \tor \Phi(r_2) = \seal{\_,\baddr,\_,\_} \\
                                        \quad \src{\tor \Phi(r_2) = \stkptr{\_,\baddr,\_,\_} } \\
                                      \end{array} \\
                                      \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
@@ -619,6 +621,7 @@ We assume function to encode and decode permissions as well as a function to enc
                                      \arraycolsep=0pt
                                      \begin{array}[t]{l}
                                        \Phi(r_2) = ((\_,\_),\_,\eaddr,\_) \\
+                                       \quad \tor \Phi(r_2) = \seal{\_,\_,\eaddr,\_} \\
                                        \quad \src{\tor \Phi(r_2) = \stkptr{\_,\_,\eaddr,\_} } \\
                                      \end{array} \\
                                      \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
@@ -646,6 +649,7 @@ We assume function to encode and decode permissions as well as a function to enc
                                      \arraycolsep=0pt
                                      \begin{array}[t]{l}
                                        \Phi(r_2) = ((\_,\lin),\_,\_,\_) \\
+                                       \quad \tor \Phi(r_2) = \seal{\lin,\_,\_,\_} \\
                                        \quad \src{\tor \Phi(r_2) = \stkptr{\_,\_,\_,\_} \tand l = \linear}\\
                                      \end{array} \\
                                      \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
@@ -763,6 +767,15 @@ Notice that in the case where we are moving a linear capability and $r_1 = r_2$ 
                                       \Phi(r_1) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
                                       \perm \neq \enter \tand \\
                                       c = ((\perm,\lin),\baddr,\eaddr,\aaddr + n)
+                                    \end{array}
+                                    \\
+                                    \updPcAddr{\Phi\updReg{r_1}{c}} &  
+                                    \arraycolsep=0pt
+                                    \begin{array}[t]{l}
+                                      \text{either $n = r_2$ or $n = \Phi.\reg(r_2)$}\\
+                                      \quad\text{ and in either case $n \in \ints$ and} \\
+                                      \Phi(r_1) = \seal{\lin,\sigma_\baddr,\sigma_\eaddr,\sigma} \tand \\
+                                      c = \seal{\lin,\sigma_\baddr,\sigma_\eaddr,\sigma + n}
                                     \end{array}
                                     \\
                                     \src{\updPcAddr{\Phi\updReg{r_1}{c}}} &  
@@ -890,10 +903,23 @@ This instruction uses the $\decPerm{}$ function.
 &
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
-                                      \Phi(r_2) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
+                                      \Phi(r_2) = ((\perm,\lin),\baddr,\eaddr,\_) \tand \\
                                       \perm \neq \enter \tand \\
                                       w_2 = \linCons{\Phi(r_2)}\\
                                       c = ((\perm,\lin),\baddr,\eaddr,\baddr)
+                                    \end{array} \\
+                                  \updPcAddr{}\left(
+                                    \arraycolsep=0pt
+                                    \begin{array}{rl}
+                                    \Phi&\updReg{r_2}{w_2}\\
+                                        &\updReg{r_1}{c}
+                                    \end{array} \right)
+&
+                                    \arraycolsep=0pt
+                                    \begin{array}[t]{l}
+                                      \Phi(r_2) = \seal{\lin,\sigma_\baddr,\sigma_\eaddr,\_} \tand \\
+                                      w_2 = \linCons{\Phi(r_2)}\\
+                                      c = \seal{\lin,\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr}
                                     \end{array} \\
                                     \failed & \totherwise
                                 \end{cases}
@@ -952,8 +978,8 @@ This instruction uses the $\decPerm{}$ function.
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
                                       \Phi(r_2) \in \SealableCaps \tand \\
-                                      \Phi(r_3) = \seal{\lin, \sigma_\baddr, \sigma_\eaddr} \tand \\
-                                      \sigma_\baddr \leq \sigma_\eaddr \tand \\ 
+                                      \Phi(r_3) = \seal{\lin, \sigma_\baddr, \sigma_\eaddr,\sigma} \tand \\
+                                      \sigma_\baddr \leq \sigma \leq \sigma_\eaddr \tand \\ 
                                       \vsc = \sealed{c,\sigma}
                                     \end{array}
                                     \\
@@ -1001,12 +1027,12 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
 &
                                  \arraycolsep=0pt
                                  \begin{array}[t]{l}
-                                   \Phi(r_3) = \seal{\lin,\sigma_\baddr,\sigma_\eaddr} \tand \\
+                                   \Phi(r_3) = \seal{\lin,\sigma_\baddr,\sigma_\eaddr,\sigma} \tand \\
                                    \Phi(r_4) = n \tor r_4 = n \\
                                    \quad\text{ and in either case } n \in \nats \\
                                    \sigma_\baddr \leq n \tand n < \sigma_\eaddr \tand \\
-                                   c_1 = \seal{\lin,\sigma_\baddr,n} \tand \\
-                                   c_2 = \seal{\lin,n+1,\sigma_\eaddr} \tand \\
+                                   c_1 = \seal{\lin,\sigma_\baddr,n,\sigma} \tand \\
+                                   c_2 = \seal{\lin,n+1,\sigma_\eaddr,\sigma} \tand \\
                                    w = \linCons{\Phi(r_3)}
                                  \end{array}\\
                                    \sourcecolor\left.
@@ -1066,11 +1092,11 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
 &
                                 \arraycolsep=0pt
                                 \begin{array}[t]{l}
-                                  \Phi(r_2) = \seal{\lin,\sigma_{\baddr,2},\sigma_{\eaddr,2}} \tand \\
-                                  \Phi(r_3) = \seal{\lin,\sigma_{\baddr,3},\sigma_{\eaddr,3}} \tand \\
+                                  \Phi(r_2) = \seal{\lin,\sigma_{\baddr,2},\sigma_{\eaddr,2},\sigma} \tand \\
+                                  \Phi(r_3) = \seal{\lin,\sigma_{\baddr,3},\sigma_{\eaddr,3},\_} \tand \\
                                   \sigma_{\eaddr,2}+1 = \sigma_{\baddr,3} \tand \sigma_{\baddr,2} \leq \sigma_{\eaddr,2} \tand\\
                                   \sigma_{\baddr,3} \leq \sigma_{\eaddr,3} \tand \\
-                                  c = \seal{\lin,\sigma_{\baddr,2},\sigma_{\eaddr,3}} \tand \\
+                                  c = \seal{\lin,\sigma_{\baddr,2},\sigma_{\eaddr,3},\sigma} \tand \\
                                   w_2 = \linCons{\Phi(r_2)} \tand \\
                                   w_3 = \linCons{\Phi(r_3)} \\
                                 \end{array}\\
