@@ -961,7 +961,14 @@ This instruction uses the $\decPerm{}$ function.
                                   \end{cases}
 \end{align*}
 
-\textbf{split}\\
+\noindent\textbf{split and splice}\\
+We would like splice and split to have the following properties
+\begin{enumerate}
+\item No authority amplification - splitting or splicing capabilities should give you no more authority than you already had.
+\item Split should be dual to splice in the sence that a split on a capability followed by a splice of the two resulting capabilities should yield the same capability.
+\item Take the addresses governed by a linear capability to be a multiset. If this capability is split, then the union of the two multisets of addresses governed by the resulting capabilities should be the same as the first multiset. In other words, splice and split should not break linearity.
+\end{enumerate}
+Split cannot create ``empty capabilities'' (a capability that governs no segment of the memory, i.e.\ a capability where the base address is greater than the end address). We partly do not allow this out of convenience as it makes the implementation of call simpler. We do not need empty capabilities as they have no semantic value in the sense that they allow you to do no more than a piece of data.
 \begin{align*}
   \tsem{\tsplit{r_1}{r_2}{r_3}{r_4}} = &
                                \begin{cases}
@@ -979,9 +986,9 @@ This instruction uses the $\decPerm{}$ function.
                                    \perm \neq \enter \tand \\
                                    \Phi(r_4) = n \tor r_4 = n \\
                                    \quad\text{ and in either case } n \in \nats \\
-                                   \baddr \leq n \tand n \leq \eaddr \tand \\
-                                   c_1 = ((\perm,\lin),\baddr,n,\baddr) \tand \\
-                                   c_2 = ((\perm,\lin),n+1,\eaddr,n+1) \tand \\
+                                   \baddr \leq n \tand n < \eaddr \tand \\
+                                   c_1 = ((\perm,\lin),\baddr,n,\aaddr) \tand \\
+                                   c_2 = ((\perm,\lin),n+1,\eaddr,\aaddr) \tand \\
                                    w = \linCons{\Phi(r_3)}
                                  \end{array}\\
                                  \updPcAddr{} \left(
@@ -1015,17 +1022,17 @@ This instruction uses the $\decPerm{}$ function.
                                  \arraycolsep=0pt
                                  \begin{array}[t]{l}
                                    \Phi(r_3) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
+                                   \perm \neq \enter \\
                                    \Phi(r_4) = n \tor r_4 = n \\
                                    \quad\text{ and in either case } n \in \nats \\
-                                   \baddr \leq n \tand n \leq \eaddr \tand \\
-                                   c_1 = \stkptr{\perm,\baddr,n,\baddr} \tand \\
-                                   c_2 = \stkptr{\perm,n+1,\eaddr,n+1} 
+                                   \baddr \leq n \tand n < \eaddr \tand \\
+                                   c_1 = \stkptr{\perm,\baddr,n,\aaddr} \tand \\
+                                   c_2 = \stkptr{\perm,n+1,\eaddr,\aaddr} 
                                  \end{array} \right.\\
                                  \failed & \totherwise
                                \end{cases}
 \end{align*}
 
-\noindent\textbf{splice}\\
 \lau{19-09-2017: Two important points about $\tsplice{}{}{}$ related to the calling convention: (1) Splice fails if two capabilities are not adjacent. This means that if a caller tries to use a return pointer with a stack that is not immediately adjacent to the private stack, then it fails. (2) Splice prohibit splicing with an empty capability! This means that a callee cannot return an empty stack (this also means that it is impossible to make a call when all of the stack is used - this may indeed be undesirable, but without this restriction we need to handle other things).}
 \lau{19-09-2017: Because $\tsplice{}{}{}$ does not allow empty stacks, it is not ``left inverse'' to $\tsplit{}{}{}{}$ (because of the empty case). Intuitively, it is weird that a $\tsplit{}{}{}{}$ followed by a $\tsplice{}{}{}$ does not yeild the same capability.}
 \begin{align*}
@@ -1042,7 +1049,7 @@ This instruction uses the $\decPerm{}$ function.
                                 \arraycolsep=0pt
                                 \begin{array}[t]{l}
                                   \Phi(r_2) = ((\perm,\lin),\baddr_2,\eaddr_2,\aaddr_2) \tand \\
-                                  \Phi(r_3) = ((\perm,\lin),\baddr_3,\eaddr_3,\aaddr_3) \tand \\
+                                  \Phi(r_3) = ((\perm,\lin),\baddr_3,\eaddr_3,\_) \tand \\
                                   \perm \neq \enter \tand \\
                                   \eaddr_2 + 1 = \baddr_3 \tand \baddr_2 \leq \eaddr_2 \tand \baddr_3 \leq \eaddr_3 \tand \\
                                   c = ((\perm,\lin),\baddr_2,\eaddr_3,\aaddr_2) \tand\\
