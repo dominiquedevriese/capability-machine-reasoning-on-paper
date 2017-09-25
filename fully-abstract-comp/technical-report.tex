@@ -965,6 +965,7 @@ This instruction uses the $\decPerm{}$ function.
                                          \stkf = (\opc,\ms_{\stk,\priv},\aaddr_\stk) \tand \\
                                          c_\stk = \stkptr{\rw,\baddr_{\stk,\priv},\eaddr_\stk,\aaddr_\stk} \tand\\
                                          \dom(\ms_{\stk,\priv}) = [\baddr_{\stk,\priv},\baddr_\stk - 1] \tand\\
+                                         \dom(\ms_{\stk,\priv} \uplus \ms_\stk) = [\baddr_{\stk,\priv},\eaddr_\stk] \tand \\
                                          \Phi' = (\mem,\reg,\stk,\ms_{\stk,\priv} \uplus \ms_\stk) 
                                        \end{array}\right.
                                      \\
@@ -988,7 +989,7 @@ This instruction uses the $\decPerm{}$ function.
                                       \Phi(r_3) = \seal{\lin, \sigma_\baddr, \sigma_\eaddr,\sigma} \tand \\
                                       \sigma_\baddr \leq \sigma \leq \sigma_\eaddr \tand \\ 
                                       \vsc = \sealed{\Phi(r_2),\sigma} \tand\\
-                                      w_2 = \linCons(\Phi(r_2))                                      
+                                      w_2 = \linCons{\Phi(r_2)}                                     
                                     \end{array}
                                     \\
                                     \failed & \totherwise
@@ -1480,5 +1481,24 @@ At some point, we contemplated having opaque capabilities. Opaque capabilities w
 
 At the moment of writing this, I am not sure why we introduced them, but it was related to hiding program lengths (and stack height).
 At this juncture, it does, however, not seem necessary to have opaque because sealed capabilities can do their job.
+
+\subsection{Calling convention design decisions}
+\subsubsection{Returning the full stack}
+When a callee return from a call, they must return all of the stack they were passed. If we omit this requirement, then we cannot guarantee well-bracketedness. The following is an example of circumventing well-bracketedness by keeping part of the stack:
+
+\begin{itemize}
+\item An adversary calls our trusted code with a call-back. 
+\item Our code uses part of the stack and calls the callback with the rest of the stack.
+\item The adversary splits that stack in two and saves the part of the stack adjacent to our stack in some persistent memory. The adversary calls us anew with a callback and the part of the stack they did not save. 
+\item We use part of the stack we receive and call the callback with the rest of the stack. The adversary can now use the saved stack to return from the first call to the callback breaking well-bracketedness. The reason this is possible is because we do not check the size of the stack.
+\end{itemize}
+Figure~\ref{fig:ret-full-stk} illustrates the above example. In the figure, $f$ is the function to ``is'' and $g$ is the callback passed to ``us''. In the end, the part of the stack marked \emph{kept by adv} can be used to return from the first call-back (the call with the *). The stack that is used to return lines up with $\var{Us}_\priv$, so the return is successful.
+\begin{figure}
+  \centering
+  \includegraphics[angle=90,width=\textwidth]{img/ret-full-stk.pdf}
+  \caption{Illustration of the stack in the example that illustrates why the entire stack must be returned.}
+  \label{fig:ret-full-stk}
+\end{figure}
+
 
 \end{document}
