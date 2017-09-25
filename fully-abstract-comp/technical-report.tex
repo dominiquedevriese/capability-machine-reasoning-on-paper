@@ -1161,14 +1161,14 @@ This instruction assumes that the current address of the stack pointer, $\aaddr_
                                                    \Phi(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk} \tand \\
                                                    \baddr_\stk \leq \aaddr_\stk < \eaddr_\stk \tand \\
                                                    \ms_{\stk,\priv} = \ms_\stk |_{[\baddr_\stk,\aaddr_\stk]}\update{\aaddr_\stk}{\eaddr_\stk} \tand\\
-                                                   \ms_{\stk,\var{rest}} = \ms_\stk|_{[\aaddr_\stk + 1,\eaddr_\stk]} \tand\\
+                                                   \ms_{\stk,\var{rest}} = \ms_\stk|_{[\aaddr_\stk + 1,\eaddr_\stk]} \tand \\
                                                    c_\stk = \stkptr{\aaddr_\stk+1,\eaddr_\stk,\aaddr_\stk+1} \tand \\
                                                    \Phi(\pcreg) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
                                                    \opc = ((\perm,\lin),\baddr,\eaddr,\aaddr+\calllen) \tand \\
                                                    \stk' = (\opc,\ms_{\stk,\priv},\aaddr_\stk) :: \stk \tand\\
                                                    \Phi' = (\mem,\reg,\stk',\ms_{\stk,\var{rest}})\tand\\
                                                    \mem(\baddr) = \seal{\_,\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr}\tand\\
-                                                   \sigma_\baddr \leq \sigma_? \leq \sigma_\eaddr \tand
+                                                   \sigma_\baddr \leq \sigma_? \leq \sigma_\eaddr \tand\\
                                                    \sigma_? = \sealAss{a} \tand\\
                                                    w_1 = \linCons{\Phi(r_1)} \tand \\
                                                    w_2 = \linCons{\Phi(r_2)}
@@ -1503,5 +1503,26 @@ Figure~\ref{fig:ret-full-stk} illustrates the above example. In the figure, $f$ 
   \label{fig:ret-full-stk}
 \end{figure}
 
+\subsubsection{Restriction on stack allocation}
+We need to somehow make sure that it is always the same stack that is used. If we don't, then an adversary can simply split the stack in two, use one part for one call and the other for another call. At this point, they can return to either of the two calls - in other words, well-bracketedness is not enforced.
+
+\begin{itemize}
+  \item An adversary starts the execution. They split the stack in two and call us with one part (say the top part) along with a callback.
+  \item We use part of the stack and call the adversary with the rest of the stack.
+  \item The adversary calls us again this time using the other part of the stack (here the bottom part of the stack).
+  \item Again, we use part of the stack and call the adversary with the rest of this part of the stack.
+\end{itemize}
+At this point, the adversary can return from either of the two calls. Swapping around the order in which the adversary uses the two parts of the stack changes nothing.
+
+The example is illustrated in Figure~\ref{fig:stk-alloc}.
+
+One way to solve this is to make it publicly known what the end address of the stack is and always check that we receive a part of the stack that goes all the way to the end. In the above example (using the stack parts in parenthesis) this would cause the sequence of calls to fail the second time we are called, because we do not receive a stack that goes all the way to the top of the stack.
+
+\begin{figure}
+  \centering
+  \includegraphics[angle=270,trim={0 0 5cm 0},width=\textwidth]{img/stk-alloc.pdf}
+  \caption{Illustration of the potential stack allocation issue.}
+  \label{fig:stk-alloc}
+\end{figure}
 
 \end{document}
