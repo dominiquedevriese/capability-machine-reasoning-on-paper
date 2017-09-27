@@ -455,7 +455,7 @@ There is one syntactic difference between the source language and the target lan
 \lau{13-09-2017: Note that most of the above discussion is now captured in Section~\ref{sec:linear-cap}}
 
 We assume functions $\decPerm{}$ and $\encPerm{}$.
-\lau{15-09-2017: TOOD, write more about these. Should be like in the local cap setting.}
+\lau{15-09-2017: TODO, write more about these. Should be like in the local cap setting.}
 
 \subsection{Operational Semantics}
 \subsubsection{Notes}
@@ -1191,12 +1191,12 @@ A program needs access to the following:
 \item[Program seals] Each call/return point of the program needs a unique seal in order to enforce well-bracketedness. This seal needs to be unique on the entire machine.
 \item[Stack] A program stores the value of local variables on the stack. 
 \item[Persistent data storage] A program may also need to use "global variables" these are stored in a piece of memory seperate from the stack.
-\item[Linking table] A progam may need to call other programs. Other programs are made available in a linking table.
+\item[Linking table] A program may need to call other programs. Other programs are made available in a linking table.
 \end{description}
 
 In the following, we describe the setup in detail. Figure~\ref{fig:trg-prog-link} illustrates the setup.
 
-The \emph{code}, \emph{program seals}, and \emph{linking table} are available through a normal read-execute capability in the $\pc$ register. The program seals are found on the first address governed by this capability. The second address governe by the capability contains a normal read capability that governs the linking table and points to the first address. The remaining addresses governed by the capability in the $\pc$ register contain the instructions of the program.
+The \emph{code}, \emph{program seals}, and \emph{linking table} are available through a normal read-execute capability in the $\pc$ register. The program seals are found on the first address governed by this capability. The second address governed by the capability contains a normal read capability that governs the linking table and points to the first address. The remaining addresses governed by the capability in the $\pc$ register contain the instructions of the program.
 
 The \emph{linking table} contains pairs of sealed code and data capabilities. So the first two addresses of the linking table contains the first pair, the two next contains the next pair and so on.
 
@@ -1204,7 +1204,7 @@ The \emph{program seals} contain at least a seal for each of the ``call/return p
 
 The \emph{stack} is available through a capability in the register $r_\stk$. The stack pointer is a linear read write capability. There are three ways of receiving a stack: (1) the first program executing has a stack pointer in the $r_\stk$ register, (2) call backs and programs can expect to be called with a stack pointer as an argument in the $r_\stk$ register, and (3) when returning from a call, part of the stack is unsealed as the data part of a return pointer the other part is returned from the callee (the callee is allowed to keep part of the stack, but the callee must at least return a non-empty part of the stack adjacent to the part of the stack that was unsealed by returning).
 
-The \emph{peristent data storage} is expected to be accisble through a normal read-write capability in $r_\data$ during normal execution (during a return the stack capability will initially be in the $r_\data$ register, but it should be spliced with the returned stack and moved to the $r_\stk$ register). There are two ways for a program to get this data capability: (1) the data part of the code/data part should be the sealed data capability. (2) During a call, the data capability should be stored on the stack, so it can be retrieved afterwards.
+The \emph{peristent data storage} is expected to be accessible through a normal read-write capability in $r_\data$ during normal execution (during a return the stack capability will initially be in the $r_\data$ register, but it should be spliced with the returned stack and moved to the $r_\stk$ register). There are two ways for a program to get this data capability: (1) the data part of the code/data pair (for either a callback or a global function in the linking table) should be the sealed data capability. (2) During a call, the data capability should be stored on the stack, so it can be retrieved afterwards.
 \begin{figure}
   \centering
   \includegraphics[angle=90,width=\textwidth]{img/linking.pdf}
@@ -1216,6 +1216,7 @@ The \emph{peristent data storage} is expected to be accisble through a normal re
 \[
 \comp{\cdot} : \src{i}^* \fun \trg{i}^*
 \]
+\dominique{Regarding the type signature for $[\cdot]$ above: does this mean that it maps lists of instructions to lists of instructions? Is there another function that compiles a single instruction to a list of instructions?}
 
 \[
   \comp{\scall{r_1}{r_2}} = 
@@ -1240,6 +1241,8 @@ The \emph{peristent data storage} is expected to be accisble through a normal re
 \section{Examples}
 \subsection{Capability Opacity}
 \label{subsec:capability-opacity}
+
+\dominique{Is this example still relevant? Isn't it solved differently by the variable-length-instructions idea?}
 This example was introduced when we envisioned a capability machine with $\spush{}$, $\spop{}$, $\ssload{}{}$, $\scall{}{}$ and $\sreturn$ instructions. The below example is a motivation for having variable length instructions in the source language because if we have enough memory to ``do the same'' in the target language as in the source language, then the below example does not work.
 
 The following pseudo program demonstrates the need of opaque capabilities. If we assume a system with no opaque capabilities, then the following programs break compiler correctness
@@ -1310,11 +1313,12 @@ The back translation is an embedding of source language into .
   \begin{itemize}
   \item Without opaque capabilities, stack consumption could be inferred through stack pointer index etc.
   \end{itemize}
-\item Considered PORs for transition systems to: ($a \rightarrow b \Rightarrow a = a \text{ and } b = b$)
+\item Considered PORs for transition systems to: ($a \rightarrow b \Rightarrow a \rightarrow a \text{ and } b \rightarrow b$)
+  \dominique{I don't remember what we meant with PORs, but perhaps quasi-reflexive partial orders.  Not sure what the point of this was again... }
   \begin{itemize}
   \item Define one region that governs the stack
   \item Make the regions more general
-  \item For now, we have not done this: instead we stick with the transition systems we have and have to regions governing the stack reflecting the CSF work.
+  \item For now, we have not done this: instead we stick with the transition systems we have and have two regions governing the stack reflecting the CSF work.
   \end{itemize}
 \end{enumerate}
 
