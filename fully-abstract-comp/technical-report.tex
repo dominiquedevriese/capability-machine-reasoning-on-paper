@@ -1125,11 +1125,11 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
 &
                                 \arraycolsep=0pt
                                 \begin{array}[t]{l}
-                                  \Phi(r_2) = ((\perm,\lin),\baddr_2,\eaddr_2,\aaddr_2) \tand \\
-                                  \Phi(r_3) = ((\perm,\lin),\baddr_3,\eaddr_3,\_) \tand \\
+                                  \Phi(r_2) = ((\perm,\lin),\baddr_2,\eaddr_2,\_) \tand \\
+                                  \Phi(r_3) = ((\perm,\lin),\baddr_3,\eaddr_3,\aaddr_3) \tand \\
                                   \perm \neq \enter \tand \\
                                   \eaddr_2 + 1 = \baddr_3 \tand \baddr_2 \leq \eaddr_2 \tand \baddr_3 \leq \eaddr_3 \tand \\
-                                  c = ((\perm,\lin),\baddr_2,\eaddr_3,\aaddr_2) \tand\\
+                                  c = ((\perm,\lin),\baddr_2,\eaddr_3,\aaddr_3) \tand\\
                                   w_2 = \linCons{\Phi(r_2)} \tand \\
                                   w_3 = \linCons{\Phi(r_3)} \\
                                 \end{array}\\
@@ -1143,8 +1143,8 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
 &
                                 \arraycolsep=0pt
                                 \begin{array}[t]{l}
-                                  \Phi(r_2) = \seal{\lin,\sigma_{\baddr,2},\sigma_{\eaddr,2},\sigma} \tand \\
-                                  \Phi(r_3) = \seal{\lin,\sigma_{\baddr,3},\sigma_{\eaddr,3},\_} \tand \\
+                                  \Phi(r_2) = \seal{\lin,\sigma_{\baddr,2},\sigma_{\eaddr,2},\_} \tand \\
+                                  \Phi(r_3) = \seal{\lin,\sigma_{\baddr,3},\sigma_{\eaddr,3},\sigma} \tand \\
                                   \sigma_{\eaddr,2}+1 = \sigma_{\baddr,3} \tand \sigma_{\baddr,2} \leq \sigma_{\eaddr,2} \tand\\
                                   \sigma_{\baddr,3} \leq \sigma_{\eaddr,3} \tand \\
                                   c = \seal{\lin,\sigma_{\baddr,2},\sigma_{\eaddr,3},\sigma} \tand \\
@@ -1163,11 +1163,11 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                 \sourcecolor
                                 \arraycolsep=0pt
                                 \begin{array}[t]{l}
-                                  \Phi(r_2) = \stkptr{\perm,\baddr_2,\eaddr_2,\aaddr_2} \tand \\
+                                  \Phi(r_2) = \stkptr{\perm,\baddr_2,\eaddr_2,\_} \tand \\
                                   \Phi(r_3) = \stkptr{\perm,\baddr_3,\eaddr_3,\aaddr_3} \tand \\
                                   \perm \neq \enter \tand \\
                                   \eaddr_2 + 1 = \baddr_3 \tand \baddr_2 \leq \eaddr_2 \tand \baddr_3 \leq \eaddr_3 \tand \\
-                                  c = \stkptr{\perm,\baddr_2,\eaddr_3,\aaddr_2} \\
+                                  c = \stkptr{\perm,\baddr_2,\eaddr_3,\aaddr_3} \\
                                 \end{array}\\
                                 \failed & \totherwise
                               \end{cases}
@@ -1200,10 +1200,10 @@ This instruction assumes that the current address of the stack pointer, $\aaddr_
                                                    \nonExec{c_2} \tand\\
                                                    \Phi = (\mem,\reg,\stk,\ms_\stk) \tand\\
                                                    \Phi(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk} \tand \\
-                                                   \baddr_\stk \leq \aaddr_\stk < \eaddr_\stk \tand \\
-                                                   \ms_{\stk,\priv} = \ms_\stk |_{[\baddr_\stk,\aaddr_\stk]}\update{\aaddr_\stk}{\eaddr_\stk} \tand\\
-                                                   \ms_{\stk,\var{rest}} = \ms_\stk|_{[\aaddr_\stk + 1,\eaddr_\stk]} \tand \\
-                                                   c_\stk = \stkptr{\aaddr_\stk+1,\eaddr_\stk,\aaddr_\stk+1} \tand \\
+                                                   \baddr_\stk < \aaddr_\stk \leq \eaddr_\stk \tand \\
+                                                   \ms_{\stk,\priv} = \ms_\stk |_{[\aaddr_\stk,\eaddr]}\update{\aaddr_\stk}{\eaddr_\stk} \tand\\
+                                                   \ms_{\stk,\var{rest}} = \ms_\stk|_{[\baddr,\aaddr_\stk - 1]} \tand \\
+                                                   c_\stk = \stkptr{\baddr,\aaddr_\stk-1,\aaddr_\stk-1} \tand \\
                                                    \Phi(\pcreg) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
                                                    \opc = ((\perm,\lin),\baddr,\eaddr,\aaddr+\calllen) \tand \\
                                                    \stk' = (\opc,\ms_{\stk,\priv},\aaddr_\stk) :: \stk \tand\\
@@ -1611,7 +1611,11 @@ At this point, the adversary can return from either of the two calls. Swapping a
 
 The example is illustrated in Figure~\ref{fig:stk-alloc}.
 
-One way to solve this is to make it publicly known what the end address of the stack is and always check that we receive a part of the stack that goes all the way to the end. In the above example (using the stack parts in parenthesis) this would cause the sequence of calls to fail the second time we are called, because we do not receive a stack that goes all the way to the top of the stack.
+One way to solve this problem is to make the "top addess" of the stack known. There are many ways to do this, but we have chosen to do the following:
+\begin{itemize}
+\item The stack grows downwards, so the ``last address'' of the stack is the base address of the initial stack capability.
+\item The base address of the stack capability is a fixed address, so in the semantice, it will be expressed as a constant that is publicly known.
+\end{itemize}
 
 \begin{figure}
   \centering
