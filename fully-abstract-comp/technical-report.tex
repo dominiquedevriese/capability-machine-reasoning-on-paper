@@ -382,7 +382,9 @@ Source language domains:
 \lau{06-09-2017: Should seals also have the option to be linear?}
 \lau{13-09-2017: For now I have added linearity to the seals.}
 \dominique{27-9-2017: I think we should have versions of $\retptrd$ and $\retptrc$ for non-top stack frames and define that invoking them with the current stack pointer will fail.}
+\lau{28-09-2017: Why would you like this? If we want to add this, we will have to be careful, because an old code-return-pointer may fit perfectly well with our new data-return-pointer, so in this case it should not fail. We added the seal to the return pointers, so we had some way of figuring out whether two return pointers would actually fit together.}
 \dominique{27-9-2017: Likewise, I think we need to have a source-language representation for a pointer into one of the non-top stack frames, as we may need to be able to back-translate adversary code that reads/writes in those.}
+\lau{28-09-2017: At the moment, the only part of the stack that is stored in the stack frame is the private part. Specifically it is the part from the base to the current address of the stack pointer \emph{in $r_\stk$}. This means that if someone saves a stack pointer, so it is not included in the call, then they can still use it because that part of the stack was not encapsulated in a stack frame. Makes sense?}
 The target language domains are all the non blue parts in the above. The source language domains are the black and blue parts in the above. Further
 \begin{itemize}
 \item $\linbnf$ defines domain $\Linear$
@@ -437,13 +439,14 @@ The source machine is also a capability machine with memory capabilities and sea
 \[
   \begin{array}{rcl}
     n & \in & \nats \\
-    \src{r} &\in &  \RegName \setminus \{\rstk\}\\
+    \src{r} &\in &  \RegName\\
     \src{\rn} &\defbnf & \src{r} \mid n \\
     \src{i} & \defbnf &  \trg{i} \mid \scall{\src{r}}{\src{r}}
   \end{array}
 \]
 \lau{30-08-2017: We had $\rret$ as not being one of the registers on the source machine. I could not recall why we had this, so I removed it. (I think it may have been from when we had call and return instructions?)}
 \dominique{26-9-2017: I think we should allow $\rstk$ in the source language too.}
+\lau{28-09-2017: I can see from the commit history that this was something when we had push/pop instructions as well as a return instruction. I have removed the restriction on $\rstk$.}
 There is one syntactic difference between the source language and the target language, namely the target language has an extra instruction in the $\scall{}{}$ instruction.
 
 \subsection{Permissions}
@@ -505,7 +508,8 @@ Source language:
 \item Programs have undefined behavior when passing ret/stk pointers.
 \end{itemize}
 
-\dominique{I think we need to do something about tail calls in the source language?}
+\dominique{27-09-2017: I think we need to do something about tail calls in the source language?}
+\lau{27-09-2017: In what sense? Do you want to allow them (I do not thinkn they are allowed at the moment?)}
 
 Target language:
 \begin{itemize}
@@ -1294,7 +1298,8 @@ Here we define what constitutes a program.
 \[
 \comp{\cdot} : \src{i}^* \fun \trg{i}^*
 \]
-\dominique{Regarding the type signature for $[\cdot]$ above: does this mean that it maps lists of instructions to lists of instructions? Is there another function that compiles a single instruction to a list of instructions?}
+\dominique{27-09-2017: Regarding the type signature for $[\cdot]$ above: does this mean that it maps lists of instructions to lists of instructions? Is there another function that compiles a single instruction to a list of instructions?}
+\lau{28-09-2017: Yes, that was the thought at the moment, but this may very well change soon. This compiler would then use a compiler that compiles single instructions. That said, this part was added a long time ago and for some reason (some details about the compilation probably did not make sense to me at the moment), I did not complete it. I think the compiler will probably change to be from programs to programs, and a programs is not just going to be a list of instructions.}
 
 \[
   \comp{\scall{r_1}{r_2}} = 
@@ -1320,7 +1325,8 @@ Here we define what constitutes a program.
 \subsection{Capability Opacity}
 \label{subsec:capability-opacity}
 
-\dominique{Is this example still relevant? Isn't it solved differently by the variable-length-instructions idea?}
+\dominique{27-09-2017: Is this example still relevant? Isn't it solved differently by the variable-length-instructions idea?}
+\lau{28-09-2017: It seems to me that this is indeed solved by the variable length instructions. That said, I would like to keep it around (maybe change it so it becomes an argument for variable length instructions).}
 This example was introduced when we envisioned a capability machine with $\spush{}$, $\spop{}$, $\ssload{}{}$, $\scall{}{}$ and $\sreturn$ instructions. The below example is a motivation for having variable length instructions in the source language because if we have enough memory to ``do the same'' in the target language as in the source language, then the below example does not work.
 
 The following pseudo program demonstrates the need of opaque capabilities. If we assume a system with no opaque capabilities, then the following programs break compiler correctness
@@ -1392,7 +1398,8 @@ The back translation is an embedding of source language into .
   \item Without opaque capabilities, stack consumption could be inferred through stack pointer index etc.
   \end{itemize}
 \item Considered PORs for transition systems to: ($a \rightarrow b \Rightarrow a \rightarrow a \text{ and } b \rightarrow b$)
-  \dominique{I don't remember what we meant with PORs, but perhaps quasi-reflexive partial orders.  Not sure what the point of this was again... }
+  \dominique{27-09-2017: I don't remember what we meant with PORs, but perhaps quasi-reflexive partial orders.  Not sure what the point of this was again... }
+  \lau{28-09-2017: I think the next three points is the answer. We basically wanted a formalism in which we could design one region that would govern the stack. I do not remeber why it was made possible with PORs.}
   \begin{itemize}
   \item Define one region that governs the stack
   \item Make the regions more general
