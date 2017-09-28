@@ -206,6 +206,7 @@
 \newcommand{\addrbnf}{\shareddom{a}}
 \newcommand{\basebnf}{\shareddom{base}}
 \newcommand{\aendbnf}{\shareddom{end}}
+\newcommand{\rbnf}{\shareddom{r}}
 %\newcommand{\glbnf}{\shareddom{gl}}
 \newcommand{\linbnf}{\shareddom{l}}
 \newcommand{\sealbasebnf}{\sigma_\shareddom{base}}
@@ -270,6 +271,7 @@
 %%% Constants
 \newcommand{\constant}[1]{\mathrm{#1}}
 \newcommand{\calllen}{\constant{call\_len}}
+\newcommand{\stkb}{\constant{stk\_base}}
 
 %%% Named registers
 \newcommand{\pcreg}{\mathrm{pc}}
@@ -369,7 +371,7 @@ Source language domains:
     &\scbnf &\defbnf & ((\permbnf,\linbnf),\basebnf,\aendbnf,\addrbnf) \mid \seal{\linbnf,\sealbasebnf,\sealendbnf,\sigma}\\
     & & & {\sourcecolor{} \mid \stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}}\\ 
     &\cbnf & \defbnf &  \scbnf \mid \sealed{\scbnf,\sigma}{\sourcecolor{} \; \mid \retptrd(\sigma) \mid \retptrc(\sigma)}\\ 
-    &\RegName & \defbnf &\pcreg \mid \rret \mid \rstk \mid \rdata \mid \dots \\
+    &\rbnf & \defbnf &\pcreg \mid \rret \mid \rstk \mid \rdata \mid \dots \\
     &\Reg & \defeq & \RegName \fun \Word\\
     &\Mem & \defeq & \Addr \fun \Word \\
     &\MemSeg & \defeq & \Addr \parfun \Word \\
@@ -390,10 +392,16 @@ The target language domains are all the non blue parts in the above. The source 
 \item $\linbnf$ defines domain $\Linear$
 \item $\scbnf$ defines domain $\SealableCaps$
 \item $\cbnf$ defines domain $\Caps$
+\item $\rbnf$ defines the finite set $\RegName$.
 \item $\Perm$ is defined as the set of permissions in Figure~\ref{fig:perm-hier}.
 \end{itemize}
 
 In the source language, $\src{\Stack}$ is a call stack that contains the data for each call. The call stack consists of a number of $\src{\StkFrame}$'s that contains 1) the old pc, 2) caller's private stack, and 3) the address of the old stack pointer. 
+
+In both languages, the base address of the stack is known (the stack grows downwards in memory, so the base address marks the end of the stack). In the target language, this will be the base address of some linear capability. The base address can be any address on the machine, but it will have to remain the same. We write this constant as
+\[
+  \stkb
+\]
 
 More convenient definitions
 \[
@@ -1001,12 +1009,11 @@ This instruction uses the $\decPerm{}$ function.
                                        \begin{array}[t]{l}
                                          \Phi(r_1) = \retptrc(\sigma) \tand \\
                                          \Phi(r_2) = \retptrd(\sigma) \tand \\
-                                         \Phi(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\_} \tand \\
+                                         \Phi(\rstk) = \stkptr{\rw,\stkb,\eaddr_\stk,\_} \tand \\
                                          \Phi = (\mem,\reg,\stkf::\stk,\ms_\stk) \tand \\
                                          \stkf = (\opc,\ms_{\stk,\priv},\aaddr_\stk) \tand \\
-                                         \dom(\ms_{\stk,\priv}) = [\baddr_{\stk,\priv},\baddr_\stk - 1] \tand\\
-                                         \ms_{\stk,\priv}(\baddr_\stk-1) = \eaddr_\stk \tand \\
-                                         c_\stk = \stkptr{\rw,\baddr_{\stk,\priv},\eaddr_\stk,\aaddr_\stk} \tand\\
+                                         \dom(\ms_{\stk,\priv}) = [\eaddr_\stk+1,\eaddr_{\stk,\priv}] \tand\\
+                                         c_\stk = \stkptr{\rw,\stkb,\eaddr_{\stk,\priv},\aaddr_\stk} \tand\\
                                          \Phi' = (\mem,\reg,\stk,\ms_{\stk,\priv} \uplus \ms_\stk) 
                                        \end{array}\right.
                                      \\
@@ -1202,8 +1209,8 @@ This instruction assumes that the current address of the stack pointer, $\aaddr_
                                                    \Phi(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk} \tand \\
                                                    \baddr_\stk < \aaddr_\stk \leq \eaddr_\stk \tand \\
                                                    \ms_{\stk,\priv} = \ms_\stk |_{[\aaddr_\stk,\eaddr]}\update{\aaddr_\stk}{\eaddr_\stk} \tand\\
-                                                   \ms_{\stk,\var{rest}} = \ms_\stk|_{[\baddr,\aaddr_\stk - 1]} \tand \\
-                                                   c_\stk = \stkptr{\baddr,\aaddr_\stk-1,\aaddr_\stk-1} \tand \\
+                                                   \ms_{\stk,\var{rest}} = \ms_\stk|_{[\baddr_\stk,\aaddr_\stk - 1]} \tand \\
+                                                   c_\stk = \stkptr{\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1} \tand \\
                                                    \Phi(\pcreg) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
                                                    \opc = ((\perm,\lin),\baddr,\eaddr,\aaddr+\calllen) \tand \\
                                                    \stk' = (\opc,\ms_{\stk,\priv},\aaddr_\stk) :: \stk \tand\\
