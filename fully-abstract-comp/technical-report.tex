@@ -4,6 +4,7 @@
 
 % Math packages
 \usepackage{amsmath,amsfonts,amssymb,amsthm}
+\usepackage{mathrsfs}
 \usepackage{thmtools}
 \usepackage{array}
 \usepackage{cleveref}
@@ -62,6 +63,9 @@
 \newcommand{\tor}{\text{ or }}
 \newcommand{\totherwise}{\text{otherwise }}
 
+% Equivalences
+\newcommand{\sconeq}{\mathrel{\src{\approx_{\mathrm{ctx}}}}}
+\newcommand{\tconeq}{\mathrel{\approx_{\mathrm{ctx}}}}
 
 %%% Instruction formatting
 \newcommand{\sourcecolortext}{blue}
@@ -249,6 +253,18 @@
 \newcommand{\targetdom}[1]{\mathrm{#1}}
 \newcommand{\tRegName}{\targetdom{RegisterName}}
 
+%%% Programs and contexts
+\newcommand{\program}{\mathscr{P}}
+\newcommand{\context}{\mathscr{C}}
+
+\newcommand{\plug}[2]{#1[#2]}
+
+%%% Operational semantics
+\newcommand{\step}{\rightarrow}
+\newcommand{\nstep}[1][n]{\step_{#1}}
+\newcommand{\steps}{\step^*}
+\newcommand{\diverge}{\Uparrow}
+
 %%% Variables
 \newcommand{\var}[1]{\mathit{#1}}
 \newcommand{\rn}{\var{rn}}
@@ -329,6 +345,8 @@
 \newcommand{\encType}[1]{\plainfun{encodeType}{#1}}
 \newcommand{\encPerm}[1]{\plainfun{encocePerm}{#1}}
 \newcommand{\decPerm}[1]{\plainfun{decodePerm}{#1}}
+\newcommand{\encInstr}[1]{\plainfun{encodeInstruction}{#1}}
+\newcommand{\decInstr}[1]{\plainfun{decodeInstruction}{#1}}
 \newcommand{\updPcAddr}[1]{\plainfun{updatePc}{#1}}
 \newcommand{\updPcPerm}[1]{\plainfun{updatePcPerm}{#1}}
 \newcommand{\nonExec}[1]{\plainfun{nonExecutable}{#1}}
@@ -599,6 +617,8 @@ Target language:
     \top & \totherwise
   \end{cases}
 \]
+
+\subsubsection{Step Relation}
 
 \subsubsection{Instruction Interpretation}
 We have unified the two languages in the below definitions. Everything written in black is common for both source and target language. Everything written in \src{blue} is specific to the source language.
@@ -1263,10 +1283,10 @@ The \emph{persistent data storage} is expected to be accessible through a normal
 \begin{definition}
   \label{def:self-contained}
   \begin{itemize}
-  \item We say that a memory segment $\ms$ and a list of capabilities $\bar{c}$
+  \item We say that a memory segment $\ms$ and a list of words $\bar{w}$
     are self-contained iff
   \[
-    \forall c \in \bar{c} \ldotp \range{c} \subseteq \dom{\ms}
+    \forall w \in \bar{w} \ldotp w \in \Caps \lor w = \stkptr{\_,\_,\_,\_} \Rightarrow \range{w} \subseteq \dom(\ms)
   \]
   and
   \begin{multline*}
@@ -1285,25 +1305,102 @@ The \emph{persistent data storage} is expected to be accessible through a normal
 \end{itemize}
 \end{definition}
 
+\begin{definition}
+  \label{def:wxorx}
+  ~\\
+  A word $w$ is said to respect write-xor-execute iff
+  \begin{itemize}
+  \item $w \in \ints$
+  \item $w = \seal{\_,\_,\_,\_}$
+  \item $w = ((\perm,\_),\_,\_,\_) \tand \perm \neq \rwx$
+  \item $\seal{\_,\vsc}$ and $\vsc$ respects write-xor-execute
+  \item $\src{\stkptr{\perm} \tand \perm \neq \rwx}$
+  \item $\src{w = \retptrc{\_}}$
+  \item $\src{w = \retptrd{\_}}$
+  \end{itemize}
+~\\
+  A register file $\reg$ is said to respect write-xor-execute with slack $[\bar{r}]$ iff \\
+  For all $r \in RegName$ $\reg(r) \setminus [\bar{r}]$ respects write-xor-execute.
+~\\
+~\\
+  A memory segment $\ms$ is said to respect write-xor-execute iff\\
+  For all $\aaddr \in \dom(\ms)$ $\ms(\aaddr)$ respects write-xor-execute
+\end{definition}
+
+\begin{definition}
+  \label{def:no-stk-ptr}
+~\\
+  We say that a word $w$ covers no stack pointer iff\\
+  \begin{item}
+    \item $w \neq ((\perm,\linear),\stkb,\_,\_)$\\
+          $\src{w \neq \stkptr{\_,\_,\_,\_}}$
+    \item if $w = \sealed{\_,\vsc}$, then $\vsc$ covers no stack pointer.
+  \end{item}
+~\\
+  We say that a memory segment $\ms$ contains no stack pointer iff
+  \[
+    \forall \aaddr \in \dom(\ms)\ldotp \text{$\ms(\aaddr)$ covers no stack pointer}
+  \]
+~\\
+  We say that a register file $\reg$ contains no stack pointer with slack $[\bar{r}]$ iff
+  \[
+    \forall r \in \reg \setminus [\bar{r}] \ldotp \text{$\reg(r)$ covers no stack pointer}
+  \]
+\end{definition}
+
+\begin{definition}
+  \label{def:resp-linearity}
+~\\
+  We say that a memory segment $\ms$ and words $\bar{w}$ respects linearity iff\\
+  Let $\var{lc}$ be all the linear capabilities in $\ms$ and $\bar{w}$, i.e.,
+  \[
+    \var{lc} = \left\{c \middle|
+      \begin{array}{l}
+        \exists \aaddr \in \dom(\ms) \ldotp c = \ms(\aaddr) = ((\_,\linear),\_,\_,\_) \\
+        \exists \aaddr \in \dom(\ms) \ldotp \ms(\aaddr) = \sealed{\_,c} \land c = ((\_,\linear),\_,\_,\_) \\
+        \src{\exists \aaddr \in \dom(\ms) \ldotp c = \ms(\aaddr) = \stkptr{\_,\_,\_,\_}} \\
+        \src{\exists \aaddr \in \dom(\ms) \ldotp \ms(\aaddr) = \sealed{\_,c} \land c= \stkptr{\_,\_,\_,\_}} \\
+      \end{array}
+\right\}
+  \]
+\end{definition}
+
 \subsubsection{Programs}
 Here we define what constitutes a program.
-
+\lau{05-10-2017: It seems like both program and context takes care of linking atm.}
 \begin{definition}
   \label{def:program}
   \lau{27-09-2017: The ``somehow''s need to be fixed.}
-  A program consists of two sealed capabilities, $\vsc_\code = \sealed{c_\code,\sigma}$ and $\vsc_\data = \sealed{c_\data,\sigma}$, and and two memory segments $\ms$ and $\ms_\link$ satisfying
+  A program, $\program$ consists of two sealed capabilities, $\vsc_\code = \sealed{c_\code,\sigma}$ and $\vsc_\data = \sealed{c_\data,\sigma}$, and and two memory segments $\ms$ and $\ms_\link$ satisfying
   \begin{itemize}
-  \item $c_\code = ((\rx,\lin_\code),\baddr_\code,\eaddr_\code,\aaddr_\code)$ where $\aaddr = \baddr + 3$ and $[\baddr_\code,\eaddr_\code]\subseteq \dom(\ms)$
+  \item $c_\code = ((\rx,\lin_\code),\baddr_\code,\eaddr_\code,\aaddr_\code)$ where $\aaddr = \baddr + 2$ and $[\baddr_\code,\eaddr_\code]\subseteq \dom(\ms)$
   \item $c_\data = ((\rw,\lin_\data),\baddr_\data,\eaddr_\data,\baddr_\data)$ where $[\baddr_\data,\eaddr_\data] \subseteq \dom(\ms)$ and $[\baddr_\code,\eaddr_\code] \cap [\baddr_\data,\eaddr_\data] = \emptyset$
   \item $\ms$ and $[c_\code,c_\data]$ are self-contained with $\ms_\link$ as slack.
+  \item $\ms$ respects write-xor-execute.
   \item $\ms(\baddr_\code) = \seal{\normal,\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr}$ where these are somehow the sufficient amount of seals.
   \item $\ms(\baddr_\code+1) = ((\ro,\normal),\baddr_\link, \eaddr_\link, \baddr_\link)$ where $\dom(\ms_\link) = [\baddr_\link, \eaddr_\link]$
-  \item $\ms(\baddr_\code+2) = \dots$ where $\dots$ is somehow the stack height.
   \end{itemize}
 \end{definition}
 \lau{27-09-2017: At the moment, we do not have the proper support to let the code capability be linear (in the sense that you cannot write a sensible program) - maybe we should just require the code capability to be normal.}
 
 \subsubsection{Contexts}
+\begin{definition}
+  \label{def:context}
+  A context, $\context$, is a register file $\reg$, registers $r_1$ and $r_2$, and memory segments $\ms$ and $\ms_\link$ satisfying
+  \begin{itemize}
+  \item $\reg$ respects write-xor-execute with slack $[r_1,r_2]$.
+  \item $\reg(\rstk) = ((\rw,\linear),\stkb,\eaddr,\eaddr)$ where $\stkb \leq \eaddr$\\
+        {\sourcecolor{}$\reg(\rstk) = \stkptr{\rw,\stkb,\eaddr,\eaddr}$ where $\stkb \leq \eaddr$}
+  \item $\ms \uplus \ms_\link$ respects write-xor-execute
+  \item $\ms \uplus \ms_\link$ and $[\reg(\RegName)]$ are self-contained.
+  \item $\ms \uplus \ms_\link$ contains no stack pointer.
+  \item $\reg$ contains no stack pointer with slack $[r_1,r_2]$.
+  \item {\color{red}TODO: No return pointer}
+  \end{itemize}
+In this definition, the source level specific conditions replace the equivalent target level conditions.
+\end{definition}
+
+\subsubsection{Plugging a context}
 
 
 \section{Compiler}
@@ -1331,6 +1428,57 @@ Here we define what constitutes a program.
     %   pop the data capability
   \end{array}
 \]
+
+\clearpage
+\section{Full Abstraction}
+\begin{definition}
+  \label{def:points-to-instr}
+  A configuration $(\ms,\reg)$ {\sourcecolor or $(\ms,\reg,\_,\_)$} os said to point instruction $i$ in $A$ iff
+  \[
+    \reg(\pcreg) = ((\_,\_),\_,\_,\aaddr) \tand \aaddr \in A
+  \]
+and
+\[
+  \decInstr{\ms(\aaddr)} = i
+\]
+\end{definition}
+
+We want to make a conditional full-abstraction statement. The condition should express two things (1) the compilation so far has been reasonable, so we do not have to setup protection against things any reasonable compiler wouldn't do. (2) the compilation so far has taken care of certain checks that we do not have information to place correctly at this point of the compilation
+\begin{definition}
+  \label{def:check-stack-addr-before-call}
+  A configuration $\src{\Phi}$ is said to have reasonable calls in $A$ for $n$ steps iff\\
+  for all $i \leq n$ if
+  \[
+    \src{\Phi} \nstep[i] \src{\Phi'}
+  \]
+  and $\src{\Phi'}$ points to $\src{\scall{r_1}{r_2}}$ in $A$ for some $\src{r_1}$ and $\src{r_2'}$ and there exists no $j<i$ s.t.
+  \[
+    \src{\Phi} \nstep[j] \src{\Phi''}
+  \]
+  where $\src{\Phi''}$ points to $\src{\scall{r_1'}{r_2'}}$ in $A$ for some $\src{r_1'}$ and $\src{r_2'}$,
+  then
+  \[
+    \src{\Phi}(\src{r_\stk}) = \src{\stkptr{\_,\stkb,\_,\_}}
+  \]
+  and $\src{\Phi'}$ has reasonable calls in $A$ for $n-i$ step.
+\end{definition}
+
+\begin{definition}
+  A program $\program$ with memory segment $\ms_\program$ is said to be reasonably compiled if for all $n$ and all contexts $\context$ the configuration $\plug{\context}{\program}$ satisfies:
+  \begin{itemize}
+  \item $\plug{\context}{\program}$ has reasonable calls in $\dom(\ms_\program)$ for $n$ steps.
+  \end{itemize}
+\end{definition}
+
+\begin{theorem}
+  \label{thm:full-abstraction}
+  For programs $\program_1$ and $\program_2$ that are reasonably compiled compiled, we have
+  \begin{gather*}
+    \src{\program_1} \sconeq \src{\program_2}\\
+    \Updownarrow\\
+    \comp{\src{\program_1}} \tconeq \comp{\src{\program_2}}
+  \end{gather*}
+\end{theorem}
 
 \clearpage
 \section{Examples}
