@@ -1322,167 +1322,183 @@ of all the macros.
 
 \section{Logical relation}
 \label{sec:logical-relation}
-Now that we have defined our calling convention, how can we be sure that it
-works? More concretely, suppose that we have a program that uses the convention
-in its interaction with untrusted adversary code. Can we formally prove the
-program's correctness if it relies on well-bracketed control flow and private
-state encapsulation for the interaction with the adversary? Clearly, such a
-proof should depend on a formal expression of the guarantees provided by the
-capability machine, including the specific guarantees for local capabilities.
 
-In this section, we construct such a formalization. We make use of some
-well-studied and powerful (but non-trivial) machinery from the literature.
-Specifically, we employ a unary step-indexed Kripke logical relation with
-recursive worlds, and some additional special characteristics of our own.
-Step-indexing, Kripke logical relations and recursive worlds are techniques that
-may be familiar from lambda calculus settings, but it may not be clear to the
-reader how they apply in this more low-level assembly language. Therefore, we do
-not immediately dive into the details, but we first try to provide some informal
-intuition about how all of this machinery comes into play in our setting, in the
-next section.
+In this section, we formalize the guarantees provided by the
+capability machine, including the specific guarantees for local
+capabilities, by means of a step-indexed Kripke logical relation 
+with recursively defined worlds. 
+We use the logical relation in the following section to show
+local-state encapsulation and control-flow integrity properties for
+challenging example programs.
 
-Note: even though the calling convention is the main application in this paper,
-the logical relation we construct is very general and should be regarded as an
-independent contribution.
+% Our logical relation will prescribe which values are capability safe given a
+% world $W$ containing a set of memory invariants. For expressiveness,
+% we use invariants which can evolve over time (sometimes also referred
+% to as \emph{protocols}). We thus start by describing the worlds we
+% will use.
 
-\subsection{Formalizing the guarantees of the capability machine}
-\label{sec:formalizing-guarantees}
-What differentiates a capability machine from a more standard assembly language
-is that we can bound the authority of an executing block of code, based solely
-on the capabilities it has access to. Specifically, it does not matter which
-instructions are actually executed, i.e., the bound also applies to untrusted
-adversary code that has not been inspected or modified in any way.
 
-\paragraph{Worlds}
-But what does a ``bound on the authority'' of an executing block of code mean?
-In our setting, there are no externally observable side-effects and the only
-primitive authority that code may hold is authority over memory. As such, the
-authority bounds we consider are related to memory, but in a form that is more
-fine-grained than standard read/write authority: a piece of code's authority can be bounded
-by arbitrary memory invariants that it is required to respect. Specifically, we
-will define worlds $W \in \Worlds$, which describe a set of memory invariants, and
-our results will express authority bounds on code as \emph{safety with respect to such
-a world,} i.e., the fact that the code respects the invariants registered in
-the world.
+% Now that we have defined our calling convention, how can we be sure that it
+% works? More concretely, suppose that we have a program that uses the convention
+% in its interaction with untrusted adversary code. Can we formally prove the
+% program's correctness if it relies on well-bracketed control flow and private
+% state encapsulation for the interaction with the adversary? Clearly, such a
+% proof should depend on a formal expression of the guarantees provided by the
+% capability machine, including the specific guarantees for local capabilities.
 
-\paragraph{Safe values}
-So, let's say that we have a world $W$ expressing that the memory must contain
-value $42$ at address $0$, may contain arbitrary values at
-addresses $50$-$60$, a $\readwrite$ capability for address $0$ at address $73$, and
-an integer at address $100$ that may only increase over time\footnote{Indeed, we
-  will allow a notion of \emph{evolvable} invariants, aka \emph{protocols}, that can
-  express such a temporal property.}. Our main theorem will state that if the
-current register file only contains safe words (numbers or capabilities which
-preserve the invariants in $W$ under any interaction), then an execution will
-necessarily also preserve the memory invariants (irrespective of the instructions being
-executed).
+% In this section, we construct such a formalization. We make use of some
+% well-studied and powerful (but non-trivial) machinery from the literature.
+% Specifically, we employ a unary step-indexed Kripke logical relation with
+% recursive worlds, and some additional special characteristics of our own.
+% Step-indexing, Kripke logical relations and recursive worlds are techniques that
+% may be familiar from lambda calculus settings, but it may not be clear to the
+% reader how they apply in this more low-level assembly language. Therefore, we do
+% not immediately dive into the details, but we first try to provide some informal
+% intuition about how all of this machinery comes into play in our setting, in the
+% next section.
 
-To make this more precise, we need to define the set $\stdvr(W) \in
-\powerset{\Words}$ of words that are safe w.r.t.\ $W$. Essentially, the set
-should only include words that preserve $W$'s invariants under any interaction,
-but should otherwise be as liberal as possible. Numbers are clearly always safe,
-as they cannot be used to break invariants. Whether a capability is safe depends
-on the authority that it carries. In the above-described world, a read capability
-for address $0$ is safe, as it can only be used to read the value $42$, which is
-itself safe. However, a write capability for address $0$ is not safe: it can be
-used to overwrite the memory at that address with a value other than $42$,
-breaking the invariant for that address.
+% Note: even though the calling convention is the main application in this paper,
+% the logical relation we construct is very general and should be regarded as an
+% independent contribution.
 
-\paragraph{Step-indexing}
-More generally, we want to define that a read capability for memory range
-$[b,e]$ is safe, if the world guarantees that the words at those addresses are
-themselves safe. However, this definition is cyclic: what if the world
-guarantees that the memory at address $a$ will contain a read capability for
-address $a$? The definition then just says that a read capability for address
-$a$ is safe if and only if the same read capability for address $a$ is safe. This form of
-cyclic reasoning is related to similar challenges in languages with recursive
-types or higher-order ML-style references, and a standard solution is
-to use step-indexing \cite{Appel:2001:IMR:504709.504712}: essentially, the cycle is broken by defining safety up to a
-certain number of interaction steps. All words will be considered
-safe up to $0$ steps (since if there is no interaction, nothing unsafe
-can happen), and, for example, a read capability will be safe up to $n$
-steps if the world guarantees that the words at the corresponding addresses are
-safe up to $n - 1$ steps. We can then prove that the above read capability for
-address $a$ is safe up to any number of steps.
+% \subsection{Formalizing the guarantees of the capability machine}
+% \label{sec:formalizing-guarantees}
+% What differentiates a capability machine from a more standard assembly language
+% is that we can bound the authority of an executing block of code, based solely
+% on the capabilities it has access to. Specifically, it does not matter which
+% instructions are actually executed, i.e., the bound also applies to untrusted
+% adversary code that has not been inspected or modified in any way.
 
-\paragraph{Future worlds}
-So worlds are defined as a set of invariants on the memory, but what if we
-allocate fresh memory through malloc? We may want to establish new invariants
-for this freshly allocated memory and be sure that the adversary will also
-respect those (if we don't provide them with capabilities through which the new
-invariants can be broken). To accommodate this, we allow worlds to evolve, for
-example by adding additional invariants for freshly allocated memory. Formally,
-we define valid ways for a world $W$ to evolve into a new world $W'$ through a
-future-world relation $W' \future W$ and we ensure that the set of safe words in
-world $W$ must remain safe in any future world $W'$. Defining safety w.r.t.\ a
-notion of evolvable worlds makes our logical relation into a \emph{Kripke}
-logical relation \cite{pitts_operational_1998}.
+% \paragraph{Worlds}
+% But what does a ``bound on the authority'' of an executing block of code mean?
+% In our setting, there are no externally observable side-effects and the only
+% primitive authority that code may hold is authority over memory. As such, the
+% authority bounds we consider are related to memory, but in a form that is more
+% fine-grained than standard read/write authority: a piece of code's authority can be bounded
+% by arbitrary memory invariants that it is required to respect. Specifically, we
+% will define worlds $W \in \Worlds$, which describe a set of memory invariants, and
+% our results will express authority bounds on code as \emph{safety with respect to such
+% a world,} i.e., the fact that the code respects the invariants registered in
+% the world.
 
-\paragraph{Invariants and Recursive Worlds}
-So worlds group a set of memory invariants, but how are they actually
-defined formally? We represent each invariant by a region
-$r \in \Regions$. We will see later that regions contain state
-machines to support a notion of evolvable invariants, but in every
-state, they also contain a predicate $H$ that defines which memory
-segments are acceptable in the current state of the invariant.
-Unfortunately, it is not enough to just take
-$H \in \powerset{\MemSegments}$, because sometimes the invariant may
-itself be world-dependent. For example, we may want to express
-invariants like ``the memory at address $50$ contains a value that is
-safe in the current world''. As explained, worlds may evolve, and the
-set of safe values may grow in future worlds, and therefore we need to
-index $H$ over worlds, i.e., take
-$H \in \Worlds \rightarrow \powerset{\MemSegments}$. We then end up
-with worlds containing regions with world-indexed predicates,
-i.e., the set of worlds must be recursively defined. We will see how such a recursive
-definition can be accommodated using techniques from the
-literature (essentially an advanced application of step-indexing).
+% \paragraph{Safe values}
+% So, let's say that we have a world $W$ expressing that the memory must contain
+% value $42$ at address $0$, may contain arbitrary values at
+% addresses $50$-$60$, a $\readwrite$ capability for address $0$ at address $73$, and
+% an integer at address $100$ that may only increase over time\footnote{Indeed, we
+%   will allow a notion of \emph{evolvable} invariants, aka \emph{protocols}, that can
+%   express such a temporal property.}. Our main theorem will state that if the
+% current register file only contains safe words (numbers or capabilities which
+% preserve the invariants in $W$ under any interaction), then an execution will
+% necessarily also preserve the memory invariants (irrespective of the instructions being
+% executed).
 
-\paragraph{Local capabilities}
-A final thing we provide informal intuition for is how our results take into account local
-capabilities and their special treatment by the hardware. Normally, when we
-invoke an untrusted piece of code and provide it with certain global
-capabilities, it may have stored those capabilities in memory and we will only
-be able to reinvoke the code if we can guarantee that those values are still
-valid. Formally, worlds represent the invariants that global capabilities'
-safety relies on and the reinvocation is only safe in future worlds, where the
-invariants are respected.
+% To make this more precise, we need to define the set $\stdvr(W) \in
+% \powerset{\Words}$ of words that are safe w.r.t.\ $W$. Essentially, the set
+% should only include words that preserve $W$'s invariants under any interaction,
+% but should otherwise be as liberal as possible. Numbers are clearly always safe,
+% as they cannot be used to break invariants. Whether a capability is safe depends
+% on the authority that it carries. In the above-described world, a read capability
+% for address $0$ is safe, as it can only be used to read the value $42$, which is
+% itself safe. However, a write capability for address $0$ is not safe: it can be
+% used to overwrite the memory at that address with a value other than $42$,
+% breaking the invariant for that address.
 
-However, if we provide the adversary with local capabilities in that first
-invocation, then the situation is a bit different. The adversary has no way to
-store these local capabilities, so if we make sure that there are also no old
-local capabilities in the register file for the second invocation (including the
-capability being invoked), then the adversary cannot use them any more.%
-\footnote{We are ignoring write-local capabilities in this discussion. If the
-  adversary does have access to write-local capabilities in the first and second
-  invocation, then the memory they address must entirely be cleared before the
-  second invocation in order for the reinvocation to remain safe.} Therefore, we
-can allow the second invocation to happen in \emph{private} future worlds ($W'
-\futurestr W$), in which safe global capabilities remain safe, but local ones
-don't. This private future world relation is more liberal than the standard,
-public one ($W' \futurewk W$, in which \emph{all} safe capabilities remain
-safe). Concretely, worlds may contain \emph{temporary} regions, representing
-invariants that only local capabilities may rely on for their safety, and which
-may be revoked (disabled) in private future worlds.
+% \paragraph{Step-indexing}
+% More generally, we want to define that a read capability for memory range
+% $[b,e]$ is safe, if the world guarantees that the words at those addresses are
+% themselves safe. However, this definition is cyclic: what if the world
+% guarantees that the memory at address $a$ will contain a read capability for
+% address $a$? The definition then just says that a read capability for address
+% $a$ is safe if and only if the same read capability for address $a$ is safe. This form of
+% cyclic reasoning is related to similar challenges in languages with recursive
+% types or higher-order ML-style references, and a standard solution is
+% to use step-indexing \cite{Appel:2001:IMR:504709.504712}: essentially, the cycle is broken by defining safety up to a
+% certain number of interaction steps. All words will be considered
+% safe up to $0$ steps (since if there is no interaction, nothing unsafe
+% can happen), and, for example, a read capability will be safe up to $n$
+% steps if the world guarantees that the words at the corresponding addresses are
+% safe up to $n - 1$ steps. We can then prove that the above read capability for
+% address $a$ is safe up to any number of steps.
 
-Interestingly, this idea is a variant of a notion of public/private future
-worlds that has been previously used in the literature (see
-\sectionname~\ref{sec:discussion}). However, temporary regions are new in our setting
-and there is an interesting interplay with the recursiveness of the worlds: for
-a temporary region, the predicate $H \in \Worlds \rightarrow
-\powerset{\MemSegments}$ (which defines the safe memory segments in the
-current world) is only required to be monotone w.r.t.\ public
-future worlds (i.e.\ safe memory segments remain safe in public future worlds),
-but for permanent regions, it must be monotone w.r.t.\ private future worlds.
-As a consequence, the memory for a permanent region may not contain local
-capabilities (as their safety would be broken in private future worlds), which
-in turn implies that only local capabilities may have write-local permission (a
-general sanity requirement when using local capabilities\footnote{In fact, local
-  capabilities become useless as soon as the adversary has access to a single
-  global, write-local capability.})\footnote{For explanation purposes, this
-  discussion ignores certain ways to allow for local capabilities in a permanent
-  region, for example, by not requiring that they are valid or requiring that
-  they are local versions of valid global capabilities.}.
+% \paragraph{Future worlds}
+% So worlds are defined as a set of invariants on the memory, but what if we
+% allocate fresh memory through malloc? We may want to establish new invariants
+% for this freshly allocated memory and be sure that the adversary will also
+% respect those (if we don't provide them with capabilities through which the new
+% invariants can be broken). To accommodate this, we allow worlds to evolve, for
+% example by adding additional invariants for freshly allocated memory. Formally,
+% we define valid ways for a world $W$ to evolve into a new world $W'$ through a
+% future-world relation $W' \future W$ and we ensure that the set of safe words in
+% world $W$ must remain safe in any future world $W'$. Defining safety w.r.t.\ a
+% notion of evolvable worlds makes our logical relation into a \emph{Kripke}
+% logical relation \cite{pitts_operational_1998}.
+
+% \paragraph{Invariants and Recursive Worlds}
+% So worlds group a set of memory invariants, but how are they actually
+% defined formally? We represent each invariant by a region
+% $r \in \Regions$. We will see later that regions contain state
+% machines to support a notion of evolvable invariants, but in every
+% state, they also contain a predicate $H$ that defines which memory
+% segments are acceptable in the current state of the invariant.
+% Unfortunately, it is not enough to just take
+% $H \in \powerset{\MemSegments}$, because sometimes the invariant may
+% itself be world-dependent. For example, we may want to express
+% invariants like ``the memory at address $50$ contains a value that is
+% safe in the current world''. As explained, worlds may evolve, and the
+% set of safe values may grow in future worlds, and therefore we need to
+% index $H$ over worlds, i.e., take
+% $H \in \Worlds \rightarrow \powerset{\MemSegments}$. We then end up
+% with worlds containing regions with world-indexed predicates,
+% i.e., the set of worlds must be recursively defined. We will see how such a recursive
+% definition can be accommodated using techniques from the
+% literature (essentially an advanced application of step-indexing).
+
+% \paragraph{Local capabilities}
+% A final thing we provide informal intuition for is how our results take into account local
+% capabilities and their special treatment by the hardware. Normally, when we
+% invoke an untrusted piece of code and provide it with certain global
+% capabilities, it may have stored those capabilities in memory and we will only
+% be able to reinvoke the code if we can guarantee that those values are still
+% valid. Formally, worlds represent the invariants that global capabilities'
+% safety relies on and the reinvocation is only safe in future worlds, where the
+% invariants are respected.
+
+% However, if we provide the adversary with local capabilities in that first
+% invocation, then the situation is a bit different. The adversary has no way to
+% store these local capabilities, so if we make sure that there are also no old
+% local capabilities in the register file for the second invocation (including the
+% capability being invoked), then the adversary cannot use them any more.%
+% \footnote{We are ignoring write-local capabilities in this discussion. If the
+%   adversary does have access to write-local capabilities in the first and second
+%   invocation, then the memory they address must entirely be cleared before the
+%   second invocation in order for the reinvocation to remain safe.} Therefore, we
+% can allow the second invocation to happen in \emph{private} future worlds ($W'
+% \futurestr W$), in which safe global capabilities remain safe, but local ones
+% don't. This private future world relation is more liberal than the standard,
+% public one ($W' \futurewk W$, in which \emph{all} safe capabilities remain
+% safe). Concretely, worlds may contain \emph{temporary} regions, representing
+% invariants that only local capabilities may rely on for their safety, and which
+% may be revoked (disabled) in private future worlds.
+
+% Interestingly, this idea is a variant of a notion of public/private future
+% worlds that has been previously used in the literature (see
+% \sectionname~\ref{sec:discussion}). However, temporary regions are new in our setting
+% and there is an interesting interplay with the recursiveness of the worlds: for
+% a temporary region, the predicate $H \in \Worlds \rightarrow
+% \powerset{\MemSegments}$ (which defines the safe memory segments in the
+% current world) is only required to be monotone w.r.t.\ public
+% future worlds (i.e.\ safe memory segments remain safe in public future worlds),
+% but for permanent regions, it must be monotone w.r.t.\ private future worlds.
+% As a consequence, the memory for a permanent region may not contain local
+% capabilities (as their safety would be broken in private future worlds), which
+% in turn implies that only local capabilities may have write-local permission (a
+% general sanity requirement when using local capabilities\footnote{In fact, local
+%   capabilities become useless as soon as the adversary has access to a single
+%   global, write-local capability.})\footnote{For explanation purposes, this
+%   discussion ignores certain ways to allow for local capabilities in a permanent
+%   region, for example, by not requiring that they are valid or requiring that
+%   they are local versions of valid global capabilities.}.
 
 \subsection{Worlds}
 \begin{wrapfigure}{R}{0.5\textwidth}
@@ -1501,7 +1517,9 @@ general sanity requirement when using local capabilities\footnote{In fact, local
 %interpretation function.}
 % \lau{this may not be an important enough point to include it.}
 
-As describe above, worlds are a collection of invariants. Formally, a world is a
+%As describe above, worlds are a collection of invariants. Formally, 
+
+A world is a
 finite map from region names, modeled as natural numbers, to regions that each
 correspond to an invariant of part of the memory.  We have three types of
 regions: \emph{permanent}, \emph{temporary}, and \emph{revoked}.
@@ -1544,10 +1562,11 @@ region. Masking a region like this goes back to earlier work of
 % of memory. To accommodate this, worlds need to be defined recursively: Worlds
 % describe memory, which can contain capabilities, whose safety is
 % world-dependent. 
-As described in \sectionname~\ref{sec:formalizing-guarantees}, regions define sets of
-safe memory segments, but this set may itself be world-dependent. In other
-words, our worlds are defined recursively. Recursive worlds are a common
-requirement in Kripke models and the following lemma uses the method of
+%As described in \sectionname~\ref{sec:formalizing-guarantees}, regions define sets of
+
+Regions are used to define safe memory segments, but this set may itself be world-dependent. In other
+words, our worlds are defined recursively. Recursive worlds are common
+in Kripke models and the following lemma uses the method of
 \cite{Birkedal:2011:SKM:1926385.1926401,Birkedal:tutorial-notes} for
 constructing them. The formulation of the lemma is technical, so we recommend
 that non-expert readers ignore the technicalities and accept that there exists a
@@ -1585,8 +1604,13 @@ determines what memory segments the region permits in each state of the state
 transition system.  The different monotonicity requirements in the two
 interpretation functions reflects how permanent regions rely only on permanent
 protocols whereas temporary regions can rely on both temporary and permanent
-protocols.  $\UPred{\HeapSegments}$ is a step-indexed, downwards closed
-predicate on memory segments.
+protocols.  $\UPred{\HeapSegments}$ is the set of step-indexed, downwards closed
+predicates on memory segments:
+$\UPred{\HeapSegments} = \{ A \subseteq  \nats \times
+\HeapSegments \mid 
+\forall (n, ms) \in A. \forall m
+\leq n. (m, ms) \in A\}$. 
+\
 
 With the recursive domain equation solved, we could take $\Wor$ as our notion of
 worlds, but it is technically more convenient to work with the following
@@ -1759,10 +1783,11 @@ temporary) region.  Revoked regions are not taken into account as their memory p
         &\quad \quad \exists H,s \ldotp W(r) = (\_,s,\_,\_,H) \text{ and } \npair[n]{P(r)} \in H(s)(\xi^{-1}(W))\\
       \end{aligned}\right.
 \end{align*}
-Note that it is possible to state nonsensical worlds with conflicting
-requirements for the same part of memory. There would, however, be no
-memory that would satisfy such a world which for all intents and purposes would
-make it discounted by the logical relation.
+% LB: omitted the following for brevity:
+% Note that it is possible to state nonsensical worlds with conflicting
+% requirements for the same part of memory. There would, however, be no
+% memory that would satisfy such a world which for all intents and purposes would
+% make it discounted by the logical relation.
 
 \subsection{Logical relation}
 \afterpage{
@@ -1929,17 +1954,17 @@ make it discounted by the logical relation.
 %   constructed to express the FTLR and the FTLR says that if a piece of code only
 %   has access to values respecting the invariants in a world, then it will
 %   respect them itself too.} 
-The logical relation defines semantically when values, program counters, and
-configurations are safe according to the intuitions described in
-\sectionname~\ref{sec:formalizing-guarantees}. The definition is found in
-\figurename{}s~\ref{fig:logrel} and~\ref{fig:perm-conds} and we provide some
-explanations in the following paragraphs. We omit some definitions and explain
-them only verbally, but precise definitions can be found in the technical
+The logical relation defines semantically when values, program
+counters, and configurations are capability safe. The definition is
+found in \figurename{}s~\ref{fig:logrel} and~\ref{fig:perm-conds} and
+we provide some explanations in the following paragraphs. For space
+reasons, we omit some definitions and explain them only verbally, but
+precise definitions can be found in the technical
 appendix~\cite{technical_appendix}.
 
 First, the \emph{observation relation} $\observations$ defines what
-configurations we consider safe. As previously stated, a configuration is safe
-with respect to a world when the execution of said configuration does not break
+configurations we consider safe. A configuration is safe
+with respect to a world, when the execution of said configuration does not break
 the memory protocols of the world. Roughly speaking, this means that when the
 execution of a configuration halts, then there is a private future world that
 the resulting memory satisfies. Notice that failing is considered safe behavior.
@@ -1959,8 +1984,7 @@ $\readonly$ and $\entry$ capabilities) are considered safe program counters
 because when they are plugged into a register file and paired with a memory, the
 execution will immediately fail, which is safe.
 
-The \emph{value relation} $\stdvr$ defines when words are safe, i.e.\ when they
-cannot be used to break the memory protocols defined by the world. We make the
+The \emph{value relation} $\stdvr$ defines when words are safe. We make the
 value relation as liberal as possible by considering what is the most we can
 allow an adversary to use a capability for without breaking the memory
 protocols. Non-capability data is always safe because it provides no
@@ -1968,7 +1992,7 @@ authority. Capabilities give the authority to manipulate memory and potentially
 break memory protocols, so they need to satisfy certain conditions to be
 safe. In \figurename~\ref{fig:perm-conds}, we define such a condition for each
 kind of permission a capability can have.
-
+{
 For capabilities with read permission, the $\readCond{}$ ensures that it can
 only be used to read safe words, i.e.\ words in the value relation. To guarantee
 this, we require that the addressed memory is governed by a region $W(r)$ that
@@ -1983,20 +2007,23 @@ read condition also takes into account the locality of the capability because,
 generally speaking, global capabilities should only depend on permanent regions.
 Concretely, we use the function $\var{localityReg}(\gl,W)$, which projects out
 all active (non-revoked) regions when the locality $\gl$ is local, but only the
-permanent regions when $\gl$ is global. Note finally that the step-indexing
-described in \sectionname~\ref{sec:formalizing-guarantees} is effectively at
-play here, but hidden in the definition of the standard region
-$\iota^\pwl_{\start,\addrend}$, which we omit for space reasons.
+permanent regions when $\gl$ is global. The 
+the definition of the standard region
+$\iota^\pwl_{\start,\addrend}$ can be found
+in~\cite{technical_appendix}; it makes use of the isomorphism from
+Theorem~\ref{thm: world-existence}. 
 
 For a capability with write permission, $\writeCond{}$ must be satisfied for the
 capability's range of authority. An adversary can use such a capability to write
 any word they can get a hold of, and we can safely assume that they can only get
 a hold of safe words, so the region governing the relevant memory must allow any
 safe word to be written there. In order to make the logical relation as liberal
-as possible, we make this a lower bound of what the region may allow. From
-another point of view, this lower bound is also an upper bound on the amount of
-trust that can be placed in the contents of memory that an adversary has been
-given write access to. For write capabilities, we also have to take into account
+as possible, we make this a lower bound of what the region may allow. 
+% LB: omitted the following for brevity:
+% From another point of view, this lower bound is also an upper bound on the amount of
+% trust that can be placed in the contents of memory that an adversary has been
+% given write access to. 
+For write capabilities, we also have to take into account
 the two flavours of write permissions: write and write-local. In the case of
 write-local capabilities, the region needs to allow (at least) any safe word to
 be written, but in the case of write capabilities, the capability cannot be used
@@ -2031,8 +2058,8 @@ counter in \emph{private} future worlds (where temporary regions may be
 revoked). For local capabilities, it suffices to be safe in \emph{public} future
 worlds, where temporary regions are still present.
 
-In the technical appendix, we prove that (as explained before), safety of all
-values is preserved in public future worlds, but safety of global values is
+In the technical appendix, we prove that safety of all values is
+preserved in public future worlds, and that safety of global values is
 also preserved in private future worlds:
 \begin{lemma}[Double monotonicity of value relation]~
   \begin{itemize}
@@ -2048,8 +2075,7 @@ also preserved in private future worlds:
 With the logical relation defined, we can now state the fundamental theorem of
 our logical relation: a strong theorem that formalizes the guarantees offered by
 the capability machine. Essentially, it says a capability that only grants safe
-authority is capability safe as a program counter (where safety, as in the
-previous sections, means respect of memory protocols).
+authority is capability safe as a program counter.
 \begin{theorem}[Fundamental Theorem]
   \label{thm:ftlr}
   If one of the following holds:
@@ -2091,10 +2117,12 @@ capabilities that point to arbitrary instructions. The relation between
 Theorem~\ref{thm:ftlr} and local-state encapsulation and control-flow
 correctness, will also be shown by example in \sectionname~\ref{sec:examples} as the
 examples depend on these properties for correctness.
-
-From another point of view, the Fundamental Theorem also serves as a sanity
-check of the logical relation as it guarantees a large class of
-capabilities actually inhabits it.
+See the technical appendix~\cite{technical_appendix} for a detailed
+proof (by induction over the step-index $n$) of the theorem.
+% LB: following omitted for brevity:
+% From another point of view, the Fundamental Theorem also serves as a sanity
+% check of the logical relation as it guarantees a large class of
+% capabilities actually inhabits it.
 
 \section{Examples}
 \label{sec:examples}
@@ -2841,7 +2869,7 @@ systems \cite{Ahmed:popl09}, public/private future worlds \cite{Dreyer:jfp12}
 (see \sectionname~\ref{sec:discussion} for a discussion), and biorthogonality
 \cite{pitts_operational_1998,benton_biorthogonality_2009-1,Hur:2011:KLR:1926385.1926402}.
 
-\cite{swasey:2017} have recently developed a \emph{logic}, OCPL, for verification
+Swasey et. al.~\cite{swasey:2017} have recently developed a \emph{logic}, OCPL, for verification
 of object capability patterns. The logic is based on
 Iris~\cite{iris,iris2,iris3}, a state of the art higher-order concurrent
 separation logic and is formalized in Coq, building on the Iris Proof Mode for
@@ -2849,16 +2877,16 @@ Coq~\cite{ipm}. OCPL gives a more abstract and modular way of proving
 capability safety for a lambda-calculus (with concurrency) compared to the
 earlier work by \cite{Devriese:2016ObjCap}.
 %domi: rest of the paragraph could be cut?
-In the future we would also like to
-investigate a new program logic for reasoning about capability safety for our
-capability machine model. We think Iris would also be a natural starting point
-for such an endeavour, since Iris is really a framework, which can be
-instantiated to different programming languages. OCPL was able to leverage
-existing Iris specifications for the high-level language; for our capability
-machine model, however, it would be necessary to devise new kinds of
-specifications for our low-level programs with unstructured control-flow. It is
-likely that we could get inspiration from earlier work on logics for assembly
-programming languages, such as XCAP~\cite{xcap}.
+% In the future we would also like to
+% investigate a new program logic for reasoning about capability safety for our
+% capability machine model. We think Iris would also be a natural starting point
+% for such an endeavour, since Iris is really a framework, which can be
+% instantiated to different programming languages. OCPL was able to leverage
+% existing Iris specifications for the high-level language; for our capability
+% machine model, however, it would be necessary to devise new kinds of
+% specifications for our low-level programs with unstructured control-flow. It is
+% likely that we could get inspiration from earlier work on logics for assembly
+% programming languages, such as XCAP~\cite{xcap}.
 
 El-Korashy also defined a formal model of a capability machine, namely CHERI,
 and uses it to prove a compartmentalization
