@@ -63,7 +63,8 @@
 % \newtheorem{theorem}{Theorem}
 % \newtheorem{lemma}{Lemma}
 
-\newcommand{\sectionname}{Sec.}
+\newcommand{\sectionname}{Section}
+\renewcommand{\figurename}{Figure}
 \newcommand{\forcenewline}{$\phantom{v}$\\}
 \newcommand{\judgment}[2]{\paragraph{#1}\hspace{\stretch{1}}\fbox{$#2$}}
 
@@ -397,8 +398,8 @@
 
 % Authors and affiliation
 \author{Lau~Skorstengaard\inst{1} \and Dominique~Devriese\inst{2} \and Lars~Birkedal\inst{1}}
-\institute{Aarhus University\email{\{lau,birkedal\}@cs.au.dk}
-\and imec-DistriNet, KU Leuven\email{dominique.devriese@cs.kuleuven.be}}
+\institute{Aarhus University - \email{\{lau,birkedal\}@cs.au.dk}
+\and imec-DistriNet, KU Leuven - \email{dominique.devriese@cs.kuleuven.be}}
 
 \maketitle
 
@@ -488,7 +489,7 @@ capabilities in general and correctness and security of the calling convention
 in particular. More specifically, we make the following contributions:
 \begin{itemize}
 \item We formalize a simple but representative capability machine featuring local
-  capabilities, and its operational semantics
+  capabilities and its operational semantics
   (\sectionname~\ref{sec:capab-mach-with}).
 \item We define a novel calling convention enforcing control-flow correctness and
   encapsulation of stack frames (\sectionname~\ref{sec:stack-and-return-pointer}). It
@@ -918,7 +919,7 @@ three special permissions: read/write-local ($\readwritel$), read/write-local/ex
 We assume a finite set of register names $\RegName$. We define register files
 $\reg$ and memories $\ms$ as functions mapping register names resp. addresses to
 words. The state of the entire machine is represented as a configuration that is
-either a running $\Phi \in \ExecConfs$ containing a memory and a register file,
+either a running state $\Phi \in \ExecConfs$ containing a memory and a register file,
 or a failed or halted state, where the latter keeps hold of the final state of
 memory.
 % We also define memory segments $\ms$:
@@ -935,7 +936,7 @@ modifying capabilities: $\lea{}{}$ (modifies the current address),
 $\restricttwo{}{}$ (modifies the permission and local/global tag) and
 $\subseg{}{}{}$ (modifies the range of a capability). Importantly, these
 instructions take care that the resulting capability always carries less
-authority than the original (e.g. restrict will only weaken a permission).
+authority than the original (e.g. $\restricttwo{}{}$ will only weaken a permission).
 Finally, the instruction $\isptr{}{}$ tests whether a word is a capability or a
 number and instructions $\getp{}{}$, $\getl{}{}$, $\getb{}{}$, $\gete{}{}$ and
 $\geta{}{}$ provide access to a capability's permissions, local/global tag, base,
@@ -1031,10 +1032,9 @@ state. Such a package can be built as an enter capability $c =
 contains local state (data or capabilities) and $[\addr,\addrend]$ contains
 instructions. The package is opaque to an adversary holding $c$ but when $c$ is
 jumped to, the instructions can start executing and have access to the local
-data through the updated version of $c$ that is then in $\pcreg$\footnote{Note
-that the capability in the $\pcreg$-register can be used to load from.}.  %
-\lau{As we % talked about what is described here, is not how we make closures in
-the TR, so % we should consider whether we should refrain from using that word
+data through the updated version of $c$ that is then in $\pcreg$. 
+\lau{As we talked about what is described here, is not how we make closures in
+the TR, so we should consider whether we should refrain from using that word
 here. }
 
 Finally, the $\store{}{}$ instruction updates the memory to the requested value
@@ -1211,7 +1211,7 @@ Clearly, neither of these capabilities should be accessible by the adversary. In
 other words, the return pointer provided to the adversary must be a capability
 that they can jump to but not read from, i.e.\ an enter capability. To make this
 work, we construct the activation record as depicted in
-Figure~\ref{fig:activ-rec-struct}. The $\entry$ return pointer has authority
+\figurename~\ref{fig:activ-rec-struct}. The $\entry$ return pointer has authority
 over the entire activation record (containing the previous return and stack
 pointer), and its current address points to a number of restore instructions in
 the record, so that upon invocation, these instructions are executed and can
@@ -1273,7 +1273,7 @@ this check, an adversary could potentially get control over our local stack
 frame during a subsequent callback by passing us a local $\rwx$ capability to a global data
 structure instead of a proper stack pointer
 and a global callback for our callback to invoke. If our local state contains no
-local capabilities, then, following our calling convention, the callback would
+local capabilities, then, otherwise following our calling convention, the callback would
 not fail and the adversary could use a stored capability for the global data
 structure to access our local state. To prevent this from happening, we need to
 make sure the stack capability carries $\rwlx$ authority, since the system wide assumption then
@@ -1876,7 +1876,7 @@ temporary) region.  Revoked regions are not taken into account as their memory p
       \end{aligned}
     \end{align*}
 %  \end{withmathindent}
-  \caption{Logical relation}
+  \caption{The logical relation.}
   \label{fig:logrel}            
 \end{figure}
 
@@ -1994,7 +1994,7 @@ authority. Capabilities give the authority to manipulate memory and potentially
 break memory protocols, so they need to satisfy certain conditions to be
 safe. In \figurename~\ref{fig:perm-conds}, we define such a condition for each
 kind of permission a capability can have.
-{
+
 For capabilities with read permission, the $\readCond{}$ ensures that it can
 only be used to read safe words, i.e.\ words in the value relation. To guarantee
 this, we require that the addressed memory is governed by a region $W(r)$ that
@@ -2049,10 +2049,12 @@ local capabilities.
 The conditions $\entryCond{}$ and $\execCond{}$ are very similar. Both require
 that the capability can be safely jumped to. However, executable capabilities
 can be updated to point anywhere in their range, so they must be safe as a
-program counter (in the $\stder$-relation) no matter where they point to. In
+program counter (in the $\stder$-relation) no matter the current address. In
 contrast, enter capabilities are opaque and can only be used to jump to the
 address they point to. They also change permission when jumped to, so we require
 them to be safe as a program counter after the permission is changed to $\exec$.
+% This is the only condition that depend on the current address, a, because this is the 
+% only kind of capability in which the current address cannot be changed.
 Because the capabilities are not necessarily invoked immediately, this must be
 true in any future world, but it depends on the capability's locality which
 future worlds we consider. If it is global, then we require safety as a program
@@ -2126,6 +2128,8 @@ proof (by induction over the step-index $n$) of the theorem.
 % check of the logical relation as it guarantees a large class of
 % capabilities actually inhabits it.
 
+% The FTLR does not mention integers and non-executable capabilities because they are trivially safe (it is safe to fail)
+
 \section{Examples}
 \label{sec:examples}
 In this section, we demonstrate how our formalization of capability
@@ -2196,7 +2200,7 @@ Lemmas~\ref{lem:correctness-f1} and~\ref{lem:correctness-f2} below).
 % first. We could write that the lemmas are limited in their assumptions
 % to make them simpler and a more complicated example is coming up.}
 The two examples also illustrate the versatility of the logical relation.
-Because it is not specific to any calling convention, we can use it to reason
+The logical relation is not specific to any calling convention, so we can use it to reason
 about both programs, even though they use different calling conventions.
 
 
@@ -2494,10 +2498,10 @@ important because the return pointer that \texttt{\footnotesize{f4}}
 receives may be local, and the adversary is allowed
 to allocate the activation record on the stack (just like we do) so
 they can store and recover their old stack pointer after
-\texttt{\footnotesize{f4}} returns. By utilizing the reinstation mechanism of the future world relation as well as our knowledge of the future worlds used, we can construct a world which the adversary's invariants are preserved. The details of this and the proofs of the other lemmas are found in the technical appendix\cite{technical_appendix}.
+\texttt{\footnotesize{f4}} returns. By utilizing the reinstation mechanism of the future world relation as well as our knowledge of the future worlds used, we can construct a world in which the adversary's invariants are preserved. The details of this and the proofs of the other lemmas are found in the technical appendix\cite{technical_appendix}.
 
 \begin{comment}
-In Figure~\ref{fig:worlds-in-pf-g1}, we illustrate how we accommodate this in
+In \figurename~\ref{fig:worlds-in-pf-g1}, we illustrate how we accommodate this in
 the proof of Lemma~\ref{lem:correctness-g1} by constructing appropriate worlds
 for all the situations where control is passed to the adversary. The potentially
 local return pointer received by \texttt{\footnotesize{f4}} from the adversary
@@ -2744,7 +2748,7 @@ object-oriented program or every closure in a functional program.
 % \\\\
 \noindent\textbf{Logical relation}\\
 \emph{Single orthogonal closure} The definitions of $\stder$ and $\stdvr$ in
-Figure~\ref{fig:logrel} apply a single orthogonal closure, a new variant of an
+\figurename~\ref{fig:logrel} apply a single orthogonal closure, a new variant of an
 existing pattern called biorthogonality. Biorthogonality is a pattern for
 defining logical relations~\cite{krivine_classical_1994,pitts_operational_1998}
 in terms of an observation relation of safe configurations (like we do). The
