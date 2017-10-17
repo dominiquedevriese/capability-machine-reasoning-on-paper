@@ -124,9 +124,15 @@
 \newcommand{\sload}[2]{\twoinstr{\src{load}}{#1}{#2}}
 \newcommand{\scca}[2]{\twoinstr{\src{cca}}{#1}{#2}}
 \newcommand{\ssload}[2]{\twoinstr{\src{sload}}{#1}{#2}}
-\newcommand{\scall}[2]{\twoinstr{\src{call}}{#1}{#2}}
 \newcommand{\sxjmp}[2]{\twoinstr{\src{xjmp}}{#1}{#2}}
 \newcommand{\ssetatob}[2]{\twoinstr{\src{seta2b}}{#1}{#2}}
+% scall - special two instruction
+\newcommand{\scall}[3][]{  
+\ifthenelse{\equal{#2#3}{}}
+  {\ensuremath{\zinstr{\src{call}}_{#1}}}
+  {\ensuremath{\zinstr{\src{call}}_{#1} \; #2 \; #3}}
+}
+
 
 % Three arguments
 \newcommand{\srestrict}[3]{\threeinstr{\src{restrict}}{#1}{#2}{#3}}
@@ -197,6 +203,7 @@
 \newcommand{\Caps}{\shareddom{Cap}}
 \newcommand{\SealableCaps}{\shareddom{SealableCap}}
 \newcommand{\Word}{\shareddom{Word}}
+\newcommand{\Instr}{\shareddom{Instr}}
 \newcommand{\Mem}{\shareddom{Memory}}
 \newcommand{\Reg}{\shareddom{RegisterFile}}
 \newcommand{\Stk}{\shareddom{Stack}}
@@ -350,6 +357,7 @@
 \newcommand{\updPcAddr}[1]{\plainfun{updatePc}{#1}}
 \newcommand{\updPcPerm}[1]{\plainfun{updatePcPerm}{#1}}
 \newcommand{\nonExec}[1]{\plainfun{nonExecutable}{#1}}
+\newcommand{\exec}[1]{\plainfun{executable}{#1}}
 %\newcommand{\opaquePerm}[1]{\plainfun{opaquePerm}{#1}}
 \newcommand{\readAllowed}[1]{\plainfun{readAllowed}{#1}}
 \newcommand{\writeAllowed}[1]{\plainfun{writeAllowed}{#1}}
@@ -364,6 +372,7 @@
 \newcommand{\noRetStkMs}[1]{\plainfun{noRetStk_{ms}}{#1}}
 \newcommand{\withinBounds}[1]{\plainfun{withinBounds}{#1}}
 \newcommand{\nonZero}[1]{\plainfun{nonZero}{#1}}
+\newcommand{\callCond}[1]{\plainfun{callCondition}{#1}}
 
 \newcommand{\range}[1]{\plainfun{range}{#1}}
 
@@ -464,6 +473,7 @@ n &\in & \nats \\
       & &   \tsplit{\trg{r}}{\trg{r}}{\trg{r}} \mid\tsplice{\trg{r}}{\trg{r}}{\trg{r}} 
 \end{array}
 \]
+$i$ defines the set $\Instr$
 
 The source machine is also a capability machine with memory capabilities and sealed capabilities. Unlike the target machine, the source machine is going to have a built in stack along with special stack and return capabilities. The syntax of the source machine language is as follows:
 \[
@@ -474,10 +484,13 @@ The source machine is also a capability machine with memory capabilities and sea
     \src{i} & \defbnf &  \trg{i} \mid \scall{\src{r}}{\src{r}}
   \end{array}
 \]
+There is one syntactic difference between the source language and the target language, namely the target language has an extra instruction in the $\scall{}{}$ instruction.
+
+The source machine allows for variable length instructions which we utilize for $\scall{}{}$. In other words, when we $\scall{}{}$ is decoded, a series of addresses in memory must contain what corresponds to the call instruction. This is described in more detail when we present the decoding function.
+
 \lau{30-08-2017: We had $\rret$ as not being one of the registers on the source machine. I could not recall why we had this, so I removed it. (I think it may have been from when we had call and return instructions?)}
 \dominique{26-9-2017: I think we should allow $\rstk$ in the source language too.}
 \lau{28-09-2017: I can see from the commit history that this was something when we had push/pop instructions as well as a return instruction. I have removed the restriction on $\rstk$.}
-There is one syntactic difference between the source language and the target language, namely the target language has an extra instruction in the $\scall{}{}$ instruction.
 
 \subsection{Permissions}
 \lau{23-03-2017: I am not sure we need the opaque capabilities anymore.} % I am not sure why I did not think the opaque capabilities where necessary, but I have a feeling we talked about this in Leuven and came to the conclusion that they were necessary.
@@ -546,6 +559,56 @@ Target language:
 \item 
 \end{itemize}
 
+\subsubsection{Step relations}
+\paragraph{Decode and encode functions}
+We assume functions $\decInstr{} : \Word \fun \Instr$ and $\encInstr{} : \Instr \fun \ints$ where $\Instr$ is the set of target level instructions.
+
+The $\decInstr{}$ function must be surjective and injective for all non-$\tfail$ instructions. The $\encInstr{}$ function must be injective. Futher $\decInstr{}$ must be the left inverse of $\encInstr{}$ that is for all $i \in \Instr$
+\[
+  \decInstr{}(\encInstr{i}) = i
+\]
+
+These functions are used for both the target and source level machine. When we write instructions in places where words are required, we will assume that $\encInstr{}$ is implicit.
+
+\paragraph{Step relation}
+The instruction $\scall{}{}$ has length $\calllen$ which means that it does not fit on one memory address. In fact, $\scall{}{}$ should be seen as a different way of interpreting a series of instruction rather than an instruction on its own. We therefore introduce $\scall[1]{r_1}{r_2},\dots,\scall[\calllen-1]{r_1}{r_2}$ as aliases for the instructions that constitute $\scall{r_1}{r_2}$ (see Paragraph~\ref{par:call-impl} for details). We define the following condition that indicates that $\aaddr$ is the first address of a $\scall{r_1}{r_2}$ instruction in the configuration $\Phi$:
+\[
+  \sourcecolor\left.
+    \callCond{\Phi,r_1,r_2,\aaddr} = \left\{
+      \begin{array}{l}
+        \Phi.\mem(\aaddr) = \scall[1]{r_1}{r_2} \tand\\
+        \vdots \\
+        \Phi.\mem(\addr+\calllen-1) = \scall[\calllen]{r_1}{r_2}
+      \end{array}
+      \right.
+  \right.
+\]
+
+We use the following step relation:
+
+\begin{align*}
+  \src{\Phi} & \; \src{\step \sem{\scall{r_1}{r_2}}(\Phi)} &  &\sourcecolor\left.\arraycolsep=0pt
+                                                  \begin{array}[t]{l}
+                                                    \text{if }\Phi(\pcreg) = ((\perm,\_),\baddr,\eaddr,\aaddr) \tand \\
+                                                    \callCond{\Phi,r_1,r_2,\aaddr} \tand\\
+                                                    \baddr \leq \aaddr \tand \aaddr + \calllen-1 \leq \eaddr \tand \\
+                                                    \exec{\Phi(\pcreg)}
+                                                  \end{array}\right.\\
+  \Phi & \step \sem{\decInstr{\Phi.\mem(\aaddr)}}(\Phi) & &\left.\arraycolsep=0pt
+                                                  \begin{array}[t]{l}
+                                                    \text{if }\Phi(\pcreg) = ((\perm,\_),\baddr,\eaddr,\aaddr) \tand \\
+                                                    \neg\callCond{\Phi,r_1,r_2,\aaddr} \tand\\
+                                                    \baddr \leq \aaddr \leq \eaddr\tand\\
+                                                    \exec{\Phi(\pcreg)}
+                                                  \end{array}\right.\\
+  \Phi& \step \failed & & \totherwise
+\end{align*}
+
+\paragraph{Call implementation}
+\label{par:call-impl}
+\lau{16-10-2017: Fill this paragraph with $\scall{}{}$ implementation, i.e., the instructions $\scall[1]{r_1}{r_2} \dots \scall[\calllen]{r_1}{r_2}$ is equal to. Add convenience notation like $\update{\mem.a}{\scall{r_1}{r_2}} = \dots$}
+\lau{16-10-2017: Implementation of $\scall{}{}$ may need registers for temporary registers - we should update the semantics accordingly.}
+
 \subsubsection{Helpful functions and sets}
 
 
@@ -600,6 +663,10 @@ Target language:
     0 & \isLinear{w} \\
     w & \totherwise
   \end{cases}
+\]
+
+\[
+  \exec{\cb} \defeq \dots
 \]
 
 \[
@@ -1403,7 +1470,10 @@ In this definition, the source level specific conditions replace the equivalent 
 \subsubsection{Plugging a context}
 
 
+
+
 \section{Compiler}
+\label{sec:compiler}
 \[
 \comp{\cdot} : \src{i}^* \fun \trg{i}^*
 \]
