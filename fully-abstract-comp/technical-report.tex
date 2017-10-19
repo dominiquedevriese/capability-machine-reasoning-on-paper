@@ -54,6 +54,8 @@
 \newcommand{\tsem}[2][\Phi]{\sem{#2}_{\mathrm{trg}}(#1)}
 \newcommand{\dom}{\mathrm{dom}}
 
+\newcommand{\npair}[2][n]{\left(#1,#2\right)}
+
 % Function arrows
 \newcommand{\fun}{\rightarrow}
 \newcommand{\parfun}{\rightharpoonup}
@@ -66,6 +68,28 @@
 % Equivalences
 \newcommand{\sconeq}{\mathrel{\src{\approx_{\mathrm{ctx}}}}}
 \newcommand{\tconeq}{\mathrel{\approx_{\mathrm{ctx}}}}
+
+%%% Logical Relation notation
+\newcommand{\typesetlr}[1]{\mathcal{#1}}
+\newcommand{\lre}{\typesetlr{E}}
+\newcommand{\lrk}{\typesetlr{K}}
+\newcommand{\lrr}{\typesetlr{R}}
+\newcommand{\lro}{\typesetlr{O}}
+\newcommand{\lrv}{\typesetlr{V}}
+
+\newcommand{\stpair}[3][]{
+\ifthenelse{\equal{#1}{}}
+{\left(\src{#2}_S,#3_T\right)}
+{\left(\src{#2},#3\right)}}
+
+
+\newcommand{\memSat}[4][n]{#2 :_{#1}^{#3}#4}
+
+\newcommand{\World}{\mathrm{World}}
+
+\newcommand{\future}{\sqsupseteq}
+\newcommand{\privft}{\future^{\mathrm{priv}}}
+\newcommand{\pubft}{\future^{\mathrm{pub}}}
 
 %%% Instruction formatting
 \newcommand{\sourcecolortext}{blue}
@@ -271,6 +295,7 @@
 \newcommand{\nstep}[1][n]{\step_{#1}}
 \newcommand{\steps}{\step^*}
 \newcommand{\diverge}{\Uparrow}
+\newcommand{\term}[1][-]{\Downarrow}
 
 %%% Variables
 \newcommand{\var}[1]{\mathit{#1}}
@@ -1287,8 +1312,8 @@ This instruction assumes that the current address of the stack pointer, $\aaddr_
                                                         &\updReg{\pcreg}{c_1}\\
                                                         &\updReg{\rdata}{c_2}\\
                                                         &\updReg{\rstk}{c_\stk}\\
-                                                        &\updReg{r_{\var{ret,c}}}{\retptrc(\sigma_?)}\\
-                                                        &\updReg{r_{\var{ret,d}}}{\retptrd(\sigma_?)}
+                                                        &\updReg{\rretc}{\retptrc(\sigma_?)}\\
+                                                        &\updReg{\rretd}{\retptrd(\sigma_?)}
                                                  \end{array}
                                                  & 
                                                  \arraycolsep=0pt
@@ -1500,6 +1525,67 @@ In this definition, the source level specific conditions replace the equivalent 
 \]
 
 \clearpage
+
+\section{Logical Relation}
+\lau{19-10-2017: Rest of source configuration needs to come from somewhere in $\lre$.}
+\lau{19-10-2017: Maybe linearity should be taken care of in just one place (instead of in $\lrr$ relation and mem staisfaction). That is, add a predicate that checks whether the configuration satisfies linearity (such a condition may be to syntactic to work?).}
+\[
+  \lre(W) = \left\{ \npair{\stpair{v}{v}} \middle| 
+    \begin{array}{l}
+      \forall n' \leq n \ldotp \\
+      \quad \forall \npair[n']{\stpair[.]{(k_{d,S},k_{c,S})}{(k_{d,T},k_{c,T})}} \in \lrk(W) \ldotp \\
+      \qquad \forall \stpair{\reg}{\reg}\ldotp \npair[n']{
+      \left(\array{l}\src{\reg_S\updReg{\pcreg,\rretd,\rretc}{v_S,k_{d,S},k_{c,S}}},\\\reg_T\updReg{\pcreg,\rretd,\rretc}{v_T,k_{d,T},k_{c,T}}\endarray\right)} \in \lrr(W) \Rightarrow\\
+      \qquad \quad \forall \src{\ms_S},\ms_T \ldotp \memSat[n']{\stpair[.]{\ms}{\ms}}{\stpair{\reg}{\reg}}{W} \Rightarrow \\
+      \qquad \qquad \npair[n']{\left(\array{l}\src{(\reg_S\updReg{\pcreg}{v_S}\updReg{r_\ret}{k_V},\ms_S)},\\(\reg_T\updReg{\pcreg}{v_T}\updReg{r_\ret}{k_T},\ms_T)\endarray\right)}
+      \in \lro(W)
+    \end{array}
+            \right\}
+\]
+
+\[
+  \lro(W) = \left\{ \npair{\stpair[.]{(\reg_S,\ms_S,\stk_S,\ms_{\stk,S})}{\reg_R,\ms_R}} \middle|
+    \begin{array}{l}
+      \forall i \leq n, \stpair{\mem}{\mem} \ldotp \\
+      \quad \src{(\reg_S,\ms_S \cup \mem_S,\stk_S,\ms_{\stk,S})} \term[i] \Rightarrow (\reg_R,\ms_R) \term\\
+      \quad tand\\
+      \quad (\reg_R,\ms_R) \term[i] \Rightarrow \src{(\reg_S,\ms_S \cup \mem_S,\stk_S,\ms_{\stk,S})} \term
+    \end{array}
+\right\}
+\]
+
+
+\lau{19-10-2017: $\lrk$ may indicate that $\lre$ should really be a relation between a \src{source pc} and a pair of a target pc and stack pointer? Otherwise, what happens with the data part of the return pointer?}
+\[
+  \lrk(W) = \left\{ \npair{\stpair[.]{\retptrd{\sigma},\retptrc{\sigma}}{k_{d,T},k_{c,T}}} \middle|
+    \begin{array}{l}
+      k_{d,T} \text{ is a stack pointer with correct end and such with everything related to the source stack} \\
+      k_{c,T} \text{ relates to the old pc on the stack}\\
+      \forall n' \leq n \ldotp \\
+      \quad \forall W' \privft W \ldotp \\
+      \qquad \dots \in \lre(W')
+    \end{array}
+            \right\}
+\]
+
+
+
+\[
+  \lrr(W) = \left\{ \npair{\stpair{\reg}{\reg}} \middle|
+    \begin{array}{l}
+      \exists S : \RegName \fun \World \ldotp \\
+      \quad S \text{ is a separation of $W$} \tand
+      \quad \forall r \in \dom(\reg_T) \setminus \{\pcreg, \rretd,\rretc \}\ldotp
+      \npair{\stpair[.]{\src{\reg_S(r)}}{\reg_T(r)}} \in \lrv(S(r))
+    \end{array}
+            \right\}
+\]
+Where $S\text{ is a separation of $W$}$ means that no two partion share the same ``pure'' region (whatever that is).
+
+\[
+  \lrv(W) = \left\{ \dots \right\}
+\]
+
 \section{Full Abstraction}
 \begin{definition}
   \label{def:points-to-instr}
