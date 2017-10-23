@@ -132,9 +132,33 @@ At the assembly level, this property is also far from obvious, local variables a
 However, untrusted assembly code is usually not prevented from ignoring this requirement and overwriting the local state of its caller or other stack frames.
 
 To enforce these properties, a target language is needed with some form of security primitive that can be used to prevent untrusted code from misbehaving, without imposing too much overhead on well-behaved code.
+The virtual-memory based security primitives on commodity processors do not seem sufficiently fine-grained to efficiently support this type of enforcement.
+More suitable security primitives are offered by a type of processors known as capability machines \citep{levy_capability-based_1984,watson_cheri:_2015}.
+These processors use tagged memory to enforce a strict separation between integers and \emph{capabilities}: pointers that carry authority.
+Capabilities come in different flavours.
+Memory capabilities are used to read and write to memory.
+Additionally, CHERI offers a notion of sealed code-data pairs of capabilities that represent a type of encapsulated closure: a piece of code coupled with private state that it gains access to upon invocation.\footnote{Other capability machines offer other mechanisms that can be used to the same effect.} 
 
+CheriBSD, an operating sytem built on the CHERI capability machine, uses per-component separate stacks and a central, trusted stack manager component to enforce well-bracketed control flow and private state encapsulation \citep{watson_cheri:_2015}.
+To prevent the stack pointer (or derivatives from it) from being passed to other components, CheriBSD uses local capabilities: a type of capabilities that can be kept in registers but not stored in memory (except through store-local capabilities like the stack pointer itself).
+The literature does not contain many details about the mechanism, let alone a formal analysis, but most importantly, the mechanism does not seem like it can support higher-order interfaces (e.g. C function pointers) in a scalable fashion.
+
+In recent work, we have been looking at an alternative approach \citep{skorstengaard_reasoning_nodate}.
+It is also based on CHERI's local capabilities, but combines them with a more traditional, single, shared stack that scales better in the presence of higher-order interfaces.
+By passing stack and return pointers as local capabilities, our mechanism effectively prevents callees from storing them on the heap.
+Using a step-indexed Kripke logical relation, we are able to prove correctness of programs that rely on well-bracketed control flow in a complex way.
+
+While this approach works quite well, this paper investigates another alternative approach.
+The aim of this new approach is to resolve two limitations: (1) the need to clear the stack on boundary crossings and (2) the lack of a formal statement of well-bracketed control flow and local state encapsulation.
+In the next two sections, we discuss these two limitations and how we intend to resolve them.
+
+\section{Linear Capabilities, not Local}
+
+
+\section{Formalising well-bracketed control flow}
 
 \section{Conclusion}
+Contributions here?
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{references} 
