@@ -3,6 +3,7 @@
 \usepackage{booktabs} % For formal tables
 \usepackage{cleveref}
 \usepackage{natbib}
+\usepackage[utf8]{inputenc}
 
 
 % Copyright
@@ -39,7 +40,7 @@
 %   copyright information}
 \subtitle{Extended Abstract}
 % \subtitlenote{The full version of the author's guide is available as
-%   \texttt{acmart.pdf} document}
+%   \texttt{acDat zou in dmart.pdf} document}
 
 \author{Lau Skorstengaard}
 % \orcid{}
@@ -143,7 +144,7 @@ CheriBSD, an operating sytem built on the CHERI capability machine, uses per-com
 To prevent the stack pointer (or derivatives from it) from being passed to other components, CheriBSD uses local capabilities: a type of capabilities that can be kept in registers but not stored in memory (except through store-local capabilities like the stack pointer itself).
 The literature does not contain many details about the mechanism, let alone a formal analysis, but most importantly, the mechanism does not seem like it can support higher-order interfaces (e.g. C function pointers) in a scalable fashion.
 
-In recent work, we have been looking at an alternative approach \citep{skorstengaard_reasoning_nodate}.
+In recent work, we have been looking at an alternative approach \citep{skorstengaard_reasoning_2017}.
 It is also based on CHERI's local capabilities, but combines them with a more traditional, single, shared stack that scales better in the presence of higher-order interfaces.
 By passing stack and return pointers as local capabilities, our mechanism effectively prevents callees from storing them on the heap.
 Using a step-indexed Kripke logical relation, we are able to prove correctness of programs that rely on well-bracketed control flow in a complex way.
@@ -153,12 +154,41 @@ The aim of this new approach is to resolve two limitations: (1) the need to clea
 In the next two sections, we discuss these two limitations and how we intend to resolve them.
 
 \section{Linear Capabilities, not Local}
+What we essentially want to achieve in a secure calling convention is to give an invoked function access to a stack pointer and a return pointer, but only temporarily: during the execution of the invoked function. 
+In our original approach, we make both pointers local, so that the CHERI processor guarantees, essentially, that they can only be stored in registers or on the stack.
+To make sure that an invoked function has no way of transferring the pointers accross outside the lifetime of its stack frame, it then suffices to block only these two communication channels, rather than the entire memory.
+In other words, our approach relies on clearing registers and the stack before we pass control to untrusted code, as a way of preventing it from obtaining access to other stack and return pointers than the ones for the stack frame it is invoked in.
+The requirement for clearing registers is unproblematic, but clearing the entire stack upon every boundary crossing is a non-trivial requirement.
+We speculate that it can be made efficient with custom hardware extensions\footnote{Specifically, we imagine a kind of pre-L0 processor cache that does not retain values but only remembers that a certain range has been zeroed out.}, but this is not obvious.
 
+An alternative that does not have this requirement, relies on \emph{linear capabilities}, rather than local ones.
+Linear capabilities are (to the best of our knowledge) a new concept, similar to CHERI's local capabilities.\footnote{One author of this abstract is also investigating linear capabilities in another application, also submitted to PriSC.}
+The idea is that all capabilities are marked as either regular or linear.
+When they are linear, they are subject to special restrictions, enforced by the hardware, that prevent them from being duplicated.
+When linear capabilities are moved to a new location in registers or memory, they are erased from their old location.
+A few special instructions are needed to make this workable, e.g.\ a split instruction that splits a memory capability for a region of memory into disjoint capabilities for two parts of the region and a splice instruction that performs the reverse.
+Linearity of a capability is a powerful tool: when we pass a linear capability to untrusted code and we receive the same capability back, we can be sure that they will not have been able to store a copy of it.
+Similarly, if we receive a linear capability from untrusted code and we know that the capability addresses memory that is only ever addressed by linear capabilities, then we are sure that the untrusted code can no longer access that memory.
+
+As such, linear capabilities can be used as an alternative to local capabilities to enforce well-bracketed control flow.
+We cannot provide full details here for space reasons, but the idea is essentially the following.
+By passing stack and return pointers as linear capabilities, and requiring that invoked functions hand in their stack pointer upon return, untrusted code are prevented from keeping hold of old stack and return pointers past their intended lifetime, essentially because they can only ever have one copy that they have to hand in when this lifetime ends.
 
 \section{Formalising well-bracketed control flow}
+The second improvement we are making is related to the properties of well-bracketed control flow and local state encapsulation.
+Our previous work did not actually have a precise statement of these properties.
+We only show a reasoning technique that can be used to prove certain example programs that rely on the properties.
+Although it can be argued that this proof technique should perhaps qualify as a formal statement of the properties, we are investigating an alternative approach, based on the notion of fully abstract compilation \citep{abadi_protection_1999}.
 
-\section{Conclusion}
-Contributions here?
+We intend to start from a formalisation of an assembly language for a capability machine with linear capabilities (the target language).
+Our idea is then to introduce a variant of this target language that features a primitive stack, built into the operational semantics, as well as additional instructions like call and return.
+While the original target language is a standard assembly language without even the notion of a stack, this variant language (the source language) does have a stack, and control flow well-bracketedness and local state encapsulation are evident properties of the operational semantics.
+We can formalise our calling convention in the definition of a compiler from the source language to the target language.
+Additionally, we conjecture that this compiler can be proved fully abstract, thus formally expressing and establishing security of the calling convention.
+
+Interestingly, the proof of full abstraction for this compiler is expected to use a very simple back-translation, that simply maps every target language instruction to the corresponding instruction in the source.
+This back-translation works because we construct our source language in such a way that it has direct counterparts to every target language value.
+Specifically, the source language contains a representation of stack and return pointers as unspecified abstract values whose behavior corresponds to their target counterparts, but in a way that guarantees the intended properties of well-bracketed control flow and local state encapsulation.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{references} 
