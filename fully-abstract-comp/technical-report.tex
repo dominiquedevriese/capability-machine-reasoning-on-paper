@@ -428,7 +428,7 @@ Source language domains:
     &\sealendbnf & \in & \Seal \uplus \{\infty \} \\
     &\scbnf &\defbnf & ((\permbnf,\linbnf),\basebnf,\aendbnf,\addrbnf) \mid \seal{\linbnf,\sealbasebnf,\sealendbnf,\sigma}\\
     & & & {\sourcecolor{} \mid \stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}}\\ 
-    &\cbnf & \defbnf &  \scbnf \mid \sealed{\scbnf,\sigma}{\sourcecolor{} \; \mid \retptrd(\sigma,(\permbnf,\basebnf,\aendbnf,\addrbnf)) \mid \retptrc(\sigma,(\permbnf,\linbnf,\basebnf,\aendbnf,\addrbnf))}\\ 
+    &\cbnf & \defbnf &  \scbnf \mid \sealed{\scbnf,\sigma}{\sourcecolor{} \; \mid \retptrd(\sigma,(\basebnf,\aendbnf)) \mid \retptrc(\sigma,(\permbnf,\linbnf,\basebnf,\aendbnf,\addrbnf))}\\ 
     &\rbnf & \defbnf &\pcreg \mid \rret \mid \rstk \mid \rdata \mid \dots \\
     &\Reg & \defeq & \RegName \fun \Word\\
     &\Mem & \defeq & \Addr \fun \Word \\
@@ -661,7 +661,7 @@ We use the following step relation:
     \arraycolsep=0pt
     \begin{array}[t]{l}
       \cb = \stkptr{\_,\_,\_,\_}\\
-      \cb = \retptrd(\_)
+      \cb = \retptrd(\_,\_)
     \end{array}\right.\\
     \bot & \totherwise
   \end{cases}
@@ -1110,8 +1110,8 @@ This instruction uses the $\decPerm{}$ function.
                                        \end{array}\right.&
                                      \sourcecolor\left.
                                        \begin{array}[t]{l}
-                                         \Phi(r_1) = \retptrc(\sigma) \tand \\
-                                         \Phi(r_2) = \retptrd(\sigma) \tand \\
+                                         \Phi(r_1) = \retptrc(\sigma,\_) \tand \\
+                                         \Phi(r_2) = \retptrd(\sigma,\_) \tand \\
                                          \Phi(\rstk) = \stkptr{\rw,\stkb,\eaddr_\stk,\_} \tand \\
                                          \Phi = (\mem,\reg,\stkf::\stk,\ms_\stk) \tand \\
                                          \stkf = (\opc,\ms_{\stk,\priv},\aaddr_\stk) \tand \\
@@ -1282,6 +1282,7 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
 \noindent\textbf{call}\\
 \lau{19-09-2017: How do we get the $\sigma_?$ for the return pointers? It should be in memory somewhere.}
 \lau{19-09-2017: In which cases do we have undefined here?}
+\lau{25-10-2017: I have forgotten why we save $e_\stk$ on the stack and whether this is still necessary (it at least prevent the empty case, but I do not recall if it is necessary for other reasons).}
 This instruction assumes that the current address of the stack pointer, $\aaddr_\stk$, points to the first free address of the stack. We assume a seal assignment function $\sealAss{}$ that given an address assigns a seal.\lau{25-09-2017: This will need some more explanation - namely, there should be some relationship between the available seals and this function (I also need to think more about the specifics of this).}
 \begin{align*}
   \sem{\scall{\src{r_1}}{\src{r_2}}}(\Phi) = & 
@@ -1294,8 +1295,8 @@ This instruction assumes that the current address of the stack pointer, $\aaddr_
                                                         &\updReg{\pcreg}{c_1}\\
                                                         &\updReg{\rdata}{c_2}\\
                                                         &\updReg{\rstk}{c_\stk}\\
-                                                        &\updReg{\rretc}{\retptrc(\sigma_?)}\\
-                                                        &\updReg{\rretd}{\retptrd(\sigma_?)}
+                                                        &\updReg{\rretc}{\retptrc(\sigma_?,(\perm,\lin,\baddr,\eaddr,\aaddr+\calllen))}\\
+                                                        &\updReg{\rretd}{\retptrd(\sigma_?,(\aaddr_\stk,\eaddr_\stk))}
                                                  \end{array}
                                                  & 
                                                  \arraycolsep=0pt
@@ -1307,7 +1308,7 @@ This instruction assumes that the current address of the stack pointer, $\aaddr_
                                                    \Phi = (\mem,\reg,\stk,\ms_\stk) \tand\\
                                                    \Phi(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk} \tand \\
                                                    \baddr_\stk < \aaddr_\stk \leq \eaddr_\stk \tand \\
-                                                   \ms_{\stk,\priv} = \ms_\stk |_{[\aaddr_\stk,\eaddr]}\update{\aaddr_\stk}{\eaddr_\stk} \tand\\
+                                                   \ms_{\stk,\priv} = \ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{\eaddr_\stk} \tand\\
                                                    \ms_{\stk,\var{rest}} = \ms_\stk|_{[\baddr_\stk,\aaddr_\stk - 1]} \tand \\
                                                    c_\stk = \stkptr{\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1} \tand \\
                                                    \Phi(\pcreg) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
@@ -1389,8 +1390,8 @@ The \emph{persistent data storage} is expected to be accessible through a normal
   \item $w = ((\perm,\_),\_,\_,\_) \tand \perm \neq \rwx$
   \item $\seal{\_,\vsc}$ and $\vsc$ respects write-xor-execute
   \item $\src{\stkptr{\perm} \tand \perm \neq \rwx}$
-  \item $\src{w = \retptrc{\_}}$
-  \item $\src{w = \retptrd{\_}}$
+  \item $\src{w = \retptrc(\_,\_)}$
+  \item $\src{w = \retptrd(\_,\_)}$
   \end{itemize}
 ~\\
   A register file $\reg$ is said to respect write-xor-execute with slack $[\bar{r}]$ iff \\
@@ -1545,13 +1546,13 @@ In the following definitions, \src{blue} is used to indicate values related to t
 
 \lau{19-10-2017: $\lrk$ may indicate that $\lre$ should really be a relation between a \src{source pc} and a pair of a target pc and stack pointer? Otherwise, what happens with the data part of the return pointer?}
 \[
-  \lrk(W) = \left\{ \npair{\left(\array{l}\src{\retptrd(\sigma)},\\\src{\retptrc(\sigma)},\\k_{d,T},k_{c,T}\endarray\right)} \middle|
+  \lrk(W) = \left\{ \npair{\left(\array{l}\src{\retptrd(\sigma,\_)},\\\src{\retptrc(\sigma,\_)},\\k_{d,T},k_{c,T}\endarray\right)} \middle|
     \begin{array}{l}
       k_{d,T} \text{ is a stack pointer with correct end and such with everything related to the source stack} \\
       k_{c,T} \text{ relates to the old pc on the stack}\\
       \forall n' \leq n, W' \pubft W \ldotp \\
       \quad \forall, W_\lrr, W_\lrm \ldotp  \\
-      \qquad\npair[n']{\src{\retptrd(\sigma)},\src{\retptrc(\sigma)},k_{d,T},k_{c,T}} \in \lrp(W') \wedge \\
+      \qquad\npair[n']{\src{\retptrd(\sigma,\_)},\src{\retptrc(\sigma,\_)},k_{d,T},k_{c,T}} \in \lrp(W') \wedge \\
       \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrr) \wedge\\
       \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \\
       \qquad\Rightarrow\\
@@ -1585,16 +1586,16 @@ Where $S\text{ is a separation of $W$}$ means that no two partion share the same
   \lrv(W) =
   \begin{array}[t]{l}
     \left\{ \npair{\stpair[.]{i}{i}} \middle| i \in \ints \right\}\cup \\
-    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrc(\sigma)},\\\sealed{\sigma,\vsc_C}\endarray\right)} \middle| 
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrc(\sigma,\_)},\\\sealed{\sigma,\vsc_C}\endarray\right)} \middle| 
     \begin{array}{l}
-    \forall n'<n, W' \pubft W, \npair[n']{\stpair[.]{\retptrd(\sigma)}{\sealed{\sigma,\vsc_D}}} \in \lrv(W') \ldotp\\
-      \npair[n']{\retptrc(\sigma),\retptrd(\sigma),\sealed{\sigma,\vsc_C},\sealed{\sigma,\vsc_D}} \in \lrk(W')
+    \forall n'<n, W' \pubft W, \npair[n']{\stpair[.]{\retptrd(\sigma,\_)}{\sealed{\sigma,\vsc_D}}} \in \lrv(W') \ldotp\\
+      \npair[n']{\retptrc(\sigma,\_),\retptrd(\sigma,\_),\sealed{\sigma,\vsc_C},\sealed{\sigma,\vsc_D}} \in \lrk(W')
     \end{array}
     \right\}\cup\\
-    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrd(\sigma)},\\\sealed{\sigma,\vsc_D}\endarray\right)} \middle| 
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrd(\sigma,\_)},\\\sealed{\sigma,\vsc_D}\endarray\right)} \middle| 
     \begin{array}{l}
-    \forall n'<n, W' \pubft W, \npair[n']{\stpair[.]{\retptrc(\sigma)}{\sealed{\sigma,\vsc_C}}} \in \lrv(W') \ldotp\\
-      \npair[n']{\src{\retptrc(\sigma)},\src{\retptrd(\sigma)},\sealed{\sigma,\vsc_C},\sealed{\sigma,\vsc_D}} \in \lrk(W')
+    \forall n'<n, W' \pubft W, \npair[n']{\stpair[.]{\retptrc(\sigma,\_)}{\sealed{\sigma,\vsc_C}}} \in \lrv(W') \ldotp\\
+      \npair[n']{\src{\retptrc(\sigma,\_)},\src{\retptrd(\sigma,\_)},\sealed{\sigma,\vsc_C},\sealed{\sigma,\vsc_D}} \in \lrk(W')
     \end{array}
     \right\}\cup \\
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\stkptr{\perm,\baddr,\eaddr,\aaddr}},\\ ((\perm,\linear),\baddr,\eaddr,\aaddr) \endarray \middle| \right)}
