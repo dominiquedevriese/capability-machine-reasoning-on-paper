@@ -363,7 +363,7 @@
 \newcommand{\ro}{\readonly}
 \newcommand{\noperm}{\plainperm{0}}
 %\newcommand{\nopermo}{\plainperm{0o}}
-\newcommand{\enter}{\plainperm{e}}
+%\newcommand{\enter}{\plainperm{e}}
 %\newcommand{\entero}{\plainperm{eo}}
 
 %%% Braces
@@ -382,7 +382,7 @@
 \newcommand{\encInstr}[1]{\plainfun{encodeInstruction}{#1}}
 \newcommand{\decInstr}[1]{\plainfun{decodeInstruction}{#1}}
 \newcommand{\updPcAddr}[1]{\plainfun{updatePc}{#1}}
-\newcommand{\updPcPerm}[1]{\plainfun{updatePcPerm}{#1}}
+%\newcommand{\updPcPerm}[1]{\plainfun{updatePcPerm}{#1}}
 \newcommand{\nonExec}[1]{\plainfun{nonExecutable}{#1}}
 \newcommand{\exec}[1]{\plainfun{executable}{#1}}
 %\newcommand{\opaquePerm}[1]{\plainfun{opaquePerm}{#1}}
@@ -428,7 +428,7 @@ Source language domains:
     &\sealendbnf & \in & \Seal \uplus \{\infty \} \\
     &\scbnf &\defbnf & ((\permbnf,\linbnf),\basebnf,\aendbnf,\addrbnf) \mid \seal{\linbnf,\sealbasebnf,\sealendbnf,\sigma}\\
     & & & {\sourcecolor{} \mid \stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}}\\ 
-    &\cbnf & \defbnf &  \scbnf \mid \sealed{\scbnf,\sigma}{\sourcecolor{} \; \mid \retptrd(\sigma) \mid \retptrc(\sigma)}\\ 
+    &\cbnf & \defbnf &  \scbnf \mid \sealed{\scbnf,\sigma}{\sourcecolor{} \; \mid \retptrd(\sigma,(\permbnf,\basebnf,\aendbnf,\addrbnf)) \mid \retptrc(\sigma,(\permbnf,\linbnf,\basebnf,\aendbnf,\addrbnf))}\\ 
     &\rbnf & \defbnf &\pcreg \mid \rret \mid \rstk \mid \rdata \mid \dots \\
     &\Reg & \defeq & \RegName \fun \Word\\
     &\Mem & \defeq & \Addr \fun \Word \\
@@ -525,12 +525,10 @@ The source machine allows for variable length instructions which we utilize for 
   \centering
   \begin{tikzpicture}[main node/.style={}]
     \node[main node] (rwx) {$\rwx$};
-    \node[main node] (rx) [below of=rwx] {$\rx$};
-    \node[main node] (e) [below of=rx] {$\enter$};
+    \node[main node] (rx) [below right of=rwx] {$\rx$};
 
-
-    \node[main node] (rw) [below left of=rwx,xshift=-0.5cm,yshift=-0.3cm] {$\rw$};
-    \node[main node] (r) [below of=rw] {$\readonly$};
+    \node[main node] (rw) [below left of=rwx,] {$\rw$};
+    \node[main node] (r) [below right of=rw] {$\readonly$};
     \node[main node] (0) [below of=r] {$\noperm$};
 
     \path[every node/.style={font=\sffamily\small}]
@@ -538,14 +536,10 @@ The source machine allows for variable length instructions which we utilize for 
     (rw) edge (r)
     (r) edge (0)
 
-
     (rwx) edge (rx)
-    (rx) edge (e)
-
 
     (rw) edge (rwx)
-    (r) edge (rx)
-    (0) edge (e);
+    (r) edge (rx);
   \end{tikzpicture}
 
   \caption{Permission hierarchy}
@@ -645,14 +639,6 @@ We use the following step relation:
 \]
 
 \[
-  \updPcPerm{c} \defeq
-  \begin{cases}
-    ((\rx,\lin),\baddr,\eaddr,\aaddr) & c = ((\enter,\lin),\baddr,\eaddr,\aaddr)\\
-    c & \totherwise
-  \end{cases}
-\]
-
-\[
   \readAllowed{} \defeq \dots
 \]
 
@@ -728,7 +714,7 @@ We have unified the two languages in the below definitions. Everything written i
 \begin{align*}
   \sem{\tjmp{r}}(\Phi) = &  
                      \begin{cases}
-                       \Phi\updReg{r}{w}\updReg{\pcreg}{\updPcPerm{\Phi(r)}} & w = \linCons{\Phi(r)}
+                       \Phi\updReg{r}{w}\updReg{\pcreg}{\Phi(r)} & w = \linCons{\Phi(r)}
                      \end{cases}
 \end{align*}
 
@@ -936,7 +922,6 @@ Notice that in the case where we are moving a linear capability and $r_1 = r_2$ 
                                       \text{either $n = r_2$ or $n = \Phi.\reg(r_2)$}\\
                                       \quad\text{ and in either case $n \in \ints$ and} \\
                                       \Phi(r_1) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
-                                      \perm \neq \enter \tand \\
                                       c = ((\perm,\lin),\baddr,\eaddr,\aaddr + n)
                                     \end{array}
                                     \\
@@ -956,7 +941,6 @@ Notice that in the case where we are moving a linear capability and $r_1 = r_2$ 
                                       \text{either $n = r_2$ or $n = \Phi(r_2)$}\\
                                       \quad\text{ and in either case $n \in \ints$ and} \\
                                       \Phi(r_1) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
-                                      \perm \neq \enter \tand \\
                                       c = \stkptr{\perm,\baddr,\eaddr,\aaddr + n}
                                     \end{array}\right.
                                     \\
@@ -1075,7 +1059,6 @@ This instruction uses the $\decPerm{}$ function.
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
                                       \Phi(r_2) = ((\perm,\lin),\baddr,\eaddr,\_) \tand \\
-                                      \perm \neq \enter \tand \\
                                       w_2 = \linCons{\Phi(r_2)}\\
                                       c = ((\perm,\lin),\baddr,\eaddr,\baddr)
                                     \end{array} \\
@@ -1187,7 +1170,6 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                  \arraycolsep=0pt
                                  \begin{array}[t]{l}
                                    \Phi(r_3) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
-                                   \perm \neq \enter \tand \\
                                    \Phi(r_4) = n \tor r_4 = n \\
                                    \quad\text{ and in either case } n \in \nats \\
                                    \baddr \leq n \tand n < \eaddr \tand \\
@@ -1226,7 +1208,6 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                  \arraycolsep=0pt
                                  \begin{array}[t]{l}
                                    \Phi(r_3) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
-                                   \perm \neq \enter \\
                                    \Phi(r_4) = n \tor r_4 = n \\
                                    \quad\text{ and in either case } n \in \nats \\
                                    \baddr \leq n \tand n < \eaddr \tand \\
@@ -1254,7 +1235,6 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                 \begin{array}[t]{l}
                                   \Phi(r_2) = ((\perm,\lin),\baddr_2,\eaddr_2,\_) \tand \\
                                   \Phi(r_3) = ((\perm,\lin),\baddr_3,\eaddr_3,\aaddr_3) \tand \\
-                                  \perm \neq \enter \tand \\
                                   \eaddr_2 + 1 = \baddr_3 \tand \baddr_2 \leq \eaddr_2 \tand \baddr_3 \leq \eaddr_3 \tand \\
                                   c = ((\perm,\lin),\baddr_2,\eaddr_3,\aaddr_3) \tand\\
                                   w_2 = \linCons{\Phi(r_2)} \tand \\
@@ -1292,7 +1272,6 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                 \begin{array}[t]{l}
                                   \Phi(r_2) = \stkptr{\perm,\baddr_2,\eaddr_2,\_} \tand \\
                                   \Phi(r_3) = \stkptr{\perm,\baddr_3,\eaddr_3,\aaddr_3} \tand \\
-                                  \perm \neq \enter \tand \\
                                   \eaddr_2 + 1 = \baddr_3 \tand \baddr_2 \leq \eaddr_2 \tand \baddr_3 \leq \eaddr_3 \tand \\
                                   c = \stkptr{\perm,\baddr_2,\eaddr_3,\aaddr_3} \\
                                 \end{array}\\
@@ -1534,20 +1513,21 @@ In this definition, the source level specific conditions replace the equivalent 
 \lau{19-10-2017: Maybe linearity should be taken care of in just one place (instead of in $\lrr$ relation and mem staisfaction). That is, add a predicate that checks whether the configuration satisfies linearity (such a condition may be to syntactic to work?).}
 In the following definitions, \src{blue} is used to indicate values related to the source machine. This is unlike previous definitions, where \src{blue} is used  indicate source language specific parts of definitions.
 \[
-  \lre(W) = \left\{ \npair{\stpair{v}{v}} \middle| 
+  \lre(W) = \left\{ \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} \middle| 
     \begin{array}{l}
       \forall n' \leq n, \src{k_{d,S}}, \src{k_{c,S}}, k_{d,T}, k_{c,T}, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk} \ldotp\\
-      \quad \forall W_\lrk, W_\lrr, W_\lrm \ldotp  \wedge \\
-      \qquad\npair[n']{\stpair{v}{v}} \in \lrp(W) \wedge \\
+      \quad \forall W_\lrk, W_\lrr, W_\lrm \ldotp \\
+      \qquad\npair[n']{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} \in \lrp(W) \wedge \\
       \qquad\npair[n']{\stpair[.]{k_{d,S},k_{c,S}}{k_{d,T},k_{c,T}}} \in \lrk(W_\lrk) \wedge \\
       \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrr) \wedge\\
       \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \\
       \qquad\Rightarrow\\
-      \qquad\npair[n']{\left(\array{l}\src{(\ms_S,\reg_S\updReg{\pcreg,\rretc,\rretd}{v_S,k_{c,S},k_{d,S}},\stk, \ms_\stk)},\\
-                                          (\ms_T,\reg_T\updReg{\pcreg,\rretc,\rretd}{v_T,k_{c,T},k_{d,T}})\endarray\right)}
+      \qquad\npair[n']{\left(\array{l}\src{(\ms_S,\reg_S\updReg{\pcreg,\rdata,\rretc,\rretd}{v_{c,S},v_{d,S},k_{c,S},k_{d,S}},\stk, \ms_\stk)},\\
+                                          (\ms_T,\reg_T\updReg{\pcreg,\rdata,\rretc,\rretd}{v_{c,T},v_{d
+,T},k_{c,T},k_{d,T}})\endarray\right)}
       \in \lro(W\uplus W_\lrk \uplus W_\lrr \uplus W_\lrm)
     \end{array}
-            \right\}
+    \right\}
 \]
 \lau{24-10-2017: Dominique, I do not see how the splitting of worlds is going to work out. I can see how it will enforce linearity, but is you give a "pure" region (the kind of region that is only allowed to go to one part of a split) to the $\lrr$-relation, then the memory satisfation does not have it, and it cannot find a memory segment for this part. In other words, the memory satisfaction will not be able to find a concrete memory segment for segments governed by a linear capability in the register file. Maybe the memory satisfaction should have all of the parts, so it can represent them (but also limit what linear capabilities can be used).}
 
@@ -1569,14 +1549,15 @@ In the following definitions, \src{blue} is used to indicate values related to t
     \begin{array}{l}
       k_{d,T} \text{ is a stack pointer with correct end and such with everything related to the source stack} \\
       k_{c,T} \text{ relates to the old pc on the stack}\\
-      \forall n' \leq n, W' \privft W \ldotp \\
-      \quad \exists W_\lrk, W_\lrr, W_\lrm \text{ that is a separarion of $W'$}\ldotp  \wedge \\
+      \forall n' \leq n, W' \pubft W \ldotp \\
+      \quad \forall, W_\lrr, W_\lrm \ldotp  \\
+      \qquad\npair[n']{\src{\retptrd(\sigma)},\src{\retptrc(\sigma)},k_{d,T},k_{c,T}} \in \lrp(W') \wedge \\
       \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrr) \wedge\\
       \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \\
       \qquad\Rightarrow\\
       \qquad\npair[n']{\left(\array{l}\src{(\ms_S,\reg_S\updReg{\pcreg,\rstk}{\opc,\stkptr{\dots}},\stk, \ms_\stk)},\\
                                           (\ms_T,\reg_T\updReg{\pcreg,\rstk}{\dots,\dots})\endarray\right)}
-      \in \lro(W')
+      \in \lro(W' \uplus W_\lrr \uplus W_\lrm)
     \end{array}
   \right\}
 \]
