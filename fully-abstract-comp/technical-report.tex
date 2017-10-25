@@ -296,8 +296,8 @@
 \newcommand{\step}{\rightarrow}
 \newcommand{\nstep}[1][n]{\step_{#1}}
 \newcommand{\steps}{\step^*}
-\newcommand{\diverge}{\Uparrow}
-\newcommand{\term}[1][-]{\Downarrow}
+\newcommand{\diverge}{{\Uparrow}}
+\newcommand{\term}[1][-]{{\Downarrow_{#1}}}
 
 %%% Variables
 \newcommand{\var}[1]{\mathit{#1}}
@@ -1536,14 +1536,14 @@ In the following definitions, \src{blue} is used to indicate values related to t
   \lre(W) = \left\{ \npair{\stpair{v}{v}} \middle| 
     \begin{array}{l}
       \forall n' \leq n, \src{k_{d,S}}, \src{k_{c,S}}, k_{d,T}, k_{c,T}, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk} \ldotp\\
-      \quad \exists W_\lrp, W_\lrk, W_\lrr, W_\lrm \text{that is a separarion of $W$}\ldotp  \wedge \\
+      \quad \exists W_\lrp, W_\lrk, W_\lrr, W_\lrm \text{ that is a separarion of $W$}\ldotp  \wedge \\
       \qquad\npair[n']{\stpair{v}{v}} \in \lrp(W_\lrp) \wedge \\
-      \qquad\npair[n']{\stpair[.]{(k_{d,S},k_{c,S})}{(k_{d,T},k_{c,T})}} \in \lrk(W_\lrk) \wedge \\
-      \qquad\npair[n']{\stpair[]{\reg}{\reg}} \in \lrr(W_\lrr) \wedge\\
+      \qquad\npair[n']{\stpair[.]{k_{d,S},k_{c,S}}{k_{d,T},k_{c,T}}} \in \lrk(W_\lrk) \wedge \\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrr) \wedge\\
       \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \\
       \qquad\Rightarrow\\
-      \qquad\npair[n']{\left(\array{l}\src{(\reg_S\updReg{\pcreg,\rretc,\rretd}{v_S,k_{c,S},k_{d,S}},\ms_S,\stk, \ms_\stk)},\\
-                                          (\reg_T\updReg{\pcreg,\rretc,\rretd}{v_T,k_{c,T},k_{d,T}},\ms_T)\endarray\right)}
+      \qquad\npair[n']{\left(\array{l}\src{(\ms_S,\reg_S\updReg{\pcreg,\rretc,\rretd}{v_S,k_{c,S},k_{d,S}},\stk, \ms_\stk)},\\
+                                          (\ms_T,\reg_T\updReg{\pcreg,\rretc,\rretd}{v_T,k_{c,T},k_{d,T}})\endarray\right)}
       \in \lro(W)
     \end{array}
             \right\}
@@ -1551,12 +1551,12 @@ In the following definitions, \src{blue} is used to indicate values related to t
 \lau{24-10-2017: Dominique, I do not see how the splitting of worlds is going to work out. I can see how it will enforce linearity, but is you give a "pure" region (the kind of region that is only allowed to go to one part of a split) to the $\lrr$-relation, then the memory satisfation does not have it, and it cannot find a memory segment for this part. In other words, the memory satisfaction will not be able to find a concrete memory segment for segments governed by a linear capability in the register file. Maybe the memory satisfaction should have all of the parts, so it can represent them (but also limit what linear capabilities can be used).}
 
 \[
-  \lro(W) = \left\{ \npair{\stpair[.]{(\reg_S,\ms_S,\stk_S,\ms_{\stk,S})}{\reg_R,\ms_R}} \middle|
+  \lro(W) = \left\{ \npair{\left(\array{l}\src{(\ms_S,\reg_S,\stk_S,\ms_{\stk,S})},\\(\ms_T,\reg_T)\endarray\right)} \middle|
     \begin{array}{l}
-      \forall i \leq n, \stpair{\mem}{\mem} \ldotp \\
-      \quad \src{(\reg_S,\ms_S \cup \mem_S,\stk_S,\ms_{\stk,S})} \term[i] \Rightarrow (\reg_R,\ms_R) \term\\
+      \forall i \leq n \ldotp \\
+      \quad \src{(\ms_S,\reg_S,\stk_S,\ms_{\stk,S})} \term[i] \Rightarrow (\ms_T,\reg_T) \term\\
       \quad \tand\\
-      \quad (\reg_R,\ms_R) \term[i] \Rightarrow \src{(\reg_S,\ms_S \cup \mem_S,\stk_S,\ms_{\stk,S})} \term
+      \quad (\ms_T,\reg_T) \term[i] \Rightarrow \src{(\ms_S,\reg_S,\stk_S,\ms_{\stk,S})} \term
     \end{array}
 \right\}
 \]
@@ -1564,20 +1564,25 @@ In the following definitions, \src{blue} is used to indicate values related to t
 
 \lau{19-10-2017: $\lrk$ may indicate that $\lre$ should really be a relation between a \src{source pc} and a pair of a target pc and stack pointer? Otherwise, what happens with the data part of the return pointer?}
 \[
-  \lrk(W) = \left\{ \npair{\stpair[.]{\retptrd{\sigma},\retptrc{\sigma}}{k_{d,T},k_{c,T}}} \middle|
+  \lrk(W) = \left\{ \npair{\left(\array{l}\src{\retptrd(\sigma)},\\\src{\retptrc(\sigma)},\\k_{d,T},k_{c,T}\endarray\right)} \middle|
     \begin{array}{l}
       k_{d,T} \text{ is a stack pointer with correct end and such with everything related to the source stack} \\
       k_{c,T} \text{ relates to the old pc on the stack}\\
-      \forall n' \leq n \ldotp \\
-      \quad \forall W' \privft W \ldotp \\
-      \qquad \dots \in \lre(W')
+      \forall n' \leq n, W' \privft W \ldotp \\
+      \quad \exists W_\lrk, W_\lrr, W_\lrm \text{ that is a separarion of $W'$}\ldotp  \wedge \\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrr) \wedge\\
+      \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \\
+      \qquad\Rightarrow\\
+      \qquad\npair[n']{\left(\array{l}\src{(\ms_S,\reg_S\updReg{\pcreg,\rstk}{\opc,\stkptr{\dots}},\stk, \ms_\stk)},\\
+                                          (\ms_T,\reg_T\updReg{\pcreg,\rstk}{\dots,\dots})\endarray\right)}
+      \in \lro(W')
     \end{array}
-            \right\}
+  \right\}
 \]
 
 \[
   \lrp(W) = \left\{
-    \npair{\stpair{v}{v}} \middle| \dots
+    \npair{\stpair{v}{v}} \middle| \text{make sure linearity constraint satisfied}\dots 
   \right\}
 \]
 
@@ -1595,7 +1600,24 @@ In the following definitions, \src{blue} is used to indicate values related to t
 Where $S\text{ is a separation of $W$}$ means that no two partion share the same ``pure'' region (whatever that is).
 
 \[
-  \lrv(W) = \left\{ \dots \right\}
+  \lrv(W) =
+  \begin{array}[t]{l}
+    \left\{ \npair{\stpair[.]{i}{i}} \middle| i \in \ints \right\}\cup \\
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrc(\sigma)},\\\sealed{\sigma,\vsc_C}\endarray\right)} \middle| 
+    \begin{array}{l}
+    \forall n'<n, W' \pubft W, \npair[n']{\stpair[.]{\retptrd(\sigma)}{\sealed{\sigma,\vsc_D}}} \in \lrv(W') \ldotp\\
+      \npair[n']{\retptrc(\sigma),\retptrd(\sigma),\sealed{\sigma,\vsc_C},\sealed{\sigma,\vsc_D}} \in \lrk(W')
+    \end{array}
+    \right\}\cup\\
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrd(\sigma)},\\\sealed{\sigma,\vsc_D}\endarray\right)} \middle| 
+    \begin{array}{l}
+    \forall n'<n, W' \pubft W, \npair[n']{\stpair[.]{\retptrc(\sigma)}{\sealed{\sigma,\vsc_C}}} \in \lrv(W') \ldotp\\
+      \npair[n']{\src{\retptrc(\sigma)},\src{\retptrd(\sigma)},\sealed{\sigma,\vsc_C},\sealed{\sigma,\vsc_D}} \in \lrk(W')
+    \end{array}
+    \right\}\cup \\
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\stkptr{\perm,\baddr,\eaddr,\aaddr}},\\ ((\perm,\linear),\baddr,\eaddr,\aaddr) \endarray \middle| \right)}
+    \right\}
+  \end{array}
 \]
 
 \section{Full Abstraction}
