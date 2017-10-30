@@ -91,8 +91,9 @@
 \newcommand{\World}{\mathrm{World}}
 \newcommand{\RegionName}{\mathrm{RegionName}}
 \newcommand{\Region}{\mathrm{Region}}
-\newcommand{\pureReg}{\mathrm{pure}}
-\newcommand{\normalReg}{\mathrm{normal}}
+\newcommand{\pure}{\mathrm{pure}}
+\newcommand{\pureo}{\mathrm{pure\_owned}}
+\newcommand{\normReg}{\mathrm{normal}}
 \newcommand{\State}{\mathrm{State}}
 \newcommand{\Rels}{\mathrm{Rels}}
 \newcommand{\UPred}[1]{\mathrm(#1)}
@@ -1520,21 +1521,22 @@ In this definition, the source level specific conditions replace the equivalent 
 \section{Logical Relation}
 \subsection{Worlds}
 \[
-  \World = \RegionName \parfun 2 \times \Region
+  \World = \RegionName \parfun \Region
 \]
-where $\RegionName = \nats$. $2$ indicates ownership of the region which decides whether a capability is allowed to reference this part of memory.
-\lau{26-10-2017: Maybe we want to place the ownership directly on the $\pureReg$-regions as we only want to enforce that linear capabilities don't have any aliases.}
+where $\RegionName = \nats$.
 \[
   \Region = \left\{
   \begin{array}{l}
-    \{\pureReg \} \times \State \times \Rels \times (\State \fun \World \fun \UPred{\MemSeg^2})\\
-    \{\normalReg \} \times \State \times \Rels \times (\State \fun \World \fun \UPred{\MemSeg^2})
+    \{\pure \} \times \State \times \Rels \times (\State \fun \World \fun \UPred{\MemSeg^2})\\
+    \{\pureo \} \times \State \times \Rels \times (\State \fun \World \fun \UPred{\MemSeg^2})\\
+    \{\normReg \} \times \State \times \Rels \times (\State \fun \World \fun \UPred{\MemSeg^2})
   \end{array} \right.
 \]
+where $\pure$ and $\pureo$ are regions governing segments of memory addressed by linear capabilities. $\pureo$ signifies that this region is addressable. $\pure$ signifies that the region is not owned and can thus not be addressed. Finally, $\normReg$ signifies that the region is only addressed by non-linear capabilities. Notice that no region allows for both linear and non-linear capabilities to address it.
 \lau{26-20-2017: We may also want to build the infrastructure for the stack more explicitely into the worlds (but maybe we can handle it in the memory satisfaction).}
 \lau{26-20-2017: It is not clear to me what the monotonicity requirements on the memory interpretation functions should be.}
 
-Disjoint union of worlds. Joins together two alike worlds with strictly disjoint ownership over $\pureReg$-regions.
+Disjoint union of worlds. Joins together two alike worlds with strictly disjoint ownership over $\pureo$-regions.
 \[
   W_1 \uplus W_1 = W
   \begin{array}[t]{l}
@@ -1544,12 +1546,14 @@ Disjoint union of worlds. Joins together two alike worlds with strictly disjoint
 \]
 $\oplus$ is defined as follows
 \begin{align*}
-  (i,\normalReg,\var{sm}) \oplus (j,\normalReg,\var{sm}) =  & \; (\max(i,j),\normalReg,\var{sm}) \\
-  (1,\pureReg,\var{sm}) \oplus (0,\pureReg,\var{sm}) =      & \; (1,\pureReg,\var{sm}) \\
-  (0,\pureReg,\var{sm}) \oplus (1,\pureReg,\var{sm}) =      & \; (1,\pureReg,\var{sm}) \\
-  (0,\pureReg,\var{sm}) \oplus (0,\pureReg,\var{sm}) =      & \; (0,\pureReg,\var{sm}) \\
+  (\normReg,\var{sm}) \oplus (\normReg,\var{sm}) =  & \; (\normReg,\var{sm}) \\
+  (\pureo,\var{sm}) \oplus (\pure,\var{sm}) = & \; (\pure,\var{sm}) \oplus (\pureo,\var{sm})\\
+                                           =  & \; (\pureo,\var{sm}) \\
+  (\pure,\var{sm}) \oplus (\pure,\var{sm}) =  & \; (\pure,\var{sm}) \\
 \end{align*}
-and for all other cases $\oplus$ is undefined. Specifically, $\oplus$ is not defined when both sides are an owned $\pureReg$-region. It is further not defined if the two sides do not agree on region type and state machine.
+and for all other cases $\oplus$ is undefined. Specifically, $\oplus$ is not defined when both sides are a $\pureo$-region. It is further not defined if the two sides do not agree on region type and state machine. Here $\var{sm}$ is the state machine of the region.
+
+
 
 
 \subsection{Relation}
