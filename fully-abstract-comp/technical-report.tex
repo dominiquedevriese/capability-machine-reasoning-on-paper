@@ -57,6 +57,9 @@
 
 \newcommand{\npair}[2][n]{\left(#1,#2\right)}
 
+\newcommand{\nsubeq}[1][n]{\overset{#1}{\subseteq}}
+\newcommand{\nsupeq}[1][n]{\overset{#1}{\supseteq}}
+
 % Function arrows
 \newcommand{\fun}{\rightarrow}
 \newcommand{\parfun}{\rightharpoonup}
@@ -387,32 +390,35 @@
   {\mathit{#1}(#2)}
 }
 
-\newcommand{\encType}[1]{\plainfun{encodeType}{#1}}
-\newcommand{\encPerm}[1]{\plainfun{encocePerm}{#1}}
+%\newcommand{\isLoc}[1]{\plainfun{isLocal}{#1}}
+%\newcommand{\nonLoc}[1]{\plainfun{nonLocal}{#1}}
+%\newcommand{\opaquePerm}[1]{\plainfun{opaquePerm}{#1}}
+%\newcommand{\updPcPerm}[1]{\plainfun{updatePcPerm}{#1}}
+%\newcommand{\writeLocalAllowed}[1]{\plainfun{writeLocalAllowed}{#1}}
+\newcommand{\addressable}[1]{\plainfun{addressable}{#1}}
+\newcommand{\callCond}[1]{\plainfun{callCondition}{#1}}
+\newcommand{\decInstr}[1]{\plainfun{decodeInstruction}{#1}}
 \newcommand{\decPerm}[1]{\plainfun{decodePerm}{#1}}
 \newcommand{\encInstr}[1]{\plainfun{encodeInstruction}{#1}}
-\newcommand{\decInstr}[1]{\plainfun{decodeInstruction}{#1}}
-\newcommand{\updPcAddr}[1]{\plainfun{updatePc}{#1}}
-%\newcommand{\updPcPerm}[1]{\plainfun{updatePcPerm}{#1}}
-\newcommand{\nonExec}[1]{\plainfun{nonExecutable}{#1}}
+\newcommand{\encPerm}[1]{\plainfun{encocePerm}{#1}}
+\newcommand{\encType}[1]{\plainfun{encodeType}{#1}}
 \newcommand{\exec}[1]{\plainfun{executable}{#1}}
-%\newcommand{\opaquePerm}[1]{\plainfun{opaquePerm}{#1}}
-\newcommand{\readAllowed}[1]{\plainfun{readAllowed}{#1}}
-\newcommand{\writeAllowed}[1]{\plainfun{writeAllowed}{#1}}
-%\newcommand{\writeLocalAllowed}[1]{\plainfun{writeLocalAllowed}{#1}}
-%\newcommand{\nonLoc}[1]{\plainfun{nonLocal}{#1}}
-\newcommand{\nonLinear}[1]{\plainfun{nonLinear}{#1}}
-\newcommand{\linCons}[1]{\plainfun{linearityConstraint}{#1}}
-%\newcommand{\isLoc}[1]{\plainfun{isLocal}{#1}}
+\newcommand{\execCond}[1]{\plainfun{executeCondition}{#1}}
 \newcommand{\isLinear}[1]{\plainfun{isLinear}{#1}}
-\newcommand{\sealAss}[1]{\plainfun{sealAssignment}{#1}}
-\newcommand{\noRetStkReg}[1]{\plainfun{noRetStk_{reg}}{#1}}
+\newcommand{\linCons}[1]{\plainfun{linearityConstraint}{#1}}
 \newcommand{\noRetStkMs}[1]{\plainfun{noRetStk_{ms}}{#1}}
-\newcommand{\withinBounds}[1]{\plainfun{withinBounds}{#1}}
+\newcommand{\noRetStkReg}[1]{\plainfun{noRetStk_{reg}}{#1}}
+\newcommand{\nonExec}[1]{\plainfun{nonExecutable}{#1}}
+\newcommand{\nonLinear}[1]{\plainfun{nonLinear}{#1}}
 \newcommand{\nonZero}[1]{\plainfun{nonZero}{#1}}
-\newcommand{\callCond}[1]{\plainfun{callCondition}{#1}}
-
 \newcommand{\range}[1]{\plainfun{range}{#1}}
+\newcommand{\readAllowed}[1]{\plainfun{readAllowed}{#1}}
+\newcommand{\readCond}[1]{\plainfun{readCondition}{#1}}
+\newcommand{\writeCond}[1]{\plainfun{writeCondition}{#1}}
+\newcommand{\sealAss}[1]{\plainfun{sealAssignment}{#1}}
+\newcommand{\updPcAddr}[1]{\plainfun{updatePc}{#1}}
+\newcommand{\withinBounds}[1]{\plainfun{withinBounds}{#1}}
+\newcommand{\writeAllowed}[1]{\plainfun{writeAllowed}{#1}}
 
 
 \title{Technical Report}
@@ -1682,6 +1688,69 @@ Where $S\text{ is a separation of $W$}$ means that no two partion share the same
     \right\}
   \end{array}
 \]
+
+\subsection{Permission based conditions}
+\[
+  \addressable{\lin,W} =
+  \begin{cases}
+    \{ r \mid W(r) = (\normal,\_) \} & \text{if $\lin = \normal$} \\
+    \{ r \mid W(r) = (\pureo,\_) \}  & \text{otherwise (i.e. $\lin = \linear$)} \\
+  \end{cases}
+\]
+
+\[
+  \readCond{\lin,W} = \left\{ \npair{\baddr,\eaddr}) \middle| 
+    \begin{array}{l}
+      \exists r \in \addressable{\lin, W} \ldotp \\
+      \quad \exists [\baddr',\eaddr'] \supseteq [\baddr,\eaddr] \ldotp \\
+      \qquad W(r) \nsubeq \iota_{[\baddr',\eaddr']}
+    \end{array}
+  \right\}
+\]
+where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-regions}.
+
+\lau{01-11-2017: TODO Write down address-stratified condition.}
+
+\[
+  \writeCond{\lin,W} = \left\{ \npair{\baddr,\eaddr}) \middle| 
+    \begin{array}{l}
+      \exists r \in \addressable{\lin, W} \ldotp \\
+      \quad \exists [\baddr',\eaddr'] \supseteq [\baddr,\eaddr] \ldotp \\
+      \qquad W(r) \nsupeq[n-1] \iota_{[\baddr',\eaddr']} \wedge \\
+      \qquad W(r) \text{ is address-stratified}
+    \end{array}
+  \right\}
+\]
+where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-regions}.
+
+\[
+  \execCond{\lin,W} = \left\{ \npair{S_\perm,\baddr,\eaddr} \middle|
+    \begin{array}{l}
+      \forall n' < n, W' \privft W, \perm \in S_\perm, \aaddr \in [\baddr,\eaddr] \ldotp\\
+      \quad \forall W'', c_{d,S},c_{d,T} \ldotp \npair[n']{(c_{d,S},c_{d,T})} \in \lrv(W'') \wedge \\
+      \qquad \npair[n']{((\perm,lin),\baddr,\eaddr,\aaddr),c_{d,S},((\perm,lin),\baddr,\eaddr,\aaddr),c_{d,T}} \in \lrp(W' \oplus W'') \Rightarrow \\
+      \quad \qquad \npair[n']{((\perm,lin),\baddr,\eaddr,\aaddr),c_{d,S},((\perm,lin),\baddr,\eaddr,\aaddr),c_{d,T}} \in \lre(W' \oplus W'')
+    \end{array}
+    \right\}
+\]
+
+
+\subsection{Standard regions}
+\label{sec:standard-regions}
+Standard region:
+\[
+  \iota_A \defeq (*,=,=,H_A)
+\]
+where $H_A$ is defined as follows:
+\[
+  H_A \; s \; \hat{W} \defeq \left\{ \npair{\ms_S,\ms_T} \middle|
+    \begin{array}{l}
+      \dom(\ms_S) = \dom(\ms_T) = A \wedge \\
+      \forall \aaddr \in A \ldotp \npair[n-1]{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(\xi(\hat{W}))
+    \end{array}
+  \right\}
+\]
+\lau{01-11-2017: TODO look into what kind of world separation should happen here.}
 
 \section{Full Abstraction}
 \begin{definition}
