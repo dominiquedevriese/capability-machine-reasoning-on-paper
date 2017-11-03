@@ -647,6 +647,40 @@ We use the following step relation:
 \label{par:call-impl}
 \lau{16-10-2017: Fill this paragraph with $\scall{}{}$ implementation, i.e., the instructions $\scall[1]{r_1}{r_2} \dots \scall[\calllen]{r_1}{r_2}$ is equal to. Add convenience notation like $\update{\mem.a}{\scall{r_1}{r_2}} = \dots$}
 \lau{16-10-2017: Implementation of $\scall{}{}$ may need registers for temporary registers - we should update the semantics accordingly.}
+\[
+  \begin{array}{l}
+    \tgete{r_{1t}}{\rstk}\\
+    \tstore{\rstk}{r_{t1}}\\
+    \tcca{\rstk}{-1}\\
+    \tgeta{r_{t1}}{\rstk}\\
+    \tsplit{\rstk}{\rretd}{\rstk}{r_{t1}}\\
+    \tmove{r_{t1}}{\pcreg}\\
+    \tsetatob{r_{t1}}{r_{t1}}\\
+    \tload{r_{t1}}{r_{t1}}\\
+    \tcca{r_{t1}}{{\color{red} \dots}}\\
+    \tcseal{\rretd}{\rretd}{r_{t1}}\\
+    \tmove{\rretc}{\pcreg}\\
+    \tcca{\rretc}{5} \text{ //magic number is offset to return code}\\
+    \tcseal{\rretc}{\rretc}{r_{t1}}\\
+    \tmove{r_{t1}}{0}\\
+    \txjmp{r_1}{r_2}\\
+    \text{// the following is the return code}\\
+    \tgetb{r_{t1}}{\rstk}\\
+    \tminus{r_{t1}}{t_{t1}}{\stkb} \text{ //$\stkb$ is the stack base constant} \\
+    \tmove{r_{t2}}{\pcreg}\\
+    \tcca{r_{t2}}{5} \text{ //magic number is the offset to fail} \\
+    \tjnz{r_{t2}}{r_{t1}} \\
+    \tcca{r_{t2}}{1} \text{ //magic number is the offset to after fail} \\
+    \tjmp{r_{t2}} \\
+    \tfail \\
+    \tsplice{\rstk}{\rstk}{\rdata} \\
+    \tcca{\rstk}{1}\\
+    \tmove{r_{t1}}{0}\\
+    \tmove{r_{t2}}{0}
+  \end{array}
+\]
+{\color{red} \dots} needs to be the offset to the seal we want to use.
+
 
 \subsubsection{Helpful functions and sets}
 
