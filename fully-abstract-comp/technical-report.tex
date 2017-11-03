@@ -1127,10 +1127,10 @@ This instruction uses the $\decPerm{}$ function.
                                      \sourcecolor\left.
                                        \begin{array}[t]{l}
                                          \Phi(r_1) = \retptrc(\sigma,\_) \tand \\
-                                         \Phi(r_2) = \retptrd(\sigma,\_) \tand \\
+                                         \Phi(r_2) = \retptrd(\sigma,(\aaddr_\stk,\_)) \tand \\
                                          \Phi(\rstk) = \stkptr{\rw,\stkb,\eaddr_\stk,\_} \tand \\
                                          \Phi = (\mem,\reg,\stkf::\stk,\ms_\stk) \tand \\
-                                         \stkf = (\opc,\ms_{\stk,\priv},\aaddr_\stk) \tand \\
+                                         \stkf = (\opc,\ms_{\stk,\priv}) \tand \\
                                          \dom(\ms_{\stk,\priv}) = [\eaddr_\stk+1,\eaddr_{\stk,\priv}] \tand\\
                                          c_\stk = \stkptr{\rw,\stkb,\eaddr_{\stk,\priv},\aaddr_\stk} \tand\\
                                          \Phi' = (\mem,\reg,\stk,\ms_{\stk,\priv} \uplus \ms_\stk) 
@@ -1626,20 +1626,26 @@ In the following definitions, \src{blue} is used to indicate values related to t
 \]
 
 
-\lau{19-10-2017: $\lrk$ may indicate that $\lre$ should really be a relation between a \src{source pc} and a pair of a target pc and stack pointer? Otherwise, what happens with the data part of the return pointer?}
+\lau{03-11-2017: TODO take a look at linearity of this definition - in paticular the recovered pc and stack pointer.}
 \[
-  \lrk(W) = \left\{ \npair{\left(\array{l}\src{\retptrd(\sigma,\_)},\\\src{\retptrc(\sigma,\_)},\\k_{d,T},k_{c,T}\endarray\right)} \middle|
+  \lrk(W) = \left\{ \npair{\left(\array{l}\src{\retptrd(\sigma,(\aaddr_d,\eaddr_d))},\\\src{\retptrc(\sigma,(\perm,\lin,\baddr_c,\eaddr_c,\aaddr_c))},\\k_{d,T},k_{c,T}\endarray\right)} \middle|
     \begin{array}{l}
-      k_{d,T} \text{ is a stack pointer with correct end and such with everything related to the source stack} \\
-      k_{c,T} \text{ relates to the old pc on the stack}\\
+      k_{d,T} = \sealed{\sigma,c_d} \wedge\\
+      k_{c,T} = \sealed{\sigma,c_c} \wedge\\
+      c_c = ((\perm,\lin),\baddr_c,\eaddr_c,\aaddr_c) \wedge\\
+      c_d = ((\rw,\linear),\aaddr_d,\eaddr_d,\aaddr_d-1) \wedge\\
       \forall n' \leq n, W' \pubft W \ldotp \\
       \quad \forall, W_\lrr, W_\lrm \ldotp  \\
+      \qquad\opc = c_c \wedge\\
+      \qquad\dom(\ms_{\stk,f}) = [\aaddr_d,\eaddr_d] \wedge\\
       \qquad\npair[n']{\src{\retptrd(\sigma,\_)},\src{\retptrc(\sigma,\_)},k_{d,T},k_{c,T}} \in \lrp(W') \wedge \\
       \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrr) \wedge\\
-      \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \\
+      \qquad\memSat[n']{\stpair[.]{\ms_S,\stk::(\opc,\ms_{\stk,f}),\ms_\stk}{\ms_T}}{W_\lrm} \wedge \\
+      \qquad\dom(\ms_\stk) = [\baddr_\stk,\eaddr_\stk] \wedge \\
+      \qquad\eaddr_\stk = \aaddr_d-1\\
       \qquad\Rightarrow\\
-      \qquad\npair[n']{\left(\array{l}\src{(\ms_S,\reg_S\updReg{\pcreg,\rstk}{\opc,\stkptr{\dots}},\stk, \ms_\stk)},\\
-                                          (\ms_T,\reg_T\updReg{\pcreg,\rstk}{\dots,\dots})\endarray\right)}
+      \qquad\npair[n']{\left(\array{l}\src{\left(\arraycolsep=0pt\array{l}\ms_S,\reg_S\updReg{\pcreg,\rstk}{\opc,\stkptr{\rw,\baddr_\stk,\eaddr_d,\_}},\\\stk, \ms_\stk \uplus \ms_{\stk,f}\endarray\right)},\\
+                                          (\ms_T,\reg_T\updReg{\pcreg,\rstk}{\opc,((\rw,\lin),\baddr_\stk,\eaddr_d,\_)})\endarray\right)}
       \in \lro(W' \oplus W_\lrr \oplus W_\lrm)
     \end{array}
   \right\}
