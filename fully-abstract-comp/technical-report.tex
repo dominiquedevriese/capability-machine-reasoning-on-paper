@@ -1174,7 +1174,7 @@ We would like splice and split to have following properties
 \end{enumerate}
 Split cannot create ``empty capabilities'' (a capability that governs no segment of the memory, i.e.\ a capability where the base address is greater than the end address). We partly do not allow this out of convenience as it makes the implementation of call simpler. We do not need empty capabilities as they have no semantic value in the sense that they allow you to do no more than a piece of data.
 \begin{align*}
-  \tsem{\tsplit{r_1}{r_2}{r_3}{r_4}} = &
+  \sem{\tsplit{r_1}{r_2}{r_3}{r_4}} = &
                                \begin{cases}
                                  \updPcAddr{}\left(
                                    \arraycolsep=0pt
@@ -1511,7 +1511,7 @@ In this definition, the source level specific conditions replace the equivalent 
     % Make the stack capability into the return capability and seal it:
     %   Push r_data to the stack (should this be made the responsibility of the programmer? If it happens here, then it should probably also be part of the call semantics. Especially, the call semantics should "eat" another piece of memory on the stack to make sure there is no discrepancy.)
     %   Seal the stack capability (with what? where does the seal come from? I think we talked about this, and it is something that should be handled like linking (a fresh seal is available in the beginning of a programs code along with a capability for a linking table)).
-    % restrict the stack capability to the unused part (and clear this part).
+    % restrict the stack capability to the unused part (and clear this part (is this really necessary?)).
     % make return capability and ceal it:
     %   Move a copy of pc to a different register.
     %   Adjust the pc copy to point to the return address.
@@ -1519,6 +1519,7 @@ In this definition, the source level specific conditions replace the equivalent 
     % remove all data from temp registers (that is at least the seal).
     % jmpx to r1 and r2
     % restore code:
+    %   check the stack end address.
     %   move the stack pointer to the proper register
     %   pop the data capability
   \end{array}
@@ -1529,6 +1530,7 @@ In this definition, the source level specific conditions replace the equivalent 
 \section{Logical Relation}
 \subsection{Worlds}
 \lau{30-10-2017: TODO: solve recursiveness in domain equation in the following. }
+\lau{02-11-2017: We may need revoked regions again to handle the stack.}
 \[
   \World = \RegionName \parfun \Region
 \]
@@ -1739,8 +1741,9 @@ where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-region
 \label{sec:standard-regions}
 Standard region:
 \[
-  \iota_A \defeq (*,=,=,H_A)
+  \iota_A \defeq (\normal,*,=,=,H_A)
 \]
+\lau{02-11-2017: I am not sure whether it should be a $\normal$ region. In previous work $\nsubeq$ ignored the ``view'' which it may also do here, and then then it does not matter which one it is.}
 where $H_A$ is defined as follows:
 \[
   H_A \; s \; \hat{W} \defeq \left\{ \npair{\ms_S,\ms_T} \middle|
