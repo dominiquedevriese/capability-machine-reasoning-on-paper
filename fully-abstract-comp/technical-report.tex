@@ -473,7 +473,7 @@ The target language domains are all the non blue parts in the above. The source 
 
 In the source language, $\src{\Stack}$ is a call stack that contains the data for each call. The call stack consists of a number of $\src{\StkFrame}$'s that contains 1) the old pc, 2) caller's private stack, and 3) the address of the old stack pointer. 
 
-In both languages, the base address of the stack is known (the stack grows downwards in memory, so the base address marks the end of the stack). In the target language, this will be the base address of some linear capability. The base address can be any address on the machine, but it will have to remain the same. We write this constant as
+ In both languages, the base address of the stack is known (the stack grows downwards in memory, so the base address marks the end of the stack). In the target language, this will be the base address of some linear capability. The base address can be any address on the machine, but it will have to remain the same. We write this constant as
 \[
   \stkb
 \]
@@ -514,7 +514,7 @@ n &\in & \nats \\
       & &  \tgete{\trg{r}}{\trg{r}}\mid \tgetp{\trg{r}}{\trg{r}} \mid \tgetlin{\trg{r}}{\trg{r}} \mid \tmove{\trg{r}}{\trg{\rn}} \mid \tstore{\trg{r}}{\trg{r}} \mid\\
       & &  \tload{\trg{r}}{\trg{r}} \mid \tcca{\trg{r}}{\trg{\rn}} \mid \trestrict{\trg{r}}{\trg{r}}{\trg{\rn}} \mid \tlt{\trg{r}}{\trg{r}}{\trg{r}} \mid \\
   & & \tplus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tminus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tsetatob{\trg{r}}{\trg{r}} \mid \txjmp{\trg{r}}{\trg{r}} \mid \tcseal{\trg{r}}{\trg{r}}{\trg{r}} \mid \\ 
-      & &   \tsplit{\trg{r}}{\trg{r}}{\trg{r}} \mid\tsplice{\trg{r}}{\trg{r}}{\trg{r}} 
+      & &   \tsplit{\trg{r}}{\trg{r}}{\trg{r}}{\trg{\rn}} \mid\tsplice{\trg{r}}{\trg{r}}{\trg{r}} 
 \end{array}
 \]
 $i$ defines the set $\Instr$
@@ -736,14 +736,14 @@ We have unified the two languages in the below definitions. Everything written i
 \end{align*}
 
 \begin{align*}
-  \sem{\tjnz{r_1}{r_2}}(\Phi) = &       
+  \sem{\tjnz{r}{\rn}}(\Phi) = &       
                              \begin{cases}
                                \arraycolsep=0pt
                                \begin{array}[t]{rl}
-                                 \Phi&\updReg{r_1}{w}\\
-                                     &\updReg{\pcreg}{\Phi(r_1)}
+                                 \Phi&\updReg{r}{w}\\
+                                     &\updReg{\pcreg}{\Phi(r)}
                                \end{array}
-                                               & w = \linCons{\Phi(r_1)} \tand \nonZero{\Phi(r_2)}\\
+                                               & w = \linCons{\Phi(r)} \tand \nonZero{\Phi(\rn)}\\
                                \updPcAddr{\Phi} & \totherwise
                              \end{cases}
 \end{align*}
@@ -834,14 +834,13 @@ We assume function to encode and decode permissions as well as a function to enc
 
 \noindent\textbf{move}\\
 \begin{align*}
-  \sem{\tmove{r_1}{r_2}}(\Phi) = & 
+  \sem{\tmove{r}{\rn}}(\Phi) = & 
                               \begin{cases}
-                                \updPcAddr{\Phi\updReg{r_1}{r_2}} & r_2 \in \ints \\
-                                \updPcAddr{\Phi\updReg{r_1}{\Phi(r_2)}} & \nonLinear{\Phi(r_2)}\\
-                                \updPcAddr{\Phi\updReg{r_2}{0}\updReg{r_1}{\Phi(r_2)}} & \totherwise 
+                                \updPcAddr{\Phi\updReg{r}{\rn}} & \rn \in \ints \\
+                                \updPcAddr{\Phi\updReg{\rn}{w}\updReg{r}{\Phi(\rn)}} & w = \linCons{\Phi(\rn)}
                               \end{cases}
 \end{align*}
-Notice that in the case where we are moving a linear capability and $r_1 = r_2$ the order of the updates matter.
+Notice that in the case where we are moving a linear capability and $r = \rn$ the order of the updates matter.
 
 \noindent\textbf{store}\\
 \begin{align*}
@@ -931,33 +930,33 @@ Notice that in the case where we are moving a linear capability and $r_1 = r_2$ 
 \emph{Change Current Address}
 \lau{15-09-2017: This is the old lea. I changed the name, so it actually reflects what the instruction does. We might also want to add a real lea at some point.}
 \begin{align*}
-  \sem{\tcca{r_1}{r_2}}(\Phi) = & 
+  \sem{\tcca{r}{\rn}}(\Phi) = & 
                                   \begin{cases}
-                                    \updPcAddr{\Phi\updReg{r_1}{c}} &  
+                                    \updPcAddr{\Phi\updReg{r}{c}} &  
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
-                                      \text{either $n = r_2$ or $n = \Phi.\reg(r_2)$}\\
+                                      \text{either $n = \rn$ or $n = \Phi.\reg(\rn)$}\\
                                       \quad\text{ and in either case $n \in \ints$ and} \\
-                                      \Phi(r_1) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
+                                      \Phi(r) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
                                       c = ((\perm,\lin),\baddr,\eaddr,\aaddr + n)
                                     \end{array}
                                     \\
-                                    \updPcAddr{\Phi\updReg{r_1}{c}} &  
+                                    \updPcAddr{\Phi\updReg{r}{c}} &  
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
-                                      \text{either $n = r_2$ or $n = \Phi.\reg(r_2)$}\\
+                                      \text{either $n = \rn$ or $n = \Phi.\reg(\rn)$}\\
                                       \quad\text{ and in either case $n \in \ints$ and} \\
-                                      \Phi(r_1) = \seal{\lin,\sigma_\baddr,\sigma_\eaddr,\sigma} \tand \\
+                                      \Phi(r) = \seal{\lin,\sigma_\baddr,\sigma_\eaddr,\sigma} \tand \\
                                       c = \seal{\lin,\sigma_\baddr,\sigma_\eaddr,\sigma + n}
                                     \end{array}
                                     \\
-                                    \src{\updPcAddr{\Phi\updReg{r_1}{c}}} &  
+                                    \src{\updPcAddr{\Phi\updReg{r}{c}}} &  
                                     \sourcecolor\left.
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
-                                      \text{either $n = r_2$ or $n = \Phi(r_2)$}\\
+                                      \text{either $n = \rn$ or $n = \Phi(\rn)$}\\
                                       \quad\text{ and in either case $n \in \ints$ and} \\
-                                      \Phi(r_1) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
+                                      \Phi(r) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
                                       c = \stkptr{\perm,\baddr,\eaddr,\aaddr + n}
                                     \end{array}\right.
                                     \\
@@ -968,7 +967,7 @@ Notice that in the case where we are moving a linear capability and $r_1 = r_2$ 
 \noindent\textbf{restrict}\\
 This instruction uses the $\decPerm{}$ function.
 \begin{align*}
-  \sem{\trestrict{r_1}{r_2}{r_3}} = &
+  \sem{\trestrict{r_1}{r_2}{\rn}} = &
                                       \begin{cases}
                                         \updPcAddr{}\left(
                                           \arraycolsep=0pt
@@ -980,7 +979,7 @@ This instruction uses the $\decPerm{}$ function.
                                         \arraycolsep=0pt
                                         \begin{array}[t]{l}
                                           \Phi(r_2) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
-                                          \text{either $n = r_2$ or $n = \Phi.\reg(r_2)$}\\
+                                          \text{either $n = \rn$ or $n = \Phi.\reg(\rn)$}\\
                                           \quad\text{and in either case $n \in \ints$ and} \\
                                           \decPerm{n} \sqsubseteq \perm \tand \\
                                           c = ((\decPerm{n},\lin),\baddr,\eaddr,\aaddr) \tand \\
@@ -999,7 +998,7 @@ This instruction uses the $\decPerm{}$ function.
                                         \arraycolsep=0pt
                                         \begin{array}[t]{l}
                                           \Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
-                                          \text{either $n = r_2$ or $n = \Phi.\reg(r_2)$}\\
+                                          \text{either $n = \rn$ or $n = \Phi.\reg(\rn)$}\\
                                           \quad\text{and in either case $n \in \ints$ and} \\
                                           \decPerm{n} \sqsubseteq \perm \tand \\
                                           c = \stkptr{\decPerm{n},\baddr,\eaddr,\aaddr}
@@ -1035,13 +1034,13 @@ This instruction uses the $\decPerm{}$ function.
 
 \noindent\textbf{plus and minus}\\
 \begin{align*}
-  \sem{\tplus{r_0}{r_1}{r_2}}(\Phi) = &
+  \sem{\tplus{r_0}{\rn_1}{\rn_2}}(\Phi) = &
                                                   \begin{cases}
                                                     \updPcAddr{\Phi\updReg{r_0}{n_1+n_2}} &
                                                     \arraycolsep=0pt
                                                     \begin{array}[t]{l}
                                                       \text{if for $i \in \{1,2\}$}\\
-                                                      \quad\text{$n_i = r_i$ or $n_i = \Phi(r_i)$}\\
+                                                      \quad\text{$n_i = \rn_i$ or $n_i = \Phi(\rn_i)$}\\
                                                       \quad\text{and in either case $n_i \in \ints$}\\
                                                     \end{array}\\
                                                     \failed & \text{otherwise}
@@ -1049,13 +1048,13 @@ This instruction uses the $\decPerm{}$ function.
 \end{align*}
 
 \begin{align*}
-  \sem{\tminus{r_0}{r_1}{r_2}}(\Phi) = &
+  \sem{\tminus{r_0}{\rn_1}{\rn_2}}(\Phi) = &
                                                   \begin{cases}
                                                     \updPcAddr{\Phi\updReg{r_0}{n_1-n_2}} &
                                                     \arraycolsep=0pt
                                                     \begin{array}[t]{l}
                                                       \text{if for $i \in \{1,2\}$}\\
-                                                      \quad\text{$n_i = r_i$ or $n_i = \Phi(r_i)$}\\
+                                                      \quad\text{$n_i = \rn_i$ or $n_i = \Phi(\rn_i)$}\\
                                                       \quad\text{and in either case $n_i \in \ints$}\\
                                                     \end{array}\\
                                                     \failed & \text{otherwise}
@@ -1174,7 +1173,7 @@ We would like splice and split to have following properties
 \end{enumerate}
 Split cannot create ``empty capabilities'' (a capability that governs no segment of the memory, i.e.\ a capability where the base address is greater than the end address). We partly do not allow this out of convenience as it makes the implementation of call simpler. We do not need empty capabilities as they have no semantic value in the sense that they allow you to do no more than a piece of data.
 \begin{align*}
-  \sem{\tsplit{r_1}{r_2}{r_3}{r_4}} = &
+  \sem{\tsplit{r_1}{r_2}{r_3}{\rn_4}} = &
                                \begin{cases}
                                  \updPcAddr{}\left(
                                    \arraycolsep=0pt
@@ -1187,7 +1186,7 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                  \arraycolsep=0pt
                                  \begin{array}[t]{l}
                                    \Phi(r_3) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
-                                   \Phi(r_4) = n \tor r_4 = n \\
+                                   \Phi(\rn_4) = n \tor \rn_4 = n \\
                                    \quad\text{ and in either case } n \in \nats \\
                                    \baddr \leq n \tand n < \eaddr \tand \\
                                    c_1 = ((\perm,\lin),\baddr,n,\aaddr) \tand \\
@@ -1205,7 +1204,7 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                  \arraycolsep=0pt
                                  \begin{array}[t]{l}
                                    \Phi(r_3) = \seal{\lin,\sigma_\baddr,\sigma_\eaddr,\sigma} \tand \\
-                                   \Phi(r_4) = n \tor r_4 = n \\
+                                   \Phi(\rn_4) = n \tor \rn_4 = n \\
                                    \quad\text{ and in either case } n \in \nats \\
                                    \sigma_\baddr \leq n \tand n < \sigma_\eaddr \tand \\
                                    c_1 = \seal{\lin,\sigma_\baddr,n,\sigma} \tand \\
@@ -1225,7 +1224,7 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                  \arraycolsep=0pt
                                  \begin{array}[t]{l}
                                    \Phi(r_3) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
-                                   \Phi(r_4) = n \tor r_4 = n \\
+                                   \Phi(\rn_4) = n \tor \rn_4 = n \\
                                    \quad\text{ and in either case } n \in \nats \\
                                    \baddr \leq n \tand n < \eaddr \tand \\
                                    c_1 = \stkptr{\perm,\baddr,n,\aaddr} \tand \\
