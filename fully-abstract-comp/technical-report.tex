@@ -647,22 +647,29 @@ We use the following step relation:
 \lau{16-10-2017: Implementation of $\scall{}{}$ may need registers for temporary registers - we should update the semantics accordingly.}
 \[
   \begin{array}{l}
-    \tgete{r_{1t}}{\rstk}\\
+    \text{// push current end address of stack pointer on the stack.}\\
+    \tgete{r_{t1}}{\rstk}\\
     \tstore{\rstk}{r_{t1}}\\
     \tcca{\rstk}{-1}\\
+    \text{// split the stack at its current address.}\\
     \tgeta{r_{t1}}{\rstk}\\
     \tsplit{\rstk}{\rretd}{\rstk}{r_{t1}}\\
+    \text{// load the seal for the return pointer through the pc capability.}\\
     \tmove{r_{t1}}{\pcreg}\\
     \tsetatob{r_{t1}}{r_{t1}}\\
     \tload{r_{t1}}{r_{t1}}\\
     \tcca{r_{t1}}{{\color{red} \dots}}\\
+    // \text{seal the used stack frame as the data part of the return pointer pair.}\\
     \tcseal{\rretd}{\rretd}{r_{t1}}\\
+    // \text{obtain the code part of the return pointer pair and seal it too.}\\
     \tmove{\rretc}{\pcreg}\\
     \tcca{\rretc}{5} \text{ //magic number is offset to return code}\\
     \tcseal{\rretc}{\rretc}{r_{t1}}\\
+    // \text{now clear temporary register and jump to the adversary.}\\
     \tmove{r_{t1}}{0}\\
     \txjmp{r_1}{r_2}\\
     \text{// the following is the return code}\\
+    \text{// check that the stack pointer is the same we handed out.}\\
     \tgetb{r_{t1}}{\rstk}\\
     \tminus{r_{t1}}{t_{t1}}{\stkb} \text{ //$\stkb$ is the stack base constant} \\
     \tmove{r_{t2}}{\pcreg}\\
@@ -671,12 +678,22 @@ We use the following step relation:
     \tcca{r_{t2}}{1} \text{ //magic number is the offset to after fail} \\
     \tjmp{r_{t2}} \\
     \tfail \\
+    \text{// join our stored private stack frame with the rest of the stack}\\
     \tsplice{\rstk}{\rstk}{\rdata} \\
+    \text{// pop the stored stack end address}\\
     \tcca{\rstk}{1}\\
+    \text{// clear temporary registers used}\\
     \tmove{r_{t1}}{0}\\
-    \tmove{r_{t2}}{0}
+    \tmove{r_{t2}}{0}\\
+    \text{// continue program after invocation.}
   \end{array}
 \]
+\dominique{Return code could be simplified if we had jz in addition to jnz.}
+\dominique{It is a bit annoying that we store the stack end address before invocation if we do not use it.
+  I understand this is for ensuring that our private stack frame is not empty, which is important.
+  But why don't we just push a constant then?
+  Also: perhaps we could only do it if the current private stack frame is empty to begin with?
+}
 {\color{red} \dots} needs to be the offset to the seal we want to use.
 The call code does the following:
 \begin{itemize}
