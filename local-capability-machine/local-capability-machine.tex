@@ -3188,9 +3188,10 @@ In the proof of Lemma~\ref{lem:correctness-g1}, we will use the following region
                     \npair[n_4]{(reg_3\update{\pcreg}{\updatePcPerm{c_\cls}},\ms_3)} \in \observations(W_3)
                   \end{equation}
                   Let $\ms_3^p$ and $\ms_3^t$ be memory segments such that $\ms_3 = \ms_3^p \uplus \ms_3^t$ and $\memSat[n_4]{\ms_3^p}{\revokeTemp{W_3}}$ (using Lemma~\ref{lem:priv-mono-like2}). By $\memSat[n_4]{\ms_3}{W_3}$ and $W_3 \futurestr W_2$, we know $\ms_\cls \subseteq \ms_3^p$, so using Hyp-Act(\ref{eq:g1-hyp-act}), we get $j$ such that
-                  \[
-                    \forall \ms_f \ldotp (reg_3\update{\pcreg}{\updatePcPerm{c_\cls}},\ms_3^p \uplus \ms_3^t \uplus \ms_f) \step[j] (\reg_3\update{\pcreg}{\updatePcPerm{c_\cls}}\update{r_\env}{c_\env},\ms_3^p \uplus \ms_3^t \uplus \ms_f)
-                  \]
+
+                  \begin{multline}
+                    \forall \ms_f \ldotp (reg_3\update{\pcreg}{\updatePcPerm{c_\cls}},\ms_3^p \uplus \ms_3^t \uplus \ms_f) \step[j]\\ (\reg_3\update{\pcreg}{\updatePcPerm{c_\cls}}\update{r_\env}{c_\env},\ms_3^p \uplus \ms_3^t \uplus \ms_f)
+                  \end{multline}
                   Using Lemma~\ref{lem:anti-red-obs} it suffices to show
                   \[
                     \npair[n_4]{(\reg_3\update{\pcreg}{\updatePcPerm{c_\cls}}\update{r_\env}{c_\env},\ms_3^p \uplus \ms_3^t)} \in \observations(W_3)
@@ -3229,7 +3230,7 @@ In the proof of Lemma~\ref{lem:correctness-g1}, we will use the following region
                   \begin{enumproof}
                     \item $\memSat[n_4-j-j']{\ms_4}{\revokeTemp{W_4}}$: follows from $W_4 = \revokeTemp{W_4}$
                     \item Hyp-Callee \label{pf:g1-first-hyp-callee}\\
-                      We know $\npair[n_4]{\reg_3(r_1)} \in \stdvr(W_3)$. If this is not a capability that becomes executable when jumped to, then the execution fails, so the register memory segment pair is trivially in the observation relation. If it is executable, then either the $\execCond{}$ or the $\entryCond{}$ holds for appropriate values. We also know that it is a global capability, so we can use it with private future worlds. We have $W_5 = \revokeTemp{W_4}[\iota^\sta (\temp,\emptyset \uplus \ms_\act),\iota^\pwl(\dom(\ms_\unused')),\iota^\sta(\temp,\ms_f)] \futurestr W_3$, for some $\ms_\act$ and $\ms_\unused'$. By the execute/enter condition, we have
+                      We know $\npair[n_4]{\reg_3(r_1)} \in \stdvr(W_3)$. If this is not a capability that becomes executable when jumped to, then the execution fails, so the register memory segment pair is trivially in the observation relation. If it is executable, then either the $\execCond{}$ or the $\entryCond{}$ holds for appropriate values. We also know that it is a global capability, so we can use it with private future worlds. We have $W_5 = \revokeTemp{W_4}[\iota^\sta (\temp,\emptyset \uplus \ms_\act \uplus \ms_r),\iota^\pwl(\dom(\ms_\unused'))] \futurestr W_3$, for some $\ms_\act$ and $\ms_\unused'$. By the execute/enter condition, we have
                       \[
                         \npair[n_4-j-j']{\updatePcPerm{reg_3(r_1)}} \in \stder(W_5)
                       \]
@@ -3319,13 +3320,15 @@ In the proof of Lemma~\ref{lem:correctness-g1}, we will use the following region
             \item $W_{10} \futurewk W_3$ \label{g1:w10futwkw3}\\
               We have
               \[
-                \forall r \in \dom(W_3) \ldotp W_3 = W_{10}
+                \forall r \in \dom(W_3) \ldotp W_3(r) = W_{10}(r)
               \]
               if the region was permanent in $W_3$, then it is there because $W_{10} \futurestr W_3$. If it was temporary, then it is there because it was just reinstated. If it was revoked in $W_3$, then it is still there because the only reinstated region were the temporary ones in $W_3$.
 
               All the future worlds we have been given have been public, so the regions can only have made public transitions. In $W_3$ region $\iota_x$ is in state 0 or 1. In $W_{10}$ region $\iota_x$ is in state 1. State 1 can be reached from 0 and 1 using a public transition, so the $\iota_x$ in $W_{10}$ is a public future region of the $\iota_x$ in $W_3$.
 
               In other words, all the regions in $W_3$ have only taken public transitions compared to the corresponding regions in $W_{10}$.
+
+              The relation between the relevant worlds is sketched out in Figure~\ref{fig:worlds-in-awk-ex}.
 
             \item $\memSat[n_6-l]{\ms_7 \uplus \ms_r \uplus \emptyset \uplus \ms_0}{W_{10}}$ \label{g1:memsatw10}\\
               First notice that from %TODO write more about why this is the case. Lemma?
@@ -3406,7 +3409,37 @@ In the proof of Lemma~\ref{lem:correctness-g1}, we will use the following region
             now using \ref{g1:memsatw10} and \ref{g1:reg9stdrr}, we get the desired result.
         \end{enumproof}
   \end{enumproof}
+\begin{figure}[t]
+  \centering
+\begin{tikzpicture}[main node/.style={}, node distance=1.5cm]
+  \node[main node] (1) {$W_3$};
+  \node[main node] (label1) [below of=1,yshift=1cm] {\footnotesize{\textit{\texttt{f4} called}}};
+  \node[main node,left] (given) [left of=1,yshift=0.05cm] {\parbox{1.5cm}{\footnotesize{Given:}}};
 
+  \node[main node] (2) [above right of=1]{$W_4$};
+  \node[main node] (label2) [above of=2,yshift=-1cm] {\textit{\footnotesize{first callback}}};
+
+  \node[main node,left] (const) [above of=given,yshift=-0.4cm] {\parbox{1.5cm}{\footnotesize{Constructed:}}};
+
+  \node[main node] (3) [below right of=2]{$W_6$};
+  \node[main node] (label3) [below of=3,yshift=0.75cm] {\footnotesize{\textit{callback returns}}};
+
+  \node[main node] (4) [above right of=3]{$W_7$};
+  \node[main node] (label4) [above of=4,yshift=-0.75cm] {\footnotesize{\textit{second callback}}};
+
+  \node[main node] (5) [below right of=4]{$W_8$};
+  \node[main node] (label5) [below of=5,yshift=1cm] {\footnotesize{\textit{callback returns}}};
+
+  \node[main node] (6) [above right of=5]{$W_{10}$};
+  \node[main node] (label6) [above of=6,yshift=-1cm] {\footnotesize{\textit{\texttt{f4} returns}}};
+  \path(1) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\priv$} (2)
+       (2) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\pub$} (3)
+       (3) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\priv$} (4)
+       (4) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\pub$} (5)
+       (5) edge[draw=none] node [sloped, auto=false, allow upside down] {$\sqsubseteq^\priv$} (6);
+\end{tikzpicture}
+  \label{fig:worlds-in-awk-ex}
+\end{figure}
 \end{proof}
 
 \lau{In order for this to be secure using a stack the closure needs to make a couple of checks: 1) The alleged stack capability has to be local and $\rwlx$ - if not, then fail. 2) The callback \texttt{f} has to be a global capability - if not, then fail. 3) The stack needs to be cleared before the first callback. \\If it looks like a stack, works like a stack, and quacks like a stack, then it is probably a stack. The first requirement makes sure that what was passed as the stack can be used as a stack even though it might not be a stack capability that follows the conventional stack discipline. If the capability is actually for part of the callers stack, then we will just overwrite their part of the stack. We are not guaranteed that the caller did not save the stack capability - they did after all have a stack to save it on. In fact, if the caller wants to reuse our part of the stack later, then they have to keep a capability for our part of the stack around. When the caller is not trusted, then this seems like an unsafe practice. This brings us to the second requirement: If the callback is global, then there is no way it can restore the previous stack capability and gain access to our part of the stack. This is the case as the \emph{only} place they could have stored the stack capability is on the stack, and the only way they can restore this is through one of the local stack capabilities. In other words, this requirement makes sure that the callback capability is not derived from the stack pointer (which would allow them to get a stack capability for our part of the stack).\\ The last requirement is to sanitise the stack. This makes sure that the caller does not try to sneak a capability to the callback simply by leaving it somewhere on the stack and hoping that we won't notice and pass it on. }
