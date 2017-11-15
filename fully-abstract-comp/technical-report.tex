@@ -98,6 +98,7 @@
 \newcommand{\spatial}{\mathrm{spatial}}
 \newcommand{\spatialo}{\mathrm{spatial\_owned}}
 \newcommand{\pure}{\mathrm{pure}}
+\newcommand{\revoked}{\mathrm{revoked}}
 \newcommand{\State}{\mathrm{State}}
 \newcommand{\Rels}{\mathrm{Rels}}
 \newcommand{\UPred}[1]{\mathrm(#1)}
@@ -1601,6 +1602,7 @@ In this definition, the source level specific conditions replace the equivalent 
     { W' \pubft W }
   \end{mathpar}
 }
+\lau{10-11-2017: The above may not work well here because we do not want a $\spatialo$ region to be taken over by a $\pure$ region (as this would allow for normal capabilities addressing an area of memory that was only addressable by linear capabilities before).}
 \[
   \World = \RegionName \parfun \Region
 \]
@@ -1608,9 +1610,10 @@ where $\RegionName = \nats$.
 \[
   \Region = \left\{
   \begin{array}{l}
-    \{\spatial \} \times \State \times \Rels \times (\State \fun \World \fun \UPred{\MemSeg^2})\\
-    \{\spatialo \} \times \State \times \Rels \times (\State \fun \World \fun \UPred{\MemSeg^2})\\
-    \{\pure \} \times \State \times \Rels \times (\State \fun \World \fun \UPred{\MemSeg^2})
+    \{\spatial \} \times \State \times \Rels \times (\State \fun \World \fun \UPred{\MemSeg^2}) \uplus \\
+    \{\spatialo \} \times \State \times \Rels \times (\State \fun \World \fun \UPred{\MemSeg^2})\uplus \\
+    \{\pure \} \times \State \times \Rels \times (\State \fun \World \fun \UPred{\MemSeg^2}) \uplus\\
+    \{\revoked\}
   \end{array} \right.
 \]
 where $\spatial$ and $\spatialo$ are regions governing segments of memory addressed by linear capabilities. $\spatialo$ signifies that this region is addressable. $\spatial$ signifies that the region is not owned and can thus not be addressed. Finally, $\pure$ signifies that the region is only addressed by non-linear capabilities. Notice that no region allows for both linear and non-linear capabilities to address it.
@@ -1640,6 +1643,24 @@ and for all other cases $\oplus$ is undefined. Specifically, $\oplus$ is not def
 
 \subsection{Future world}
 
+For both $\privft$ and $\pubft$ we have
+\begin{mathpar}
+  \inferrule{ \exists m : \RegionName \fun \RegionName, \text{ injective}\ldotp \dom(W') \supseteq \dom(m(W)) \wedge \forall r \in \dom(W)\ldotp W'(m(r)) \future W(r) }
+            { W' \future W }
+\end{mathpar}
+
+The private future regions allow transitions in the private part of the transition system. They also allow $\spatial$ regions to become $\revoked$:
+\begin{mathpar}
+  \inferrule{ }
+            { \revoked \privft (\spatial,\_,\_,\_,\_)}
+\and
+  \inferrule{ }
+            { \revoked \privft \revoked }
+\and
+  \inferrule{ (s,s') \in \phi }
+            { (v,s',\phi^\pub,\phi,H) \privft (v,s,\phi^\pub,\phi,H)  }
+
+\end{mathpar}
 
 \subsection{Memory satisfaction}
 \[
