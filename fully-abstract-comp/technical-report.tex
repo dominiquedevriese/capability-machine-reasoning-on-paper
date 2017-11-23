@@ -724,6 +724,38 @@ The call code does the following:
 
 
 \[
+  \pi_\baddr(\vsc) =
+  \begin{cases}
+    \baddr & \text{if $\vsc = ((\_,\_),\baddr,\_,\_)$} \\ 
+    \pi_\baddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
+    \src{\baddr} & \src{\text{if $\vsc = \stkptr{\_,\baddr,\_,\_}$}} \\ 
+    \src{\baddr} & \src{\text{if $\vsc = \retptrd{\_,(\baddr,\_)}$}} \\ 
+    \src{\baddr} & \src{\text{if $\vsc = \retptrc{\_,(\_,\_,\baddr,\_,\_)}$}}
+  \end{cases}
+\]
+\[
+  \pi_\eaddr(\vsc) =
+  \begin{cases}
+    \eaddr & \text{if $\vsc = ((\_,\_),\_,\eaddr,\_)$} \\ 
+    \pi_\eaddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
+    \src{\eaddr} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
+    \src{\eaddr} & \src{\text{if $\vsc = \retptrd{\_,(\_,\eaddr)}$}} \\ 
+    \src{\eaddr} & \src{\text{if $\vsc = \retptrc{\_,(\_,\_,\_,\eaddr,\_)}$}}
+  \end{cases}
+\]
+\[
+  \pi_\lin(\vsc) = 
+  \begin{cases}
+    \lin & \text{if $\vsc = ((\_,\_),\_,\eaddr,\_)$} \\ 
+    \pi_\lin(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
+    \src{\linear} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
+    \src{\linear} & \src{\text{if $\vsc = \retptrd{\_,(\_,\_)}$}} \\ 
+    \src{\lin} & \src{\text{if $\vsc = \retptrc{\_,(\_,\lin,\_,\_,\_)}$}}
+  \end{cases}
+\]
+
+
+\[
   \updPcAddr{c} \defeq \dots
 \]
 
@@ -814,8 +846,8 @@ We have unified the two languages in the below definitions. Everything written i
                                \begin{array}[t]{rl}
                                  \Phi&\updReg{r}{w}\\
                                      &\updReg{\pcreg}{\Phi(r)}
-                               \end{array}
-                                               & w = \linCons{\Phi(r)} \tand \nonZero{\Phi(\rn)}\\
+                               \end{array} 
+                                              & w = \linCons{\Phi(r)} \tand \nonZero{\Phi(\rn)}\\
                                \updPcAddr{\Phi} & \totherwise
                              \end{cases}
 \end{align*}
@@ -1667,7 +1699,7 @@ The private future regions allow transitions in the private part of the transiti
             { (v,s',\phi^\pub,\phi,H) \privft (v,s,\phi^\pub,\phi,H)  }
 \end{mathpar}
 %
-Public future regions are allowed to transition according to the public part of their transition system. \lau{15-11-2017: And what more?}
+Public future regions are allowed to transition according to the public part of their transition system.
 \begin{mathpar}
     \inferrule{ }
             { \revoked \pubft \revoked }
@@ -1706,7 +1738,7 @@ In the following definitions, \src{blue} is used to indicate values related to t
     \begin{array}{l}
       \forall n' \leq n, \src{k_{d,S}}, \src{k_{c,S}}, k_{d,T}, k_{c,T}, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk} \ldotp\\
       \quad \forall W_\lrk, W_\lrr, W_\lrm \ldotp \\
-      \qquad\npair[n']{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} \in \lrp(W) \wedge \\
+      \qquad\npair[n']{\stpair[.]{v_{c,S}}{v_{c,T}},\stpair[.]{v_{d,T}}{v_{d,S}}} \in \lrp(W) \wedge \\
       \qquad\npair[n']{\stpair[.]{k_{c,S},k_{d,S}}{k_{c,T},k_{d,T}}} \in \lrk(W_\lrk) \wedge \\
       \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrr) \wedge\\
       \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \\
@@ -1741,7 +1773,7 @@ In the following definitions, \src{blue} is used to indicate values related to t
       k_{c,T} = \sealed{\sigma,c_c} \wedge\\
       c_c = ((\perm,\lin),\baddr_c,\eaddr_c,\aaddr_c) \wedge\\
       c_d = ((\rw,\linear),\aaddr_d,\eaddr_d,\aaddr_d-1) \wedge\\
-      \npair[n]{\src{\retptrc(\sigma,\_)},\src{\retptrd(\sigma,\_)},k_{c,T},k_{d,T}} \in \lrp(W) \wedge \\
+      \npair[n]{\stpair[.]{\retptrc(\sigma,\_)}{k_{c,T}},\stpair[.]{\retptrc{\retptrd(\sigma,\_)}}{k_{d,T}}} \in \lrp(W) \wedge \\
       \forall n' \leq n, W' \pubft W \ldotp \\
       \quad \forall W_\lrr, W_\lrm \ldotp  \\
       \qquad\opc = c_c \wedge\\
@@ -1760,7 +1792,16 @@ In the following definitions, \src{blue} is used to indicate values related to t
 
 \[
   \lrp(W) = \left\{
-    \npair{\stpair{v}{v}} \middle| \text{make sure linearity constraint satisfied}\dots 
+    \npair{\stpair[.]{c_1}{c_1'}\stpair[.]{c_2}{c_2'}} \middle| 
+    \begin{array}{l}
+      \text{for $i \in \{1,2\}$} \\
+      \src{\baddr_i} = \pi_\baddr(\src{c_i}) \wedge \src{\eaddr_i} = \pi_\eaddr(\src{c_i}) \wedge 
+      \baddr_i' = \pi_\baddr(c_i') \wedge \eaddr_i' = \pi_\eaddr(c_i') \wedge \\
+      \src{\lin_i} = \pi_\lin(\src{c_i}) = \pi_\lin(c_i') \\
+      \quad \exists r \in \addressable{l,W} \ldotp\\
+      \qquad \forall \npair{n}{\stpair{\ms}{\ms}} \in W(r).H \; W(t).s \xi^{-1}(W)  \ldotp \\
+      \qquad \quad \dom(\src{\ms_S}) \subseteq [\src{\baddr_i},\src{\eaddr_i}] \wedge \dom(\ms_T) \subseteq [\baddr_i',\eaddr_i']      
+    \end{array}
   \right\}
 \]
 
@@ -1864,9 +1905,9 @@ where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-region
   \execCond{\lin,W} = \left\{ \npair{(S_\perm,\baddr,\eaddr)} \middle|
     \begin{array}{l}
       \forall n' < n, W' \privft W, \perm \in S_\perm, \aaddr \in [\baddr,\eaddr] \ldotp\\
-      \quad \forall W'', c_{d,S},c_{d,T} \ldotp \npair[n']{(c_{d,S},c_{d,T})} \in \lrv(W'') \wedge \\
+      \quad \forall W'', c_{d,S},c_{d,T} \ldotp \npair[n']{\stpair[.]{c_{d,S}}{c_{d,T}}} \in \lrv(W'') \wedge \\
       \qquad \npair[n']{((\perm,lin),\baddr,\eaddr,\aaddr),c_{d,S},((\perm,lin),\baddr,\eaddr,\aaddr),c_{d,T}} \in \lrp(W' \oplus W'') \Rightarrow \\
-      \quad \qquad \npair[n']{((\perm,lin),\baddr,\eaddr,\aaddr),c_{d,S},((\perm,lin),\baddr,\eaddr,\aaddr),c_{d,T}} \in \lre(W' \oplus W'')
+      \quad \qquad \npair[n']{\stpair[.]{((\perm,lin),\baddr,\eaddr,\aaddr)}{((\perm,lin),\baddr,\eaddr,\aaddr)},\stpair[.]{c_{d,S}}{c_{d,T}}} \in \lre(W' \oplus W'')
     \end{array}
     \right\}
 \]
