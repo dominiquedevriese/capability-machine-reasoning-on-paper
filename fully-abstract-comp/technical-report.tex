@@ -60,6 +60,7 @@
 
 \newcommand{\nsubeq}[1][n]{\overset{#1}{\subseteq}}
 \newcommand{\nsupeq}[1][n]{\overset{#1}{\supseteq}}
+\newcommand{\nequal}[1][n]{\overset{#1}{=}}
 
 % Function arrows
 \newcommand{\fun}{\rightarrow}
@@ -113,7 +114,12 @@
 \newcommand{\monprivnefun}{\xrightarrow[\text{\tiny{$\privft$}}]{\textit{\tiny{mon, ne}}}}
 \newcommand{\monpubnefun}{\xrightarrow[\text{\tiny{$\pubft$}}]{\textit{\tiny{mon, ne}}}}
 
-
+%%% Regions
+\newcommand{\stdreg}[2]{\iota^{\mathrm{std},#2}_{#1}}
+\newcommand{\stareg}[2][\stpair{\ms}{\ms}]{\iota^{\mathrm{sta},#2}_{#1}}
+\newcommand{\spa}{\mathrm{s}}
+\newcommand{\spao}{\mathrm{so}}
+\newcommand{\pur}{\mathrm{p}}
 
 %%% Instruction formatting
 \newcommand{\sourcecolortext}{blue}
@@ -1758,7 +1764,7 @@ In the definition of memory satisfaction, $R_\ms$ creates a partitioning of the 
       k_{c,T} = \sealed{\sigma,c_c} \wedge\\
       c_c = ((\perm,\lin),\baddr_c,\eaddr_c,\aaddr_c) \wedge\\
       c_d = ((\rw,\linear),\aaddr_d,\eaddr_d,\aaddr_d-1) \wedge\\
-      \npair[n]{[\stpair[.]{\retptrc(\sigma,\_)}{k_{c,T}},\stpair[.]{\retptrc{\retptrd(\sigma,\_)}}{k_{d,T}}]} \in \lrp(W) \wedge \\
+      \npair[n]{[\stpair[.]{\retptrc(\sigma,\_)}{k_{c,T}},\stpair[.]{\retptrd(\sigma,\_)}{k_{d,T}}]} \in \lrp(W) \wedge \\
       \forall n' \leq n, W' \pubft W \ldotp \\
       \quad \forall W_\lrr, W_\lrm \ldotp  \\
       \qquad\memSat[n']{\stpair[.]{\ms_S,\stk::(\opc,\ms_{\stk,f}),\ms_\stk}{\ms_T}}{W_\lrm} \wedge \\
@@ -1806,32 +1812,53 @@ In the definition of memory satisfaction, $R_\ms$ creates a partitioning of the 
             \right\}
 \]
 Where $S\text{ is a separation of $W$}$ means that no two partition share the same ``spatial'' region (whatever that is).
-
+\lau{TODO: Rewrite the other definitions to pass around $H_\sigma$ (if this is how we want to handle seals.)}
 \[
-  \lrv(W) =
+  \lrv(H_\sigma,W) =
   \begin{array}[t]{l}
     \left\{ \npair{\stpair[.]{i}{i}} \;\middle|\; i \in \ints \right\}\cup \\
+%
     \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrc(\sigma,\_)},\\\sealed{\sigma,\vsc_C}\endarray\right)} \;\middle| \;
     \begin{array}{l}
-    \forall n'<n, W' \pubft W, W_\lrv \npair[n']{\stpair[.]{\retptrd(\sigma,\_)}{\sealed{\sigma,\vsc_D}}} \in \lrv(W_\lrv) \ldotp\\
-      \npair[n']{\retptrc(\sigma,\_),\retptrd(\sigma,\_),\sealed{\sigma,\vsc_C},\sealed{\sigma,\vsc_D}} \in \lrk(W' \oplus W_\lrv)
+%      \forall n'<n, W' \pubft W, W_\lrv \npair[n']{\stpair[.]{\retptrd(\sigma,\_)}{\sealed{\sigma,\vsc_D}}} \in \lrv(W_\lrv) \ldotp\\
+%      \npair[n']{\retptrc(\sigma,\_),\retptrd(\sigma,\_),\sealed{\sigma,\vsc_C},\sealed{\sigma,\vsc_D}} \in \lrk(W' \oplus W_\lrv)
     \end{array}
     \right\}\cup\\
-    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrd(\sigma,\_)},\\\sealed{\sigma,\vsc_D}\endarray\right)} \;\middle| \;
+%
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrd(\sigma,\baddr,\eaddr)},\\\sealed{\sigma,\vsc_D}\endarray\right)} \;\middle| \;
     \begin{array}{l}
-    \forall n'<n, W' \pubft W, W_\lrv \npair[n']{\stpair[.]{\retptrc(\sigma,\_)}{\sealed{\sigma,\vsc_C}}} \in \lrv(W_\lrv) \ldotp\\
-      \npair[n']{\src{\retptrc(\sigma,\_)},\src{\retptrd(\sigma,\_)},\sealed{\sigma,\vsc_C},\sealed{\sigma,\vsc_D}} \in \lrk(W' \oplus W_\lrv)
+      \vsc_D = ((\rw,\linear),\baddr,\eaddr,\baddr-1) \wedge\\
+      \exists r \in \addressable{\linear,W} \ldotp \\
+      \quad  \exists \stpair{\ms}{\ms} \ldotp \\
+      \qquad \dom(\ms) = [\baddr, \eaddr] \wedge \stareg{\spao} \nequal W(r) \wedge \\
+      \qquad \forall W' \privft W \ldotp \\
+      \qquad \quad \exists r' \ldotp W'(r') = W(r) \wedge \exists r'' \ldotp W'(r'') = \stdreg{[\stkb,\aaddr]}{\spao} \ldotp \\
+      \qquad \qquad { \color{red} \forall (c, c') \in H_\sigma (\sigma) \ldotp \npair{\src{c,\retptrd(\sigma,\baddr,\eaddr)}, c' , \sealed{\sigma,\vsc_D}} \in \lrk(W') }%\text{\lau{This needs some work - specifically what i c and c' and do we need to seal them?}}
+      
+%    \forall n'<n, W' \pubft W, W_\lrv \npair[n']{\stpair[.]{\retptrc(\sigma,\_)}{\sealed{\sigma,\vsc_C}}} \in \lrv(W_\lrv) \ldotp\\
+%      \npair[n']{\src{\retptrc(\sigma,\_)},\src{\retptrd(\sigma,\_)},\sealed{\sigma,\vsc_C},\sealed{\sigma,\vsc_D}} \in \lrk(W' \oplus W_\lrv)
     \end{array}
     \right\}\cup \\
+%
     \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\sealed{\sigma,\vsc_S}},\\ \sealed{\sigma,\vsc_T} \endarray\right)} \;\middle| \;
     \begin{array}{l}
-      
+      \stpair{\vsc}{\vsc} \in H_\sigma \; \sigma \wedge \\
+      \forall \stpair{\vsc'}{\vsc'} \in H_\sigma \; \sigma \ldotp \\
+      \quad \npair{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lre(W) \wedge \\
+      \quad \npair{\src{\vsc_S'},\src{\vsc_S},\vsc_T',\vsc_T} \in \lre(W)
     \end{array}
     \right\}\cup\\
-    \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma,\sigma_\baddr,\sigma_\eaddr}},\\ \seal{\sigma,\sigma_\baddr,\sigma_\eaddr} \endarray \right)} \;\middle|\;
+%
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma,\sigma_\baddr,\sigma_\eaddr}},\\ \seal{\sigma,\sigma_\baddr,\sigma_\eaddr} \endarray \right)} 
     \right\} \cup \\
+%
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\stkptr{\perm,\baddr,\eaddr,\aaddr}},\\ ((\perm,\linear),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\;
+    \begin{array}{r l l}
+      \perm \in \readAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \readCond{\linear,W}\\
+      \perm \in \writeAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \writeCond{\linear,W}
+    \end{array}
     \right\} \cup \\
+%
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{((\perm,\lin),\baddr,\eaddr,\aaddr)},\\ ((\perm,\lin),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\; 
     \begin{array}{r l l }
       \perm \in \readAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \readCond{\lin,W}\\
