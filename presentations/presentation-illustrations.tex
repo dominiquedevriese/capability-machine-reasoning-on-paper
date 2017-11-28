@@ -1,11 +1,13 @@
 \documentclass{beamer}
 
 \usepackage{pgf}
+\usepackage{ulem}
 \usepackage{tikz}
 \usetikzlibrary{backgrounds}
 \usetikzlibrary{positioning}
 \usetikzlibrary{patterns}
 \usetikzlibrary{decorations.pathreplacing}
+\usetikzlibrary{arrows,shapes}
 \usepackage{tikzpeople}
 
 % stolen from https://tex.stackexchange.com/questions/14225/is-there-the-easiest-way-to-toggle-show-hide-navigational-grids-in-tikz/14230
@@ -183,6 +185,23 @@
       (0,0) -- (0,16) node (oldframe1) [black,midway,xshift=-0.5cm] {};
     \draw<.> (0,5.75) edge[->,out=180,in=225] (oldframe1);
 
+  \end{tikzpicture}
+\end{frame} 
+
+\begin{frame}
+  \frametitle{Stack and return capabilities: Attack 1}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \begin{scope}
+      \clip (-.1,-.1) rectangle (6.1,15.1);
+      \draw[fill=gray!20,draw=none,opacity=.8] (0,0) rectangle (6,15);
+      \draw[draw=gray!80] (0,0) -- (0,15);
+      \draw[draw=gray!80] (6,0) -- (6,15);
+      \draw[fill=gray!50] (0,-.5) rectangle (6,2.5) node[pos=.5,color=black] {\footnotesize higher stack frames...};
+    \end{scope}
+
+    \draw[->] (-2,0) -- node[midway,sloped,above] {stack grows upward} (-2,15);
+
     % attacker...
     \draw<+>[fill=gray!50] (0,2.5) rectangle (6,6.5) node[pos=.5] {\footnotesize caller stack frame};
     \draw<.>[fill=white] (0,6.5) rectangle (6,9.5) node[pos=.5] {\footnotesize callee stack frame};
@@ -250,7 +269,7 @@
 \end{frame}
 
 \begin{frame}
-  \frametitle{Stack and return capabilities: another attack}
+  \frametitle{Stack and return capabilities: Attack 2}
   \begin{tikzpicture}[scale=.5, every node={scale=.5}]
     % recurrent parts
     \begin{scope}
@@ -300,6 +319,10 @@
     \draw<+>[fill=gray!50] (0,2.5) rectangle (6,4) node[pos=.5] {\footnotesize caller stack frame};
     \draw<.>[fill=gray!50] (0,4) rectangle (6,7) node[pos=.5] {\footnotesize callee stack frame};
     \draw<.>[fill=white] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
+    \begin{scope}
+      \clip (-.1,-.1) rectangle (6.1,15);
+      \draw<.>[fill=white] (0,9) rectangle (6,15.1);
+    \end{scope}
     \draw<.> [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       (10.5,4) -- (10.5,16) node[draw=black] (spold) [black,midway,xshift=0.8cm] {};
     \draw<.> [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
@@ -313,6 +336,10 @@
     \draw<.>[fill=gray!50] (0,4) rectangle (6,7) node[pos=.5] {\footnotesize callee stack frame};
     \draw<.>[fill=gray!50] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
     \draw<.>[fill=white] (0,9) rectangle (6,12) node[pos=.5] {\footnotesize callee (3) stack frame};
+    \begin{scope}
+      \clip (-.1,-.1) rectangle (6.1,15);
+      \draw<.>[fill=white] (0,12) rectangle (6,15.1);
+    \end{scope}
     \draw<.> (3,10.5) node[devil,mirrored,minimum size=1cm] {};
     \draw<.> [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       (10.5,4) -- (10.5,16) node[draw=black] (spold) [black,midway,xshift=0.8cm] {};
@@ -328,7 +355,63 @@
 \begin{frame}
   \frametitle{Stack Capabilities Problems}
   \begin{itemize}
-  \item Stack capabilities not a panacea
+  \item Stack capabilities are not a panacea
+  \item Stack pointers must not leave stack frame (through memory or stack)
+  \item Similar problems for return pointers (omitted)
+  \item Solution: local capabilities?
+    \begin{itemize}
+    \item Make stack and return capabilities local
+    \item Cannot leave registers (except on stack) (\sout{Attack 1})
+    \item Stack clearing on boundary crossings (\sout{Attack 2})
+    \end{itemize}
   \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Local Stack Capabilities prevent Attack 1}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \begin{scope}
+      \clip (-.1,-.1) rectangle (6.1,15.1);
+      \draw[fill=gray!20,draw=none,opacity=.8] (0,0) rectangle (6,15);
+      \draw[draw=gray!80] (0,0) -- (0,15);
+      \draw[draw=gray!80] (6,0) -- (6,15);
+      \draw[fill=gray!50] (0,-.5) rectangle (6,2.5) node[pos=.5,color=black] {\footnotesize higher stack frames...};
+    \end{scope}
+
+    \draw[->] (-2,0) -- node[midway,sloped,above] {stack grows upward} (-2,15);
+
+    
+    % attacker...
+    \draw<+>[fill=gray!50] (0,2.5) rectangle (6,6.5) node[pos=.5] {\footnotesize caller stack frame};
+    \draw<.>[fill=white] (0,6.5) rectangle (6,9.5) node[pos=.5] {\footnotesize callee stack frame};
+    \begin{scope}
+      \clip (-.1,-.1) rectangle (6.1,15);
+      \draw<.>[fill=white] (0,9.5) rectangle (6,15.1);
+    \end{scope}
+    \draw<.> (3,8) node[devil,mirrored,minimum size=1cm] {};
+    \draw<.> [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,6.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+    \draw<.> node[right=0cm of sp1] { stack pointer };
+
+    % stores stack pointer in heap
+    \begin{scope}
+      \clip (13.9,6) rectangle (18.1,13);
+      \draw<.>[fill=gray!20] (14,5.9) rectangle (18,13.1);
+    \end{scope}
+    \draw<.> (16,14) node {heap memory};
+    \draw<.>[fill=gray!50] (14,8) rectangle node[color=red] {\scriptsize copy of old sp} (18,8.5);
+    \draw<.> (14,8.25) edge[->,red,thick,bend left] (sp1);
+
+    \draw<.>[green,thick] (13,7.5) -- (19,9);
+    \draw<.>[green,very thick] (19,7.5) -- (13,9);
+    \draw node[green,cloud,cloud puffs=10.8,cloud puff arc=110, aspect=3, draw] () at (14,4) {Stack pointer is local!};
+    
+  \end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Stack Clearing prevent Attack 2}
+  TODO
 \end{frame}
 \end{document}
