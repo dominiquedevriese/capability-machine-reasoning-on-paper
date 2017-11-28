@@ -60,10 +60,14 @@
 
 \newcommand{\nsubeq}[1][n]{\overset{#1}{\subseteq}}
 \newcommand{\nsupeq}[1][n]{\overset{#1}{\supseteq}}
+\newcommand{\nequal}[1][n]{\overset{#1}{=}}
 
 % Function arrows
 \newcommand{\fun}{\rightarrow}
 \newcommand{\parfun}{\rightharpoonup}
+\newcommand{\monnefun}{\xrightarrow{\textit{\tiny{mon, ne}}}}
+
+
 
 % Text
 \newcommand{\tand}{\text{ and }}
@@ -107,7 +111,15 @@
 \newcommand{\pub}{\mathrm{pub}}
 \newcommand{\privft}{\future^{\priv}}
 \newcommand{\pubft}{\future^{\pub}}
+\newcommand{\monprivnefun}{\xrightarrow[\text{\tiny{$\privft$}}]{\textit{\tiny{mon, ne}}}}
+\newcommand{\monpubnefun}{\xrightarrow[\text{\tiny{$\pubft$}}]{\textit{\tiny{mon, ne}}}}
 
+%%% Regions
+\newcommand{\stdreg}[2]{\iota^{\mathrm{std},#2}_{#1}}
+\newcommand{\stareg}[2][\stpair{\ms}{\ms}]{\iota^{\mathrm{sta},#2}_{#1}}
+\newcommand{\spa}{\mathrm{s}}
+\newcommand{\spao}{\mathrm{so}}
+\newcommand{\pur}{\mathrm{p}}
 
 %%% Instruction formatting
 \newcommand{\sourcecolortext}{blue}
@@ -718,6 +730,38 @@ The call code does the following:
 
 
 \[
+  \pi_\baddr(\vsc) =
+  \begin{cases}
+    \baddr & \text{if $\vsc = ((\_,\_),\baddr,\_,\_)$} \\ 
+    \pi_\baddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
+    \src{\baddr} & \src{\text{if $\vsc = \stkptr{\_,\baddr,\_,\_}$}} \\ 
+    \src{\baddr} & \src{\text{if $\vsc = \retptrd{\_,(\baddr,\_)}$}} \\ 
+    \src{\baddr} & \src{\text{if $\vsc = \retptrc{\_,(\_,\_,\baddr,\_,\_)}$}}
+  \end{cases}
+\]
+\[
+  \pi_\eaddr(\vsc) =
+  \begin{cases}
+    \eaddr & \text{if $\vsc = ((\_,\_),\_,\eaddr,\_)$} \\ 
+    \pi_\eaddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
+    \src{\eaddr} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
+    \src{\eaddr} & \src{\text{if $\vsc = \retptrd{\_,(\_,\eaddr)}$}} \\ 
+    \src{\eaddr} & \src{\text{if $\vsc = \retptrc{\_,(\_,\_,\_,\eaddr,\_)}$}}
+  \end{cases}
+\]
+\[
+  \pi_\lin(\vsc) = 
+  \begin{cases}
+    \lin & \text{if $\vsc = ((\_,\_),\_,\eaddr,\_)$} \\ 
+    \pi_\lin(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
+    \src{\linear} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
+    \src{\linear} & \src{\text{if $\vsc = \retptrd{\_,(\_,\_)}$}} \\ 
+    \src{\lin} & \src{\text{if $\vsc = \retptrc{\_,(\_,\lin,\_,\_,\_)}$}}
+  \end{cases}
+\]
+
+
+\[
   \updPcAddr{c} \defeq \dots
 \]
 
@@ -808,8 +852,8 @@ We have unified the two languages in the below definitions. Everything written i
                                \begin{array}[t]{rl}
                                  \Phi&\updReg{r}{w}\\
                                      &\updReg{\pcreg}{\Phi(r)}
-                               \end{array}
-                                               & w = \linCons{\Phi(r)} \tand \nonZero{\Phi(\rn)}\\
+                               \end{array} 
+                                              & w = \linCons{\Phi(r)} \tand \nonZero{\Phi(\rn)}\\
                                \updPcAddr{\Phi} & \totherwise
                              \end{cases}
 \end{align*}
@@ -1593,16 +1637,8 @@ In this definition, the source level specific conditions replace the equivalent 
 \clearpage
 
 \section{Logical Relation}
+In the following definitions, \src{blue} is used to indicate values related to the source machine. This is unlike previous definitions, where \src{blue} was used to indicate source language specific parts of definitions.
 \subsection{Worlds}
-\lau{30-10-2017: TODO: solve recursiveness in domain equation in the following. }
-\lau{02-11-2017: We may need revoked regions again to handle the stack.}
-\lau{06-11-2017: If we need to introduce revoked regions like we had for the local capabilities, we may consider the following: For the future world relation require the existence of a bijection from region names to region names. For all regions in the present world the future region is given by the bijection. This would mean that reinstantiation would happen simply by giving a bijection that maps to the new region. In other words, the weird shadowing would not be necessary.
-  \begin{mathpar}
-    \inferrule{ \dom(W') \supseteq \dom(W) \\ \exists m : \RegionName \fun \RegionName, \text{ $m$ injective} \ldotp \forall r \in \dom(W) \ldotp W'(m(r)) \pubft W(r) }
-    { W' \pubft W }
-  \end{mathpar}
-}
-\lau{10-11-2017: The above may not work well here because we do not want a $\spatialo$ region to be taken over by a $\pure$ region (as this would allow for normal capabilities addressing an area of memory that was only addressable by linear capabilities before).}
 \[
   \World = \RegionName \parfun \Region
 \]
@@ -1610,17 +1646,16 @@ where $\RegionName = \nats$.
 \[
   \Region = \left\{
   \begin{array}{l}
-    \{\spatial \} \times \State \times \Rels \times (\State \fun \World \fun \UPred{\MemSeg^2}) \uplus \\
-    \{\spatialo \} \times \State \times \Rels \times (\State \fun \World \fun \UPred{\MemSeg^2})\uplus \\
-    \{\pure \} \times \State \times \Rels \times (\State \fun \World \fun \UPred{\MemSeg^2}) \uplus\\
+    \{\spatial \} \times \State \times \Rels \times (\State \fun \World \monprivnefun \UPred{\MemSeg^2}) \uplus \\
+    \{\spatialo \} \times \State \times \Rels \times (\State \fun \World \monprivnefun \UPred{\MemSeg^2})\uplus \\
+    \{\pure \} \times \State \times \Rels \times (\State \fun \World \monprivnefun \UPred{\MemSeg^2}) \uplus\\
     \{\revoked\}
   \end{array} \right.
 \]
-where $\spatial$ and $\spatialo$ are regions governing segments of memory addressed by linear capabilities. $\spatialo$ signifies that this region is addressable. $\spatial$ signifies that the region is not owned and can thus not be addressed. Finally, $\pure$ signifies that the region is only addressed by non-linear capabilities. Notice that no region allows for both linear and non-linear capabilities to address it.
+where $\spatial$ and $\spatialo$ are regions governing segments of memory addressed by linear capabilities. $\spatialo$ signifies that this region is addressable. $\spatial$ signifies that the region is not owned and can thus not be addressed. At the same time it signifies that if something else addresses it, it is a $\linear$ capability. Finally, $\pure$ signifies that the region is only addressed by non-linear capabilities. Notice that no region allows for both linear and non-linear capabilities to address it.
 \lau{26-20-2017: We may also want to build the infrastructure for the stack more explicitly into the worlds (but maybe we can handle it in the memory satisfaction).}
-\lau{26-20-2017: It is not clear to me what the monotonicity requirements on the memory interpretation functions should be.}
   \[
-   \Rels = \{\phi_\pub \times \phi \in \powerset{\State^2}\times \powerset{\State^2} \mid \phi_\pub, \phi \text{ is reflexive and transitive and } \phi_\pub \subseteq \phi \}
+   \Rels = \{(\phi_\pub, \phi) \in \powerset{\State^2}\times \powerset{\State^2} \mid \phi_\pub, \phi \text{ is reflexive and transitive and } \phi_\pub \subseteq \phi \}
   \]
 
 
@@ -1635,11 +1670,11 @@ Disjoint union of worlds. Joins together two alike worlds with strictly disjoint
 $\oplus$ is defined as follows
 \begin{align*}
   (\pure,\var{sm}) \oplus (\pure,\var{sm}) =  & \; (\pure,\var{sm}) \\
-  (\spatialo,\var{sm}) \oplus (\spatial,\var{sm}) = & \; (\spatial,\var{sm}) \oplus (\spatialo,\var{sm})\\
-                                           =  & \; (\spatialo,\var{sm}) \\
   (\spatial,\var{sm}) \oplus (\spatial,\var{sm}) =  & \; (\spatial,\var{sm}) \\
+  (\spatialo,\var{sm}) \oplus (\spatial,\var{sm}) = & \; (\spatial,\var{sm}) \oplus (\spatialo,\var{sm})\\
+                                           =  & \; (\spatialo,\var{sm})
 \end{align*}
-and for all other cases $\oplus$ is undefined. Specifically, $\oplus$ is not defined when both sides are a $\spatialo$-region. It is further not defined if the two sides do not agree on region type and state machine. Here $\var{sm}$ is the state machine of the region.
+and for all other cases $\oplus$ is undefined. Specifically, $\oplus$ is not defined when both sides are a $\spatialo$-region. It is further not defined if the two sides do not agree on region type or state machine. Here $\var{sm}$ is the state machine of the region.
 
 \subsection{Future world}
 
@@ -1658,16 +1693,16 @@ The private future regions allow transitions in the private part of the transiti
             { \revoked \privft \revoked }
 \and
   \inferrule{ (s,s') \in \phi }
-            { (v,s',\phi^\pub,\phi,H) \privft (v,s,\phi^\pub,\phi,H)  }
+            { (v,s',\phi_\pub,\phi,H) \privft (v,s,\phi_\pub,\phi,H)  }
 \end{mathpar}
 %
-Public future regions are allowed to transition according to the public part of their transition system. \lau{15-11-2017: And what more?}
+Public future regions are allowed to transition according to the public part of their transition system.
 \begin{mathpar}
     \inferrule{ }
             { \revoked \pubft \revoked }
 \and
-  \inferrule{ (s,s') \in \phi^\pub }
-            { (v,s',\phi^\pub,\phi,H) \pubft (v,s,\phi^\pub,\phi,H)  }
+  \inferrule{ (s,s') \in \phi_\pub }
+            { (v,s',\phi_\pub,\phi,H) \pubft (v,s,\phi_\pub,\phi,H)  }
 \end{mathpar}
 
 \subsection{Memory satisfaction}
@@ -1678,31 +1713,27 @@ Public future regions are allowed to transition according to the public part of 
       \exists R_\ms : \dom(W) \fun \MemSeg^2 \ldotp \\
       \quad \ms_T = \biguplus_{r \in \dom(W)} \pi_2(R_\ms(r)) \wedge \\
       \quad \stk = (\_,\ms_{\stk,0}) :: \dots :: (\_,\ms_{\stk,m}) \wedge \\
-      \quad \exists r_0 , \dots, r_m, r_{m+1} \ldotp \pi_1(R_\ms(r_0,\dots,r_m)) = \ms_{\stk,0},\dots , \ms_{\stk,m} \wedge \\
-      \qquad \pi_1(R_\ms(r_{m+1})) = \ms_\stk \wedge \\
-      \qquad \ms_S \uplus \ms_\stk \uplus \ms_{\stk,0} \uplus \dots \ms_{\stk,m} = \biguplus_{r \in \dom(W)} \pi_1(R_\ms(r)) \wedge \\
-      \qquad \exists R_w : \dom(W) \fun \World \ldotp\\
-      \quad \qquad W = \bigoplus_{r \in \dom(W)} R_w(r) \wedge \\
-      \quad \qquad \forall r \in \dom(W) , n' < n \ldotp \\
-      \qquad \qquad \npair[n']{R_\ms(r)} \in W(r).H \; (W(r).s) \; (\xi^{-1} (R_w (r))) 
+      \quad \ms_S \uplus \ms_\stk \uplus \ms_{\stk,0} \uplus \dots \uplus \ms_{\stk,m} = \biguplus_{r \in \dom(W)} \pi_1(R_\ms(r)) \wedge \\
+      \quad \exists R_w : \dom(W) \fun \World \ldotp\\
+      \qquad W = \bigoplus_{r \in \dom(W)} R_w(r) \wedge \\
+      \qquad \forall r \in \dom(W) , n' < n \ldotp \\
+      \quad \qquad \npair[n']{R_\ms(r)} \in W(r).H \; (W(r).s) \; (\xi^{-1} (R_w (r))) 
     \end{array}
   \right.
 \]
-In the definition of memory satisfaction, $R_\ms$ acts as a partitioning in the two related memories. As the source language is a special interpretation of the target language, part of the target memory needs to relate to the stack in the source language. We also need to split up the world which is done by $R_W$.We split up the world in order to make sure that the linearity constraints imposed by the world are satisfied.
+In the definition of memory satisfaction, $R_\ms$ creates a partitioning of the two related memories. As the source language is a special interpretation of the target language, part of the target memory needs to relate to the stack in the source language. We also need to split up the world which is done by $R_W$.We split up the world in order to make sure that the linearity constraints imposed by the world are satisfied.
 \lau{30-10-2017: It is not clear to me whether this definition should also talk about $\opc$.}
 
 \subsection{Relation}
 \lau{19-10-2017: Rest of source configuration needs to come from somewhere in $\lre$.}
-\lau{19-10-2017: Maybe linearity should be taken care of in just one place (instead of in $\lrr$ relation and mem satisfaction). That is, add a predicate that checks whether the configuration satisfies linearity (such a condition may be to syntactic to work?).}
-In the following definitions, \src{blue} is used to indicate values related to the source machine. This is unlike previous definitions, where \src{blue} is used  indicate source language specific parts of definitions.
 \[
   \lre(W) = \left\{ \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} \middle| 
     \begin{array}{l}
       \forall n' \leq n, \src{k_{d,S}}, \src{k_{c,S}}, k_{d,T}, k_{c,T}, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk} \ldotp\\
       \quad \forall W_\lrk, W_\lrr, W_\lrm \ldotp \\
-      \qquad\npair[n']{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} \in \lrp(W) \wedge \\
-      \qquad\npair[n']{\stpair[.]{k_{d,S},k_{c,S}}{k_{d,T},k_{c,T}}} \in \lrk(W_\lrk) \wedge \\
-      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrr) \wedge\\
+      \qquad\npair[n']{[\stpair[.]{v_{c,S}}{v_{c,T}},\stpair[.]{v_{d,T}}{v_{d,S}}]} \in \lrp(W) \wedge \\
+      \qquad\npair[n']{\stpair[.]{k_{c,S},k_{d,S}}{k_{c,T},k_{d,T}}} \in \lrk(W_\lrk) \wedge \\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rretd,\rretc,\rdata\})(W_\lrr) \wedge\\
       \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \\
       \qquad\Rightarrow\\
       \qquad\npair[n']{\left(\array{l}\src{(\ms_S,\reg_S\updReg{\pcreg,\rdata,\rretc,\rretd}{v_{c,S},v_{d,S},k_{c,S},k_{d,S}},\stk, \ms_\stk)},\\
@@ -1717,84 +1748,123 @@ In the following definitions, \src{blue} is used to indicate values related to t
 \[
   \lro(W) = \left\{ \npair{\left(\array{l}\src{(\ms_S,\reg_S,\stk_S,\ms_{\stk,S})},\\(\ms_T,\reg_T)\endarray\right)} \middle|
     \begin{array}{l}
-      \forall i \leq n \ldotp \\
-      \quad \src{(\ms_S,\reg_S,\stk_S,\ms_{\stk,S})} \term[i] \Rightarrow (\ms_T,\reg_T) \term\\
+      \forall i \leq n, \src{\ms_{f,S}}, \ms_{f,T} \ldotp \\
+      \quad \src{(\ms_S \uplus \ms_{f,S},\reg_S,\stk_S,\ms_{\stk,S})} \term[i] \Rightarrow (\ms_T \uplus \ms_{f,T},\reg_T) \term\\
       \quad \tand\\
-      \quad (\ms_T,\reg_T) \term[i] \Rightarrow \src{(\ms_S,\reg_S,\stk_S,\ms_{\stk,S})} \term
+      \quad (\ms_T \uplus \ms_{f,T},\reg_T) \term[i] \Rightarrow \src{(\ms_S \uplus \ms_{f,S},\reg_S,\stk_S,\ms_{\stk,S})} \term
     \end{array}
 \right\}
 \]
 
 
-\lau{03-11-2017: TODO take a look at linearity of this definition - in particular the recovered pc and stack pointer.}
 \[
-  \lrk(W) = \left\{ \npair{\left(\array{l}\src{\retptrd(\sigma,(\aaddr_d,\eaddr_d))},\\\src{\retptrc(\sigma,(\perm,\lin,\baddr_c,\eaddr_c,\aaddr_c))},\\k_{d,T},k_{c,T}\endarray\right)} \middle|
+  \lrk(W) = \left\{ \npair{\left(\array{l}\src{\retptrc(\sigma,(\perm,\lin,\baddr_c,\eaddr_c,\aaddr_c))},\\\src{\retptrd(\sigma,(\aaddr_d,\eaddr_d))},\\k_{c,T},k_{d,T}\endarray\right)} \middle|
     \begin{array}{l}
       k_{d,T} = \sealed{\sigma,c_d} \wedge\\
       k_{c,T} = \sealed{\sigma,c_c} \wedge\\
       c_c = ((\perm,\lin),\baddr_c,\eaddr_c,\aaddr_c) \wedge\\
       c_d = ((\rw,\linear),\aaddr_d,\eaddr_d,\aaddr_d-1) \wedge\\
+      \npair[n]{[\stpair[.]{\retptrc(\sigma,\_)}{k_{c,T}},\stpair[.]{\retptrd(\sigma,\_)}{k_{d,T}}]} \in \lrp(W) \wedge \\
       \forall n' \leq n, W' \pubft W \ldotp \\
       \quad \forall W_\lrr, W_\lrm \ldotp  \\
+      \qquad\memSat[n']{\stpair[.]{\ms_S,\stk::(\opc,\ms_{\stk,f}),\ms_\stk}{\ms_T}}{W_\lrm} \wedge \\
       \qquad\opc = c_c \wedge\\
       \qquad\dom(\ms_{\stk,f}) = [\aaddr_d,\eaddr_d] \wedge\\
-      \qquad\npair[n']{\src{\retptrd(\sigma,\_)},\src{\retptrc(\sigma,\_)},k_{d,T},k_{c,T}} \in \lrp(W') \wedge \\
-      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrr) \wedge\\
-      \qquad\memSat[n']{\stpair[.]{\ms_S,\stk::(\opc,\ms_{\stk,f}),\ms_\stk}{\ms_T}}{W_\lrm} \wedge \\
-      \qquad\src{reg_S}(\rstk) = \src{\stkptr{\rw,\baddr_\stk,\eaddr_\stk,\_}} \wedge \\
-      \qquad\eaddr_\stk = \aaddr_d-1\\
+      \qquad\npair[n']{\array{l}\src{\reg_S\update{\rstk}{\stkptr{\rw,\stkb,\eaddr_d,\aaddr_d}}},\\
+                               {\reg_T\update{\rstk}{((\rw,\linear),\stkb,\eaddr_d,\aaddr_d)}}\endarray}\in \lrr(\{r_\stk\})(W_\lrr) \wedge\\ 
+      \qquad\npair[n']{[(\opc,\opc)]} \in \lrp(W')\\
       \qquad\Rightarrow\\
-      \qquad\npair[n']{\left(\array{l}\src{\left(\arraycolsep=0pt\array{l}\ms_S,\reg_S\updReg{\pcreg,\rstk}{\opc,\stkptr{\rw,\baddr_\stk,\eaddr_d,\aaddr_d}},\\\stk, \ms_\stk \uplus \ms_{\stk,f}\endarray\right)},\\
-                                          (\ms_T,\reg_T\updReg{\pcreg,\rstk}{\opc,((\rw,\lin),\baddr_\stk,\eaddr_d,\aaddr_d)})\endarray\right)}
-      \in \lro(W' \oplus W_\lrr \oplus W_\lrm)
+      \qquad \npair[n']{\left(\arraycolsep=0pt\array{l}
+                          \left(\arraycolsep=0pt\array{l}
+                            \src{\ms_S,\reg_S\update{\pcreg,\rstk}{\opc,\stkptr{\rw,\stkb,\eaddr_d,\aaddr_d}},}\\
+                            \src{\stk, \ms_\stk \uplus \ms_{\stk,f}}
+                          \endarray \right) \\
+                          \left(\ms_T,\reg_T\update{\pcreg,\rstk}{\opc,((\rw,\linear),\stkb,\eaddr_d,\aaddr_d)} \right)
+                        \endarray \right)} \in \lro(W'\oplus W_\lrr \oplus W_\lrm)
     \end{array}
   \right\}
 \]
 
 \[
   \lrp(W) = \left\{
-    \npair{\stpair{v}{v}} \middle| \text{make sure linearity constraint satisfied}\dots 
+    \npair{ \overline{\stpair[.]{c}{c'}} } \middle| 
+    \begin{array}{l}
+      \text{for $\stpair[.]{c}{c'} \in \overline{\stpair[.]{c}{c'}}$} \\
+      \src{\baddr} = \pi_\baddr(\src{c}) \wedge \src{\eaddr} = \pi_\eaddr(\src{c}) \wedge 
+      \baddr = \pi_\baddr(c) \wedge \eaddr = \pi_\eaddr(c) \wedge \\
+      \src{\lin} = \pi_\lin(\src{c}) = \pi_\lin(c) \\
+      \quad \exists r \in \addressable{l,W} \ldotp\\
+      \qquad \forall \npair{\stpair{\ms}{\ms}} \in W(r).H \; W(r).s \; \xi^{-1}(W)  \ldotp \\
+      \qquad \quad \dom(\src{\ms_S}) \subseteq [\src{\baddr},\src{\eaddr}] \wedge \dom(\ms_T) \subseteq [\baddr,\eaddr]      
+    \end{array}
   \right\}
 \]
 
 
 \[
-  \lrr(W) = \left\{ \npair{\stpair{\reg}{\reg}} \middle|
+  \lrr(R)(W) = \left\{ \npair{\stpair{\reg}{\reg}} \middle|
     \begin{array}{l}
       \exists S : \RegName \fun \World \ldotp \\
-      \quad S \text{ is a separation of $W$} \tand\\
-      \quad \forall r \in \RegName \setminus \{\pcreg, \rretd,\rretc,\rdata \}\ldotp\\
+      \quad W = \bigoplus_{r \in \RegName} S(r) \\
+      \quad \forall r \in \RegName \setminus (\{\pcreg \} \cup R)\ldotp\\
       \qquad\npair{\stpair[.]{\src{\reg_S(r)}}{\reg_T(r)}} \in \lrv(S(r))
     \end{array}
             \right\}
 \]
 Where $S\text{ is a separation of $W$}$ means that no two partition share the same ``spatial'' region (whatever that is).
-
+\lau{TODO: Rewrite the other definitions to pass around $H_\sigma$ (if this is how we want to handle seals.)}
 \[
-  \lrv(W) =
+  \lrv(H_\sigma,W) =
   \begin{array}[t]{l}
     \left\{ \npair{\stpair[.]{i}{i}} \;\middle|\; i \in \ints \right\}\cup \\
-    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrc(\sigma,\_)},\\\sealed{\sigma,\vsc_C}\endarray\right)} \;\middle| \;
+%
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrc(\sigma,\perm,\lin,\baddr,\eaddr,\aaddr)},\\\sealed{\sigma,\vsc_C}\endarray\right)} \;\middle| \;
     \begin{array}{l}
-    \forall n'<n, W' \pubft W, W_\lrv \npair[n']{\stpair[.]{\retptrd(\sigma,\_)}{\sealed{\sigma,\vsc_D}}} \in \lrv(W_\lrv) \ldotp\\
-      \npair[n']{\retptrc(\sigma,\_),\retptrd(\sigma,\_),\sealed{\sigma,\vsc_C},\sealed{\sigma,\vsc_D}} \in \lrk(W' \oplus W_\lrv)
+      \vsc_c = ((\perm,\lin),\baddr,\eaddr,\aaddr) \wedge \\
+      \forall (\src{c},c') \in H_\sigma(\sigma) \ldotp \\
+      \quad \exists r \in \addressable(\linear,W) \ldotp \\
+      \qquad  \exists \stpair{\ms}{\ms} \ldotp \\
+      \qquad \quad \dom(\src{\ms_S}) = \dom(\ms_T) = [\pi_\baddr(c), \pi_\eaddr (c)] \wedge \stareg{\spao} \nequal W(r) \wedge \\
+      \qquad \qquad \forall W' \privft W \ldotp \\
+      \qquad \qquad \quad \exists r', W'(r') = W(r), \exists r'', W'(r'') = \stdreg{[\stkb,\eaddr]}{\spao} \ldotp \\
+      \qquad \qquad \qquad { \color{red} \npair{(\src{\retptrc(\sigma,\perm,\lin,\baddr,\eaddr,\aaddr)}, \src{c}, \sealed{\sigma,\vsc_c}, c')}} \in \lrk(W')
     \end{array}
     \right\}\cup\\
-    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrd(\sigma,\_)},\\\sealed{\sigma,\vsc_D}\endarray\right)} \;\middle| \;
+%
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrd(\sigma,\baddr,\eaddr)},\\\sealed{\sigma,\vsc_D}\endarray\right)} \;\middle| \;
     \begin{array}{l}
-    \forall n'<n, W' \pubft W, W_\lrv \npair[n']{\stpair[.]{\retptrc(\sigma,\_)}{\sealed{\sigma,\vsc_C}}} \in \lrv(W_\lrv) \ldotp\\
-      \npair[n']{\src{\retptrc(\sigma,\_)},\src{\retptrd(\sigma,\_)},\sealed{\sigma,\vsc_C},\sealed{\sigma,\vsc_D}} \in \lrk(W' \oplus W_\lrv)
+      \vsc_D = ((\rw,\linear),\baddr,\eaddr,\baddr-1) \wedge\\
+      \exists r \in \addressable{\linear,W} \ldotp \\
+      \quad  \exists \stpair{\ms}{\ms} \ldotp \\
+      \qquad \dom(\src{\ms_S}) = \dom(\ms_T) = [\baddr, \eaddr] \wedge \stareg{\spao} \nequal W(r) \wedge \\
+      \qquad \forall W' \privft W \ldotp \\
+      \qquad \quad \exists r', W'(r') = W(r), \exists r'', W'(r'') = \stdreg{[\stkb,\eaddr]}{\spao} \ldotp \\
+      \qquad \qquad { \color{red} \forall (\src{c}, c') \in H_\sigma (\sigma) \ldotp \npair{\src{c,\retptrd(\sigma,\baddr,\eaddr)}, c' , \sealed{\sigma,\vsc_D}} \in \lrk(W') }%\text{\lau{This needs some work - specifically what i c and c' and do we need to seal them?}}
+      
+%    \forall n'<n, W' \pubft W, W_\lrv \npair[n']{\stpair[.]{\retptrc(\sigma,\_)}{\sealed{\sigma,\vsc_C}}} \in \lrv(W_\lrv) \ldotp\\
+%      \npair[n']{\src{\retptrc(\sigma,\_)},\src{\retptrd(\sigma,\_)},\sealed{\sigma,\vsc_C},\sealed{\sigma,\vsc_D}} \in \lrk(W' \oplus W_\lrv)
     \end{array}
     \right\}\cup \\
+%
     \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\sealed{\sigma,\vsc_S}},\\ \sealed{\sigma,\vsc_T} \endarray\right)} \;\middle| \;
     \begin{array}{l}
-      
+      \stpair{\vsc}{\vsc} \in H_\sigma \; \sigma \wedge \\
+      \forall \stpair{\vsc'}{\vsc'} \in H_\sigma \; \sigma \ldotp \\
+      \quad \npair{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lre(W) \wedge \\
+      \quad \npair{\src{\vsc_S'},\src{\vsc_S},\vsc_T',\vsc_T} \in \lre(W)
     \end{array}
     \right\}\cup\\
-    \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma,\sigma_\baddr,\sigma_\eaddr}},\\ \seal{\sigma,\sigma_\baddr,\sigma_\eaddr} \endarray \right)} \;\middle|\;
+%
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma,\sigma_\baddr,\sigma_\eaddr}},\\ \seal{\sigma,\sigma_\baddr,\sigma_\eaddr} \endarray \right)} 
     \right\} \cup \\
+%
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\stkptr{\perm,\baddr,\eaddr,\aaddr}},\\ ((\perm,\linear),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\;
+    \begin{array}{r l l}
+      \perm \in \readAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \readCond{\linear,W}\\
+      \perm \in \writeAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \writeCond{\linear,W}
+    \end{array}
     \right\} \cup \\
+%
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{((\perm,\lin),\baddr,\eaddr,\aaddr)},\\ ((\perm,\lin),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\; 
     \begin{array}{r l l }
       \perm \in \readAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \readCond{\lin,W}\\
@@ -1802,16 +1872,16 @@ Where $S\text{ is a separation of $W$}$ means that no two partition share the sa
       \perm = \rwx &\Rightarrow& \npair{(\{\rwx,\rx\},\baddr,\eaddr)} \in \execCond{\lin,W}\\
       \perm = \rx &\Rightarrow& \npair{(\{\rx\},\baddr,\eaddr)} \in \execCond{\lin,W}
     \end{array}
-
     \right\}
   \end{array}
 \]
+\lau{28-11-2017: Do we want the execute condition for $\rwx$ is we are doing write xor execute?}
 
 \subsection{Permission based conditions}
 \[
   \addressable{\lin,W} =
   \begin{cases}
-    \{ r \mid W(r) = (\normal,\_) \} & \text{if $\lin = \normal$} \\
+    \{ r \mid W(r) = (\pure,\_) \} & \text{if $\lin = \normal$} \\
     \{ r \mid W(r) = (\spatialo,\_) \}  & \text{otherwise (i.e. $\lin = \linear$)} \\
   \end{cases}
 \]
@@ -1821,7 +1891,7 @@ Where $S\text{ is a separation of $W$}$ means that no two partition share the sa
     \begin{array}{l}
       \exists r \in \addressable{\lin, W} \ldotp \\
       \quad \exists [\baddr',\eaddr'] \supseteq [\baddr,\eaddr] \ldotp \\
-      \qquad W(r) \nsubeq \iota_{[\baddr',\eaddr']}
+      \qquad W(r) \nsubeq \stdreg{[\baddr',\eaddr']}{\pur}
     \end{array}
   \right\}
 \]
@@ -1846,7 +1916,7 @@ where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-region
     \begin{array}{l}
       \exists r \in \addressable{\lin, W} \ldotp \\
       \quad \exists [\baddr',\eaddr'] \supseteq [\baddr,\eaddr] \ldotp \\
-      \qquad W(r) \nsupeq[n-1] \iota_{[\baddr',\eaddr']} \wedge \\
+      \qquad W(r) \nsupeq[n-1] \stdreg{[\baddr',\eaddr']}{\pur} \wedge \\
       \qquad W(r) \text{ is address-stratified}
     \end{array}
   \right\}
@@ -1857,9 +1927,9 @@ where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-region
   \execCond{\lin,W} = \left\{ \npair{(S_\perm,\baddr,\eaddr)} \middle|
     \begin{array}{l}
       \forall n' < n, W' \privft W, \perm \in S_\perm, \aaddr \in [\baddr,\eaddr] \ldotp\\
-      \quad \forall W'', c_{d,S},c_{d,T} \ldotp \npair[n']{(c_{d,S},c_{d,T})} \in \lrv(W'') \wedge \\
-      \qquad \npair[n']{((\perm,lin),\baddr,\eaddr,\aaddr),c_{d,S},((\perm,lin),\baddr,\eaddr,\aaddr),c_{d,T}} \in \lrp(W' \oplus W'') \Rightarrow \\
-      \quad \qquad \npair[n']{((\perm,lin),\baddr,\eaddr,\aaddr),c_{d,S},((\perm,lin),\baddr,\eaddr,\aaddr),c_{d,T}} \in \lre(W' \oplus W'')
+      \quad \forall W'', c_{d,S},c_{d,T} \ldotp \npair[n']{\stpair[.]{c_{d,S}}{c_{d,T}}} \in \lrv(W'') \wedge \\
+      \qquad \npair[n']{[\stpair[.]{((\perm,lin),\baddr,\eaddr,\aaddr)}{((\perm,lin),\baddr,\eaddr,\aaddr)},\stpair[.]{c_{d,S}}{c_{d,T}}]} \in \lrp(W' \oplus W'') \Rightarrow \\
+      \quad \qquad \npair[n']{\stpair[.]{((\perm,lin),\baddr,\eaddr,\aaddr)}{((\perm,lin),\baddr,\eaddr,\aaddr)},\stpair[.]{c_{d,S}}{c_{d,T}}} \in \lre(W' \oplus W'')
     \end{array}
     \right\}
 \]
@@ -1869,19 +1939,28 @@ where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-region
 \label{sec:standard-regions}
 Standard region:
 \[
-  \iota_A \defeq (\normal,*,=,=,H_A)
+  \stdreg{A}{v} \defeq (v,*,=,=,H_A)
 \]
+for readability, we use $\spao$ short for $\spatialo$, $\spa$ short for $\spatial$, and $\pur$ as short for $\pure$.
 \lau{02-11-2017: I am not sure whether it should be a $\normal$ region. In previous work $\nsubeq$ ignored the ``view'' which it may also do here, and then then it does not matter which one it is.}
 where $H_A$ is defined as follows:
 \[
   H_A \; s \; \hat{W} \defeq \left\{ \npair{\ms_S,\ms_T} \middle|
     \begin{array}{l}
       \dom(\ms_S) = \dom(\ms_T) = A \wedge \\
-      \forall \aaddr \in A \ldotp \npair[n-1]{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(\xi(\hat{W}))
+      \exists S : \dom(\ms_S) \fun \World \ldotp \xi(W) = \uplus_{\aaddr \in \dom(\ms_S)} S(\aaddr) \wedge\\
+      \quad \forall \aaddr \in A \ldotp \npair[n-1]{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
     \end{array}
   \right\}
 \]
 \lau{01-11-2017: TODO look into what kind of world separation should happen here.}
+
+\[
+  \stareg{v} = (v,*,=,=,H^\mathrm{sta}_{\stpair{\ms}{\ms}})
+\]
+\[
+  H^\mathrm{sta}_{\stpair{\ms}{\ms}} = \{ \npair{\stpair{\ms}{\ms}} \}
+\]
 
 \section{Full Abstraction}
 \begin{definition}
