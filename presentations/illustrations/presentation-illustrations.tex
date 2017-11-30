@@ -4,6 +4,7 @@
 \usepackage{ulem}
 \usepackage{tikz}
 \usetikzlibrary{backgrounds}
+\usetikzlibrary{calc}
 \usetikzlibrary{positioning}
 \usetikzlibrary{patterns}
 \usetikzlibrary{decorations.pathreplacing}
@@ -149,42 +150,53 @@
       \draw[draw=gray!80] (0,0) -- (0,15);
       \draw[draw=gray!80] (6,0) -- (6,15);
       \draw[fill=gray!50] (0,-.5) rectangle (6,2.5) node[pos=.5,color=black] {\footnotesize higher stack frames...};
+      \begin{scope}
+        \clip (-.1,-.1) rectangle (6.1,15);
+        \draw[fill=white] (0,2.5) rectangle (6,15.1);
+      \end{scope}
     \end{scope}
 
     \draw[->] (-2,0) -- node[midway,sloped,above] {stack grows upward} (-2,15);
 
     % first step: capabilities
-    \draw<+>[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\footnotesize current stack frame};
-    \begin{scope}
-      \clip (-.1,-.1) rectangle (6.1,15);
-      \draw<.>[fill=white] (0,5.5) rectangle (6,15.1);
-    \end{scope}
-    \draw<.> [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
-    (6.5,2.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
-    \draw<.> node[right=0cm of sp1] { stack pointer };
-    \draw<.> [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+    \begin{onlyenv}<+-+(4)>
+      \draw[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\footnotesize current stack frame};
+    \end{onlyenv}
+    \begin{onlyenv}<.-.(3)>
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,2.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+    \begin{onlyenv}<.-.(1)>
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       (6,0) -- (6,16) node (oldframe1) [black,midway,xshift=0.5cm] {};
-    \draw<.> node[fill=gray!50,right=0cm of oldframe1] (rp1l) {return pointer data};
+      \draw node[fill=gray!50,right=0cm of oldframe1] (rp1l) {return pointer data};
+    \end{onlyenv}
 
-    % call using capabilities
-    \draw<+>[fill=gray!50] (0,2.5) rectangle (6,5.5) node[pos=.5] {\footnotesize caller stack frame};
-    \draw<.>[fill=white] (0,6.5) rectangle (6,9.5) node[pos=.5] {\footnotesize callee stack frame};
-    \begin{scope}
-      \clip (-.1,-.1) rectangle (6.1,15);
-      \draw<.>[fill=white] (0,9.5) rectangle (6,15.1);
-    \end{scope}
-    \draw<.> [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
-      (6.5,6.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
-    \draw<.> node[right=0cm of sp1] { stack pointer };
-    \draw<.> [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
-      (6,2.5) -- (6,16) node (callerframe1) [draw=black,midway,xshift=0.8cm] {};
-    \draw<.> node[fill=gray!50,right=0cm of callerframe1] (rp1l) {return pointer data};
-    \draw<.>[fill=gray!50] (0,5.5) rectangle node {\scriptsize old return pointer data} (6,6);
-    \draw<.>[fill=gray!50] (0,6) rectangle node {\scriptsize old return pointer code} (6,6.5);
-    \draw<.> [decorate,decoration={brace,amplitude=10pt,raise=4pt},yshift=0pt]
+    %prepare call: store old return pointer
+    \draw<+-+(3)>[fill=gray!50] (0,6) rectangle node {\scriptsize old return pointer code} (6,6.5);
+    \begin{onlyenv}<+-+(2)>
+      \draw[fill=gray!50] (0,5.5) rectangle node {\scriptsize old return pointer data} (6,6);
+      \draw [decorate,decoration={brace,amplitude=10pt,raise=4pt},yshift=0pt]
       (0,0) -- (0,16) node (oldframe1) [black,midway,xshift=-0.5cm] {};
-    \draw<.> (0,5.75) edge[->,out=180,in=225] (oldframe1);
-
+      \draw (0,5.75) edge[->,out=180,in=225] (oldframe1);
+    \end{onlyenv}
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt,aspect=.4},yshift=0pt]
+      (6,2.5) -- (6,16) node (callerframe1) [draw=black,pos=.4,xshift=0.8cm] {};
+      \draw node[fill=gray!50,right=0cm of callerframe1] (rp1l) {new return pointer data};
+    \end{onlyenv}
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,6.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { new stack pointer };
+    \end{onlyenv}
+    
+    % call using capabilities
+    \begin{onlyenv}<+->
+      \draw[fill=gray!50] (0,2.5) rectangle (6,6.5) node[pos=.5] {\footnotesize caller stack frame};
+      \draw[fill=white] (0,6.5) rectangle (6,9.5) node[pos=.5] {\footnotesize callee stack frame};
+    \end{onlyenv}
   \end{tikzpicture}
 \end{frame} 
 
@@ -346,6 +358,7 @@
       \draw[draw=gray!80] (0,0) -- (0,15);
       \draw[draw=gray!80] (6,0) -- (6,15);
       \draw[fill=gray!50] (0,-.5) rectangle (6,2.5) node[pos=.5,color=black] {\footnotesize higher stack frames...};
+      \draw[fill=white] (0,9.5) rectangle (6,15.2);
     \end{scope}
 
     \draw[->] (-2,0) -- node[midway,sloped,above] {stack grows upward} (-2,15);
@@ -354,10 +367,6 @@
     % attacker...
     \draw[fill=gray!50] (0,2.5) rectangle (6,6.5) node[pos=.5] {\footnotesize caller stack frame};
     \draw[fill=white] (0,6.5) rectangle (6,9.5) node[pos=.5] {\footnotesize callee stack frame};
-    \begin{scope}
-      \clip (-.1,-.1) rectangle (6.1,15);
-      \draw[fill=white] (0,9.5) rectangle (6,15.1);
-    \end{scope}
     \draw (3,8) node[devil,mirrored,minimum size=1cm] {};
     \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       (6.5,6.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
@@ -379,7 +388,83 @@
 \end{frame}
 
 \begin{frame}
-  \frametitle{Stack Clearing prevent Attack 2}
-  TODO
+  \frametitle{Local caps: Stack clearing prevents Attack 2}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \begin{scope}
+      \clip (-.1,-.1) rectangle (6.1,15.1);
+      \draw[fill=gray!20,draw=none,opacity=.8] (0,0) rectangle (6,15);
+      \draw[draw=gray!80] (0,0) -- (0,15);
+      \draw[draw=gray!80] (6,0) -- (6,15);
+      \draw[fill=gray!50] (0,-.5) rectangle (6,2.5) node[pos=.5,color=black] {\footnotesize higher stack frames...};
+      \draw[fill=white] (0,4) rectangle (6,16);
+    \end{scope}
+
+    \draw[->] (-2,0) -- node[midway,sloped,above] {stack grows upward} (-2,15);
+
+    % attacker stores copy of stack pointer high in the stack
+    \draw[fill=gray!50] (0,2.5) rectangle (6,4) node[pos=.5] {\footnotesize caller stack frame};
+    \begin{onlyenv}<+>
+      \draw[fill=white] (0,4) rectangle (6,7) node[pos=.5] {\footnotesize callee stack frame};
+      \draw (3,5.5) node[devil,mirrored,minimum size=1cm] {};
+    \end{onlyenv}
+    \draw<.-.(2)>[fill=white] (0,13) rectangle (6,13.5) node[pos=.5,color=red] {\footnotesize copy of sp};
+    \draw<.-.(2)> [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+    (13.5,4) -- (13.5,16) node[draw=black] (spold) [black,midway,xshift=0.8cm] {};
+    \draw<.-.(2)> (6,13.25) edge[red,thick,->,in=45] (spold);
+
+    % attacker calls trusted code again
+    \draw<+->[fill=gray!50] (0,4) rectangle (6,7) node[pos=.5] {\footnotesize callee stack frame};
+    \begin{onlyenv}<.-.(1)>
+      \draw[fill=white] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+        (6.5,7) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+
+    % trusted code clears the stack
+    \begin{onlyenv}<+->
+      \foreach \x in {9,9.5,...,14}
+      {
+        \draw[fill=white] (0,\x) rectangle (6,\x+.5) node[pos=.5,color=teal] {\footnotesize 0};
+      };
+    \end{onlyenv}
+    \draw<.>[very thick,color=teal] (10,13.5) -- (13,14.5)
+    (13,13.5) -- (10,14.5);
+    
+    % attacker uses old stack pointer
+    \draw<+->[fill=gray!50] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
+    \begin{onlyenv}<.>
+      \draw[fill=white] (0,9) rectangle (6,12) node[pos=.5] {\footnotesize callee (3) stack frame};
+      \draw (3,10.5) node[devil,mirrored,minimum size=1cm] {};
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,9) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+
+    % attacker returns
+    \draw<+>[fill=white] (0,9) rectangle (6,12) node[pos=.5] {?};
+    \begin{onlyenv}<.>
+      \draw[fill=white] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+        (6.5,7) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+
+    % trusted code clears stack again
+    \begin{onlyenv}<+->
+      \foreach \x in {7,7.5,...,14}
+      {
+        \draw[fill=white] (0,\x) rectangle (6,\x+.5) node[pos=.5,color=teal] {\footnotesize 0};
+      };
+    \end{onlyenv}
+    % then, the trusted code can return
+    \begin{onlyenv}<+>
+      \draw[fill=white] (0,4) rectangle (6,7) node[pos=.5] {\footnotesize callee stack frame};
+      \draw (3,5.5) node[devil,mirrored,minimum size=1cm] {};
+    \end{onlyenv}
+    
+  \end{tikzpicture}
 \end{frame}
+
 \end{document}
