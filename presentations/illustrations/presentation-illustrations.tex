@@ -12,6 +12,8 @@
 \usetikzlibrary{arrows,shapes}
 \usepackage{tikzpeople}
 
+
+% Active adversary
 \newcommand{\actadv}[4][]{
   \ifthenelse{\equal{#1}{}}{
     \draw[fill=white] #2 rectangle #3 node[pos=.5] {};
@@ -19,14 +21,16 @@
     \draw[fill=white, fill opacity=0.5] #2 rectangle #3 node[pos=.5] {};
     \draw #2 rectangle #3 node[pos=.5] {\footnotesize #4};
   }{
-    \draw<#1>[fill=white] #2 rectangle #3 node[pos=.5] {};
-    \draw<#1> ($#2 + (3,1.5)$) node[devil,mirrored,minimum size=1cm] {};
-    \draw<#1>[fill=white, fill opacity=0.5] #2 rectangle #3 node[pos=.5] {};
-    \draw<#1> #2 rectangle #3 node[pos=.5] {\footnotesize #4};
-
+    \onlyenv<#1>
+    \draw[fill=white] #2 rectangle #3 node[pos=.5] {};
+    \draw ($#2 + (3,1.5)$) node[devil,mirrored,minimum size=1cm] {};
+    \draw[fill=white, fill opacity=0.5] #2 rectangle #3 node[pos=.5] {};
+    \draw #2 rectangle #3 node[pos=.5] {\footnotesize #4};
+    \endonlyenv
   }
 }
 
+% Inactive adversary
 \newcommand{\inactadv}[4][]{
   \ifthenelse{\equal{#1}{}}{
     \draw[fill=white] #2 rectangle #3 node[pos=.5] {};
@@ -35,24 +39,27 @@
     \draw[fill=gray, fill opacity=0.5] #2 rectangle #3 node[pos=.5] {};
     \draw #2 rectangle #3 node[pos=.5] {\footnotesize #4};
   }{
-    \draw<#1>[fill=white] #2 rectangle #3 node[pos=.5] {};
-    \draw<#1> ($#2 + (3,1.5)$) node[devil,mirrored,minimum size=1cm] {};
-    \draw<#1>[fill=white, fill opacity=0.4] #2 rectangle #3 node[pos=.5] {};
-    \draw<#1>[fill=gray, fill opacity=0.5] #2 rectangle #3 node[pos=.5] {};
-    \draw<#1> #2 rectangle #3 node[pos=.5] {\footnotesize #4};
-
+    \onlyenv<#1>
+    \draw[fill=white] #2 rectangle #3 node[pos=.5] {};
+    \draw ($#2 + (3,1.5)$) node[devil,mirrored,minimum size=1cm] {};
+    \draw[fill=white, fill opacity=0.4] #2 rectangle #3 node[pos=.5] {};
+    \draw[fill=gray, fill opacity=0.5] #2 rectangle #3 node[pos=.5] {};
+    \draw #2 rectangle #3 node[pos=.5] {\footnotesize #4};
+    \endonlyenv
   }
 }
 
-\newcommand{\actsf}[#4][]{
+% Active stack frame
+\newcommand{\actsf}[4][]{
   \ifthenelse{\equal{#1}{}}{
-    \draw[fill=white] #2 rectangle #3 node[pos=.5] {#4};
+    \draw[fill=white] #2 rectangle #3 node[pos=.5] {\footnotesize #4};
   }{
    \draw<#1>[fill=white] #2 rectangle #3 node[pos=.5] {#4};
  }
 }
 
-\newcommand{\inactsf}[3][]{
+% Inactive stack frame
+\newcommand{\inactsf}[4][]{
   \ifthenelse{\equal{#1}{}}{
     \draw[fill=white] #2 rectangle #3 node[pos=.5] {};
     \draw[fill=gray, fill opacity=0.5] #2 rectangle #3 node[pos=.5] {};
@@ -62,6 +69,12 @@
     \draw<#1>[fill=gray, fill opacity=0.5] #2 rectangle #3 node[pos=.5] {};
     \draw<#1> #2 rectangle #3 node[pos=.5] {\footnotesize #4};
   }
+}
+
+\newcommand{\capbrace}[3][sp1]{
+  \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+  #2 -- #3 node[draw=black] (#1) [black,midway,xshift=0.8cm] {};
+
 }
 
 
@@ -466,7 +479,7 @@
 
     % attacker calls trusted code again
     \begin{onlyenv}<+->
-    \inactadv{(0,4)}{(6,7)}{callee stack frame}
+      \inactadv{(0,4)}{(6,7)}{callee stack frame}
     \end{onlyenv}
     \begin{onlyenv}<.-.(1)>
       \draw[fill=white] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
@@ -515,6 +528,63 @@
       \actadv{(0,4)}{(6,7)}{callee stack frame}
     \end{onlyenv}
     
+  \end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Linear caps: stack pointers}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \begin{scope}
+      \clip (-.1,-.1) rectangle (6.1,15.1);
+      \draw (0,0) -- (0,15);
+      \draw (6,0) -- (6,15);
+      \draw[fill=gray!50] (0,-.5) rectangle (6,2.5) node[pos=.5,color=black] {\footnotesize higher stack frames...};
+    \end{scope}
+
+    \draw[->] (-2,0) -- node[midway,sloped,above] {stack grows upward} (-2,15);
+
+    % Caller 
+    \actsf{(0,2.5)}{(6,5)}{caller stack frame} 
+    \begin{onlyenv}<+>
+      \capbrace{(6.5,2.5)}{(6.5,16)}
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+
+
+    % Split the stack pointer
+    \begin{onlyenv}<+>
+      \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
+      \capbrace[usp]{(6.5,5)}{(6.5,16)}
+      \draw node[right=0cm of usp] { stack pointer };
+      \draw node[right=0cm of sp2] { private stack pointer };
+    \end{onlyenv}
+
+
+    % Callee called
+    \begin{onlyenv}<+>
+      \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
+      \capbrace[usp]{(6.5,5)}{(6.5,16)}
+      \draw node[right=0cm of usp] { stack pointer };
+      \draw node[fill=gray!50, right=0cm of sp2] { private stack pointer };
+      \inactsf{(0,2.5)}{(6,5)}{caller stack frame} 
+      \actsf{(0,5)}{(6,6.5)}{callee stack frame}
+    \end{onlyenv}
+
+    % Return from callee
+    \begin{onlyenv}<+>
+      \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
+      \capbrace[usp]{(6.5,5)}{(6.5,16)}
+      \draw node[right=0cm of usp] { stack pointer };
+      \draw node[right=0cm of sp2] { private stack pointer };
+    \end{onlyenv}
+
+    % Caller splices the stack frames
+    \begin{onlyenv}<+>
+      \capbrace{(6.5,2.5)}{(6.5,16)}
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+
   \end{tikzpicture}
 \end{frame}
 
