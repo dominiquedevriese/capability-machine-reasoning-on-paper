@@ -1,0 +1,161 @@
+ESOP '18 Review #5A
+===========================================================================
+* Paper: #5 Reasoning About a Capability Machine with Local Capabilities -
+  Provably Safe Stack and Return Pointer Management (without OS Support)
+
+Overall merit
+-------------
+A. Accept (Good paper. I will champion it at the PC meeting.)
+
+Reviewer expertise
+------------------
+X. Expert
+
+Paper summary
+-------------
+The paper introduces a new calling convention for a simple capability
+machine and uses a sophisticated logical relation to show that this
+enforces capability safety and control-flow correctness.
+
+### This is great work:
+
++ The studied simple capability machine is nice and elegant
+
++ The new calling convention is non-trivial and seems to help ease the
+  proof burden. This only comes up in the discussion at the end, but
+  the calling convention is also modular and can be applied to protect
+  multiple components from each other.
+
++ The paper introduces an untyped step-indexed logical relation whose
+  fundamental theorem corresponds to a notion of capability
+  safety. This logical relation makes novel use of a "single
+  orthogonal closure", which provides more flexibly than
+  biorthogonality in the setting of low-level languages.
+
++ Technique illustrated on 5 verification examples, some of them tricky.
+
++ Paper is nicely explained and pleasant to read. I particularly liked
+  the examples in Section 5 and loved the honest and extensive
+  discussion of Section 6. I was already wondering about many of the points
+  of Section 6. The paper has limitations, but as far as I can tell
+  they are all explicitly acknowledged and properly explained. This is
+  great science! Well done!
+
+- As the paper already discusses, the main limitation of the proposed
+  scheme is that it relies on complex global invariants/restrictions
+  that prevent the capability machine to use local capabilities for
+  anything else other than protecting the stack.
+
+- Efficiency of the proposed calling convention is still to be determined.
+
+Comments for author
+-------------------
+## Efficiency
+
+The paper makes several efficiency claims, but in the absence of any
+experiments to back up these claims I would advise the authors to be a
+bit more cautious. Even if one disregards the cleaning of large ranges
+of memory, which could indeed be done with some extra hardware, the
+calling convention still seems more complicated than the usual
+ones. For instance, cleaning and restoring registers alone might make
+the overheads unacceptable in many practical scenarios. The "link
+table" seems to add overhead too, etc. Finally, "acceptable
+performance" is very much context dependent, for systems people that's
+less than 10-20% overhead, for crypto people it's 0 overhead.
+
+## Lower TCB capability safety property
+
+While setting up the logical relation so that the fundamental property
+implies capability safety is nice, it would be even nicer to prove
+this as a separate theorem that doesn't have the whole logical
+relation in its TCB. Would this be possible?
+
+## Clarify attacker model earlier
+
+The proposed calling convention seems able to protect multiple
+components from each other, yet most of the paper discusses this
+protection only in terms of one single statically known
+"adversary". This seems to be selling short the work, and raising
+questions of whether this calling convention is much weaker
+security-wise than the CHERI one, which is clearly about protecting
+multiple components. It would be good to explain this better upfront,
+not just in the discussions section at the end.
+
+### Formulating control flow correctness 
+
+Compiling a language in which control flow is "obviously" well
+bracketed to this calling convention and proving the security of this
+compiler is indeed one way to characterize control flow correctness in
+a general way. I wonder if full abstraction is the right notion of
+secure compilation for this though, given that all your examples were
+concerned with safety in an adversarial context, not with
+observational equivalence. Another hint full abstraction might not
+be a good fit here is that CFI is also a safety property, and full
+abstraction is not directly related to safety.
+
+### Requirement for stack clearing
+
+Here are some classical papers that do range memory update with
+hardware support (for metadata, but not sure it matters):
+http://scale.eecs.berkeley.edu/papers/mmp-asplos2002.pdf
+https://www.usenix.org/legacy/event/osdi08/tech/full_papers/zeldovich/zeldovich_html/index.html
+http://users.ece.utexas.edu/~tiwari/pubs/MICRO-08-rangecache.pdf
+
+### Not all secure compilation work uses centralized stack manager
+
+Here's recent work using a tag-based architecture for enforcing the
+call-return discipline in a decentralized way using linear return
+capabilities: https://arxiv.org/abs/1510.00697
+
+### Little things
+
+- title is an extreme mouthful; in the first part could at least
+  consider dropping the first "Capability", i.e. "Reasoning about a
+  Machine with Local Capabilities"; also drop "(without OS support)",
+  it's just too much, this is not yet the abstract
+
+- The first two phrases in the abstract don't read very well and they
+  have a large verbatim duplication
+
+- also abstract "These results are not tied to our calling
+  convention" -- by "these results" you mean the logical relation,
+  right? should make it clear
+
+- p2. "namely for the duration of a function invocation whereafter the
+  capability can be revoked." -- can be revoked or is automatically revoked?
+
+- p2. "reasoning about code on a representative capability machine code" -- code
+
+- p4. Figure 2. Please turn off justified alignment for the last
+  column, it makes it harder to read with all that useless space
+
+- p6. "In order to have a reasonably realistic system, we use a simple
+  model of linking, so programs can have access to other programs
+  through a linking table." -- this should be better explained, what
+  does this table contain?
+
+- p10. "The macros push r and pop r work as one would expect." -- It
+  would be equally short to say that "push r and pop r add and remove
+  values from the stack" or anything that mentions the stack
+
+- Still didn't get why these macros are introduced at the end of
+  Section 3. They are not used at all in Section 4, so isn't a more
+  natural space for them the beginning of Section 5, where they are
+  first used?
+
+- p19. Lemma 4. One more lemma that looks the same as all the
+  others. Why not make some space for more interesting things by only
+  stating the first such lemma formally?
+
+- p22. "Adversary callbacks on the other hand are required to be
+  global but the callbacks we construct ourselves are allocated on the
+  heap and also global." -- The "on the other hand" is misleading,
+  since all your saying is that *also* for callbacks your scheme is
+  modular, while the "on the other hand" can trick the reader into
+  believing otherwise.
+
+- p22. "in very specific scenario’s" -- scenarios
+
+- p23. "Interestingly, [24] also use a step-indexed, Kripke logical
+  relation" -- this should be "Hur et al [24]" (\citet), in general
+  using citations as nouns is quite grose
