@@ -1,7 +1,11 @@
-ESOP '18 Review #5A
+ESOP '18 Paper #2 Reviews and Comments
 ===========================================================================
-* Paper: #5 Reasoning About a Capability Machine with Local Capabilities -
-  Provably Safe Stack and Return Pointer Management (without OS Support)
+Paper #5 Reasoning About a Capability Machine with Local Capabilities -
+Provably Safe Stack and Return Pointer Management (without OS Support)
+
+
+Review #5A
+===========================================================================
 
 Overall merit
 -------------
@@ -159,3 +163,119 @@ capabilities: https://arxiv.org/abs/1510.00697
 - p23. "Interestingly, [24] also use a step-indexed, Kripke logical
   relation" -- this should be "Hur et al [24]" (\citet), in general
   using citations as nouns is quite grose
+
+
+
+Review #5B
+===========================================================================
+
+Overall merit
+-------------
+A. Accept (Good paper. I will champion it at the PC meeting.)
+
+Reviewer expertise
+------------------
+Y. Knowledgeable
+
+Paper summary
+-------------
+Capability architectures provide security protection in hardware by
+replacing machine-word pointers with non-forgeable capabilities.  This
+is an old idea, recently re-examined in the CRASH SAFE and CHERI
+projects; the latter exploring how capabilities can be provided as
+pragmatically feasible adaptations of modern architectures.
+
+This paper shows how one can establish rigorous security properties
+provided by a (somewhat simplified but representative) capability
+architecture, coupled with a specific calling convention developed by
+the authors.  They do so using a logical relation, which they
+exercise to verify properties of three concrete but highly non-trivial
+examples. 
+
+Most previous work on such machines has mostly been from a
+systems/security point of view, with the intended security properties
+only stated rather informally, let alone actually proved. It's good to
+see how that can be done.  There's a lot of technical machinery under
+the hood (in a technical appendix), which I've not tried to follow,
+but the paper does a good job of explaining the basic ideas.
+
+I don't really buy the practicality of the specific calling
+convention, which requires efficient clearing of potentially large
+regions of memory, but I think that's a secondary point here. 
+
+More can probably be done to explain the logical relation, e.g. by
+inferring general security properties (not just concrete examples)
+that can be more easily explained.
+
+
+
+Review #5C
+===========================================================================
+
+Overall merit
+-------------
+A. Accept (Good paper. I will champion it at the PC meeting.)
+
+Reviewer expertise
+------------------
+Y. Knowledgeable
+
+Paper summary
+-------------
+The paper describes a secure calling convention for a capability-based processor similar to CHERI.  The calling convention makes good use of CHERI's local capabilities to ensure control-flow integrity (when calling untrusted code from trusted code, the untrusted callee must return to where the caller expects it, with the stack pointer that the caller expects, and cannot return multiple times) in addition to data integrity of the stack frames.  
+
+To help reason about the guarantees offered by capabilities, the paper then sets up a unary, untyped, step-indexed, Kripke-style logical relation for an operational semantics of a simple assembly language with CHERI-like capabilities.  After stating the "fundamental theorem" for this logical relation, the paper uses it to prove some security properties (local state encapsulation, well-bracketed control flow) on fragments of assembly code that use the calling convention outlined earlier.
+
+Comments for author
+-------------------
+## General comments
+
+This is an ambitious paper that covers a lot of material within the page limits of an ESOP submission: not just the design of the calling convention and the verification infrastructure that I mentioned above, but also a decent summary of capability machines and the kind of security guarantees they (try to) provide.  
+
+Actually, the paper is "just" a high-level overview of a 90-page technical appendix which was submitted as supplementary material, which I skimmed too, and which looks like it's still missing some important material (namely, high-level but formal specifications of what every macro does, in the style of section 2's specification of what the malloc macro does).
+
+So, that's a lot of material, and it is a strong point in favor of the paper that it remains globally understandable despite covering so much ground.  Less in favor of the submission, it reads like two papers joined at the hip by the examples of verification in section 5.  One paper is on secure calling conventions and how to use capabilities to implement them; the other paper is on a semantic framework to reason about capabilities and the security guarantees they enforce.  Commenting on each paper separately:
+
+### Paper #1
+
+Paper #1 on calling conventions describes an interesting and probably original point in the design space.  The design space itself is not really described: this is a single-stack solution; approaches based on multiple stacks are mentioned but brushed away; stackless approaches (with heap-allocated activation records or stack fragments) are not even mentioned.
+
+Likewise, CHERI capabilities are assumed, and especially the "local" capabilities of CHERI which play a crucial role, but I missed a discussion of what can still be done if a smaller set of capabilities is provided, or, on the other hand, what could be done better with more advanced hardware capabilities.  Indeed, it looks like what the calling convention really needs is linearity guarantees on the stack pointer and the return addresses, and it's only because such "linear pointers" are not supported by the hardware that an encoding based on local capabilities is used.  
+
+This encoding is not without problems, namely the need to clear the whole unused part of the stack at some call and return points.  One can think of hardware support to speed up this operation, perhaps through virtual memory and page mapping tricks.  Even then it looks like an expensive operation, one that could possibly negate the performance gains obtained by having a single stack as opposed to more "spaghetti" stack designs or even to full CPS...
+
+Finally, as already mentioned above, the approach relies on `call` and `scall` macro-instructions that are only outlined in the submission, and described by very complicated pseudocode and English prose in the companion technical appendix.  I still miss a fully formal description of 1- what instructions the macros expand to, exactly, and 2- what contract they satisfy (in the style of the contract for malloc in section 2 of the technical appendix).
+
+### Paper #2
+
+Paper #2 on logical relations to reason about capabilities is well taken (we definitely need semantic tools to reason about the actual guarantees offered by low-level security mechanisms such as capabilities) and competently done.  For a nonexpert like this reviewer, it's not obvious that the logical relation constructed in the paper captures what we want to know about capabilities: the paper spends more time describing how the semantic domain and the logical relation are constructed than explaining what the "fundamental theorem" implies and why it is the result we need.  
+
+Also, it is not obvious what is new compared with earlier work by some of the authors, e.g. reference [11] in the submission.  There is a discussion at the end of section 6 but it went a bit over my head.
+
+## Points in favor  or against
+
++ Ambitious paper that breaks some new ground
+- Two papers in one?
++ Interesting, probably original use of hardware capabilities to guarantee high-level security properties for function calls
+- Rather specific to the set of capabilities provided by the CHERI architecture
+- Practical usability unclear (because of the high cost of clearing the stack)
++ Surprisingly readable given the quantity of material presented
++ Serious attempt at proving some of the expected security properties
+- Only a couple of representative examples are proved, not the compilation scheme in full generality
+- The description of the calling convention remains informal even in the 90-page technical appendix
+
+## Minor remarks
+
+p.5, bottom of page, E -> RX transition: I would have expected the private data to be RO and the code to be RX, but perhaps it's not possible.
+
+p.6 "As long as all capabilities with write-local authority are themselves local and the stack is cleared after control is passed back by the adversary, we will see that this does not break the intended behavior of local capabilities."  This "as long as" feels like it's a painful and ineffective encoding of an intended behavior, which perhaps could be better characterized in terms of linearity.
+
+p.7 "The stack pointer is local and has RWLX permission."  The X part raises a red flag!  Maybe you could put a forward reference to the discussion two pages down ("Note that this means we will be placing and executing  instructions  on  the  stack")
+
+p.10 "to prevent this from happening, we need to make sure the stack capability carries RWLX authority, since the system wide assumption then tells us that the adversary cannot have global capabilities to our local stack".  It feels like the "L" capabitility is being overloaded to mean not just "this memory block has write-local authority and can contain local capabilities", but also to mean "this memory block is my stack and no other block is".  What happens when there are several stack blocks, e.g. one per thread?
+
+p.18 "they are linked with an adversary, adv, that is allowed to allocate memory but has no other capabilities".  Is this a reasonable model of the adversary?  (Genuinely naive question.)
+
+Section 6, p.21: Yes, "well-bracketedness" feels like a good characterization of control-flow integrity for function calls.  At least, if you don't support tail-call optimization, because in this case everything gets a lot more complicated.
+
+p. 24 "[25]’s second-class or local value".  Throughout the paper but especially here: never use a reference number such as [25] as a name.
