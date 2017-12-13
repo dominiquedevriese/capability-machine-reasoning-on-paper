@@ -339,6 +339,142 @@
 
 \end{frame}
 
+\begin{frame}
+  \frametitle{Linear caps prevents attack 3}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+  \scope
+    \clip (-.1,-.1) rectangle (6.1,15.1);
+    \fill[fill=white] (0,0) rectangle (6,15);
+    \draw (0,0) -- (0,15);
+    \draw (6,0) -- (6,15);
+    \draw[fill=gray!50] (0,-.5) rectangle (6,1.5) node[pos=.5,color=black] {\footnotesize higher stack frames...};
+  \endscope
+  \draw[->] (-2,0) -- node[midway,sloped,above] {stack grows upward} (-2,15);
+  
+  \begin{scope}
+    \fill[gray!50] (13,0) rectangle (18,13);
+    \draw (13,0) -- (13,13);
+    \draw (18,0) -- (18,13);
+    \draw (15.5,14) node {heap memory};
+  \end{scope}
+
+\note{Caller calls callee (split stack pointer to make ret-ptr-d)}
+  \begin{onlyenv}<+->
+    \actsf{(0,1.5)}{(6,4.5)}{caller stack frame}
+    \draw[fill=white] (13,1) rectangle (18,3) node[pos=.5] {\footnotesize caller code};
+  \end{onlyenv}
+  \begin{onlyenv}<.>
+    \capbrace[sp]{(6.1,1.5)}{(6.1,15)}
+    \draw node[right=0cm of sp] { sp };
+  \end{onlyenv}
+
+  \begin{onlyenv}<+->
+    \capbrace[ret1]{(6.1,1.5)}{(6.1,4.5)}
+    \draw node[fill=gray!50,right=0cm of ret1] { \phantom{ret-ptr-d} };
+    \draw node[right=0cm of ret1] { ret-ptr-d };
+  \end{onlyenv}
+  \begin{onlyenv}<.->
+    \draw [decorate,decoration={brace,aspect=0.3,amplitude=4pt,raise=4pt},yshift=0pt]
+    (12.9,1) -- (12.9,3) node[draw=black] (ret1c) [black,pos=0.3,xshift=-0.6cm] {};
+    \draw node[fill=gray!50,left=0cm of ret1c] { \phantom{ret-ptr-c} };
+    \draw node[left=0cm of ret1c] { ret-ptr-c };
+  \end{onlyenv}
+ 
+  \begin{onlyenv}<.-.(2)>
+    \capbrace[sp]{(6.1,4.5)}{(6.1,15)}
+    \draw node[right=0cm of sp] { sp };
+  \end{onlyenv}
+
+
+
+  \begin{onlyenv}<+->
+    \draw[fill=gray!30] (13,1) rectangle (18,3) node[pos=.5] {\footnotesize caller code};
+    \draw[fill=white] (13,4) rectangle (18,6) node[pos=.5] {\footnotesize callee code};
+    \actadv{(0,4.5)}{(6,7.5)}{callee stack frame}
+    \inactsf{(0,1.5)}{(6,4.5)}{caller stack frame}
+  \end{onlyenv}
+
+\note{Callee saves ret-ptr-d on the heap.}
+  \begin{onlyenv}<+->
+    \draw (13,4.75) edge[red,bend right,thick,->] (ret1);
+  \end{onlyenv}
+\note{Callee saves ret-ptr-c on the heap.}
+  \begin{onlyenv}<+->
+    \draw (13,4.75) edge[red,bend right,thick,->] (ret1c);
+  \end{onlyenv}
+
+
+\note{Callee calls callee (1)}
+\note{Before the callee jumps, it is assumed that it has checked the global "max height" of its stack pointer!}
+  \begin{onlyenv}<+->
+    \capbrace[ret2]{(6.1,4.5)}{(6.1,7.5)}
+    \draw node[fill=gray!50,right=0cm of ret2] { \phantom{ret-ptr-d (1)} };
+    \draw node[right=0cm of ret2] { ret-ptr-d (1) };
+  \end{onlyenv}
+  \begin{onlyenv}<.-.(1)>
+    \capbrace[sp]{(6.1,7.5)}{(6.1,15)}
+    \draw node[right=0cm of sp] { sp };
+  \end{onlyenv}
+
+  \begin{onlyenv}<+->
+    \inactsf{(0,1.5)}{(6,4.5)}{caller stack frame}
+    \inactadv{(0,4.5)}{(6,7.5)}{callee stack frame}
+    \actsf{(0,7.5)}{(6,10.5)}{callee stack frame (1)}
+    \draw[fill=gray!30] (13,1) rectangle (18,3) node[pos=.5] {\footnotesize caller code};
+    \draw[fill=gray!30] (13,4) rectangle (18,6) node[pos=.5] {\footnotesize callee code};
+    \draw[fill=white] (13,7) rectangle (18,9) node[pos=.5] {\footnotesize callee code (1)};
+  \end{onlyenv}
+
+\note{Callee (1) calls callee (2)}
+  \begin{onlyenv}<+->
+    \capbrace[ret3]{(6.1,7.5)}{(6.1,10.5)}
+    \draw node[fill=gray!50,right=0cm of ret3] { \phantom{ret-ptr (2)} };
+    \draw node[right=0cm of ret3] { ret-ptr (2) };
+  \end{onlyenv}
+  \begin{onlyenv}<.->
+    \capbrace[sp]{(6.1,10.5)}{(6.1,15)}
+    \draw node[right=0cm of sp] { sp };
+  \end{onlyenv}
+
+  \begin{onlyenv}<+->
+    \inactsf{(0,1.5)}{(6,4.5)}{caller stack frame}
+    \inactadv{(0,4.5)}{(6,7.5)}{callee stack frame}
+    \inactsf{(0,7.5)}{(6,10.5)}{callee stack frame (1)}
+
+    \draw[fill=gray!30] (13,1) rectangle (18,3) node[pos=.5] {\footnotesize caller code};
+    \draw[fill=gray!30] (13,4) rectangle (18,6) node[pos=.5] {\footnotesize callee code};
+    \draw[fill=gray!30] (13,7) rectangle (18,9) node[pos=.5] {\footnotesize callee code (1)};
+    \draw[fill=white] (13,10) rectangle (18,12) node[pos=.5] {\footnotesize callee code (2)};
+  \end{onlyenv}
+  \begin{onlyenv}<.-.(1)>
+    \actadv{(0,10.5)}{(6,13.5)}{callee stack frame (2)}
+  \end{onlyenv}
+
+\note{Callee (2) has a capability for Callee and can thus access the stored ret-ptr-d}
+  \begin{onlyenv}<+->
+    \draw [decorate,decoration={brace,amplitude=4pt,mirror,raise=4pt},yshift=0pt]
+    (18.1,4) -- (18.1,6) node[draw=black] (calleecap) [black,midway,xshift=0.6cm] {};
+    \draw (18,11) edge[red,bend left,thick,->] (calleecap);
+  \end{onlyenv}
+
+\note{Callee (2) uses ret-ptr-d to return}
+  \begin{onlyenv}<+->
+    \draw[fill=white] (13,1) rectangle (18,3) node[pos=.5] {\footnotesize caller code};
+    \draw[fill=gray!30] (13,10) rectangle (18,12) node[pos=.5] {\footnotesize callee code (2)};
+    \actsf{(0,1.5)}{(6,4.5)}{caller stack frame}
+    \draw node[fill=white,right=0cm of ret1] { ret-ptr-d };
+    \draw node[fill=white,left=0cm of ret1c] { ret-ptr-c };
+    \draw (13,4.75) edge[red,bend right,thick,->] (ret1);
+  \end{onlyenv}
+\note{Splicing: fails because ends of capabilities don't meet. callee stack frame (1) cannot be empty (it will at least contain 42).}
+  \begin{onlyenv}<+->
+    \draw node[teal,cloud,cloud puffs=10.8,cloud puff arc=110, aspect=3, draw, fill=white, align=center] () at (8,7.5) {Caller tries to splice sp \\and ret-ptr-d, but fails!};  
+  \end{onlyenv}
+\note{Before the caller makes another call/return, it will check that the stack height matches the global max stack height.}
+\end{tikzpicture}
+
+\end{frame}
 
  	
 %%% Local Variables:
