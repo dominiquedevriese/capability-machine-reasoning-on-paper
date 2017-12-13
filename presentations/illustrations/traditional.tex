@@ -1,0 +1,103 @@
+\begin{frame}
+  \frametitle{Traditional stack pointers}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \begin{scope}
+      \clip (-.1,-.1) rectangle (6.1,15.1);
+      \fill[gray!20,draw=none,opacity=.8] (0,0) rectangle (6,15);
+      \draw[draw=gray!80] (0,0) -- (0,15);
+      \draw[draw=gray!80] (6,0) -- (6,15);
+      \draw[fill=white] (0,-.5) rectangle (6,2.5) node[pos=.5] {\footnotesize higher stack frames...};
+    \end{scope}
+    \draw[->] (-1,0) -- node[midway,sloped,above] {stack grows upward} (-1,15);
+
+    % traditional:
+    \draw<+>[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\footnotesize caller stack frame};
+    \draw<.> (8,7) node[draw=black] (sp0) {};
+    \draw<.> node[right=0cm of sp0] (sp0l) { stack pointer };
+    \draw<.> (sp0) edge[->,out=235,in=0] (6,5.25);
+
+    % traditional call:
+    \draw<+>[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\footnotesize caller stack frame};
+    \draw<.>[fill=white] (0,5.5) rectangle (6,8.5) node[pos=.5] {\footnotesize callee stack frame};
+    \draw<.> (8,7) node[draw=black] (sp0) {};
+    \draw<.> node[right=0cm of sp0] (sp0l) { stack pointer };
+    \draw<.> (sp0) edge[->,out=235,in=0] (6,8.25);
+
+    % traditional return:
+    \draw<+>[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\footnotesize caller stack frame};
+    \draw<.> (8,7) node[draw=black] (sp0) {};
+    \draw<.> node[right=0cm of sp0] (sp0l) { stack pointer };
+    \draw<.> (sp0) edge[->,out=235,in=0] (6,5.25);
+
+    % traditional call, attack:
+    \draw<+->[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\footnotesize caller stack frame};
+    \draw<.->[fill=white] (0,5.5) rectangle (6,8.5) node[pos=.5] {\footnotesize callee stack frame};
+    \draw<.-> (8,7) node[draw=black] (sp0) {};
+    \draw<.-> node[right=0cm of sp0] (sp0l) { stack pointer };
+
+    % read other stack frames
+    \draw<.> (sp0) edge[->,out=235,in=0] (6,8.25);
+    \actadv[.]{(0,5.5)}{(6,8.5)}{callee stack frame}
+    \draw<.> (sp0) edge[->,color=red,very thick,out=235,in=0] node[sloped, below] {read/write} (6,4);
+
+    % break well-bracketedness
+    \draw<+>[fill=red,opacity=.7] (-.5,2.5) rectangle (6.5,8.5);
+    \draw<.-> (8,7) node[draw=black] (sp0) {};
+    \draw<.>[red] (sp0) edge[->,out=235,in=0] (6,1.75);
+    \draw<.> node[color=red,align=left,below=of sp0l] {return but\\
+      skip caller frame};
+  \end{tikzpicture}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Stack and return capabilities}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+
+    % first step: capabilities
+    \begin{onlyenv}<+-+(4)>
+      \draw[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\footnotesize current stack frame};
+    \end{onlyenv}
+    \begin{onlyenv}<.-.(3)>
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,2.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+    \begin{onlyenv}<.-.(1)>
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6,0) -- (6,16) node (oldframe1) [black,midway,xshift=0.5cm] {};
+      \draw node[fill=gray!50,right=0cm of oldframe1] (rp1l) {return pointer data};
+    \end{onlyenv}
+
+    % prepare call: store old return pointer
+    \draw<+-+(3)>[fill=gray!50] (0,6) rectangle node {\scriptsize old return pointer code} (6,6.5);
+    \begin{onlyenv}<+-+(2)>
+      \draw[fill=gray!50] (0,5.5) rectangle node {\scriptsize old return pointer data} (6,6);
+      \draw [decorate,decoration={brace,amplitude=10pt,raise=4pt},yshift=0pt]
+      (0,0) -- (0,16) node (oldframe1) [black,midway,xshift=-0.5cm] {};
+      \draw (0,5.75) edge[->,out=180,in=225] (oldframe1); 
+    \end{onlyenv}
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt,aspect=.4},yshift=0pt]
+      (6,2.5) -- (6,16) node (callerframe1) [draw=black,pos=.4,xshift=0.8cm] {};
+      \draw node[fill=gray!50,right=0cm of callerframe1] (rp1l) {new return pointer data};
+    \end{onlyenv}
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,6.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { new stack pointer };
+    \end{onlyenv}
+    
+    % call using capabilities
+    \begin{onlyenv}<+->
+      \draw[fill=gray!50] (0,2.5) rectangle (6,6.5) node[pos=.5] {\footnotesize caller stack frame};
+      \draw[fill=white] (0,6.5) rectangle (6,9.5) node[pos=.5] {\footnotesize callee stack frame};
+    \end{onlyenv}
+  \end{tikzpicture}
+\end{frame}
+%%% Local Variables:
+%%% TeX-master: "presentation-illustrations"
+%%% End:

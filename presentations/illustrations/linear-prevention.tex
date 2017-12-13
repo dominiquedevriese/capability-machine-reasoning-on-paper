@@ -1,0 +1,346 @@
+\begin{frame}
+  \frametitle{Linear caps: stack pointers}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+
+    % Caller 
+    \actsf{(0,2.5)}{(6,5)}{caller stack frame} 
+    \begin{onlyenv}<+>
+      \capbrace{(6.5,2.5)}{(6.5,16)}
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+
+
+    % Split the stack pointer
+    \begin{onlyenv}<+>
+      \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
+      \capbrace[usp]{(6.5,5)}{(6.5,16)}
+      \draw node[right=0cm of usp] { stack pointer };
+      \draw node[right=0cm of sp2] { private stack pointer };
+    \end{onlyenv}
+
+
+    % Callee called
+    \begin{onlyenv}<+>
+      \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
+      \capbrace[usp]{(6.5,5)}{(6.5,16)}
+      \draw node[right=0cm of usp] { stack pointer };
+      \draw node[fill=gray!50, right=0cm of sp2] { return data pointer };
+      \inactsf{(0,2.5)}{(6,5)}{caller stack frame} 
+      \actsf{(0,5)}{(6,6.5)}{callee stack frame}
+    \end{onlyenv}
+
+    % Return from callee
+    \begin{onlyenv}<+>
+      \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
+      \capbrace[usp]{(6.5,5)}{(6.5,16)}
+      \draw node[right=0cm of usp] { stack pointer };
+      \draw node[right=0cm of sp2] { private stack pointer };
+    \end{onlyenv}
+
+    % Caller splices the stack frames
+    \begin{onlyenv}<+>
+      \capbrace{(6.5,2.5)}{(6.5,16)}
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+
+  \end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Linear caps prevent attack 1}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+    \draw (16.5,5.5) node {register file};
+    \begin{scope}
+      \clip (15.9,1.1) rectangle (17.1,5.1);
+      \foreach \x in {1,2,...,4}
+      {
+        \draw[fill=white] (16,\x) rectangle (17,\x+1) node[pos=.5,color=teal] {};
+      };
+    \end{scope}
+    \node (r1) at (16.75,4.5) {};
+    \node (r2) at (16.75,3.6) {};
+
+    % Caller 
+    \actsf{(0,2.5)}{(6,5)}{caller stack frame} 
+    \begin{onlyenv}<+>
+      \capbrace[sp1]{(6.5,2.5)}{(6.5,16)}
+      \draw node[right=0cm of sp1] { stack pointer };
+      \draw (r1) edge[->,red,thick,bend left] (sp1);
+    \end{onlyenv}
+
+
+    % Split the stack pointer
+    \begin{onlyenv}<+>
+      \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
+      \draw (r2) edge[->,red,thick,bend left] (sp2);
+      \draw [decorate,decoration={brace,aspect=0.2,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,5) -- (6.5,16) node[draw=black] (usp) [black,pos=0.2,xshift=0.8cm] {};
+      \draw (r1) edge[->,red,thick,bend left] (usp);
+      \draw node[right=0cm of usp] { stack pointer };
+      \draw node[right=0cm of sp2] { private stack pointer };
+    \end{onlyenv}
+
+
+    % Callee called
+    \begin{onlyenv}<+>
+      \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
+      \draw [decorate,decoration={brace,aspect=0.2,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,5) -- (6.5,16) node[draw=black] (usp) [black,pos=0.2,xshift=0.8cm] {};
+      \draw (r1) edge[->,red,bend left] (usp);
+      \draw node[right=0cm of usp] { stack pointer };
+
+      \draw node[fill=gray,opacity=0.5, right=0cm of sp2] { \phantom{return data pointer} };
+      \draw node[right=0cm of sp2] { return data pointer };
+      \inactsf{(0,2.5)}{(6,5)}{caller stack frame} 
+      \actadv{(0,5)}{(6,8)}{callee stack frame}
+    \end{onlyenv}
+    \draw<.-> (r2) edge[->,red,bend left] (sp2);
+
+
+    \begin{onlyenv}<.->
+      \begin{scope}
+        \fill[gray!20] (14,9) rectangle (18,14);
+        \draw (14,9) -- (14,14);
+        \draw (18,9) -- (18,14);
+      \end{scope}
+    \end{onlyenv}
+    \draw<.>[fill=white] (14,10) rectangle node[color=red] {} (18,10.5);
+
+    % Callee stores stack pointer
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,aspect=0.2,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (8,5) -- (8,16) node[draw=black] (usp) [black,pos=0.2,xshift=0.8cm] {};
+      \draw (16,15) node {heap memory};
+    \end{onlyenv}
+
+    \begin{onlyenv}<.>
+      \draw (14,10.25) edge[->,red,thick,bend right] (usp);
+      \draw[fill=white] (14,10) rectangle node[color=red] {\scriptsize old sp} (18,10.5);
+      \draw node[right=0cm of usp] { stack pointer };
+      \inactsf{(0,2.5)}{(6,5)}{caller stack frame} 
+      \actadv{(0,5)}{(6,8)}{callee stack frame}
+      \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
+      \draw node[fill=gray,opacity=0.5, right=0cm of sp2] { \phantom{return data pointer} };
+      \draw node[right=0cm of sp2] { return data pointer };
+    \end{onlyenv}
+
+    % Return from callee
+    \begin{onlyenv}<+->
+      \draw (14,10.25) edge[->,red,bend right] (usp);
+      \draw[fill=gray!50] (14,10) rectangle node[color=red] {\scriptsize old sp} (18,10.5);
+      \actsf{(0,2.5)}{(6,5)}{caller stack frame} 
+      \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
+      \draw node[right=0cm of sp2] { private stack pointer };
+      \draw node[right=0cm of usp] { stack pointer };
+    \end{onlyenv}
+
+    \draw<+>[teal,very thick] (6.4,4.4) -- (7.4,5.4);
+    \draw<.>[teal,very thick] (7.4,4.4) -- (6.4,5.4);
+    \draw<.> node[teal,cloud,cloud puffs=10.8,cloud puff arc=110, aspect=3, draw, fill=white, align=center] () at (14,4) { Splice fails,\\ stack pointer is linear!};  
+  \end{tikzpicture}  
+\end{frame}
+
+\begin{frame}
+  \frametitle{Linear caps prevents attack 2}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+
+    \draw (16.5,5.5) node {register file};
+    \begin{scope}
+      \clip (15.9,1.1) rectangle (17.1,5.1);
+      \foreach \x in {1,2,...,4}
+      {
+        \draw[fill=white] (16,\x) rectangle (17,\x+1) node[pos=.5,color=teal] {};
+      };
+    \end{scope}
+    \node (r1) at (16.75,4.5) {};
+    \node (r2) at (16.75,3.6) {};
+
+    % Caller 
+    \actsf{(0,2.5)}{(6,5)}{caller stack frame} 
+    \begin{onlyenv}<+>
+      \capbrace{(6.5,2.5)}{(6.5,16)}
+      \draw node[right=0cm of sp1] { stack pointer };
+      \draw (r1) edge[->,red,thick,bend left] (sp1);
+    \end{onlyenv}
+
+
+    % Split the stack pointer
+    \begin{onlyenv}<+>
+      \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
+      \capbrace[usp]{(6.5,5)}{(6.5,16)}
+      \draw (r2) edge[->,red,thick,bend left] (sp2);
+      \draw (r1) edge[->,red,thick,bend left] (usp);
+      \draw node[right=0cm of usp] { stack pointer };
+      \draw node[right=0cm of sp2] { private stack pointer };
+    \end{onlyenv}
+
+
+    % Callee called
+    \begin{onlyenv}<+>
+      \capbrace[usp]{(6.5,5)}{(6.5,16)}
+      \draw (r1) edge[->,red,bend left] (usp);
+      \draw node[right=0cm of usp] { stack pointer };
+      \inactsf{(0,2.5)}{(6,5)}{caller stack frame} 
+      \actadv{(0,5)}{(6,8)}{callee stack frame}
+    \end{onlyenv}
+
+    \begin{onlyenv}<.->
+      \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
+      \draw node[fill=gray!50,right=0cm of sp2] { \phantom{return data pointer} };
+      \draw (r2) edge[->,red,bend left] (sp2);
+      \draw node[right=0cm of sp2] { return data pointer };
+    \end{onlyenv}
+
+    \begin{onlyenv}<+>
+
+      \capbrace[usp]{(13.5,5)}{(13.5,16)}
+      \draw (6,13.25) edge[red,thick,->,in=45] (usp);
+      \draw node[right=0cm of usp] { stack pointer };
+
+      \draw[fill=white] (0,13) rectangle (6,13.5) node[pos=.5,color=red] {\footnotesize sp};
+      \inactsf{(0,2.5)}{(6,5)}{caller stack frame} 
+      \actadv{(0,5)}{(6,8)}{callee stack frame}
+    \end{onlyenv}
+
+    % At this point we have a linear point stored in a part of memory that it governs. In other words, no other capabilities can grant access to this part of memory, to the capabilitiy is essentially lost.
+%    \draw<+> node[teal,cloud,cloud puffs=10.8,cloud puff arc=110, aspect=3, draw, fill=white, align=center] () at (4,10) { Stack pointer\\essentially lost.}; 
+
+    \begin{onlyenv}<+->
+
+      \capbrace[usp]{(13.5,5)}{(13.5,16)}
+      \draw (6,13.25) edge[red,thick,->,in=45] (usp);
+      \draw node[right=0cm of usp] { stack pointer };
+
+      \begin{scope}
+        \fill[fill=gray!50] (0,2.5) rectangle (6,15) node[pos=.5,color=black] {};
+        \draw (0,0) -- (0,15);
+        \draw (6,0) -- (6,15);
+      \end{scope}
+      \draw[fill=gray!50] (0,13) rectangle (6,13.5) node[pos=.5,color=red] {\footnotesize sp};
+      \inactsf{(0,2.5)}{(6,5)}{caller stack frame} 
+      \inactadv{(0,5)}{(6,8)}{callee stack frame}
+      \actsf{(0,8)}{(6,10.5)}{callee (2) stack frame} 
+  \end{onlyenv}
+
+  \draw<+>[teal,very thick] (-0.5,7.5) -- (6.5,11);
+  \draw<.>[teal,very thick] (-0.5,11) -- (6.5,7.5);
+  \draw<.> node[teal,cloud,cloud puffs=10.8,cloud puff arc=110, aspect=3, draw, fill=white, align=center] () at (14,7) { No stack pointer\\for callee (2)!};  
+
+  \end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Linear caps prevents attack 3}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+  \stdstackstart
+  
+  \begin{scope}
+    \fill[gray!50] (13,0) rectangle (18,13);
+    \draw (13,0) -- (13,13);
+    \draw (18,0) -- (18,13);
+    \draw (15.5,14) node {heap memory};
+  \end{scope}
+
+  \begin{onlyenv}<+->
+    \actsf{(0,2.5)}{(6,5.5)}{caller stack frame}
+    \draw[fill=white] (13,1) rectangle (18,3) node[pos=.5] {\footnotesize caller code};
+  \end{onlyenv}
+
+  % Note: the return pointer actually spans all of the available stack, but for space reasons, we only draw part of it here.
+  \begin{onlyenv}<+->
+    \begin{scope}
+      \clip (6.1,2.5) rectangle (8.1,5.5);
+      \capbrace[ret1]{(6.1,2.5)}{(6.1,6.5)}
+    \end{scope}
+    \draw node[fill=gray!50,right=0cm of ret1] { \phantom{ret-ptr} };
+    \draw node[right=0cm of ret1] { ret-ptr };
+  \end{onlyenv}
+
+  \begin{onlyenv}<+->
+    \inactsf{(0,2.5)}{(6,5.5)}{caller stack frame}
+    \draw[fill=gray!30] (13,1) rectangle (18,3) node[pos=.5] {\footnotesize caller code};
+    \draw[fill=white] (13,4) rectangle (18,6) node[pos=.5] {\footnotesize callee code};
+    \actadv{(0,5.5)}{(6,8.5)}{callee stack frame}
+  \end{onlyenv}
+
+  \begin{onlyenv}<+-.(2)>
+    \draw (13,4.75) edge[red,bend right,thick,->] (ret1);
+  \end{onlyenv}
+
+  \begin{onlyenv}<+>
+    \draw[teal,very thick] (9,4.9) -- (12.5,5.9);
+    \draw[teal,very thick] (9,5.9) -- (12.5,4.9);
+    \draw node[teal,cloud,cloud puffs=10.8,cloud puff arc=110, aspect=3, draw, fill=white] () at (14,10) {Return pointer is local!};  
+  \end{onlyenv}
+
+  \begin{onlyenv}<+->
+    \draw[fill=white] (0,13) rectangle (6,13.5) node[pos=.5,color=red] {\footnotesize copy of sp};
+  \end{onlyenv}
+  \draw<.> (6,13.25) edge[red,thick,->,in=45] (ret1);
+
+  \begin{onlyenv}<+->
+    \begin{scope}
+      \clip (6.1,5.5) rectangle (8.1,8.5);
+      \capbrace[ret2]{(6.1,5.5)}{(6.1,9.5)}
+    \end{scope}
+    \draw node[fill=gray!50,right=0cm of ret2] { \phantom{ret-ptr (1)} };
+    \draw node[right=0cm of ret2] { ret-ptr (1) };
+  \end{onlyenv}
+  \draw<.-.(1)> (6,13.25) edge[red,thick,->,in=45] (ret1);
+
+  \begin{onlyenv}<+->
+    \inactsf{(0,2.5)}{(6,5.5)}{caller stack frame}
+    \inactadv{(0,5.5)}{(6,8.5)}{callee stack frame}
+    \actsf{(0,8.5)}{(6,11.5)}{callee stack frame (1)}
+    \draw[fill=gray!30] (13,1) rectangle (18,3) node[pos=.5] {\footnotesize caller code};
+    \draw[fill=gray!30] (13,4) rectangle (18,6) node[pos=.5] {\footnotesize callee code};
+    \draw[fill=white] (13,7) rectangle (18,9) node[pos=.5] {\footnotesize callee code (1)};
+
+  \end{onlyenv}
+
+  \begin{onlyenv}<+->
+    \foreach \x in {11.5,12,...,14}
+    {
+      \draw[fill=white] (0,\x) rectangle (6,\x+.5) node[pos=.5,color=teal] {\footnotesize 0};
+    };
+  \end{onlyenv}
+
+  \begin{onlyenv}<+->
+    \begin{scope}
+      \clip (6.1,8.5) rectangle (8.1,11.5);
+      \capbrace[ret3]{(6.1,8.5)}{(6.1,12.5)}
+    \end{scope}
+    \draw node[fill=gray!50,right=0cm of ret3] { \phantom{ret-ptr (2)} };
+    \draw node[right=0cm of ret3] { ret-ptr (2) };
+  \end{onlyenv}
+
+  \begin{onlyenv}<+->
+    \inactsf{(0,2.5)}{(6,5.5)}{caller stack frame}
+    \inactadv{(0,5.5)}{(6,8.5)}{callee stack frame}
+    \inactsf{(0,8.5)}{(6,11.5)}{callee stack frame (1)}
+    \actadv{(0,11.5)}{(6,14.5)}{callee stack frame (2)}
+    \draw[fill=gray!30] (13,1) rectangle (18,3) node[pos=.5] {\footnotesize caller code};
+    \draw[fill=gray!30] (13,4) rectangle (18,6) node[pos=.5] {\footnotesize callee code};
+    \draw[fill=gray!30] (13,7) rectangle (18,9) node[pos=.5] {\footnotesize callee code (1)};
+    \draw[fill=white] (13,10) rectangle (18,12) node[pos=.5] {\footnotesize callee code (2)};
+  \end{onlyenv}
+
+  \begin{onlyenv}<+->
+    \draw node[teal,cloud,cloud puffs=10.8,cloud puff arc=110, aspect=3, draw, fill=white, align=center] () at (14,4) {ret-ptr capability gone,\\can only access ret-ptr (2)!};  
+  \end{onlyenv}
+\end{tikzpicture}
+
+\end{frame}
+
+
+ 	
+%%% Local Variables:
+%%% TeX-master: "presentation-illustrations"
+%%% End:

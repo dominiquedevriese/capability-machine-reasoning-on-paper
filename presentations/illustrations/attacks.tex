@@ -1,0 +1,224 @@
+\begin{frame}
+  \frametitle{Stack and return capabilities: Attack 1}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+
+    % attacker...
+    \begin{onlyenv}<+-+(2)>
+      \draw[fill=gray!50] (0,2.5) rectangle (6,6.5) node[pos=.5] {\footnotesize caller stack frame};
+      \actadv{(0,6.5)}{(6,9.5)}{callee stack frame}
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,6.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+
+    % stores stack pointer in heap
+    \begin{onlyenv}<+->
+      \begin{scope}
+        \fill[gray!20] (14,6) rectangle (18,13);
+        \draw (14,6) -- (14,13);
+        \draw (18,6) -- (18,13);
+      \end{scope}
+      \draw (16,14) node {heap memory};
+      \draw[fill=gray!50] (14,8) rectangle node[color=red] {\scriptsize copy of old sp} (18,8.5);
+    \end{onlyenv}
+    \draw<.> (14,8.25) edge[->,red,thick,bend left] (sp1);
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (11.5,6.5) -- (11.5,16) node[draw=black] (spold) [black,midway,xshift=0.8cm] {};
+      \draw (14,8.25) edge[->,red,thick,bend left] (spold);
+    \end{onlyenv}
+
+    % attacker returns
+    \begin{onlyenv}<+>
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,2.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+      \draw[fill=white] (0,2.5) rectangle (6,6.5) node[pos=.5] {\footnotesize current stack frame};
+    \end{onlyenv}
+
+    % attacker gets called again + uses old stack pointer.
+    \begin{onlyenv}<+>
+      \draw[fill=gray!50] (0,2.5) rectangle (6,10.5) node[pos=.5] {\footnotesize caller stack frame};
+      \actadv{(0,10.5)}{(6,13.5)}{callee stack frame}
+      \draw (14,8.25) edge[->,color=red,very thick,out=235,in=0] node[sloped, below] {read/write} (6,8);
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+        (6.5,10.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+      % \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      % (6,2.5) -- (6,16) node (callerframe1) [draw=black,midway,xshift=0.8cm] {};
+      % \draw node[fill=gray!50,right=0cm of callerframe1] (rp1l) {return pointer data};
+    \end{onlyenv}
+  \end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Stack and return capabilities: Attack 2}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+
+    % first step: capabilities
+    \begin{onlyenv}<+>
+      \draw[fill=white] (0,2.5) rectangle (6,4) node[pos=.5] {\footnotesize current stack frame};
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+        (6.5,2.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+      % \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      % (6,0) -- (6,16) node (oldframe1) [black,midway,xshift=0.5cm] {};
+      % \draw node[fill=gray!50,right=0cm of oldframe1] (rp1l) {return pointer data};
+    \end{onlyenv}
+
+    % attacker stores copy of stack pointer high in the stack
+    \draw<+->[fill=gray!50] (0,2.5) rectangle (6,4) node[pos=.5] {\footnotesize caller stack frame};
+    \begin{onlyenv}<.-.(2)>
+      \actadv{(0,4)}{(6,7)}{callee stack frame}
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+        (6.5,4) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+    \draw<+->[fill=white] (0,13) rectangle (6,13.5) node[pos=.5,color=red] {\footnotesize copy of sp};
+    \draw<.> (6,13.25) edge[red,thick,->,in=45] (sp1);
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+        (13.5,4) -- (13.5,16) node[draw=black] (spold) [black,midway,xshift=0.8cm] {};
+      \draw (6,13.25) edge[red,thick,->,in=45] (spold);
+    \end{onlyenv}
+
+    % attacker calls trusted code again
+%    \draw<+->[fill=gray!50] (0,4) rectangle (6,7) node[pos=.5] {\footnotesize callee stack frame};
+    \begin{onlyenv}<+->
+      \inactadv{(0,4)}{(6,7)}{callee stack frame}
+    \end{onlyenv}
+    \begin{onlyenv}<.>
+      \draw[fill=white] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+        (6.5,7) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+
+    % attacker uses old stack pointer
+    \draw<+->[fill=gray!50] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
+    \begin{onlyenv}<.-.(1)>
+      \actadv{(0,9)}{(6,12)}{callee (3) stack frame}
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,9) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+    \draw<+> (spold) edge[->,color=red,very thick,out=235,in=0] node[sloped, below] {read/write} (6,8);
+  \end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Stack Capabilities Problems}
+  \begin{itemize}
+  \item Stack capabilities are not a panacea
+  \item Stack pointers must not leave stack frame (through memory or stack)
+  \item Similar problems for return pointers (omitted)
+  \item Solution: local capabilities?
+    \begin{itemize}
+    \item Make stack and return capabilities local
+    \item Cannot leave registers (except on stack) (\sout{Attack 1})
+    \item Stack clearing on boundary crossings (\sout{Attack 2})
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    \frametitle{Stack and return capabilities: Attack 3}
+    \begin{scope}
+    \clip (-.1,-.1) rectangle (5.1,10.1);
+    \fill[fill=gray!50] (0,0) rectangle (5,10);
+    \draw (0,0) -- (0,10);
+    \draw (5,0) -- (5,10);
+    \end{scope}
+    \draw (2.5,11) node {heap memory};
+
+    \begin{scope}
+    \clip (12.9,-.1) rectangle (18.1,11.1);
+    \fill[fill=gray!50] (13,0) rectangle (18,11);
+    \draw (13,0) -- (13,11);
+    \draw (18,0) -- (18,11);
+    \end{scope}
+    \draw (15.5,12) node {more heap memory}; 
+
+
+    \draw<+->[fill=white] (0,1) rectangle (5,4) node[pos=.5] {\footnotesize caller code};
+
+
+    \begin{onlyenv}<+->
+      \capbrace[ret1]{(5.1,1)}{(5.1,4)}
+      \draw node[fill=gray!50, right=0cm of ret1] { \phantom{ret-ptr} };
+      \draw node[right=0cm of ret1] { ret-ptr };
+    \end{onlyenv}
+
+    \begin{onlyenv}<+->
+      \draw[fill=gray!30] (0,1) rectangle (5,4) node[pos=.5] {\footnotesize caller code};
+      \draw[fill=white] (13,3) rectangle (18,6) node[pos=.5] {\footnotesize callee code};
+      \draw[fill=white] (13,1) rectangle (18,1.5) node[pos=.5] {};
+    \end{onlyenv}
+
+    \begin{onlyenv}<.-.(2)>
+      \draw [decorate,decoration={brace,amplitude=2pt,mirror,raise=4pt},yshift=0pt]
+      (18.1,1) -- (18.1,1.5) node[draw=black] (copy) [black,midway,xshift=0.5cm] {};
+      \draw (18,4.75)  edge[->,bend left] (copy);
+    \end{onlyenv}
+
+    \begin{onlyenv}<+->
+      \draw[fill=white] (13,1) rectangle (18,1.5) node[pos=.5] {\scriptsize {\color{red} copy of ret-ptr}};
+      \draw (13,1.25) edge[->,red,thick,bend left] (ret1);
+    \end{onlyenv}
+
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,amplitude=10pt,raise=4pt},yshift=0pt]
+      (12.9,3) -- (12.9,6) node[draw=black] (ret2) [black,midway,xshift=-0.8cm] {};
+      \draw node[fill=gray!50,left=0cm of ret2] { \phantom{ret-ptr (1)} };
+      \draw node[left=0cm of ret2] { ret-ptr (1) };
+    \end{onlyenv}
+
+    \begin{onlyenv}<+->
+      \draw[fill=white] (0,5) rectangle (5,8) node[pos=.5] {\footnotesize callee code (1)};
+      \draw[fill=gray!30] (13,3) rectangle (18,6) node[pos=.5] {\footnotesize callee code};
+      \draw[fill=gray!30] (13,1) rectangle (18,1.5) node[pos=.5] {\scriptsize {\color{red} copy of ret-ptr}};
+    \end{onlyenv}
+
+    \begin{onlyenv}<+->
+      \capbrace[ret3]{(5.1,5)}{(5.1,8)}
+      \draw node[fill=gray!50,right=0cm of ret3] { \phantom{ret-ptr (2)} };
+      \draw node[right=0cm of ret3] { ret-ptr (2) };
+    \end{onlyenv}
+
+    \begin{onlyenv}<+->
+      \draw[fill=gray!30] (0,5) rectangle (5,8) node[pos=.5] {\footnotesize callee code (1)};
+      \draw[fill=white] (13,7) rectangle (18,10) node[pos=.5] {\footnotesize callee code (2)};
+    \end{onlyenv}
+
+    \begin{onlyenv}<+->
+      \draw (21,7.5) node[devil,opaque=0.5,mirrored,minimum size=1cm] {};
+    \end{onlyenv}
+
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,amplitude=2pt,mirror,raise=4pt},yshift=0pt]
+      (18.1,1) -- (18.1,1.5) node[draw=black] (copy) [black,midway,xshift=0.5cm] {};
+      \draw (18,8.25)  edge[->,red,thick,bend left] (copy);
+      \draw[fill=white] (13,1) rectangle (18,1.5) node[pos=.5] {\scriptsize {\color{red} copy of ret-ptr}};
+    \end{onlyenv}
+
+    \begin{onlyenv}<+->
+      \draw[fill=gray!30] (13,7) rectangle (18,10) node[pos=.5] {\footnotesize callee code (2)};
+      \draw[fill=white] (0,1) rectangle (5,4) node[pos=.5] {\footnotesize caller code};
+      \draw[fill=gray!30] (13,1) rectangle (18,1.5) node[pos=.5] {\scriptsize {\color{red} copy of ret-ptr}};
+    \end{onlyenv}
+
+
+    \begin{onlyenv}<+->
+      \draw (9,5.5) node [ellipse, draw, red, thick,minimum height=1.5cm, minimum width=3cm] { };
+      \draw node[red,cloud,cloud puffs=10.8,cloud puff arc=110, aspect=3, draw, fill=white, align=center] () at (12,10) { These were skipped!};  
+    \end{onlyenv}
+  \end{tikzpicture}
+\end{frame}
+%%% Local Variables:
+%%% TeX-master: "presentation-illustrations"
+%%% End:
