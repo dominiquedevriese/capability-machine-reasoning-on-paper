@@ -609,6 +609,140 @@ Target language:
 \item 
 \end{itemize}
 
+\subsubsection{Helpful functions, sets, and conventions}
+
+\[
+  \pi_\baddr(\vsc) =
+  \begin{cases}
+    \baddr & \text{if $\vsc = ((\_,\_),\baddr,\_,\_)$} \\ 
+    \pi_\baddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
+    \src{\baddr} & \src{\text{if $\vsc = \stkptr{\_,\baddr,\_,\_}$}} \\ 
+    \src{\baddr} & \src{\text{if $\vsc = \retptrd(\_,(\baddr,\_))$}} \\ 
+    \src{\baddr} & \src{\text{if $\vsc = \retptrc(\_,(\_,\_,\baddr,\_,\_))$}}
+  \end{cases}
+\]
+\[
+  \pi_\eaddr(\vsc) =
+  \begin{cases}
+    \eaddr & \text{if $\vsc = ((\_,\_),\_,\eaddr,\_)$} \\ 
+    \pi_\eaddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
+    \src{\eaddr} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
+    \src{\eaddr} & \src{\text{if $\vsc = \retptrd(\_,(\_,\eaddr))$}} \\ 
+    \src{\eaddr} & \src{\text{if $\vsc = \retptrc(\_,(\_,\_,\_,\eaddr,\_))$}}
+  \end{cases}
+\]
+
+\[
+  \pi_\lin(\vsc) = 
+  \begin{cases}
+    \lin & \text{if $\vsc = ((\_,\_),\_,\eaddr,\_)$} \\ 
+    \pi_\lin(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
+    \src{\linear} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
+    \src{\linear} & \src{\text{if $\vsc = \retptrd(\_,(\_,\_))$}} \\ 
+    \src{\lin} & \src{\text{if $\vsc = \retptrc(\_,(\_,\lin,\_,\_,\_))$}}
+  \end{cases}
+\]
+
+\dominique{4-12-2017: what about $\pi_a$?}
+\lau{12-12-2017: I have added them as I needed them in the LR. I have not needed $\pi_a$ yet.}
+\[
+  \updPcAddr{\Phi} \defeq 
+  \begin{cases}
+    \Phi\update{\pcreg}{((\perm,\lin),\baddr,\eaddr,\aaddr+1)} & \text{if $\Phi(\pcreg) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$}\\
+    \failed & \totherwise
+  \end{cases}
+\]
+
+\[
+  \readAllowed{} \defeq \{ \rwx,\rw,\rx,\ro \}
+\]
+
+\[
+  \writeAllowed{} \defeq \{ \rwx, \rw \}
+\]
+
+\[
+  \isLinear{\cb} \defeq
+  \begin{cases}
+    \top & 
+    \arraycolsep=0pt
+    \begin{array}[t]{l}
+      \cb = ((\_,\linear),\_,\_,\_) \tor\\
+      \cb = \sealed{\_,\cb'} \tand \isLinear{\cb'} 
+    \end{array}\\
+    \src{\top} & 
+    \sourcecolor\left.
+    \arraycolsep=0pt
+    \begin{array}[t]{l}
+      \cb = \stkptr{\_,\_,\_,\_}\\
+      \cb = \retptrd(\_,\_)
+    \end{array}\right.\\
+    \bot & \totherwise
+  \end{cases}
+\]
+
+\[
+  \nonLinear{\cb} \defeq \neg \isLinear{\cb}
+\]
+
+\[
+  \linCons{w} \defeq
+  \begin{cases}
+    0 & \isLinear{w} \\
+    w & \totherwise
+  \end{cases}
+\]
+
+\[
+  \exec{\cb} \defeq 
+      \cb = ((\perm, \_), \_, \_, \_) \tand \perm \in \{\rwx,\rx\} 
+\]
+
+\[
+  \nonExec{\cb} \defeq \neg \exec{\cb}
+\]
+
+\[
+  \withinBounds{\vsc} \defeq 
+  \begin{cases}
+    \baddr \leq \aaddr \leq \eaddr & 
+    \arraycolsep=0pt
+    \begin{array}[t]{l}
+      \vsc = ((\_,\_),\baddr,\eaddr,\aaddr) \src{\tor}\\
+      \src{\vsc = \stkptr{\_,\baddr,\eaddr,\aaddr}}
+    \end{array}\\
+    \sigma_\baddr \leq \sigma_\aaddr \leq \sigma_\eaddr & \vsc = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma} \\
+    \bot & \totherwise
+  \end{cases}
+\]
+
+\[
+  \nonZero{w} \defeq
+  \begin{cases}
+    \bot & w \in \ints \tand w = 0 \\
+    \top & \totherwise
+  \end{cases}
+\]
+
+
+For convenience, we introduce the following notation:
+\[
+  \begin{array}{rcl}
+    \Phi(r) & \defeq & \Phi.\reg(r)
+  \end{array}
+\]
+where $r\in \RegName$.
+
+For $\rn$ which can be a register or an integer, we take
+\[
+  \Phi(\rn) = n
+\]
+to mean
+\[
+  \text{either $n = \rn$ or $n = \Phi.\reg(\rn)$ and in either case $n \in \ints$}
+\]
+
+
 \subsubsection{Step relations}
 \paragraph{Decode and encode functions}
 We assume functions $\decInstr{} : \Word \fun \Instr$ and $\encInstr{} : \Instr \fun \ints$ where $\Instr$ is the set of target level instructions.
@@ -738,143 +872,6 @@ For convenience, we will add the convention that the memory update $\update{\mem
     \update{\mem.a}{\scall[\calllen-1]{o}{r_1}{r_2}}\\
   \end{array}
 \]
-
-\subsubsection{Helpful functions, sets, and conventions}
-
-\[
-  \pi_\baddr(\vsc) =
-  \begin{cases}
-    \baddr & \text{if $\vsc = ((\_,\_),\baddr,\_,\_)$} \\ 
-    \pi_\baddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
-    \src{\baddr} & \src{\text{if $\vsc = \stkptr{\_,\baddr,\_,\_}$}} \\ 
-    \src{\baddr} & \src{\text{if $\vsc = \retptrd(\_,(\baddr,\_))$}} \\ 
-    \src{\baddr} & \src{\text{if $\vsc = \retptrc(\_,(\_,\_,\baddr,\_,\_))$}}
-  \end{cases}
-\]
-\[
-  \pi_\eaddr(\vsc) =
-  \begin{cases}
-    \eaddr & \text{if $\vsc = ((\_,\_),\_,\eaddr,\_)$} \\ 
-    \pi_\eaddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
-    \src{\eaddr} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
-    \src{\eaddr} & \src{\text{if $\vsc = \retptrd(\_,(\_,\eaddr))$}} \\ 
-    \src{\eaddr} & \src{\text{if $\vsc = \retptrc(\_,(\_,\_,\_,\eaddr,\_))$}}
-  \end{cases}
-\]
-
-\[
-  \pi_\lin(\vsc) = 
-  \begin{cases}
-    \lin & \text{if $\vsc = ((\_,\_),\_,\eaddr,\_)$} \\ 
-    \pi_\lin(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
-    \src{\linear} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
-    \src{\linear} & \src{\text{if $\vsc = \retptrd(\_,(\_,\_))$}} \\ 
-    \src{\lin} & \src{\text{if $\vsc = \retptrc(\_,(\_,\lin,\_,\_,\_))$}}
-  \end{cases}
-\]
-
-\dominique{4-12-2017: what about $\pi_a$?}
-\lau{12-12-2017: I have added them as I needed them in the LR. I have not needed $\pi_a$ yet.}
-\[
-  \updPcAddr{\Phi} \defeq 
-  \begin{cases}
-    \Phi\update{\pcreg}{((\perm,\lin),\baddr,\eaddr,\aaddr+1)} & \text{if $\Phi(\pcreg) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$}\\
-    \failed & \totherwise
-  \end{cases}
-\]
-
-\[
-  \readAllowed{} \defeq \{ \rwx,\rw,\rx,\ro \}
-\]
-
-\[
-  \writeAllowed{} \defeq \{ \rwx, \rw \}
-\]
-
-\[
-  \isLinear{\cb} \defeq
-  \begin{cases}
-    \top & 
-    \arraycolsep=0pt
-    \begin{array}[t]{l}
-      \cb = ((\_,\linear),\_,\_,\_) \tor\\
-      \cb = \sealed{\_,\cb'} \tand \isLinear{\cb'} 
-    \end{array}\\
-    \src{\top} & 
-    \sourcecolor\left.
-    \arraycolsep=0pt
-    \begin{array}[t]{l}
-      \cb = \stkptr{\_,\_,\_,\_}\\
-      \cb = \retptrd(\_,\_)
-    \end{array}\right.\\
-    \bot & \totherwise
-  \end{cases}
-\]
-
-\[
-  \nonLinear{\cb} \defeq \neg \isLinear{\cb}
-\]
-
-\[
-  \linCons{w} \defeq
-  \begin{cases}
-    0 & \isLinear{w} \\
-    w & \totherwise
-  \end{cases}
-\]
-
-\[
-  \exec{\cb} \defeq 
-      \cb = ((\perm, \_), \_, \_, \_) \tand \perm \in \{\rwx,\rx\} 
-\]
-
-\[
-  \nonExec{\cb} \defeq \neg \exec{\cb}
-\]
-
-\[
-  \withinBounds{\vsc} \defeq 
-  \begin{cases}
-    \baddr \leq \aaddr \leq \eaddr & 
-    \arraycolsep=0pt
-    \begin{array}{l}
-      \vsc = ((\_,\_),\baddr,\eaddr,\aaddr) \src{\tor}\\
-      \src{\vsc = \stkptr{\_,\baddr,\eaddr,\aaddr}}
-    \end{array}\\
-    \sigma_\baddr \leq \sigma_\aaddr \leq \sigma_\eaddr & \vsc = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma} \\
-    \bot & \totherwise
-  \end{cases}
-\]
-
-\[
-  \nonZero{w} \defeq
-  \begin{cases}
-    \bot & w \in \ints \tand w = 0 \\
-    \top & \totherwise
-  \end{cases}
-\]
-
-
-For convenience, we introduce the following notation:
-\[
-  \begin{array}{rcl}
-    \Phi(r) & \defeq & \Phi.\reg(r)
-  \end{array}
-\]
-where $r\in \RegName$.
-
-For $\rn$ which can be a register or an integer, we take
-\[
-  \Phi(\rn) = n
-\]
-to mean
-\[
-  \text{either $n = \rn$ or $n = \Phi.\reg(\rn)$ and in either case $n \in \ints$}
-\]
-
-
-
-\subsubsection{Step Relation}
 
 \subsubsection{Instruction Interpretation}
 We have unified the two languages in the below definitions. Everything written in black is common for both source and target language. Everything written in \src{blue} is specific to the source language.
