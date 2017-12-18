@@ -363,6 +363,9 @@
 \newcommand{\rretc}{\mathrm{r}_\mathrm{ret code}}
 \newcommand{\rretd}{\mathrm{r}_\mathrm{ret data}}
 \newcommand{\rdata}{\mathrm{r}_\mathrm{data}}
+\newcommand{\rtmp}[1]{\mathrm{r}_\mathrm{t#1}}
+
+
 
 %%% locality
 %\newcommand{\plainlocality}[1]{\mathrm{#1}}
@@ -459,18 +462,19 @@
     &\scbnf &\defbnf & ((\permbnf,\linbnf),\basebnf,\aendbnf,\addrbnf) \mid \seal{\sealbasebnf,\sealendbnf,\sigma}\\
     & & & {\sourcecolor{} \mid \stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}}\\ 
     &\cbnf & \defbnf &  \scbnf \mid \sealed{\sigma,\scbnf}{\sourcecolor{} \; \mid \retptrd(\sigma,(\basebnf,\aendbnf)) \mid \retptrc(\sigma,(\permbnf,\linbnf,\basebnf,\aendbnf,\addrbnf))}\\ 
-    &\rbnf & \defbnf &\pcreg \mid \rret \mid \rstk \mid \rdata \mid \dots \\
+    &\rbnf & \defbnf &\pcreg \mid \rret \mid \rstk \mid \rdata \mid \rtmp{1} \mid \rtmp{2} \mid \dots \\
     &\Reg & \defeq & \RegName \fun \Word\\
     &\Mem & \defeq & \Addr \fun \Word \\
     &\MemSeg & \defeq & \Addr \parfun \Word \\
-    {\sourcecolor \sstkframe \in} & {\sourcecolor \StkFrame} & {\sourcecolor \defeq} & {\sourcecolor \Caps \times \MemSeg \times \Addr}\\
+    {\sourcecolor \sstkframe \in} & {\sourcecolor \StkFrame} & {\sourcecolor \defeq} & {\sourcecolor \Caps \times \MemSeg}\\
     \src{\sstk \in}& \src{ \Stack} & \src{ \defeq} & \src{ \StkFrame^*} \\
     \Phi \in & \ExecConf & \defeq & \Mem \times \Reg {\sourcecolor{} \; \times \; \Stack \times \MemSeg }\\
     &\Conf & \defeq & \ExecConf \uplus \{\failed\} \uplus \{\halted\}
   \end{array}
 \]
-\lau{06-09-2017: Should seals also have the option to be linear?}
-\lau{13-09-2017: For now I have added linearity to the seals.}
+%\lau{06-09-2017: Should seals also have the option to be linear?}
+%\lau{13-09-2017: For now I have added linearity to the seals.}
+%\lau{15-12-2017: Removed linearity from seal - I could not come up with a single good reason to have it as we have them here.}
 \dominique{27-9-2017: I think we should have versions of $\retptrd$ and $\retptrc$ for non-top stack frames and define that invoking them with the current stack pointer will fail.}
 \lau{28-09-2017: Why would you like this? If we want to add this, we will have to be careful, because an old code-return-pointer may fit perfectly well with our new data-return-pointer, so in this case it should not fail. We added the seal to the return pointers, so we had some way of figuring out whether two return pointers would actually fit together.}
 \dominique{27-9-2017: Likewise, I think we need to have a source-language representation for a pointer into one of the non-top stack frames, as we may need to be able to back-translate adversary code that reads/writes in those.}
@@ -480,24 +484,18 @@ The target language domains are all the non blue parts in the above. The source 
 \item $\linbnf$ defines domain $\Linear$
 \item $\scbnf$ defines domain $\SealableCaps$
 \item $\cbnf$ defines domain $\Caps$
-\item $\rbnf$ defines the finite set $\RegName$.
+\item $\rbnf$ defines the finite set $\RegName$. 
 \item $\Perm$ is defined as the set of permissions in Figure~\ref{fig:perm-hier}.
 \end{itemize}
 
-In the source language, $\src{\Stack}$ is a call stack that contains the data for each call. The call stack consists of a number of $\src{\StkFrame}$'s that contains 1) the old pc, 2) caller's private stack, and 3) the address of the old stack pointer. 
+In the source language, $\src{\Stack}$ is a call stack that contains the data for each call. The call stack consists of a number of $\src{\StkFrame}$'s that contains 1) the old pc and 2) caller's private stack.
+\lau{18-12-2017: Stack frame used to contain the address of the old stack pointer. This should be inferable from other information, so it was removed.}
 
- In both languages, the base address of the stack is known (the stack grows downwards in memory, so the base address marks the end of the stack). In the target language, this will be the base address of some linear capability. The base address can be any address on the machine, but it will have to remain the same. We write this constant as
+ In both languages, the base address of the stack is known (the stack grows downwards in memory, so the base address marks the end of the stack). In the target language, this will be the base address of some linear capability. The base address can be any address on the machine, but it will have to remain the same during all of execution. We write this constant as
 \[
   \stkb
 \]
 
-More convenient definitions
-\[
-  \begin{array}{rcl}
-    \Phi(r) & \defeq & \Phi.\reg(r)
-  \end{array}
-\]
-where $r\in \RegName$.
 
 \subsubsection{Useful definitions}
 \begin{definition}
@@ -532,24 +530,22 @@ n &\in & \ints \\
 \]
 $i$ defines the set $\Instr$
 
-\dominique{4-12-2017: some instructions need to be able to take an integer rather than a natural, e.g. cca (as used in the implementation of call).}
+%Lau: resolved:
+%\dominique{4-12-2017: some instructions need to be able to take an integer rather than a natural, e.g. cca (as used in the implementation of call).}
 
-The source machine is also a capability machine with memory capabilities and sealed capabilities. Unlike the target machine, the source machine is going to have a built in stack along with special stack and return capabilities. The syntax of the source machine language is as follows:
+The source machine is also a capability machine with memory capabilities and sealed capabilities. Unlike the target machine, the source machine has a built in stack along with special stack and return tokens used in place of the actual capabilities. The syntax of the source machine language is as follows:
 \[
   \begin{array}{rcl}
-    n & \in & \nats \\
     o & \in & \nats \\
-    \src{r} &\in &  \RegName\\
-    \src{\rn} &\defbnf & \src{r} \mid n \\
-    \src{i} & \defbnf &  \trg{i} \mid \scall{o}{\src{r}}{\src{r}}
+    \src{i} & \defbnf &  \trg{i} \mid \scall{o}{r}{r}
   \end{array}
 \]
 There is one syntactic difference between the source language and the target language, namely the target language has an extra instruction in the $\scall{o}{}{}$ instruction (the $o$ refers to the seal it uses, namely the offset in the seals made available by linking). 
 
-The source machine allows for variable length instructions which we utilize for $\scall{o}{}{}$. In other words, when we $\scall{o}{}{}$ is decoded, a series of addresses in memory must contain what corresponds to the call instruction. This is described in more detail when we present the decoding function.
+The source machine allows for variable length instructions which we utilize for $\scall{o}{}{}$. In other words, when $\scall{o}{}{}$ is decoded, a series of addresses in memory must contain what corresponds to the call instruction (and be within the range of the pc capability). This is described in more detail when we present the decoding function.
 
 \subsection{Permissions}
-\lau{23-03-2017: I am not sure we need the opaque capabilities anymore.} % I am not sure why I did not think the opaque capabilities where necessary, but I have a feeling we talked about this in Leuven and came to the conclusion that they were necessary.
+%\lau{23-03-2017: I am not sure we need the opaque capabilities anymore.} % I am not sure why I did not think the opaque capabilities where necessary, but I have a feeling we talked about this in Leuven and came to the conclusion that they were necessary.
 \begin{figure}[!h]
   \centering
   \begin{tikzpicture}[main node/.style={}]
@@ -574,11 +570,12 @@ The source machine allows for variable length instructions which we utilize for 
   \caption{Permission hierarchy}
   \label{fig:perm-hier}
 \end{figure}
+\lau{13-09-2017: Note that most of the discussion belove is now captured in Section~\ref{sec:linear-cap}}
 \lau{01-09-2017: For now, I will add the linear capabilities such that a linear capability stays linear. It does, however, seem like it would be okay to have linear capabilities become non-linear (I at least don't see anything that would break down completely). One draw back would be that one could ``ruin'' the stack capability by making it non-linear.}
 \dominique{7-9-2017: Err... you mean that we could allow non-linear capabilities to be made linear, right?  We definitely do not want to allow the stack or return capability to be made non-linear, as we want to prevent it from being aliased.}
 \lau{07-09-2017: I actually did mean linear to non-linear (non-linear to linear does not make sense because the non-linear capability may have aliases). The operation that makes a linear capability non-linear would have to clear said capability. If a linear capability has been made non-linear, then someone who expects a linear capability can observe this difference and behave accordingly, i.e., fail the execution. It will, however, remain an invariant that there are no aliases for linear capabilities.}
 \lau{07-09-2017: I had forgotten that return capabilities probably need to be linear. This would call for a ``load from offset'' operation to be able to load an in code stored seal (see the figure I drew about linking/seals).}
-\lau{13-09-2017: Note that most of the above discussion is now captured in Section~\ref{sec:linear-cap}}
+
 
 We assume functions $\decPerm{}$ and $\encPerm{}$.
 \lau{15-09-2017: TODO, write more about these. Should be like in the local cap setting.}
@@ -828,6 +825,14 @@ The call code does the following:
   \end{cases}
 \]
 
+
+For convenience, we introduce the following notation:
+\[
+  \begin{array}{rcl}
+    \Phi(r) & \defeq & \Phi.\reg(r)
+  \end{array}
+\]
+where $r\in \RegName$.
 
 For $\rn$ which can be a register or an integer, we take
 \[
