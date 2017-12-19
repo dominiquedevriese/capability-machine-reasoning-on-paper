@@ -344,7 +344,7 @@
 \newcommand{\opc}{\var{opc}}
 \newcommand{\odata}{\var{odata}}
 \newcommand{\vsc}{\var{sc}}
-\newcommand{\cb}{\var{cb}}
+\newcommand{\cb}{\vsc}
 \newcommand{\baddr}{\var{b}}
 \newcommand{\eaddr}{\var{e}}
 \newcommand{\aaddr}{\var{a}}
@@ -594,8 +594,10 @@ Source language:
   \begin{itemize}
 %  \item Opaque capabilities do not hide the length of a program (especially an issue if we ever hope to have error recovery).
   \item This is needed for correctness. See subsection~\ref{subsec:capability-opacity} for an example it helps prevent.
+  \item It is only used for the call instruction.
   \end{itemize}
-\item Programs have undefined behavior when passing ret/stk pointers.
+% Lau: 18-12-2017: I do not think this is true anymore?
+% \item Programs have undefined behavior when passing ret/stk pointers.
 \end{itemize}
 
 \dominique{27-09-2017: I think we need to do something about tail calls in the source language?}
@@ -606,6 +608,140 @@ Target language:
 \begin{itemize}
 \item 
 \end{itemize}
+
+\subsubsection{Helpful functions, sets, and conventions}
+
+\[
+  \pi_\baddr(\vsc) =
+  \begin{cases}
+    \baddr & \text{if $\vsc = ((\_,\_),\baddr,\_,\_)$} \\ 
+    \pi_\baddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
+    \src{\baddr} & \src{\text{if $\vsc = \stkptr{\_,\baddr,\_,\_}$}} \\ 
+    \src{\baddr} & \src{\text{if $\vsc = \retptrd(\_,(\baddr,\_))$}} \\ 
+    \src{\baddr} & \src{\text{if $\vsc = \retptrc(\_,(\_,\_,\baddr,\_,\_))$}}
+  \end{cases}
+\]
+\[
+  \pi_\eaddr(\vsc) =
+  \begin{cases}
+    \eaddr & \text{if $\vsc = ((\_,\_),\_,\eaddr,\_)$} \\ 
+    \pi_\eaddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
+    \src{\eaddr} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
+    \src{\eaddr} & \src{\text{if $\vsc = \retptrd(\_,(\_,\eaddr))$}} \\ 
+    \src{\eaddr} & \src{\text{if $\vsc = \retptrc(\_,(\_,\_,\_,\eaddr,\_))$}}
+  \end{cases}
+\]
+
+\[
+  \pi_\lin(\vsc) = 
+  \begin{cases}
+    \lin & \text{if $\vsc = ((\_,\_),\_,\eaddr,\_)$} \\ 
+    \pi_\lin(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
+    \src{\linear} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
+    \src{\linear} & \src{\text{if $\vsc = \retptrd(\_,(\_,\_))$}} \\ 
+    \src{\lin} & \src{\text{if $\vsc = \retptrc(\_,(\_,\lin,\_,\_,\_))$}}
+  \end{cases}
+\]
+
+\dominique{4-12-2017: what about $\pi_a$?}
+\lau{12-12-2017: I have added them as I needed them in the LR. I have not needed $\pi_a$ yet.}
+\[
+  \updPcAddr{\Phi} \defeq 
+  \begin{cases}
+    \Phi\update{\pcreg}{((\perm,\lin),\baddr,\eaddr,\aaddr+1)} & \text{if $\Phi(\pcreg) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$}\\
+    \failed & \totherwise
+  \end{cases}
+\]
+
+\[
+  \readAllowed{} \defeq \{ \rwx,\rw,\rx,\ro \}
+\]
+
+\[
+  \writeAllowed{} \defeq \{ \rwx, \rw \}
+\]
+
+\[
+  \isLinear{\cb} \defeq
+  \begin{cases}
+    \top & 
+    \arraycolsep=0pt
+    \begin{array}[t]{l}
+      \cb = ((\_,\linear),\_,\_,\_) \tor\\
+      \cb = \sealed{\_,\cb'} \tand \isLinear{\cb'} 
+    \end{array}\\
+    \src{\top} & 
+    \sourcecolor\left.
+    \arraycolsep=0pt
+    \begin{array}[t]{l}
+      \cb = \stkptr{\_,\_,\_,\_}\\
+      \cb = \retptrd(\_,\_)
+    \end{array}\right.\\
+    \bot & \totherwise
+  \end{cases}
+\]
+
+\[
+  \nonLinear{\cb} \defeq \neg \isLinear{\cb}
+\]
+
+\[
+  \linCons{w} \defeq
+  \begin{cases}
+    0 & \isLinear{w} \\
+    w & \totherwise
+  \end{cases}
+\]
+
+\[
+  \exec{\cb} \defeq 
+      \cb = ((\perm, \_), \_, \_, \_) \tand \perm \in \{\rwx,\rx\} 
+\]
+
+\[
+  \nonExec{\cb} \defeq \neg \exec{\cb}
+\]
+
+\[
+  \withinBounds{\vsc} \defeq 
+  \begin{cases}
+    \baddr \leq \aaddr \leq \eaddr & 
+    \arraycolsep=0pt
+    \begin{array}[t]{l}
+      \vsc = ((\_,\_),\baddr,\eaddr,\aaddr) \src{\tor}\\
+      \src{\vsc = \stkptr{\_,\baddr,\eaddr,\aaddr}}
+    \end{array}\\
+    \sigma_\baddr \leq \sigma_\aaddr \leq \sigma_\eaddr & \vsc = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma} \\
+    \bot & \totherwise
+  \end{cases}
+\]
+
+\[
+  \nonZero{w} \defeq
+  \begin{cases}
+    \bot & w \in \ints \tand w = 0 \\
+    \top & \totherwise
+  \end{cases}
+\]
+
+
+For convenience, we introduce the following notation:
+\[
+  \begin{array}{rcl}
+    \Phi(r) & \defeq & \Phi.\reg(r)
+  \end{array}
+\]
+where $r\in \RegName$.
+
+For $\rn$ which can be a register or an integer, we take
+\[
+  \Phi(\rn) = n
+\]
+to mean
+\[
+  \text{either $n = \rn$ or $n = \Phi.\reg(\rn)$ and in either case $n \in \ints$}
+\]
+
 
 \subsubsection{Step relations}
 \paragraph{Decode and encode functions}
@@ -619,14 +755,14 @@ The $\decInstr{}$ function must be surjective and injective for all non-$\tfail$
 These functions are used for both the target and source level machine. When we write instructions in places where words are required, we will assume that $\encInstr{}$ is implicit.
 
 \paragraph{Step relation}
-The instruction $\scall{o}{}{}$ has length $\calllen$ which means that it does not fit on one memory address. In fact, $\scall{o}{}{}$ should be seen as a different way of interpreting a series of instruction rather than an instruction on its own. We therefore introduce $\scall[0]{o}{r_1}{r_2},\dots,\scall[\calllen-1]{o}{r_1}{r_2}$ as aliases for the instructions that constitute $\scall{o}{r_1}{r_2}$ (see Paragraph~\ref{par:call-impl} for details). We define the following condition that indicates that $\aaddr$ is the first address of a $\scall{o}{r_1}{r_2}$ instruction in the configuration $\Phi$:
+The instruction $\scall{o}{}{}$ has length $\calllen$ which means that it does not fit in one memory address. In fact, $\scall{o}{}{}$ should be seen as a different way of interpreting a series of instruction rather than an instruction on its own. We therefore introduce $\scall[0]{o}{r_1}{r_2},\dots,\scall[\calllen-1]{o}{r_1}{r_2}$ as aliases for the instructions that constitute $\scall{o}{r_1}{r_2}$ (see Paragraph~\ref{par:call-impl} for details). We define the following condition that indicates that $\aaddr$ is the first address of a $\scall{o}{r_1}{r_2}$ instruction in the configuration $\Phi$:
 \[
   \sourcecolor\left.
     \callCond{\Phi,r_1,r_2,\aaddr} = \left\{
       \begin{array}{l}
         \Phi.\mem(\aaddr) = \scall[0]{o}{r_1}{r_2} \tand\\
         \vdots \\
-        \Phi.\mem(\addr+\calllen-1) = \scall[\calllen]{o}{r_1}{r_2}
+        \Phi.\mem(\addr+\calllen-1) = \scall[\calllen-1]{o}{r_1}{r_2}
       \end{array}
       \right.
   \right.
@@ -647,7 +783,7 @@ We use the following step relation:
                                                     \text{if }\Phi(\pcreg) = ((\perm,\_),\baddr,\eaddr,\aaddr) \tand \\
                                                     \src{(\neg\callCond{\Phi,r_1,r_2,\aaddr} \tor}\\
                                                     \src{\eaddr < \aaddr + \calllen-1) \tand} \\
-                                                    \baddr \leq \aaddr \leq \eaddr\tand\\
+                                                    \withinBounds{\Phi(\pcreg)} \tand \\
                                                     \exec{\Phi(\pcreg)}
                                                   \end{array}\right.\\
   \Phi& \step \failed & & \totherwise
@@ -655,7 +791,9 @@ We use the following step relation:
 
 \paragraph{Call implementation}
 \label{par:call-impl}
-\lau{16-10-2017: Fill this paragraph with $\scall{o}{}{}$ implementation, i.e., the instructions $\scall[1]{o}{r_1}{r_2} \dots \scall[\calllen]{o}{r_1}{r_2}$ is equal to. Add convenience notation like $\update{\mem.a}{\scall{o}{r_1}{r_2}} = \dots$}
+This paragraph contains the implementation of $\scall{o}{}{}$. That is each of the instructions in the implementation corresponds to $\scall[1]{o}{r_1}{r_2} \dots \scall[\calllen-1]{o}{r_1}{r_2}$, respectively.
+
+%\lau{16-10-2017: Fill this paragraph with $\scall{o}{}{}$ implementation, i.e., the instructions $\scall[1]{o}{r_1}{r_2} \dots \scall[\calllen]{o}{r_1}{r_2}$ is equal to. Add convenience notation like $\update{\mem.a}{\scall{o}{r_1}{r_2}} = \dots$}
 \lau{16-10-2017: Implementation of $\scall{o}{}{}$ may need registers for temporary registers - we should update the semantics accordingly.}
 \[
   \begin{array}{l}
@@ -708,7 +846,7 @@ We use the following step relation:
 \dominique{4-12-2017: update: Lau executed the first suggestion (push a constant instead), and convinced me that the last suggestion didn't make sense (only push if the current private stack is empty), because it is then not clear whether or not to pop in the return code.}
 The call code does the following:
 \begin{itemize}
-\item Store the end address of the stack to the stack (this ensures the stack is non-empty), and decrement the pointer according to convention.
+\item Store 42 (it could be anything) to the stack (this ensures the stack is non-empty), and decrement the pointer according to convention.
 \item Get the current address of the stack pointer and split according to it.
 \item Retrieve the seal of the program.
 \item cca the seal, so the seal to be used is active 
@@ -725,127 +863,15 @@ The call code does the following:
   \end{itemize}
 \end{itemize}
 
-\subsubsection{Helpful functions, sets, and conventions}
-
+For convenience, we will add the convention that the memory update $\update{\mem.a}{\scall{o}{r_1}{r_2}}$ corresponds to
 \[
-  \pi_\baddr(\vsc) =
-  \begin{cases}
-    \baddr & \text{if $\vsc = ((\_,\_),\baddr,\_,\_)$} \\ 
-    \pi_\baddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
-    \src{\baddr} & \src{\text{if $\vsc = \stkptr{\_,\baddr,\_,\_}$}} \\ 
-    \src{\baddr} & \src{\text{if $\vsc = \retptrd{\_,(\baddr,\_)}$}} \\ 
-    \src{\baddr} & \src{\text{if $\vsc = \retptrc{\_,(\_,\_,\baddr,\_,\_)}$}}
-  \end{cases}
-\]
-\[
-  \pi_\eaddr(\vsc) =
-  \begin{cases}
-    \eaddr & \text{if $\vsc = ((\_,\_),\_,\eaddr,\_)$} \\ 
-    \pi_\eaddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
-    \src{\eaddr} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
-    \src{\eaddr} & \src{\text{if $\vsc = \retptrd{\_,(\_,\eaddr)}$}} \\ 
-    \src{\eaddr} & \src{\text{if $\vsc = \retptrc{\_,(\_,\_,\_,\eaddr,\_)}$}}
-  \end{cases}
-\]
-
-\[
-  \pi_\lin(\vsc) = 
-  \begin{cases}
-    \lin & \text{if $\vsc = ((\_,\_),\_,\eaddr,\_)$} \\ 
-    \pi_\lin(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
-    \src{\linear} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
-    \src{\linear} & \src{\text{if $\vsc = \retptrd{\_,(\_,\_)}$}} \\ 
-    \src{\lin} & \src{\text{if $\vsc = \retptrc{\_,(\_,\lin,\_,\_,\_)}$}}
-  \end{cases}
-\]
-
-\dominique{4-12-2017: what about $\pi_a$?}
-\lau{12-12-2017: I have added them as I needed them in the LR. I have not needed $\pi_a$ yet.}
-\[
-  \updPcAddr{c} \defeq \dots
-\]
-
-\[
-  \readAllowed{} \defeq \dots
-\]
-
-\[
-  \writeAllowed{} \defeq \dots
-\]
-
-\[
-  \isLinear{\cb} \defeq
-  \begin{cases}
-    \top & 
-    \arraycolsep=0pt
-    \begin{array}[t]{l}
-      \cb = ((\_,\linear),\_,\_,\_) \tor\\
-      \cb = \sealed{\_,\cb'} \tand \isLinear{\cb'} 
-    \end{array}\\
-    \src{\top} & 
-    \sourcecolor\left.
-    \arraycolsep=0pt
-    \begin{array}[t]{l}
-      \cb = \stkptr{\_,\_,\_,\_}\\
-      \cb = \retptrd(\_,\_)
-    \end{array}\right.\\
-    \bot & \totherwise
-  \end{cases}
-\]
-
-\[
-  \nonLinear{\cb} \defeq \neg \isLinear{\cb}
-\]
-
-\[
-  \linCons{w} \defeq
-  \begin{cases}
-    0 & \isLinear{w} \\
-    w & \totherwise
-  \end{cases}
-\]
-
-\[
-  \exec{\cb} \defeq \dots
-\]
-
-\[
-  \nonExec{\cb} \defeq \dots
-\]
-
-\[
-  \withinBounds{c} \defeq \dots
-\]
-
-\[
-  \nonZero{w} \defeq
-  \begin{cases}
-    \bot & w \in \ints \tand w = 0 \\
-    \top & \totherwise
-  \end{cases}
-\]
-
-
-For convenience, we introduce the following notation:
-\[
-  \begin{array}{rcl}
-    \Phi(r) & \defeq & \Phi.\reg(r)
+  \begin{array}{l}
+    \update{\mem.a}{\scall[0]{o}{r_1}{r_2}}\\
+    \update{\mem.a}{\scall[1]{o}{r_1}{r_2}}\\
+    \dots\\
+    \update{\mem.a}{\scall[\calllen-1]{o}{r_1}{r_2}}\\
   \end{array}
 \]
-where $r\in \RegName$.
-
-For $\rn$ which can be a register or an integer, we take
-\[
-  \Phi(\rn) = n
-\]
-to mean
-\[
-  \text{either $n = \rn$ or $n = \Phi.\reg(\rn)$ and in either case $n \in \ints$}
-\]
-
-
-
-\subsubsection{Step Relation}
 
 \subsubsection{Instruction Interpretation}
 We have unified the two languages in the below definitions. Everything written in black is common for both source and target language. Everything written in \src{blue} is specific to the source language.
@@ -1283,7 +1309,7 @@ This instruction uses the $\decPerm{}$ function.
                                     \begin{array}[t]{l}
                                       \Phi(r_2) \in \SealableCaps \tand \\
                                       \Phi(r_3) = \seal{\sigma_\baddr, \sigma_\eaddr,\sigma} \tand \\
-                                      \sigma_\baddr \leq \sigma \leq \sigma_\eaddr \tand \\ 
+                                      \withinBounds{\Phi(r_3)} \tand \\
                                       \vsc = \sealed{\sigma,\Phi(r_2)} \tand\\
                                       w_2 = \linCons{\Phi(r_2)}                                     
                                     \end{array}
@@ -2009,6 +2035,32 @@ where $H_A$ is defined as follows:
 \[
   H^\mathrm{sta}_{\stpair{\ms}{\ms}} = \{ \npair{\stpair{\ms}{\ms}} \}
 \]
+
+\subsection{Fundamental Theorem of Logical Relations}
+
+\begin{theorem}[FTLR]
+  \label{thm:ftlr}
+  \[
+    \begin{array}{l}
+      \forall n,W,W_D,W_C,\perm_C,\perm_D,\lin_C,\lin_D,\baddr_C,\baddr_D,\eaddr_C,\eaddr_D,\aaddr_C,\aaddr_D \ldotp \\
+      \quad \left(
+      \begin{array}{l}
+        W = W_D \oplus W_C \wedge \\
+        \perm_D \in \readAllowed{} \Rightarrow \npair{(\baddr_D,\eaddr_D)} \in \readCond{\lin_D,W_D} \wedge\\
+        \perm_D \in \writeAllowed{} \Rightarrow\npair{(\baddr_D,\eaddr_D)} \in \writeCond{\lin_D,W_D} \wedge\\
+        \perm_D \notin \{\rwx,\rx\} \wedge \\
+        \perm_C = \rx \wedge\\
+        \npair{(\{\rx\},\baddr_C,\eaddr_C)} \in \execCond{\lin_C,W_C}
+      \end{array}
+      \right)\\
+      \quad\Rightarrow 
+      \npair{\array{l}((\perm_C,\lin_C),\baddr_C,\eaddr_C,\aaddr_C),((\perm_D,\lin_D),\baddr_D,\eaddr_D,\aaddr_D),\\
+                      ((\perm_C,\lin_C),\baddr_C,\eaddr_C,\aaddr_C),((\perm_D,\lin_D),\baddr_D,\eaddr_D,\aaddr_D)\endarray} \in \lre(W)
+
+    \end{array}
+  \]
+\end{theorem}
+
 
 \section{Full Abstraction}
 \begin{definition}
