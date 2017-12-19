@@ -1003,10 +1003,11 @@ For the linearity encoding, we make similar assumptions: $\encLin{} : \Linear \f
                                      \updPcAddr{\Phi\updReg{r_1}{\normal}} & \nonLinear{\Phi(r_2)}
                                    \end{cases}
 \end{align*}
+\lau{19-12-2017: Resolved the comments below. Seals are all normal and we allow linearity of sealed capabilities to be retrieved as it is observable anyway.}
 \lau{15-09-2017: Should getl do something for seals?}
 \dominique{4-12-2017: doesn't matter, I think.}
 \lau{15-09-2017: Do we want to allow getl and getp to work on sealed capabilities?}
-\dominique{Linearity of sealed caps is already observable anyway, so no point in hiding it.  Permissions of the sealed capability should be hidden, I think, mostly out of conservativity (hide as much as possible!).}
+\dominique{Linearity of sealed caps is already observable anyway, so no point in hiding it.  Permissions of the sealed capability should be hidden, I think, mostly out of conservativity (hide as much as possible!).}\\
 \dominique{4-12-2017: Couldn't the definitions above use $\pi_b$, $\pi_e$, $\pi_l$ and $\pi_a$ and $\pi_p$ (the latter two to be added) ?}
 \lau{12-12-2017: $\pi_\_$ also projects from sealed capabilities, so the case of sealed capabilities would have to be explicitely excluded (with getl as the exception).}
 
@@ -1019,7 +1020,7 @@ For the linearity encoding, we make similar assumptions: $\encLin{} : \Linear \f
                                 \updPcAddr{\Phi\updReg{\rn}{w}\updReg{r}{\Phi(\rn)}} & w = \linCons{\Phi(\rn)}
                               \end{cases}
 \end{align*}
-Notice that in the case where we are moving a linear capability and $r = \rn$ the order of the updates matter.
+(Notice that in the case where we are moving a linear capability and $r = \rn$ the order of the updates matter.)
 
 \noindent\textbf{store}\\
 \begin{align*}
@@ -1029,7 +1030,7 @@ Notice that in the case where we are moving a linear capability and $r = \rn$ th
                                         \arraycolsep=0pt
                                         \begin{array}{rl}
                                           \Phi&\updReg{r_2}{w_2}\\
-                                              &\update{\mem.a}{w}
+                                              &\update{\mem.a}{\Phi(r_2)}
                                         \end{array}
 \right) & 
                                       \arraycolsep=0pt
@@ -1037,8 +1038,7 @@ Notice that in the case where we are moving a linear capability and $r = \rn$ th
                                         \Phi(r_1) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
                                         \perm \in \writeAllowed{} \tand\\
                                         \withinBounds{\Phi(r_1)} \tand \\
-                                        w = \Phi(r_2) \tand \\
-                                        w_2 = \linCons{w}
+                                        w_2 = \linCons{\Phi(r_2)}
                                       \end{array}
                                       \\
                                       \sourcecolor\left.
@@ -1046,7 +1046,7 @@ Notice that in the case where we are moving a linear capability and $r = \rn$ th
                                       \arraycolsep=0pt
                                       \begin{array}{rl}
                                         \Phi&\updReg{r_2}{w_2}\\
-                                            &\update{\ms_\stk.a}{w}
+                                            &\update{\ms_\stk.a}{\Phi(r_2)}
                                       \end{array}
                                       \right) \right.& 
                                       \sourcecolor\left.
@@ -1055,13 +1055,13 @@ Notice that in the case where we are moving a linear capability and $r = \rn$ th
                                         \Phi(r_1) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
                                         \perm \in \writeAllowed{} \tand \\
                                         \withinBounds{\Phi(r_1)} \tand \\
-                                        \aaddr \in \dom(\Phi.\ms_\stk) \tand \\
-                                        w = \Phi(r_2) \\
-                                        w_2 = \linCons{w}
+                                        \aaddr \in \dom(\Phi.\ms_\stk) \tand \\ % Lau: this condition seems odd as there should never be a capability for a piece of memory that is unreachable.
+                                        w_2 = \linCons{\Phi(r_2)}
                                       \end{array}\right.\\
                                       \failed & \totherwise
                                     \end{cases}
 \end{align*}
+
 
 \noindent\textbf{load}\\
 \begin{align*}
@@ -1070,8 +1070,8 @@ Notice that in the case where we are moving a linear capability and $r = \rn$ th
                                     \updPcAddr{}\left(
                                       \arraycolsep=0pt
                                       \begin{array}{rl}
-                                        \Phi&\updReg{r_1}{w}\\
-                                            &\update{\mem.a}{w_2}
+                                        \Phi&\update{\mem.a}{w_2}\\
+                                            &\updReg{r_1}{w}
                                       \end{array}\right)& 
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
@@ -1086,8 +1086,8 @@ Notice that in the case where we are moving a linear capability and $r = \rn$ th
                                     \updPcAddr{}\left(
                                       \arraycolsep=0pt
                                       \begin{array}{rl}
-                                        \Phi&\updReg{r_1}{w}\\
-                                            & \update{\mem_\stk.a}{w_2}
+                                        \Phi& \update{\ms_\stk.a}{w_2}\\
+                                            &\updReg{r_1}{w}
                                       \end{array}\right)\right.
                                     & 
                                     \sourcecolor\left.
@@ -1096,7 +1096,7 @@ Notice that in the case where we are moving a linear capability and $r = \rn$ th
                                       \Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
                                       \perm \in \readAllowed{} \tand \\
                                       \withinBounds{\Phi(r_2)} \tand \\
-                                      \aaddr \in \dom(\Phi.\ms_\stk) \tand \\
+                                      \aaddr \in \dom(\Phi.\ms_\stk) \tand \\ % Lau: this condition seems odd as there should never be a capability for a piece of memory that is unreachable.
                                       w = \Phi.\ms_\stk(a) \tand \\
                                       w_2 = \linCons{w}
                                     \end{array}\right.
@@ -1106,10 +1106,10 @@ Notice that in the case where we are moving a linear capability and $r = \rn$ th
 \end{align*} 
 
 \noindent\textbf{cca}\\
-\dominique{4-12-2017: The phrase $\text{either $n = \rn$ or $n = \Phi.\reg(\rn)$ and in either case $n \in \ints$ and}$ is repeated a lot in the semantics. Perhaps define an abbreviation as $\Phi(\rn) = n$?}
-
+% The following comment has been resolved by implementing the suggestion.
+% \dominique{4-12-2017: The phrase $\text{either $n = \rn$ or $n = \Phi.\reg(\rn)$ and in either case $n \in \ints$ and}$ is repeated a lot in the semantics. Perhaps define an abbreviation as $\Phi(\rn) = n$?}
 \emph{Change Current Address}
-\lau{15-09-2017: This is the old lea. I changed the name, so it actually reflects what the instruction does. We might also want to add a real lea at some point.}
+\\\lau{15-09-2017: This is the old lea. I changed the name, so it actually reflects what the instruction does. We might also want to add a real lea at some point.}
 \begin{align*}
   \sem{\tcca{r}{\rn}}(\Phi) = & 
                                   \begin{cases}
@@ -1121,12 +1121,12 @@ Notice that in the case where we are moving a linear capability and $r = \rn$ th
                                       c = ((\perm,\lin),\baddr,\eaddr,\aaddr + n)
                                     \end{array}
                                     \\
-                                    \updPcAddr{\Phi\updReg{r}{c}} &  
+                                    \updPcAddr{\Phi\updReg{r}{s}} &  
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
                                       \Phi(\rn) = n \tand \\
                                       \Phi(r) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma} \tand \\
-                                      c = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma + n}
+                                      s = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma + n}
                                     \end{array}
                                     \\
                                     \src{\updPcAddr{\Phi\updReg{r}{c}}} &  
@@ -1145,7 +1145,7 @@ Notice that in the case where we are moving a linear capability and $r = \rn$ th
 \noindent\textbf{restrict}\\
 This instruction uses the $\decPerm{}$ function.
 \begin{align*}
-  \sem{\trestrict{r_1}{r_2}{\rn}} = &
+  \sem{\trestrict{r_1}{r_2}{\rn}}(\Phi) = &
                                       \begin{cases}
                                         \updPcAddr{}\left(
                                           \arraycolsep=0pt
@@ -1263,6 +1263,21 @@ This instruction uses the $\decPerm{}$ function.
                                       w_2 = \linCons{\Phi(r_2)}\\
                                       c = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr}
                                     \end{array} \\
+\sourcecolor\left.
+                                  \updPcAddr{}\left(
+                                    \arraycolsep=0pt
+                                    \begin{array}{rl}
+                                    \Phi&\updReg{r_2}{0}\\
+                                        &\updReg{r_1}{c}
+                                    \end{array} \right)
+\right.
+&
+\sourcecolor\left.
+                                    \arraycolsep=0pt
+                                    \begin{array}[t]{l}
+                                      \Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\_} \tand \\
+                                      c = \stkptr{\perm,\baddr,\eaddr,\baddr}
+                                    \end{array}\right. \\
                                     \failed & \totherwise
                                 \end{cases}
 \end{align*}
@@ -1345,7 +1360,7 @@ We would like splice and split to have following properties
 \end{enumerate}
 Split cannot create ``empty capabilities'' (a capability that governs no segment of the memory, i.e.\ a capability where the base address is greater than the end address). We partly do not allow this out of convenience as it makes the implementation of call simpler. We do not need empty capabilities as they have no semantic value in the sense that they allow you to do no more than a piece of data.
 \begin{align*}
-  \sem{\tsplit{r_1}{r_2}{r_3}{\rn_4}} = &
+  \sem{\tsplit{r_1}{r_2}{r_3}{\rn_4}}(\Phi) = &
                                \begin{cases}
                                  \updPcAddr{}\left(
                                    \arraycolsep=0pt
@@ -1406,7 +1421,7 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
 \lau{19-09-2017: Two important points about $\tsplice{}{}{}$ related to the calling convention: (1) Splice fails if two capabilities are not adjacent. This means that if a caller tries to use a return pointer with a stack that is not immediately adjacent to the private stack, then it fails. (2) Splice prohibit splicing with an empty capability! This means that a callee cannot return an empty stack (this also means that it is impossible to make a call when all of the stack is used - this may indeed be undesirable, but without this restriction we need to handle other things).}
 \lau{19-09-2017: Because $\tsplice{}{}{}$ does not allow empty stacks, it is not ``left inverse'' to $\tsplit{}{}{}{}$ (because of the empty case). Intuitively, it is weird that a $\tsplit{}{}{}{}$ followed by a $\tsplice{}{}{}$ does not yield the same capability.}
 \begin{align*}
-  \sem{\tsplice{r_1}{r_2}{r_3}} = &
+  \sem{\tsplice{r_1}{r_2}{r_3}}(\Phi) = &
                               \begin{cases}
                                 \updPcAddr{}\left(
                                 \arraycolsep=0pt
