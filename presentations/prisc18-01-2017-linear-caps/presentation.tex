@@ -1,0 +1,186 @@
+\documentclass{beamer}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+\usetikzlibrary{fit}
+
+\newcommand{\isdef}{\mathrel{\overset{\makebox[0pt]{\mbox{\normalfont\tiny\sffamily def}}}{=}}}
+
+\title{Enforcing Well-bracketed Control Flow and Stack Encapsulation using Linear Capabilities}
+\author{Lau Skorstengaard\inst{1} \and Dominique Devriese\inst{2} \and Lars Birkedal\inst{1}}
+\institute{\inst{1}Aarhus University \qquad \inst{2}KU Leuven}
+\date{PriSC 2018, Los~Angeles}
+
+\input{../illustrations/preamble}
+\begin{document}
+\frame{\titlepage}
+
+\begin{frame}
+  \frametitle{A realistic secure compiler?}
+  
+  \vspace{-1cm}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % \draw<1-6> (-5,0) node {};
+    % \draw (5,0) node {};
+    % \draw (0,-14) node {};
+    \draw (0,0) node[draw=black] (ir) {...};
+    \draw node[draw=black,rounded corners,above=of ir] (source) {Source Language};
+    \draw (source) edge[bend left, ->] (ir);
+    \begin{onlyenv}<1-3>
+      \draw node[draw=black,rounded corners,below=of ir] (target) {Target Language};
+      \draw (ir) edge[bend left, ->] (target) ;
+    \end{onlyenv}
+    \begin{onlyenv}<2>
+      \draw node[right=1cm of ir, line width=1mm, font=\fontfamily{ppl}\fontsize{1cm}{1.5cm}\selectfont] {?};
+    \end{onlyenv}
+    \draw<3> node[right=1cm of target, line width=1mm, font=\fontfamily{ppl}\fontsize{1.5cm}{2cm}\selectfont] {?};
+    \begin{visibleenv}<4-5>
+      \draw (200:5) node[draw=black,rounded corners, text width=3.5cm] (commhar) {Commodity Hardware\\(Virtual Memory)};
+      \draw (ir) edge[bend right=10, ->] (commhar) ;
+      \draw (230:5) node[draw=black,rounded corners, text width=3.5cm] (wasm) {WebAssembly};
+      \draw (ir) edge[bend left, ->] (wasm) ;
+    \end{visibleenv}
+    \begin{visibleenv}<4-6>
+      \draw (280:5.8) node[draw=black,rounded corners, text width=3.5cm] (dtal) {Dependently-typed\\Assembly Language};
+      \draw (ir) edge[bend left=20, ->] (dtal) ;
+      \draw (335:8) node[draw=black,rounded corners, text width=3.5cm] (mph) {Micro-Policies Hardware};
+      \draw (ir) edge[bend right=20, ->] (mph) ;
+      \draw (350:7) node[draw=black,rounded corners, text width=3.5cm] (capmach) {Capability Machines};
+      \draw (ir) edge[bend left=10, ->] (capmach) ;
+    \end{visibleenv}
+    \begin{visibleenv}<5>
+      \draw node[below left=0cm of commhar, font=\fontfamily{ppl}\fontsize{1cm}{1.5cm}\selectfont] {?};
+      \draw node[below left=0cm of wasm, font=\fontfamily{ppl}\fontsize{1cm}{1.5cm}\selectfont] {?};
+    \end{visibleenv}
+    \begin{visibleenv}<7>
+      \draw node[draw=black,rounded corners,below=of ir] (capmach2) {Capability machines};
+      \draw (ir) edge[bend left, ->] (capmach2) ;
+    \end{visibleenv}
+    \begin{visibleenv}<8->
+      \draw node[draw=black,below=of ir] (ir2) {...};
+      \draw (ir) edge[bend left, ->] (ir2) ;
+      \draw node[draw=black,rounded corners,below=of ir2] (capmach3) {Capability machines};
+      \draw (ir2) edge[bend left, ->] (capmach3) ;
+    \end{visibleenv}
+    \begin{visibleenv}<9>
+      \draw node[rectangle,fit=(ir2) (capmach3),draw=red] (laststeps) {};
+      \draw node[above right=0cm of laststeps,cloud,red] {Let's take a look!};
+    \end{visibleenv}
+  \end{tikzpicture}
+  \only<5>{Fine-grained encapsulation?}
+  \only<8>{Well-bracketed control flow, stack encapsulation?}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Outline}
+  \tableofcontents
+\end{frame}
+
+% \AtBeginSection[]
+% {
+%  \begin{frame}<beamer>
+%  \frametitle{Outline}
+%  \tableofcontents[currentsection]
+%  \end{frame}
+% }
+\section{Stack and return pointers}
+\input{../illustrations/traditional}
+
+\begin{frame}<1>[label=sarps]
+  \frametitle{Stack and return pointer security}
+  \begin{itemize}
+  \item Desirable properties:
+    \begin{itemize}
+    \item Well-bracketed control flow
+    \item Stack frame encapsulation
+    \end{itemize}
+  \item How to enforce?
+    \begin{itemize}
+    \item Capabilities?
+      \begin{itemize}
+      \item<2-> Not enough: two attacks!
+      \end{itemize}
+    \item<3-> CHERI Local capabilities?
+      \begin{itemize}
+      \item Cannot leave registers
+      \item<4-> Works, but... [Skorstengaard et al., ESOP 2018]
+      \end{itemize}
+    \item<5-> CHERI Linear capabilities?
+      \begin{itemize}
+      \item Non-copyable capabilities
+      \item<6> Works perfectly?
+      \end{itemize}
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\section{Stack and return capabilities}
+\input{../illustrations/capabilities}
+
+\section{Capabilities are not enough}
+\againframe<2>{sarps}
+\input{../illustrations/attacks}
+
+\section{Local stack and return capabilities}
+\againframe<3>{sarps}
+\input{../illustrations/local-prevention}
+
+\againframe<4>{sarps}
+\section{Linear stack and return capabilities}
+\againframe<5>{sarps}
+\input{../illustrations/linear-prevention}
+\againframe<6>{sarps}
+
+\begin{frame}
+  \frametitle{Formally?}
+
+  \begin{itemize}
+  \item<2-> Formulate correctness?
+    \begin{itemize}
+    % \item<3-> (CFI is too weak (right flows \emph{at the right time}))
+    \item<3-> Idea: well-bracketed version of target assembly
+    \item<3-> Compiler replaces call/returns with calling convention
+    \item<3-> Fully abstract compilation
+    \end{itemize}
+  \item Prove correctness?
+    \begin{itemize}
+    \item<4-> Back-translation as embedding
+    \item<4-> Cross-language step-indexed Kripke logical relation
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Conclusion}
+  \begin{itemize}
+  \item Enforcing well-bracketedness and stack frame encapsulation on a capability machine
+  \item Local capabilities work [Skorstengaard et al, ESOP 2018]
+  \item Linear capabilities work better!
+    \begin{itemize}
+    \item but don't exist... yet?
+    \end{itemize}
+  \item Correctness as fully abstract compilation from well-bracketed version of target language.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Thanks}
+  \begin{center}
+    \Large Questions?
+  \end{center}
+\end{frame}
+
+\appendix
+\begin{frame}
+  \frametitle{Backup slide: The Awkward Example}
+  \begin{align*}
+    \tau &\isdef (unit \rightarrow unit) \rightarrow int\\
+    e_1 &\isdef
+          \left\{\begin{aligned}
+            &\mathrm{let}~ x~ =~ \mathrm{ref}~ 0~ \mathrm{in}~\\
+          &\lambda f\ldotp x \mathrel{:=} 0;~ f~\mathrm{unit}; x \mathrel{:=} 1; f~ \mathrm{unit}; !x
+          \end{aligned}\right.\\
+    e_2 &\isdef \lambda f\ldotp (f~\mathrm{unit}; f~\mathrm{unit}; 1)
+  \end{align*}
+\end{frame}
+
+\end{document}
