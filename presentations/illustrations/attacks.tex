@@ -111,21 +111,6 @@
 \end{frame}
 
 \begin{frame}
-  \frametitle{Stack Capabilities Problems}
-  \begin{itemize}
-  \item Stack capabilities are not a panacea
-  \item Stack pointers must not leave stack frame (through memory or stack)
-  \item Similar problems for return pointers (omitted)
-  \item Solution: local capabilities?
-    \begin{itemize}
-    \item Make stack and return capabilities local
-    \item Cannot leave registers (except on stack) (\sout{Attack 1})
-    \item Stack clearing on boundary crossings (\sout{Attack 2})
-    \end{itemize}
-  \end{itemize}
-\end{frame}
-
-\begin{frame}
   \begin{tikzpicture}[scale=.5, every node={scale=.5}]
     \frametitle{Stack and return capabilities: Attack 3}
     \begin{scope}
@@ -134,15 +119,23 @@
     \draw (0,0) -- (0,10);
     \draw (5,0) -- (5,10);
     \end{scope}
-    \draw (2.5,11) node {heap memory};
+    \draw (2.5,11) node {code memory};
 
     \begin{scope}
-    \clip (12.9,-.1) rectangle (18.1,11.1);
-    \fill[fill=gray!50] (13,0) rectangle (18,11);
-    \draw (13,0) -- (13,11);
-    \draw (18,0) -- (18,11);
+    \clip (12.9,3.9) rectangle (18.1,11.1);
+    \fill[fill=gray!50] (13,4) rectangle (18,11);
+    \draw (13,4) -- (13,11);
+    \draw (18,4) -- (18,11);
     \end{scope}
-    \draw (15.5,12) node {more heap memory}; 
+    \draw (15.5,12) node {more code memory}; 
+
+    \begin{scope}
+    \clip (12.9,-.1) rectangle (18.1,2.1);
+    \fill[fill=gray!50] (13,0) rectangle (18,2);
+    \draw (13,0) -- (13,2);
+    \draw (18,0) -- (18,2);
+    \end{scope}
+    \draw (15.5,3) node {heap memory}; 
 
 \note{Caller calls callee}
     \draw<+->[fill=white] (0,1) rectangle (5,4) node[pos=.5] {\footnotesize caller code};
@@ -157,14 +150,14 @@
 \note{Callee has access to some place to store things.}
     \begin{onlyenv}<+->
       \draw[fill=gray!30] (0,1) rectangle (5,4) node[pos=.5] {\footnotesize caller code};
-      \draw[fill=white] (13,3) rectangle (18,6) node[pos=.5] {\footnotesize callee code};
+      \draw[fill=white] (13,5) rectangle (18,6) node[pos=.5] {\footnotesize callee code};
       \draw[fill=white] (13,1) rectangle (18,1.5) node[pos=.5] {};
     \end{onlyenv}
 
     \begin{onlyenv}<.-.(2)>
       \draw [decorate,decoration={brace,amplitude=2pt,mirror,raise=4pt},yshift=0pt]
       (18.1,1) -- (18.1,1.5) node[draw=black] (copy) [black,midway,xshift=0.5cm] {};
-      \draw (18,4.75)  edge[->,bend left] (copy);
+      \draw (18,5.5)  edge[->,bend left] (copy);
     \end{onlyenv}
 
 \note{Callee stores the return pointer they got from caller.}
@@ -175,15 +168,15 @@
 
 \note{Callee calls callee (1)}
     \begin{onlyenv}<+->
-      \draw [decorate,decoration={brace,amplitude=10pt,raise=4pt},yshift=0pt]
-      (12.9,3) -- (12.9,6) node[draw=black] (ret2) [black,midway,xshift=-0.8cm] {};
+      \draw [decorate,decoration={brace,amplitude=3pt,raise=4pt},yshift=0pt]
+      (12.9,5) -- (12.9,6) node[draw=black] (ret2) [black,midway,xshift=-0.8cm] {};
       \draw node[fill=gray!50,left=0cm of ret2] { \phantom{ret-ptr (1)} };
-      \draw node[left=0cm of ret2] { ret-ptr (1) };
+      \draw node[left=0cm of ret2] (retptr1) { ret-ptr (1) };
     \end{onlyenv}
 
     \begin{onlyenv}<+->
       \draw[fill=white] (0,5) rectangle (5,8) node[pos=.5] {\footnotesize callee code (1)};
-      \draw[fill=gray!30] (13,3) rectangle (18,6) node[pos=.5] {\footnotesize callee code};
+      \draw[fill=gray!30] (13,5) rectangle (18,6) node[pos=.5] {\footnotesize callee code};
       \draw[fill=gray!30] (13,1) rectangle (18,1.5) node[pos=.5] {\scriptsize {\color{red} copy of ret-ptr}};
     \end{onlyenv}
 
@@ -191,7 +184,7 @@
     \begin{onlyenv}<+->
       \capbrace[ret3]{(5.1,5)}{(5.1,8)}
       \draw node[fill=gray!50,right=0cm of ret3] { \phantom{ret-ptr (2)} };
-      \draw node[right=0cm of ret3] { ret-ptr (2) };
+      \draw node[right=0cm of ret3] (retptr2) { ret-ptr (2) };
     \end{onlyenv}
 
     \begin{onlyenv}<+->
@@ -219,7 +212,7 @@
 
 \note{This breaks well-bracketedness as ret-ptr (2) and ret-ptr (1) was not returned to}
     \begin{onlyenv}<+->
-      \draw (9,5.5) node [ellipse, draw, red, thick,minimum height=1.5cm, minimum width=3cm] { };
+      \draw node [ellipse, fit=(retptr1) (retptr2), draw, red] { };
       \draw node[red,cloud,cloud puffs=10.8,cloud puff arc=110, aspect=3, draw, fill=white, align=center] () at (12,10) { These were skipped!};  
     \end{onlyenv}
   \end{tikzpicture}
