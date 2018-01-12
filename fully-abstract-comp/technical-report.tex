@@ -1373,7 +1373,7 @@ We would like splice and split to have following properties
 \item Take the addresses governed by a linear capability to be a multiset. If this capability is split, then the union of the two multisets of addresses governed by the resulting capabilities should be the same as the first multiset. In other words, splice and split should not break linearity.
 %Alternative way to phrase the same thing: take the set of addresses governed by a linear capability. After a split, the union of the two sets that consist of the addresses the two capabilities govern should be equal to the set of addresses the original capability governed. Further, the two sets of addresses two capabilities uptained from a split govern should be disjoint.
 \end{enumerate}
-Split cannot create ``empty capabilities'' (a capability that governs no segment of the memory, i.e.\ a capability where the base address is greater than the end address). We partly do not allow this out of convenience as it makes the implementation of call simpler. We do not need empty capabilities as they have no semantic value in the sense that they allow you to do no more than a piece of data.
+Split cannot create ``empty capabilities'' (a capability that governs no segment of the memory, i.e.\ a capability where the base address is greater than the end address). We partly do not allow this out of convenience as it makes the implementation of call simpler. We do not need empty capabilities as they have no semantic value in the sense that they allow you to do essentially the same as a piece of data.
 \begin{align*}
   \sem{\tsplit{r_1}{r_2}{r_3}{\rn_4}}(\Phi) = &
                                \begin{cases}
@@ -1835,8 +1835,7 @@ In the definition of memory satisfaction, $R_\ms$ creates a partitioning of the 
       \forall n' \leq n, \src{k_{d,S}}, \src{k_{c,S}}, k_{d,T}, k_{c,T}, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk} \ldotp\\
       \quad \forall W_\lrk, W_\lrr, W_\lrm \ldotp \\
       \qquad\npair[n']{[\stpair[.]{v_{c,S}}{v_{c,T}},\stpair[.]{v_{d,T}}{v_{d,S}}]} \in \lrp(W) \wedge \\
-      \qquad\npair[n']{\stpair[.]{k_{c,S},k_{d,S}}{k_{c,T},k_{d,T}}} \in \lrk(W_\lrk) \wedge \\
-      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rretd,\rretc,\rdata\})(W_\lrr) \wedge\\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\})(W_\lrr) \wedge\\
       \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \\
       \qquad\Rightarrow\\
       \qquad\npair[n']{\left(\array{l}\src{(\ms_S,\reg_S\updReg{\pcreg,\rdata,\rretc,\rretd}{v_{c,S},v_{d,S},k_{c,S},k_{d,S}},\stk, \ms_\stk)},\\
@@ -1857,52 +1856,6 @@ In the definition of memory satisfaction, $R_\ms$ creates a partitioning of the 
       \quad (\ms_T \uplus \ms_{f,T},\reg_T) \term[i] \Rightarrow \src{(\ms_S \uplus \ms_{f,S},\reg_S,\stk_S,\ms_{\stk,S})} \term
     \end{array}
 \right\}
-\]
-
-
-\[
-  \begin{array}{rl}
-  \lrk(W) = &\left\{ \npair{\left(\array{l}\src{\retptrc(\sigma,(\perm,\lin,\baddr_c,\eaddr_c,\aaddr_c))},\\\src{\retptrd(\sigma,(\aaddr_d,\eaddr_d))},\\k_{c,T},k_{d,T}\endarray\right)} \middle|
-    \begin{array}{l}
-      k_{d,T} = \sealed{\sigma,c_d} \wedge\\
-      k_{c,T} = \sealed{\sigma,c_c} \wedge\\
-      c_c = ((\perm,\lin),\baddr_c,\eaddr_c,\aaddr_c) \wedge\\
-      c_d = ((\rw,\linear),\aaddr_d,\eaddr_d,\aaddr_d-1) \wedge\\
-      \npair[n]{[\stpair[.]{\retptrc(\sigma,\_)}{k_{c,T}},\stpair[.]{\retptrd(\sigma,\_)}{k_{d,T}}]} \in \lrp(W) \wedge \\
-      \forall n' \leq n, W' \pubft W \ldotp \\
-      \quad \forall W_\lrr, W_\lrm \ldotp  \\
-      \qquad\memSat[n']{\stpair[.]{\ms_S,(\opc,\ms_{\stk,f}) :: \stk,\ms_\stk}{\ms_T}}{W_\lrm} \wedge \\
-      \qquad\opc = ((\perm,\lin),\baddr_c,\eaddr_c,\aaddr_c+12) \wedge\\
-      \qquad\dom(\ms_{\stk,f}) = [\aaddr_d,\eaddr_d] \wedge\\
-      \qquad\npair[n']{\left(\array{l}\src{\reg_S\update{\rstk}{\stkptr{\rw,\stkb,\eaddr_d,\aaddr_d}}},\\
-                               {\reg_T\update{\rstk}{((\rw,\linear),\stkb,\eaddr_d,\aaddr_d)}}\endarray \right)}\in \lrr(\{r_\stk\})(W_\lrr) \wedge\\ 
-      \qquad\npair[n']{[(\opc,\opc)]} \in \lrp(W')\\
-      \qquad\Rightarrow\\
-      \qquad \npair[n']{\left(\arraycolsep=0pt\array{l}
-                          \left(\arraycolsep=0pt\array{l}
-                            \src{\ms_S,\reg_S\update{\pcreg,\rstk}{\opc,\stkptr{\rw,\stkb,\eaddr_d,\aaddr_d}},}\\
-                            \src{\stk, \ms_\stk \uplus \ms_{\stk,f}}
-                          \endarray \right) \\
-                          \left(\ms_T,\reg_T\update{\pcreg,\rstk}{\opc,((\rw,\linear),\stkb,\eaddr_d,\aaddr_d)} \right)
-                        \endarray \right)} \in \lro(W'\oplus W_\lrr \oplus W_\lrm)
-    \end{array}
-  \right\}
-% \\ \cup
-%     & \left\{ \npair{\left( k_{c,S},k_{d,S},k_{c,T},k_{d,T} \right)} \middle|
-%       \begin{array}{l}
-%         \pi_\sigma(k_{c,S}) = \pi_\sigma(k_{d,S}) \wedge \pi_\sigma(k_{c,T}) = \pi_\sigma(k_{d,T}) \wedge \npair{(k_{c,S},k_{c,T}),(k_{d,S},k_{d,T})} \in \lrp(W) \\
-%         \forall n' \leq n, W' \pubft W \ldotp \\
-%         \quad \npair[n']{(k_{c,S},k_{c,T}),(k_{d,S},k_{d,T})} \in \lrp(W) \Rightarrow\\
-%         \qquad \forall \npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\})(W'_\lrr) \ldotp 
-%                \forall \memSat[n']{\src{\ms_S,\stk,\ms_\stk},\ms_T}{W'_\lrm} \ldotp\\
-%         \qquad \quad \npair[n']{\left(
-%         \arraycolsep=0pt\array{l}
-%           (\src{\ms_S},\src{\reg_S}\update{\pcreg,\rdata}{\pi_\vsc(\src{k_{c,S}}),\pi_\vsc(\src{k_{d,S}})},\src{\stk},\src{\ms_\stk}),\\
-%           (\ms_T,\reg_T\update{\pcreg,\rdata}{\pi_\vsc(k_{c,T}),\pi_\vsc(k_{d,T})})
-%         \endarray\right)} \in \lro(W' \oplus W'_\lrr \oplus W'_\lrm)
-%       \end{array}
-%      \right\}
-  \end{array}
 \]
 
 \[
@@ -1945,30 +1898,30 @@ Where $S\text{ is a separation of $W$}$ means that no two partition share the sa
 %
     \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrc(\sigma,\perm,\lin,\baddr,\eaddr,\aaddr)},\\\sealed{\sigma,\vsc_C}\endarray\right)} \;\middle| \;
     \begin{array}{l}
-      \vsc_C = ((\perm,\lin),\baddr,\eaddr,\aaddr) \wedge \\
-      \forall (\src{c},c') \in H_\sigma(\sigma) \ldotp \\
-      \quad \exists r \in \addressable{\linear,W} \ldotp \\
-      \qquad  \exists \stpair{\ms}{\ms} \ldotp \\
-      \qquad \quad \dom(\src{\ms_S}) = \dom(\ms_T) = [\pi_\baddr(c), \pi_\eaddr (c)] \wedge \stareg{\spao} \nequal W(r) \wedge \\
-      \qquad \qquad \forall W' \privft W \ldotp \\
-      \qquad \qquad \quad \exists r', W'(r') = W(r), \exists r'', W'(r'') = \stdreg{[\stkb,\eaddr]}{\spao} \ldotp \\
-      \qquad \qquad \qquad { \color{red} \npair{(\src{\retptrc(\sigma,\perm,\lin,\baddr,\eaddr,\aaddr)}, \src{c}, \sealed{\sigma,\vsc_c}, c')}} \in \lrk(W')
+      (\retptrc(\sigma,\perm,\lin,\baddr,\eaddr,\aaddr),\sealed{\sigma,\vsc_C}) \in H_\sigma \; \sigma \wedge \\
+      \npair{(\retptrc(\sigma,\perm,\lin,\baddr,\eaddr,\aaddr),\sealed{\sigma,\vsc_C})} \in \lrp(W)
     \end{array}
     \right\}\cup\\
 %
-    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrd(\sigma,\baddr,\eaddr)},\\\sealed{\sigma,\vsc_D}\endarray\right)} \;\middle| \;
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrd(\sigma,(\baddr,\eaddr))},\\\sealed{\sigma,((\rw,\linear),\baddr,\eaddr,\baddr)}\endarray\right)} \;\middle| \;
     \begin{array}{l}
-      \vsc_D = ((\rw,\linear),\baddr,\eaddr,\baddr-1) \wedge\\
-      \exists r \in \addressable{\linear,W} \ldotp \\
-      \quad  \exists \stpair{\ms}{\ms} \ldotp \\
-      \qquad \dom(\src{\ms_S}) = \dom(\ms_T) = [\baddr, \eaddr] \wedge \stareg{\spao} \nequal W(r) \wedge \\
-      \qquad \forall W' \privft W \ldotp \\
-      \qquad \quad \exists r', W'(r') = W(r), \exists r'', W'(r'') = \stdreg{[\stkb,\eaddr]}{\spao} \ldotp \\
-      \qquad \qquad { \color{red} \forall (\src{c}, c') \in H_\sigma (\sigma) \ldotp \npair{\src{c,\retptrd(\sigma,\baddr,\eaddr)}, c' , \sealed{\sigma,\vsc_D}} \in \lrk(W') }%\text{\lau{This needs some work - specifically what i c and c' and do we need to seal them?}}
-      
-%    \forall n'<n, W' \pubft W, W_\lrv \npair[n']{\stpair[.]{\retptrc(\sigma,\_)}{\sealed{\sigma,\vsc_C}}} \in \lrv(W_\lrv) \ldotp\\
-%      \npair[n']{\src{\retptrc(\sigma,\_)},\src{\retptrd(\sigma,\_)},\sealed{\sigma,\vsc_C},\sealed{\sigma,\vsc_D}} \in \lrk(W' \oplus W_\lrv)
-    \end{array}
+      \npair{\left[\left(\arraycolsep=0pt\array{l}\src{\retptrd(\sigma,\baddr,\eaddr)},\\\sealed{\sigma,((\rw,\linear),\baddr,\eaddr,\baddr)}\endarray\right)\right]} \in \lrp(W) \wedge \\
+      \forall n' \leq n \ldotp \forall W' \privft W \ldotp \\
+      \quad \npair{\left[\left(\arraycolsep=0pt\array{l}\src{\retptrd(\sigma,\baddr,\eaddr)},\\\sealed{\sigma,((\rw,\linear),\baddr,\eaddr,\baddr)}\endarray\right)\right]} \in \lrp(W') \wedge \\
+      \quad \npair[n']{\left(\arraycolsep=0pt\array{l}\retptrc(\perm_C,\lin_C,\baddr_C,\eaddr_C,\aaddr_C),\\((\perm_C,\lin_C),\baddr_C,\eaddr_C,\aaddr_C)\endarray\right)} \in \lrv(W_C) \wedge\\
+      \quad \memSat[n']{\stpair[.]{\ms_S,(\ms_f,\opc)::\stk,\ms_\stk}{\ms_T}{W_\lrm}} \wedge \\
+      \quad \npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rdata,\rstk,\rtmp{1},\rtmp{2}\})(W_\lrr) \wedge \\
+      \quad \src{\reg_S}(r_\stk) = \stkptr{\rw,\stkb,\baddr-1,\_} \wedge \\
+      \quad \reg_T(r_\stk) = ((\rw,\linear),\stkb,\baddr-1,\_) \wedge \\
+      \quad W'(r_\var{free}) = \stdreg{[\stkb,\baddr-1]}{\spa} \wedge \\
+      \quad W'(r_\var{priv}) = \stareg[\src{\ms_f},\ms_f]{\spao} \wedge \\
+      \quad \src{\ms_f} = \ms_f \wedge \dom(\ms_f) = [\baddr,\eaddr] \wedge\\
+      \quad W_\var{new} = (W' \uplus W_\lrr \uplus W_\lrm \uplus W_C)[\revoked,\revoked,\stdreg{[\stkb,\eaddr]}{\spao}]\\
+      \qquad \Rightarrow \\
+      \qquad \quad \npair[n']{\left(\array{l}(\ms_S,\reg_S\updReg{\rstk,\pcreg,\rdata,\rtmp{1},\rtmp{2}}{\stkptr{\rw,\stkb,\eaddr,\baddr},((\perm_C,\lin_C),\baddr_C,\eaddr_C,\aaddr_C),0,0,0},\stk,\ms_\stk \uplus \ms_f),\\
+                                             (\ms_T,\reg_S\updReg{\rstk,\pcreg,\rdata,\rtmp{1},\rtmp{2}}{((\rw,\linear),\stkb,\eaddr,\baddr),((\perm_C,\lin_C),\baddr_C,\eaddr_C,\aaddr_C+?)})
+                                    \endarray\right)} \in \lro(W_\var{new})
+    \end{array} 
     \right\}\cup \\
 %
     \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\sealed{\sigma,\vsc_S}},\\ \sealed{\sigma,\vsc_T} \endarray\right)} \;\middle| \;
@@ -2000,6 +1953,7 @@ Where $S\text{ is a separation of $W$}$ means that no two partition share the sa
     \right\}
   \end{array}
 \]
+where $H_\sigma$ is a function from seals to the set of pairs of sealable capabilities that can be sealed with $\sigma$.
 \lau{28-11-2017: Do we want the execute condition for $\rwx$ as we are doing write xor execute?}
 
 \subsection{Permission based conditions}
