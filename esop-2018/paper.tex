@@ -1065,12 +1065,12 @@ in software, precisely to allow experimenting with alternative models like ours.
 % Contrary to more traditional assembly languages, capability machines do not 
 % allow literal addresses to appear as part of instructions. This means that we
 
-In order to have a reasonably realistic system, we use a simple model of
-linking, so programs can have access to other programs through a linking table.
-We also assume malloc to be part of the trusted computing base satisfying a
-certain specification. Malloc and linking tables are described further in the
-next section, but we refer to the technical appendix~\cite{technical_appendix}
-for full details.
+In order to have a reasonably realistic system, we use a simple model of linking
+where a program has access to a linking table that contains capabilities for
+other programs.  We also assume malloc to be part of the trusted computing base
+satisfying a certain specification. Malloc and linking tables are described
+further in the next section, but we refer to the technical
+appendix~\cite{technical_appendix} for full details.
 
 \section{Stack and return pointer management using local capabilities}
 \label{sec:stack-and-return-pointer} One of the contributions in this paper is a
@@ -1291,33 +1291,31 @@ it. Clear non-argument registers. \textit{Before invoking an adversary callback}
 Make sure callback is global. \textit{When invoked by an adversary} Make sure
 received stack pointer has permission $\rwlx$.
 
-\textbf{Reusable macro instructions} We define a number of reusable
-macros capturing the calling convention and other conveniences. All
-macros that use the stack assume a stack pointer in register
-$r_\stk$. The macro \texttt{\footnotesize{fetch $r$ $\var{name}$}} fetches the
-capability related to $\var{name}$ from the linking table and stores
-it in register $r$.  The macros \texttt{\footnotesize{push $r$}} and
-\texttt{\footnotesize{pop $r$}} work as one would
-expect. The macro \texttt{\footnotesize{prepstk $r$}} is used when a callback is
-invoked by the adversary and prepares the received stack pointer by
-checking that it has permission $\rwlx$.  The macro \texttt{\footnotesize{scall
-    $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}}
-jumps to the capability in register $r$ in the manner described
-above. That is, it pushes local state (the contents of registers
-$\overline{r_{\var{priv}}}$) and the activation record (return code,
-return pointer, stack pointer) to the stack, creates an $\entry$
-return pointer, restricts the stack pointer, clears the unused part of
-the stack, clears the necessary registers and jumps to $r$.  Upon
+\textbf{Reusable macro instructions} We define a number of reusable macros
+capturing the calling convention and other conveniences. All macros that use the
+stack assume a stack pointer in register $r_\stk$. The macro
+\texttt{\footnotesize{fetch $r$ $\var{name}$}} fetches the capability related to
+$\var{name}$ from the linking table and stores it in register $r$.  The macros
+\texttt{\footnotesize{push $r$}} and \texttt{\footnotesize{pop $r$}} add and
+remove elements from the stack. The macro \texttt{\footnotesize{prepstk $r$}} is
+used when a callback is invoked by the adversary and prepares the received stack
+pointer by checking that it has permission $\rwlx$.  The macro
+\texttt{\footnotesize{scall
+    $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}} jumps to the
+capability in register $r$ in the manner described above. That is, it pushes
+local state (the contents of registers $\overline{r_{\var{priv}}}$) and the
+activation record (return code, return pointer, stack pointer) to the stack,
+creates an $\entry$ return pointer, restricts the stack pointer, clears the
+unused part of the stack, clears the necessary registers and jumps to $r$.  Upon
 return, the private state is restored. The macro \texttt{\footnotesize{mclear
-    $r$}} clears all the memory the capability in register $r$ has
-authority over.  The macro \texttt{\footnotesize{rclear $\var{regSet}$}} clears
-all the registers in $\var{regSet}$. The macro \texttt{\footnotesize{reqglob
-    $r$}} checks whether the word in register $r$ is a global
-capability. The macro \texttt{\footnotesize{crtcls $\overline{(x_i,r_i)}$ $r$}}
-allocates a closure where $r$ points to the closure's code and a new
-environment is allocated (using malloc) where the contents of
-$\overline{r_i}$ is stored. In the code referred to by $r$, an
-implicit fetch happens when an instruction refers to $x_i$.
+    $r$}} clears all the memory the capability in register $r$ has authority
+over.  The macro \texttt{\footnotesize{rclear $\var{regSet}$}} clears all the
+registers in $\var{regSet}$. The macro \texttt{\footnotesize{reqglob $r$}}
+checks whether the word in register $r$ is a global capability. The macro
+\texttt{\footnotesize{crtcls $\overline{(x_i,r_i)}$ $r$}} allocates a closure
+where $r$ points to the closure's code and a new environment is allocated (using
+malloc) where the contents of $\overline{r_i}$ is stored. In the code referred
+to by $r$, an implicit fetch happens when an instruction refers to $x_i$.
 
 The technical appendix~\cite{technical_appendix} contains detailed descriptions
 of all the macros.
@@ -2607,17 +2605,16 @@ instruction for erasing a large block of memory. Nevertheless, from a discussion
 with the designers of the CHERI capability machine, we gather that it is not immediately
 clear whether and how such a primitive could be implemented efficiently in the CHERI context.
 
-\emph{Modularity} It is important that our calling convention is modular, i.e.\ 
-we do not assume that our code is specially privileged w.r.t.\ the adversary, and
-they can apply the same measures to protect themselves from us as we do to
+\emph{Modularity} It is important that our calling convention is modular, i.e.\
+we do not assume that our code is specially privileged w.r.t.\ the adversary,
+and they can apply the same measures to protect themselves from us as we do to
 protect ourselves from them. More concretely, the requirements we have on
 callbacks and return pointers received from the adversary are also satisfied by
 callbacks and return pointers that we pass to them. For example, our return
 pointers are local capabilities because they must point to memory where we can
 store the old stack pointer, but the adversary's return pointers are also
-allowed to be local. Adversary callbacks on the other hand are required to
-be global but the callbacks we construct ourselves are allocated on the heap and
-also global. 
+allowed to be local. Adversary callbacks are required to be global but the
+callbacks we construct are allocated on the heap and also global.
 
 \emph{Arguments and local capabilities} 
 %Stack and return pointer
@@ -2659,7 +2656,7 @@ expensive.
 % Can local capabilities be used for other things?/Local capabilities only for stack?
 %Not unheard of - other machine also have things specific for language features.
 In summary, the use of local capabilities for other things than stack and return
-pointers is likely only possible in very specific scenario's when using our
+pointers is likely only possible in very specific scenarios when using our
 calling convention. While this is unfortunate, it is not unheard of that
 processors have built-in constructs that are exclusively used for handling
 control flow, such as, for example, the call and return instructions that exist
