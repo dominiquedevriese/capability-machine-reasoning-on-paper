@@ -1829,23 +1829,23 @@ In the definition of memory satisfaction, $R_\ms$ creates a partitioning of the 
 \[
   \lre(W) = \left\{ \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} \middle| 
     \begin{array}{l}
-      \forall n' \leq n, \src{k_{d,S}}, \src{k_{c,S}}, k_{d,T}, k_{c,T}, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk} \ldotp\\
-      \quad \forall W_\lrk, W_\lrr, W_\lrm \ldotp \\
+      \forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk} \ldotp\\
+      \quad \forall W_\lrr, W_\lrm \ldotp \\
       \qquad\npair[n']{[\stpair[.]{v_{c,S}}{v_{c,T}},\stpair[.]{v_{d,T}}{v_{d,S}}]} \in \lrp(W) \wedge \\
-      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\})(W_\lrr) \wedge\\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrr) \wedge\\
       \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \\
       \qquad\Rightarrow\\
-      \qquad\npair[n']{\left(\array{l}\src{(\ms_S,\reg_S\updReg{\pcreg,\rdata,\rretc,\rretd}{v_{c,S},v_{d,S},k_{c,S},k_{d,S}},\stk, \ms_\stk)},\\
-                                          (\ms_T,\reg_T\updReg{\pcreg,\rdata,\rretc,\rretd}{v_{c,T},v_{d
-,T},k_{c,T},k_{d,T}})\endarray\right)}
-      \in \lro(W\oplus W_\lrk \oplus W_\lrr \oplus W_\lrm)
+      \qquad\npair[n']{\left(\array{l}\src{(\ms_S,\reg_S\updReg{\pcreg,\rdata}{v_{c,S},v_{d,S}},\stk, \ms_\stk)},\\
+                                          (\ms_T,\reg_T\updReg{\pcreg,\rdata}{v_{c,T},v_{d,T}})
+                       \endarray\right)}
+      \in \lro(W \oplus W_\lrr \oplus W_\lrm)
     \end{array}
     \right\}
 \]
-\lau{24-10-2017: Dominique, I do not see how the splitting of worlds is going to work out. I can see how it will enforce linearity, but is you give a "spatial" region (the kind of region that is only allowed to go to one part of a split) to the $\lrr$-relation, then the memory satisfaction does not have it, and it cannot find a memory segment for this part. In other words, the memory satisfaction will not be able to find a concrete memory segment for segments governed by a linear capability in the register file. Maybe the memory satisfaction should have all of the parts, so it can represent them (but also limit what linear capabilities can be used).}
-\dominique{18-1-2018: Lau, I suppose the above has been answered verbally already during one of the previous skype calls, but for reference, this is what the spatial vs spatial_owned distinction is intended to solve: the world will contain spatial regions for such memory segments, but not spatial_owned ones, so the memory satisfaction will require the memory to be present but not allow it to be addressed.}
+\lau{24-10-2017: Dominique, I do not see how the splitting of worlds is going to work out. I can see how it will enforce linearity, but if you give a "spatial" region (the kind of region that is only allowed to go to one part of a split) to the $\lrr$-relation, then the memory satisfaction does not have it, and it cannot find a memory segment for this part. In other words, the memory satisfaction will not be able to find a concrete memory segment for segments governed by a linear capability in the register file. Maybe the memory satisfaction should have all of the parts, so it can represent them (but also limit what linear capabilities can be used).}
+\dominique{18-1-2018: Lau, I suppose the above has been answered verbally already during one of the previous skype calls, but for reference, this is what the spatial vs spatial\_owned distinction is intended to solve: the world will contain spatial regions for such memory segments, but not spatial\_owned ones, so the memory satisfaction will require the memory to be present but not allow it to be addressed.}
 \dominique{18-1-2018: $W_\lrk$, $k_{d,*}$, $k_{c,*}$ can all be removed from the above definition now, right?}
-
+\lau{19-01-2018: Yes. And I have removed them}
 \[
   \lro(W) = \left\{ \npair{\left(\array{l}\src{(\ms_S,\reg_S,\stk_S,\ms_{\stk,S})},\\(\ms_T,\reg_T)\endarray\right)} \middle|
     \begin{array}{l}
@@ -1881,15 +1881,17 @@ In the definition of memory satisfaction, $R_\ms$ creates a partitioning of the 
   \lrr(R)(W) = \left\{ \npair{\stpair{\reg}{\reg}} \middle|
     \begin{array}{l}
       \exists S : (\RegName \setminus (\{\pcreg \} \cup R))\fun \World \ldotp \\
-      \quad W = \bigoplus_{r \in (\RegName\setminus (\{\pcreg \} \cup R))} S(r) \\
+      \quad W = \bigoplus_{r \in (\RegName\setminus (\{\pcreg,\rdata \} \cup R))} S(r) \\
       \quad \forall r \in \RegName \setminus (\{\pcreg \} \cup R)\ldotp\\
       \qquad\npair{\stpair[.]{\src{\reg_S(r)}}{\reg_T(r)}} \in \lrv(S(r))
     \end{array}
             \right\}
 \]
+We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to exclude extra registers, then we simlpy omit that argument.
 % DOMI 18-1-2018: the below remark is obsolete, so I commented it out.
 % Where $S\text{ is a separation of $W$}$ means that no two partition share the same ``spatial'' region (whatever that is).
-\dominique{18-1-2018: it might be convenient to exclude $\rdata$ from the $\lrr$ relation by default too. Check if we ever use it with other instantiations of R.}
+%\dominique{18-1-2018: it might be convenient to exclude $\rdata$ from the $\lrr$ relation by default too. Check if we ever use it with other instantiations of R.}
+% Lau 19-01-2018: Added rdata as default.
 
 \lau{TODO: Rewrite the other definitions to pass around $H_\sigma$ (if this is how we want to handle seals.)}
 \[
@@ -1911,7 +1913,7 @@ In the definition of memory satisfaction, $R_\ms$ creates a partitioning of the 
       \quad \npair[n']{\left[\left(\arraycolsep=0pt\array{l}\src{\retptrd(\sigma,\baddr,\eaddr)},\\\sealed{\sigma,((\rw,\linear),\baddr,\eaddr,\baddr)}\endarray\right)\right]} \in \lrp(W') \wedge \\
       \quad \npair[n']{\left(\arraycolsep=0pt\array{l}\retptrc(\perm_C,\lin_C,\baddr_C,\eaddr_C,\aaddr_C),\\((\perm_C,\lin_C),\baddr_C,\eaddr_C,\aaddr_C)\endarray\right)} \in \lrv(W_C) \wedge\\
       \quad \memSat[n']{\stpair[.]{\ms_S,(\ms_f,\opc)::\stk,\ms_\stk}{\ms_T}}{W_\lrm} \wedge \\
-      \quad \npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rdata,\rtmp{1},\rtmp{2}\})(W_\lrr) \wedge \\
+      \quad \npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rtmp{1},\rtmp{2}\})(W_\lrr) \wedge \\
       \quad \src{\reg_S}(r_\stk) = \stkptr{\rw,\stkb,\baddr-1,\_} \wedge \\
       \quad \reg_T(r_\stk) = ((\rw,\linear),\stkb,\baddr-1,\_) \wedge \\
       \quad W'(r_\var{free}) = \stdreg{[\stkb,\baddr-1]}{\spa} \wedge \\
