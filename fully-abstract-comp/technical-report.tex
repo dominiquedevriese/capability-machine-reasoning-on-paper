@@ -437,6 +437,7 @@
 \newcommand{\updPcAddr}[1]{\plainfun{updatePc}{#1}}
 \newcommand{\withinBounds}[1]{\plainfun{withinBounds}{#1}}
 \newcommand{\writeAllowed}[1]{\plainfun{writeAllowed}{#1}}
+\newcommand{\xjumpResult}[3]{\plainfun{xjumpResult}{#1,#2,#3}}
 
 
 \title{Technical Report}
@@ -1341,6 +1342,65 @@ This instruction uses the $\decPerm{}$ function.
                                    \end{cases}
 \end{align*}
 
+\dominique{22-1-2018: the below is an alternative proposal to the above definition. It is part of a proposed refactoring to simplify the merge the cases for return pointers and closures in the value relation.}
+\begin{align*}
+  \sem{\txjmp{r_1}{r_2}}(\Phi) = &
+                                   \begin{cases}
+                                       \Phi''
+                                     &
+                                     \begin{array}[t]{l}
+                                       \Phi(r_1) = c_1 \tand
+                                       \Phi(r_2) = c_2 \tand\\
+                                       w_1 = \linCons{c_1} \tand \\
+                                       w_2 = \linCons{c_2} \tand \\
+                                       \Phi' = \Phi \updReg{r_1}{w_1} \updReg{r_2}{w_2} \tand\\
+                                       \Phi'' = \xjumpResult{c_1}{c_2}{\Phi'}
+                                     \end{array}\\
+                                     \failed & \totherwise
+                                   \end{cases}
+\end{align*}
+\begin{align*}
+  \xjumpResult{c_1}{c_2}{\Phi} = 
+  \begin{cases}
+    \arraycolsep=0pt
+    \begin{array}[t]{rl}
+      \Phi & \updReg{\pcreg}{c_\code}\\
+           & \updReg{\rdata}{c_\data}
+    \end{array} &
+    \begin{array}[t]{l}
+      c_1 = \sealed{\sigma_1,c_\code} \tand \\
+      c_2 = \sealed{\sigma_2,c_\data} \tand \\
+      \sigma_1 = \sigma_2 \tand \\
+      \nonExec{c_\data}
+    \end{array}
+    \\&\\
+    \sourcecolor\left.
+      \arraycolsep=0pt
+      \begin{array}[t]{rl}
+        \Phi' & \updReg{r_2}{0} \\
+              & \updReg{\pcreg}{\opc}\\
+              & \updReg{\rdata}{0}\\
+              & \updReg{\rstk}{c_\stk}\\
+              & \updReg{\rtmp{1}}{0}\\
+              & \updReg{\rtmp{2}}{0}
+      \end{array}\right.&
+    \sourcecolor\left.
+      \begin{array}[t]{l}
+        c_1 = \retptrc(\sigma_1,\_) \tand \\
+        c_2 = \retptrd(\sigma_2,(\aaddr_\stk,\_)) \tand \\
+        \sigma_1 = \sigma_2 \tand\\
+        \Phi(\rstk) = \stkptr{\rw,\stkb,\eaddr_\stk,\_} \tand \\
+        \Phi = (\mem,\reg,\stkf::\stk,\ms_\stk) \tand \\
+        \stkf = (\opc,\ms_{\stk,\priv}) \tand \\
+        \dom(\ms_{\stk,\priv}) = [\eaddr_\stk+1,\eaddr_{\stk,\priv}] \tand\\
+        c_\stk = \stkptr{\rw,\stkb,\eaddr_{\stk,\priv},\aaddr_\stk} \tand\\
+        \Phi' = (\mem,\reg,\stk,\ms_{\stk,\priv} \uplus \ms_\stk) 
+      \end{array}\right.
+    \\
+    \tundefined & \totherwise
+  \end{cases}
+\end{align*}
+
 \noindent\textbf{cseal}\\
 \begin{align*}
   \sem{\tcseal{r_1}{r_2}{r_3}}(\Phi) = &
@@ -1878,8 +1938,25 @@ In the definition of memory satisfaction, $R_\ms$ creates a partitioning of the 
 \]
 \lau{24-10-2017: Dominique, I do not see how the splitting of worlds is going to work out. I can see how it will enforce linearity, but if you give a "spatial" region (the kind of region that is only allowed to go to one part of a split) to the $\lrr$-relation, then the memory satisfaction does not have it, and it cannot find a memory segment for this part. In other words, the memory satisfaction will not be able to find a concrete memory segment for segments governed by a linear capability in the register file. Maybe the memory satisfaction should have all of the parts, so it can represent them (but also limit what linear capabilities can be used).}
 \dominique{18-1-2018: Lau, I suppose the above has been answered verbally already during one of the previous skype calls, but for reference, this is what the spatial vs spatial\_owned distinction is intended to solve: the world will contain spatial regions for such memory segments, but not spatial\_owned ones, so the memory satisfaction will require the memory to be present but not allow it to be addressed.}
-\dominique{18-1-2018: $W_\lrk$, $k_{d,*}$, $k_{c,*}$ can all be removed from the above definition now, right?}
-\lau{19-01-2018: Yes. And I have removed them}
+
+\dominique{22-1-2018: the below is an alternative proposal to the above definition. It is part of a proposed refactoring to simplify the merge the cases for return pointers and closures in the value relation.}
+\[
+  \lre(W) = \left\{ \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} \middle| 
+    \begin{array}{l}
+      \forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk} \ldotp\\
+      \quad \forall W_\lrr, W_\lrm \ldotp \\
+      \qquad\npair[n']{[\stpair[.]{v_{c,S}}{v_{c,T}},\stpair[.]{v_{d,T}}{v_{d,S}}]} \in \lrp(W) \wedge \\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrr) \wedge\\
+      \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \\
+      \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)}\\
+      \qquad \Phi_S' = \xjumpResult{v_{c,S}}{v_{d,S}}{\Phi_S}\\
+      \qquad\Phi_T = (\ms_T,\reg_T)\\
+      \qquad\Phi_T' = \xjumpResult{v_{c,T}}{v_{d,T}}{\Phi_T}\\
+      \qquad\Rightarrow\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro(W \oplus W_\lrr \oplus W_\lrm)
+    \end{array}
+    \right\}
+\]
+
 \[
   \lro(W) = \left\{ \npair{\left(\array{l}\src{(\ms_S,\reg_S,\stk_S,\ms_{\stk,S})},\\(\ms_T,\reg_T)\endarray\right)} \middle|
     \begin{array}{l}
@@ -1996,6 +2073,43 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
 \]
 where $H_\sigma$ is a function from seals to the set of pairs of sealable capabilities that can be sealed with $\sigma$.
 \lau{28-11-2017: Do we want the execute condition for $\rwx$ as we are doing write xor execute?}
+
+
+\dominique{22-1-2018: the below is an alternative proposal to the above definition. It is part of a proposed refactoring to simplify the merge the cases for return pointers and closures in the value relation.}
+\[
+  \lrv(H_\sigma,W) =
+  \begin{array}[t]{l}
+    \left\{ \npair{\stpair[.]{i}{i}} \;\middle|\; i \in \ints \right\}\cup \\
+%
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{c_S},\\ \sealed{\sigma,\vsc_T} \endarray\right)} \;\middle| \;
+    \begin{array}{l}
+      \stpair[.]{c_S}{\vsc_T} \in H_\sigma \; \sigma \; W\wedge \\
+      \forall W' \future W, W_o, \stpair[.]{c_S'}{\vsc'_T} \in H_\sigma \; \sigma \; W_o \ldotp \\
+      \quad \npair{\src{c_S},\src{c_S'},\sealed{\sigma,\vsc_T},\sealed{\sigma,\vsc_T'}} \in \lre(W'\oplus W_o) \wedge \\
+      \quad \npair{\src{c_S'},\src{c_S},\sealed{\sigma,\vsc_T'},\sealed{\sigma,\vsc_T}} \in \lre(W' \oplus W_o)
+    \end{array}
+    \right\}\cup\\
+%
+    % \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma,\sigma_\baddr,\sigma_\eaddr}},\\ \seal{\sigma,\sigma_\baddr,\sigma_\eaddr} \endarray \right)} 
+    % \right\} \cup \\
+%
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\stkptr{\perm,\baddr,\eaddr,\aaddr}},\\ ((\perm,\linear),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\;
+    \begin{array}{r l l}
+      \perm \in \readAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \readCond{\linear,W}\\
+      \perm \in \writeAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \writeCond{\linear,W}
+    \end{array}
+    \right\} \cup \\
+%
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{((\perm,\lin),\baddr,\eaddr,\aaddr)},\\ ((\perm,\lin),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\; 
+    \begin{array}{r l l }
+      \perm \in \readAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \readCond{\lin,W}\\
+      \perm \in \writeAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \writeCond{\lin,W}\\
+      \perm = \rwx &\Rightarrow& \npair{(\{\rwx,\rx\},\baddr,\eaddr)} \in \execCond{\lin,W}\\
+      \perm = \rx &\Rightarrow& \npair{(\{\rx\},\baddr,\eaddr)} \in \execCond{\lin,W}
+    \end{array}
+    \right\}
+  \end{array}
+\]
 
 \subsection{Permission based conditions}
 \[
