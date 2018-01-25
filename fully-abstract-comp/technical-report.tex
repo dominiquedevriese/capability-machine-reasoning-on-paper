@@ -1,5 +1,5 @@
 \documentclass[a3paper]{article}
-\usepackage[a3paper]{geometry}
+\usepackage[a3paper,margin=0.7in]{geometry}
 \usepackage[utf8]{inputenc}
 
 % Math packages
@@ -846,7 +846,6 @@ This paragraph contains the implementation of $\scall{o}{}{}$. That is each of t
     \text{// pop the magic number 42}\\
     \tcca{\rstk}{1}\\
     \text{// clear temporary registers used}\\
-    \tmove{\rtmp{1}}{0}\\
     \tmove{\rtmp{2}}{0}\\
     \text{// continue program after invocation.}
   \end{array}
@@ -873,7 +872,8 @@ The call code does the following:
   \item get the base of the stack and check that it matches up with the global base of the stack.If not, fail.
   \item splice the returned stack pointer and the stack pointer for our private stack.
   \item adjust stack pointer to first empty address (the address with the end address is considered free)  
-  \item clear the temporary registers.
+  \item clear the temporary registers. (Note that $\rtmp{1}$ is not cleared with 0 as it already contains 0 after the $\stkb$ check. If it didn't contain 0, then the execution would have failed.)
+
   \end{itemize}
 \end{itemize}
 
@@ -1329,12 +1329,13 @@ This instruction uses the $\decPerm{}$ function.
                                      \sourcecolor\left.
                                        \begin{array}[t]{l}
                                          \Phi(r_1) = \retptrc(\sigma_1,\_) \tand \\
-                                         \Phi(r_2) = \retptrd(\sigma_2,(\aaddr_\stk,\_)) \tand \\
+                                         \Phi(r_2) = \retptrd(\sigma_2,(\aaddr_\stk,\eaddr_{\stk,\priv})) \tand \\
                                          \sigma_1 = \sigma_2 \tand\\
                                          \Phi(\rstk) = \stkptr{\rw,\stkb,\eaddr_\stk,\_} \tand \\
                                          \Phi = (\mem,\reg,\stkf::\stk,\ms_\stk) \tand \\
                                          \stkf = (\opc,\ms_{\stk,\priv}) \tand \\
                                          \dom(\ms_{\stk,\priv}) = [\eaddr_\stk+1,\eaddr_{\stk,\priv}] \tand\\
+                                         \eaddr_{\stk} + 1 = \aaddr_\stk \tand\\
                                          c_\stk = \stkptr{\rw,\stkb,\eaddr_{\stk,\priv},\aaddr_\stk} \tand\\
                                          \Phi' = (\mem,\reg,\stk,\ms_{\stk,\priv} \uplus \ms_\stk) 
                                        \end{array}\right.
@@ -1378,7 +1379,8 @@ This instruction uses the $\decPerm{}$ function.
     \sourcecolor\left.
       \arraycolsep=0pt
       \begin{array}[t]{rl}
-        \Phi' & \updReg{r_2}{0} \\
+        \Phi' & \updReg{r_1}{w_1}\\
+              & \updReg{r_2}{0} \\
               & \updReg{\pcreg}{\opc}\\
               & \updReg{\rdata}{0}\\
               & \updReg{\rstk}{c_\stk}\\
@@ -1387,13 +1389,15 @@ This instruction uses the $\decPerm{}$ function.
       \end{array}\right.&
     \sourcecolor\left.
       \begin{array}[t]{l}
+        w_1 = \linCons{c_1}
         c_1 = \retptrc(\sigma_1,\_) \tand \\
-        c_2 = \retptrd(\sigma_2,(\aaddr_\stk,\_)) \tand \\
+        c_2 = \retptrd(\sigma_2,(\aaddr_\stk,\eaddr_{\stk,\priv})) \tand \\
         \sigma_1 = \sigma_2 \tand\\
         \Phi(\rstk) = \stkptr{\rw,\stkb,\eaddr_\stk,\_} \tand \\
         \Phi = (\mem,\reg,\stkf::\stk,\ms_\stk) \tand \\
         \stkf = (\opc,\ms_{\stk,\priv}) \tand \\
         \dom(\ms_{\stk,\priv}) = [\eaddr_\stk+1,\eaddr_{\stk,\priv}] \tand\\
+        e_\stk + 1 = a_\stk \tand\\
         c_\stk = \stkptr{\rw,\stkb,\eaddr_{\stk,\priv},\aaddr_\stk} \tand\\
         \Phi' = (\mem,\reg,\stk,\ms_{\stk,\priv} \uplus \ms_\stk) 
       \end{array}\right.
@@ -1928,12 +1932,13 @@ In the definition of memory satisfaction, $R_\ms$ creates a partitioning of the 
       \quad \forall W_\lrr, W_\lrm \ldotp \\
       \qquad\npair[n']{[\stpair[.]{v_{c,S}}{v_{c,T}},\stpair[.]{v_{d,T}}{v_{d,S}}]} \in \lrp(W) \wedge \\
       \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrr) \wedge\\
-      \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \\
+      \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \wedge\\
+      \qquad W_{\var{new}} = W \oplus W_\lrr \oplus W_\lrm \\
       \qquad\Rightarrow\\
       \qquad\npair[n']{\left(\array{l}\src{(\ms_S,\reg_S\updReg{\pcreg,\rdata}{v_{c,S},v_{d,S}},\stk, \ms_\stk)},\\
                                           (\ms_T,\reg_T\updReg{\pcreg,\rdata}{v_{c,T},v_{d,T}})
                        \endarray\right)}
-      \in \lro(W \oplus W_\lrr \oplus W_\lrm)
+      \in \lro(W_{\var{new}})
     \end{array}
     \right\}
 \]
@@ -1999,7 +2004,7 @@ The argument for having one relation relate pairs of pairs of capabilties and th
       \qquad\src{\lin} = \pi_\lin(\src{c_i}) = \pi_\lin(c_i') \wedge \\
       \qquad \exists r \in \addressable{l,S(i)} \ldotp\\
       \qquad \quad \forall \npair{\stpair{\ms}{\ms}} \in S(i)(r).H \; S(i)(r).s \; \xi^{-1}(S(i))  \ldotp \\
-      \qquad \qquad \dom(\src{\ms_S}) \subseteq [\src{\baddr},\src{\eaddr}] \wedge \dom(\ms_T) \subseteq [\baddr,\eaddr]      
+      \qquad \qquad \dom(\src{\ms_S}) \supseteq [\src{\baddr},\src{\eaddr}] \wedge \dom(\ms_T) \supseteq [\baddr,\eaddr]      
     \end{array}
   \right\}
 \]
@@ -2009,7 +2014,7 @@ The argument for having one relation relate pairs of pairs of capabilties and th
   \lrr(R)(W) = \left\{ \npair{\stpair{\reg}{\reg}} \middle|
     \begin{array}{l}
       \exists S : (\RegName \setminus (\{\pcreg \} \cup R))\fun \World \ldotp \\
-      \quad W = \bigoplus_{r \in (\RegName\setminus (\{\pcreg,\rdata \} \cup R))} S(r) \\
+      \quad W = \bigoplus_{r \in (\RegName\setminus (\{\pcreg,\rdata \} \cup R))} S(r) \wedge \\
       \quad \forall r \in \RegName \setminus (\{\pcreg \} \cup R)\ldotp\\
       \qquad\npair{\stpair[.]{\src{\reg_S(r)}}{\reg_T(r)}} \in \lrv(S(r))
     \end{array}
@@ -2027,7 +2032,8 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
   \begin{array}[t]{l}
     \left\{ \npair{\stpair[.]{i}{i}} \;\middle|\; i \in \ints \right\}\cup \\
 %
-    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrc(\sigma,\perm,\lin,\baddr,\eaddr,\aaddr)},\\\sealed{\sigma,\vsc_C}\endarray\right)} \;\middle| \;
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrc(\sigma,\perm,\lin,\baddr,\eaddr,\aaddr)},\\
+                         \sealed{\sigma,((\perm,\lin),\baddr,\eaddr,\aaddr + ?)}\endarray\right)} \;\middle| \;
     \begin{array}{l}
       (\retptrc(\sigma,\perm,\lin,\baddr,\eaddr,\aaddr),\sealed{\sigma,\vsc_C}) \in H_\sigma \; \sigma \wedge \\
       \npair{([\retptrc(\sigma,\perm,\lin,\baddr,\eaddr,\aaddr),\sealed{\sigma,\vsc_C})]} \in \lrp(W)
@@ -2037,32 +2043,34 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
     \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\retptrd(\sigma,(\baddr,\eaddr))},\\\sealed{\sigma,((\rw,\linear),\baddr,\eaddr,\baddr)}\endarray\right)} \;\middle| \;
     \begin{array}{l}
       \npair{\left[\left(\arraycolsep=0pt\array{l}\src{\retptrd(\sigma,\baddr,\eaddr)},\\\sealed{\sigma,((\rw,\linear),\baddr,\eaddr,\baddr)}\endarray\right)\right]} \in \lrp(W) \wedge \\
-      \forall n' \leq n \ldotp \forall W' \privft W \ldotp \\
+      \forall n' \leq n \ldotp \forall W' \privft W , W_C,W_\lrm,W_\lrr\ldotp \\
       \quad \npair[n']{\left[\left(\arraycolsep=0pt\array{l}\src{\retptrd(\sigma,\baddr,\eaddr)},\\\sealed{\sigma,((\rw,\linear),\baddr,\eaddr,\baddr)}\endarray\right)\right]} \in \lrp(W') \wedge \\
-      \quad \npair[n']{\left(\arraycolsep=0pt\array{l}\retptrc(\perm_C,\lin_C,\baddr_C,\eaddr_C,\aaddr_C),\\((\perm_C,\lin_C),\baddr_C,\eaddr_C,\aaddr_C)\endarray\right)} \in \lrv(W_C) \wedge\\
+      \quad \npair[n']{\left(\arraycolsep=0pt\array{l}\retptrc(\perm_C,\lin_C,\baddr_C,\eaddr_C,\aaddr_C),\\
+                                                      ((\perm_C,\lin_C),\baddr_C,\eaddr_C,\aaddr_C)\endarray\right)} \in \lrv(W_C) \wedge\\
       \quad \memSat[n']{\stpair[.]{\ms_S,(\ms_f,\opc)::\stk,\ms_\stk}{\ms_T}}{W_\lrm} \wedge \\
+      \quad \opc = ((\perm_C,\lin_C),\baddr_C,\eaddr_C,\aaddr_C) \wedge \\
       \quad \npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rtmp{1},\rtmp{2}\})(W_\lrr) \wedge \\
       \quad \src{\reg_S}(r_\stk) = \stkptr{\rw,\stkb,\baddr-1,\_} \wedge \\
       \quad \reg_T(r_\stk) = ((\rw,\linear),\stkb,\baddr-1,\_) \wedge \\
       \quad W'(r_\var{free}) = \stdreg{[\stkb,\baddr-1]}{\spa} \wedge \\
       \quad W'(r_\var{priv}) = \stareg[\src{\ms_f},\ms_f]{\spao} \wedge \\
       \quad \src{\ms_f} = \ms_f \wedge \dom(\ms_f) = [\baddr,\eaddr] \wedge\\
-      \quad W_\var{new} = (W' \uplus W_\lrr \uplus W_\lrm \uplus W_C)[\revoked,\revoked,\stdreg{[\stkb,\eaddr]}{\spao}]\\
+      \quad W_\var{new} = (W' \oplus W_\lrr \oplus W_\lrm \oplus W_C)[\revoked,\revoked,\stdreg{[\stkb,\eaddr]}{\spao}]\\
       \qquad \Rightarrow \\
       \qquad \quad \npair[n']{\left(\arraycolsep=0pt\array{l}
                                      \left(\arraycolsep=0pt\array{l}\ms_S,\reg_S \left[
-                                       \array{l}\reg.\rstk,\pcreg,\rdata,\rtmp{1},\rtmp{2}\mapsto\\\stkptr{\rw,\stkb,\eaddr,\baddr},((\perm_C,\lin_C),\baddr_C,\eaddr_C,\aaddr_C),0,0,0\endarray \right]\\
+      \array{l}\reg.\rstk,\pcreg,\rdata,\rtmp{1},\rtmp{2},r_2\mapsto\\\stkptr{\rw,\stkb,\eaddr,\baddr},((\perm_C,\lin_C),\baddr_C,\eaddr_C,\aaddr_C),0,0,0,0\endarray \right]\\
                                      ,\stk,\ms_\stk \uplus \ms_f
                                      \endarray \right),\\
-                                             \left(\ms_T,\reg_S\left[\array{l}\reg.\rstk,\pcreg,\rdata,\rtmp{1},\rtmp{2}\mapsto\\((\rw,\linear),\stkb,\eaddr,\baddr),((\perm_C,\lin_C),\baddr_C,\eaddr_C,\aaddr_C+?),0,0,0\endarray\right]\right)
+                                             \left(\ms_T,\reg_S\left[\array{l}\reg.\rstk,\pcreg,\rdata,\rtmp{1},\rtmp{2},r_2\mapsto\\((\rw,\linear),\stkb,\eaddr,\baddr),((\perm_C,\lin_C),\baddr_C,\eaddr_C,\aaddr_C+?),0,0,0,0\endarray\right]\right)
                                     \endarray\right)} \in \lro(W_\var{new})
     \end{array} 
     \right\}\cup \\
 %
     \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\sealed{\sigma,\vsc_S}},\\ \sealed{\sigma,\vsc_T} \endarray\right)} \;\middle| \;
     \begin{array}{l}
+      \stpair{\vsc}{\vsc} \in H_\sigma \; \sigma \wedge \\
       \forall W' \pubft W, n' \leq n \ldotp \\
-      \quad \stpair{\vsc}{\vsc} \in H_\sigma \; \sigma \wedge \\
       \quad \forall \stpair{\vsc'}{\vsc'} \in H_\sigma \; \sigma \ldotp \\
       \qquad \npair[n']{(\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T')} \in \lre(W') \wedge \\
       \qquad \npair[n']{(\src{\vsc_S'},\src{\vsc_S},\vsc_T',\vsc_T)} \in \lre(W')
@@ -2101,10 +2109,11 @@ where $H_\sigma$ is a function from seals to the set of pairs of sealable capabi
 %
     \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{c_S},\\ \sealed{\sigma,\vsc_T} \endarray\right)} \;\middle| \;
     \begin{array}{l}
+      \npair{(\src{c_S},\sealed{\sigma,\vsc_T})} \in \lrp(W) \wedge \\
       \stpair[.]{c_S}{\vsc_T} \in H_\sigma \; \sigma \; W\wedge \\
-      \forall W' \future W, W_o, \stpair[.]{c_S'}{\vsc'_T} \in H_\sigma \; \sigma \; W_o \ldotp \\
-      \quad \npair{\src{c_S},\src{c_S'},\sealed{\sigma,\vsc_T},\sealed{\sigma,\vsc_T'}} \in \lrexj(W'\oplus W_o) \wedge \\
-      \quad \npair{\src{c_S'},\src{c_S},\sealed{\sigma,\vsc_T'},\sealed{\sigma,\vsc_T}} \in \lrexj(W' \oplus W_o)
+      \forall W' \future W, W_o, n' < n, \stpair[.]{c_S'}{\vsc'_T} \in H_\sigma \; \sigma \; W_o \ldotp \\
+      \quad \npair[n']{\src{c_S},\src{c_S'},\sealed{\sigma,\vsc_T},\sealed{\sigma,\vsc_T'}} \in \lrexj(W'\oplus W_o) \wedge \\
+      \quad \npair[n']{\src{c_S'},\src{c_S},\sealed{\sigma,\vsc_T'},\sealed{\sigma,\vsc_T}} \in \lrexj(W' \oplus W_o)
     \end{array}
     \right\}\cup\\
 %
@@ -2112,18 +2121,24 @@ where $H_\sigma$ is a function from seals to the set of pairs of sealable capabi
     % \right\} \cup \\
 %
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\stkptr{\perm,\baddr,\eaddr,\aaddr}},\\ ((\perm,\linear),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\;
-    \begin{array}{r l l}
-      \perm \in \readAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \readCond{\linear,W}\\
-      \perm \in \writeAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \writeCond{\linear,W}
+    \begin{array}{l}
+      \npair{(\src{\stkptr{\perm,\baddr,\eaddr,\aaddr}}, ((\perm,\linear),\baddr,\eaddr,\aaddr))} \in \lrp(W) \wedge \\
+      \begin{array}{r l l}
+        \perm \in \readAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \readCond{\linear,W} \wedge \\
+        \perm \in \writeAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \writeCond{\linear,W}
+      \end{array}
     \end{array}
     \right\} \cup \\
 %
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{((\perm,\lin),\baddr,\eaddr,\aaddr)},\\ ((\perm,\lin),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\; 
-    \begin{array}{r l l }
-      \perm \in \readAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \readCond{\lin,W}\\
-      \perm \in \writeAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \writeCond{\lin,W}\\
-      \perm = \rwx &\Rightarrow& \npair{(\{\rwx,\rx\},\baddr,\eaddr)} \in \execCond{\lin,W}\\
-      \perm = \rx &\Rightarrow& \npair{(\{\rx\},\baddr,\eaddr)} \in \execCond{\lin,W}
+    \begin{array}{l}
+      \npair{(\src{((\perm,\lin),\baddr,\eaddr,\aaddr)}, ((\perm,\lin),\baddr,\eaddr,\aaddr))} \in \lrp(W) \wedge \\
+      \begin{array}{r l l }
+        \perm \in \readAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \readCond{\lin,W}\\
+        \perm \in \writeAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \writeCond{\lin,W}\\
+        \perm = \rwx &\Rightarrow& \npair{(\{\rwx,\rx\},\baddr,\eaddr)} \in \execCond{\lin,W}\\
+        \perm = \rx &\Rightarrow& \npair{(\{\rx\},\baddr,\eaddr)} \in \execCond{\lin,W}
+      \end{array}
     \end{array}
     \right\}
   \end{array}
@@ -2257,16 +2272,15 @@ Note: the below FTLR is simpler than the above thanks to the new expression rela
   \label{thm:ftlr}
   \[
     \begin{array}{l}
-      \forall n,W,\perm,\lin,\baddr,\eaddr,\aaddr \ldotp \\
+      \forall n,W,\lin,\baddr,\eaddr,\aaddr \ldotp \\
       \quad \left(
       \begin{array}{l}
-        \perm_C = \rx \wedge\\
-        \npair{(\baddr_C,\eaddr_C)} \in \readCond{\lin_C,W_C}
+        \npair{(\baddr,\eaddr)} \in \readCond{\lin,W}
       \end{array}
       \right)\\
       \quad\Rightarrow 
-      \npair{\arraycolsep=0pt\array{l}((\perm_C,\lin_C),\baddr_C,\eaddr_C,\aaddr_C),\\
-                      ((\perm_C,\lin_C),\baddr_C,\eaddr_C,\aaddr_C)\endarray} \in \lre(W)
+      \npair{\arraycolsep=0pt\array{l}((\rx,\lin),\baddr,\eaddr,\aaddr),\\
+                      ((\rx,\lin),\baddr,\eaddr,\aaddr)\endarray} \in \lre(W)
 
     \end{array}
   \]
