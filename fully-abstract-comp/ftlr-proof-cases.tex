@@ -1,0 +1,92 @@
+\documentclass[a4paper]{article}
+\usepackage[a4paper]{geometry}
+\usepackage[utf8]{inputenc}
+
+\input{preamble}
+
+\title{FTLR proof cases}
+
+\begin{document}
+\maketitle
+\begin{proof}
+  Assume
+\[
+  \npair{(b,e)}\in \readCond{\lin,W}
+\]
+and show
+\[
+\npair{((\rx,\lin),\baddr,\eaddr,\aaddr),
+       ((\rx,\lin),\baddr,\eaddr,\aaddr)} \in \lre(W)
+\]
+We write $c=((\rx,\lin),\baddr,\eaddr,\aaddr)$.\\
+Proceed by induction over $n$\footnote{if $n=0$, then we have a contradiction with $\Phi_S\term[i]$ and $\Phi_T\term[i]$ when we get to $\lro$.}
+Let $n' \leq n$ be given and assume
+\begin{enumerate}
+\item $\npair[n']{[(c,c)]} \in \lrp(W)$
+\item $\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_R)$ \label{item:reg-ass}
+\item $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$\label{item:mem-ass}
+\item $W \oplus W_R \oplus W_M$ is well-defined.
+\end{enumerate}
+Further let
+\begin{itemize}
+\item $\Phi_S = (\ms_S,\reg_S\updReg{\pcreg}{c},\stk,\ms_\stk)$
+\item $\Phi_T = (\ms_T,\reg_T\updReg{\pcreg}{c})$
+\end{itemize}
+and show
+\[
+  \npair[n']{(\Phi_S,\Phi_T)} \in \lro(W \dots)
+\]
+Let $i \leq n'$ be given \footnote{ignoring the frame...} and show
+\[
+  \Phi_S \term[i] \Rightarrow \Phi_T \term
+\]
+and 
+\[
+  \Phi_T \term[i] \Rightarrow \Phi_S \term
+\]
+First show the former of the two, assume $\Phi_S\term[i]$. We now consider the first step of $\Phi_S \term[i]$\footnote{if $i=0$, then we have a contradiction with $\Phi_S\term[i]$.}. 
+The possible instructions that could have been executed are:
+\begin{enumerate}
+\item $\txjmp{r_1}{r_2}$
+\item $\dots$
+\end{enumerate}
+In the case $\txjmp{r_1}{r_2}$\footnote{$\pcreg$ is a corner case here. It will fail contradicting previous assumption of termination.} was executed, we know that $\Phi_S(r_1)$ and $\Phi_S(r_2)$ either points to two sealed capabilities or a return pointer pair (all other cases result in $\Phi_S \step \failed$ contradicting $\Phi_S\term[i]$). From assumption \ref{item:reg-ass} we know
+\[
+  \npair[n']{(\Phi_S(r_i), \Phi_T(r_i))} \in \lrv(W_{R,i}) \text{ for $i = 1,2$}
+\]
+where $W_{R,i}$ are partitions of the partitioning of $W_R$ we get from assumption \ref{item:reg-ass}. From the previous observation w.r.t. $\Phi_S(r_1)$ and $\Phi_S(r_2)$, we know that we are in the "sealed capability case" if $\lrv$. This in particular gives us that
+\[
+  \begin{array}{l}
+    \forall W' \future W, W_o, n'' < n', (c_S,c_T) \in H_\sigma \; \sigma \; W_o \ldotp \\
+    \quad \npair[n']{\Phi_S(r_1),c_S,\Phi_T(r_1),\sealed{\sigma,c_T}} \in \lrexj(W_{R,1} \oplus W_o) \wedge \dots
+  \end{array}
+\]
+and
+\[
+  (\Phi_S(r_2), \vsc_{T,2}) \in H_\sigma \; \sigma \; W_{R,2}
+\]
+where $\Phi_T(r_2) = \sealed(\sigma,\vsc_{T,2})$.
+Now use the former with $W'=W_{R,1}$, $W_o = W_{R,2}$, and $n'' = i-1$ to get
+\[
+  \npair[n']{\Phi_S(r_1),\Phi_S(r_2),\Phi_T(r_1),\Phi_T(r_2)} \in \lrexj(W_{R,1} \oplus W_{R,2}) 
+\]
+Using $\lrexj$, we want to ``start from'' configuration pair $(\Phi_S,\Phi_T)$ and end up in $(\Phi_S',\Phi_T')$ where
+\begin{itemize}
+\item $\Phi_S' = \xjumpResult{\Phi_S(r_1)}{\Phi_S(r_2)}{\Phi_S}$
+\item $\Phi_T' = \xjumpResult{\Phi_T(r_1)}{\Phi_T(r_2)}{\Phi_T}$
+\end{itemize}
+so we simply pick the same memory as in $\Phi_S,\Phi_T$ and the same register file but with $r_1$ and $r_2$ cleared if $\Phi(r_i)$ is linear, respectively. Using $W_M$ memory satisfaction follows from assumption \ref{item:mem-ass}. Using $W_R$ with all the ownership of regions owned by $W_{R,i}$, $i =1,2$ stripped, the register-file satisfaction follows from \ref{item:reg-ass}. Finally the $\npair[i-1]{[(\Phi_S(r_1),\Phi_T(r_1)),(\Phi_S(r_2),\Phi_T(r_2))]}\in\lrp(W_{R,1},W_{R,2})$ follows from the $\lrv$ assumption. Finally the consistency of the worlds we use follows easily.
+
+All in all, this allows us to conclude
+\[
+  \npair[i-1]{\Phi_S',\Phi_T'} \in \lro(W_{R,1} \oplus \dots)
+\]
+From the assumption $\Phi_S\term[i]$, we get $\Phi_S\term[i-1]$ which we use with the above to conclude $\Phi_T' \term$. By the operational semantics of $\txjmp{r_1}{r_2}$, $\Phi_T \step \Phi_T'$ with which we conclude $\Phi_T \term$.
+
+% Now show
+% \[
+%   \Phi_T \term[i] \Rightarrow \Phi_S \term
+% \]
+
+\end{proof}
+\end{document}
