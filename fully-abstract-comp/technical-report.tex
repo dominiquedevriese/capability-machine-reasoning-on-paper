@@ -28,7 +28,7 @@
   \begin{array}{rrcl}
    \addrbnf,\basebnf \in & \Addr & \defeq & \nats \\
     \sealbasebnf, \sigma \in & \Seal & \defeq & \nats \\
-    &\Word & \defeq & \ints \uplus \SealableCaps\\
+    &\Word & \defeq & \ints \uplus \Caps\\
     \permbnf \in& \Perm & \defbnf & \dots \\
     &\linbnf & \defbnf & \linear \mid \normal \\
     &\aendbnf & \in & \Addr \uplus \{\infty \} \\
@@ -364,7 +364,7 @@ We use the following step relation:
   \Phi& \step \failed & & \totherwise
 \end{align*}
 
-\paragraph{Termination computations}
+\paragraph{Terminating computations}
 We use the following notation to write that a configuration $\Phi$ successfully terminates:
 \[
   \Phi\term[i] \defeq \Phi \nstep[i] \halted
@@ -525,7 +525,7 @@ For the linearity encoding, we make similar assumptions: $\encLin{} : \Linear \f
                                      \arraycolsep=0pt
                                      \begin{array}[t]{l}
                                        \Phi(r_2) = ((\_,\_),\_,\_,\aaddr) \\
-                                       \quad \tor \Phi(r_2) = \seal{\_,\_,\aaddr} \\
+                                       \quad \tor \Phi(r_2) = \seal{\_,\_,\aaddr} \\ 
                                        \quad \src{\tor \Phi(r_2) = \stkptr{\_,\_,\_,\aaddr} } \\
                                      \end{array} \\
                                      \updPcAddr{\Phi\updReg{r_1}{-1}} & \totherwise
@@ -1368,15 +1368,31 @@ In this definition, the source level specific conditions replace the equivalent 
 In the following definitions, \src{blue} is used to indicate values related to the source machine. This is unlike previous definitions, where \src{blue} was used to indicate source language specific parts of definitions.
 \subsection{Worlds}
 \[
-  \World = \RegionName \parfun \Region
+  \World = \Worldh \times \Worlds \times \Worldfs
+\]
+with $\Worlds$, $\Worldh$, and $\Region$ defined as follows
+\[
+  \Worldh = \RegionName \fun (\Regions + \Regionh)
+\]
+and
+\[
+  \Worlds = \RegionName \fun (\Regions \times \SealableCaps)
+\]
+and
+\[
+  \Worldfs = \RegionName \fun \Regions
 \]
 where $\RegionName = \nats$.
 \[
-  \Region = \left\{
+  \Regionh = 
+    \{\pure \} \times \State \times \Rels \times (\State \fun \World \monprivnefun \URel{\MemSeg^2})
+\]
+and
+\[
+  \Regions = \left\{
   \begin{array}{l}
-    \{\spatial \} \times \State \times \Rels \times (\State \fun \World \monprivnefun \UPred{\MemSeg^2}) \uplus \\
-    \{\spatialo \} \times \State \times \Rels \times (\State \fun \World \monprivnefun \UPred{\MemSeg^2})\uplus \\
-    \{\pure \} \times \State \times \Rels \times (\State \fun \World \monprivnefun \UPred{\MemSeg^2}) \uplus\\
+    \{\spatial \} \times \State \times \Rels \times (\State \fun \World \monnefun \URel{\MemSeg^2}) \uplus \\
+    \{\spatialo \} \times \State \times \Rels \times (\State \fun \World \monnefun \URel{\MemSeg^2})\uplus \\ 
     \{\revoked\}
   \end{array} \right.
 \]
@@ -1385,7 +1401,6 @@ where $\spatial$ and $\spatialo$ are regions governing segments of memory addres
   \[
    \Rels = \{(\phi_\pub, \phi) \in \powerset{\State^2}\times \powerset{\State^2} \mid \phi_\pub, \phi \text{ is reflexive and transitive and } \phi_\pub \subseteq \phi \}
   \]
-
 
 Disjoint union of worlds. Joins together two alike worlds with strictly disjoint ownership over $\spatialo$-regions.
 \[
@@ -1467,6 +1482,65 @@ Public future regions are allowed to transition according to the public part of 
 \end{mathpar}
 
 \subsection{Memory satisfaction}
+{\color{green}
+Memory satisfaction for new worlds:
+\[
+  \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W} \text{ iff } 
+  \left\{
+    \begin{array}{l}
+      \stk = (\opc_0,\ms_0):: \dots :: (\opc_m,\ms_m) \wedge \\
+      \ms_S \uplus \ms_\stk \uplus \ms_0 \uplus \dots \uplus \ms_m  \wedge\\
+      \exists \ms_\var{T,stack}, \ms_\var{T,free\_stack}, \ms_\var{T,heap}\ldotp \\
+      \quad \ms_T = \ms_\var{T,stack} \uplus \ms_\var{T,free\_stack} \uplus \ms_\var{T,heap} \wedge \\
+      \quad \memSatStack{\stk,\ms_\var{T,stack}}{W} \wedge \\
+      \quad \memSatFStack{\ms_\stk,\ms_\var{T,free\_stack}}{W} \wedge \\
+      \quad \memSatHeap{\ms_S,\ms_\var{T,heap}}{W}
+    \end{array}
+  \right.
+\]
+
+\[
+  \memSatStack{\stk,\ms_T}{W} \text{ iff } 
+  \left\{
+    \begin{array}{l}
+      W_\var{stack} = \pi_2(W) \wedge \\
+      \stk = (\opc_0,\ms_0), \dots (\opc_m,\ms_m) \wedge \\
+      \exists R_\ms : \dom(W_\var{stack}) \fun \MemSeg \times \SealableCaps \times \MemSeg \ldotp \\
+      \quad \ms_T = \biguplus_{r \in \dom(W_\var{stack})} \pi_3(R_\ms(r)) \wedge \\
+      \quad \\
+      \quad \exists R_W : \dom(W_\var{stack}) \fun World \ldotp \\
+      \qquad \forall r \in \dom(W_\var{stack}), n' < n \ldotp \\
+      \qquad \quad \npair[n']{(\pi_1(R_\ms(r)),\pi_3(R_\ms(R))} \in W_\var{stack}(r).H \; W_\var{stack}(r).s \; \xi^{-1}(R_W(r)) \\
+      \qquad \quad \pi_2(R_\ms(r)) = W_\var{stack}(r).\opc
+      
+    \end{array}
+  \right.
+\]
+
+\[
+  \memSatFStack{ms_\stk,\ms_T}{W} \text{ iff } 
+  \left\{
+    \begin{array}{l}
+      \dots
+    \end{array}
+  \right.
+\]
+
+\[
+  \memSatHeap{ms_\stk,\ms_T}{W} \text{ iff } 
+  \left\{
+    \begin{array}{l}
+      \dots
+    \end{array}
+  \right.
+\]
+
+
+
+}
+
+
+
 \[
   \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W} \text{ iff } 
   \left\{
