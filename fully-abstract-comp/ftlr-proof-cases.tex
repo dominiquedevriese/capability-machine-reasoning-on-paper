@@ -7,7 +7,16 @@
 \title{FTLR proof cases}
 
 \begin{document}
+
 \maketitle
+\section{Lemmas}
+In this section, I have listed lemmas that seem to be necessary for the FTLR proof.
+\begin{lemma}[$\lrv$ mono]
+  For all $n$, $w_1$, $w_2$, and $W' \future W$, if $\npair{(w_1,w_2)} \in \lrv(W)$, then $\npair{(w_1,w_2)} \in \lrv(W')$
+\end{lemma}
+
+\section{FTLR proof}
+By induction over $n$\footnote{if $n=0$, then we have a contradiction with $\Phi_S\term[i]$ and $\Phi_T\term[i]$ when we get to $\lro$.}.
 \begin{proof}
   Assume
 \[
@@ -19,7 +28,7 @@ and show
        ((\rx,\lin),\baddr,\eaddr,\aaddr)} \in \lre(W)
 \]
 We write $c=((\rx,\lin),\baddr,\eaddr,\aaddr)$.\\
-Proceed by induction over $n$\footnote{if $n=0$, then we have a contradiction with $\Phi_S\term[i]$ and $\Phi_T\term[i]$ when we get to $\lro$.}
+
 Let $n' \leq n$ be given and assume
 \begin{enumerate}
 \item $\npair[n']{[(c,c)]} \in \lrp(W)$
@@ -34,7 +43,7 @@ Further let
 \end{itemize}
 and show
 \[
-  \npair[n']{(\Phi_S,\Phi_T)} \in \lro(W \dots)
+  \npair[n']{(\Phi_S,\Phi_T)} \in \lro
 \]
 Let $i \leq n'$ be given \footnote{ignoring the frame...} and show
 \[
@@ -44,12 +53,113 @@ and
 \[
   \Phi_T \term[i] \Rightarrow \Phi_S \term
 \]
+
+\subsubsection*{Assuming source machine terminates}
 First show the former of the two, assume $\Phi_S\term[i]$. We now consider the first step of $\Phi_S \term[i]$\footnote{if $i=0$, then we have a contradiction with $\Phi_S\term[i]$.}. 
 The possible instructions that could have been executed are:
 \begin{enumerate}
 \item $\txjmp{r_1}{r_2}$
-\item $\dots$
+\item $\scall[o]{}{r_1}{r_2}$
 \end{enumerate}
+
+
+\paragraph{Case: $\scall[o]{}{r_1}{r_2}$}
+In case $\scall[o]{}{r_1}{r_2}$ is the first step of the execution. We can assume $r_1,r_2 \neq \pcreg$ as this would cause the execution to fail\footnote{{\color{red} TODO:} We still have to consider what happens if the temp register is jumped to.}. By assumption, $\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_R)$ which in particular means that for suitable $W_{R,1}$ and $W_{R,2}$
+\[
+  \npair[n']{(\src{\reg_S}(r_i),\reg_T(r_i))} \in \lrv(W_{r,1}) \text{ for i = 1,2}
+\]
+We can further deduce that $\src{\reg_S}(r_i)$ for $i=1,2$ are sealed capabilities as the execution would otherwise fail. This gives us
+\[
+  \begin{array}{l}
+    \forall W' \future W_{R,1}, W_o, n'' < n', (c_S,c_T) \in H_\sigma \; \sigma \; W_o \ldotp \\
+    \quad \npair[n'']{\Phi_S(r_1),c_S,\Phi_T(r_1),\sealed{\sigma,c_T}} \in \lrexj(W' \oplus W_o) \wedge \dots
+  \end{array}
+\]
+and
+\[
+  (\Phi_S(r_2), \vsc_{T,2}) \in H_\sigma \; \sigma \; W_{R,2}
+\]
+At this point we need to pick a suitable $W' \future W_{R,1}$. To this end, we need to know a bit about $W_{R,1}$. From the operational semantics, we know $\Phi_S(\rstk) = \stkptr{\perm,\baddr_\stk,\eaddr_\stk,\aaddr_\stk}$ and by assumption $\Phi_S(\rstk) \in \lrv(W_{R,\stk})$. From this we can conclude that there is a stack region (specifically a spatially owned region) $r$ for which $W_{R,\stk} \nequal[n'-1] \stdreg{[\baddr_\stk',\eaddr_\stk']}{\spa}$ where $[\baddr_\stk',\eaddr_\stk'] \supseteq [\baddr_\stk,\eaddr_\stk]$\footnote{Actually concluding this involves knowing that $W_{R,\stk}$ is ``well-formed'' which we use the heap satisfaction assumption to conclude. Perhaps a notion of well-formed worlds would be good along with a couple of lemmas that use it to make this reasoning once and for all.}. As $W_{R,\stk} \oplus W_{R,1}$ is well-formed, $W_{R,1}(r)$ must be a similar spatial region to the one in $W_{R,\stk}$.
+We pick $W'$ to be
+\[
+  \begin{array}{r l}
+    W' = W     & \updReg{r}{\revoked}\\
+               & \updReg{z}{\stdreg{[\baddr_\stk',\aaddr_\stk -1]}{\spa}}\\
+               & \updReg{y}{\stdreg{[\aaddr_\stk,\eaddr_\stk']}{\spa}}
+  \end{array}
+\]
+where $x$ and $y$ are fresh region names. To indicate similar worlds to $W'$ with the same ownership as another world well-defined w.r.t. $W$, we write $W'_{R,1}$ with the same spatially owned region as $W_{R,1}$. Using the private part of the future world relation, it is easy to see that $W'$ is a future world of $W_{R,1}$ (by the operational semantics $\baddr_\stk < \aaddr_\stk \leq \eaddr_\stk$). Using world monotonicity of $H_\sigma \; \sigma$\footnote{{\color{red}This means that $H_\sigma$ must be monotone in the world!}}, we get
+\[
+  (\Phi_S(r_2), \vsc_{T,2}) \in H_\sigma \; \sigma \; W'_{R,2}
+\]
+which we use to get:
+\[
+  \npair[n'']{\Phi_S(r_1),\Phi_S(r_2),\Phi_T(r_1),\Phi_T(r_2)} \in \lrexj(W_{R,1}' \oplus W_{R,2}')
+\]
+In order to use this, we need to pick a register-file pair and suitable memories. We pick a $\Phi_S$ in $\lrexj$, so the $\Phi_S'$ in $\lrexj$ becomes the $\Phi_S'$ we assumed $\Phi_S$ steps to. Specifically
+\[
+  \Phi_S.\reg
+  \begin{array}[t]{l}
+    \update{r_1}{\linCons{\Phi_S(r_1)}}\\
+    \update{r_2}{\linCons{\Phi_S(r_2)}}\\
+    \update{\pcreg}{0} \\
+    \update{\rdata}{0} \\
+    \update{\rstk}{c_\stk}\\
+    \update{\rretc}{c_{\ret,c}}\\
+    \update{\rretd}{c_{\ret,d}}\\
+    \update{\rtmp{1}}{0}\\
+  \end{array}
+\]
+where
+\begin{itemize}
+\item $c_\stk = \stkptr{\rw,\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1}$
+\item $c_{\ret,c} = \retptrc(\sigma',(\perm,\lin),\baddr,\eaddr,\aaddr+\calllen))$
+\item $c_{\ret,d} = \retptrd(\sigma',(\aaddr_\stk,\eaddr_\stk))$
+\end{itemize}
+and
+$\ms_S,((\dots,\ms_\stk|_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42}) :: \stk),\ms_\stk|_{[\baddr_\stk,\aaddr_\stk-1]}$
+
+For the target side, we pick the register-file
+\[
+  \Phi_T.\reg
+  \begin{array}[t]{l}
+    \update{r_1}{\linCons{\Phi_T(r_1)}}\\
+    \update{r_2}{\linCons{\Phi_T(r_2)}}\\
+    \update{\pcreg}{0} \\
+    \update{\rdata}{0} \\
+    \update{\rstk}{c_\stk'}\\
+    \update{\rretc}{c_{\ret,c}'}\\
+    \update{\rretd}{c_{\ret,d}'}\\
+    \update{\rtmp{1}}{0}\\
+  \end{array}  
+\]
+where
+\begin{itemize}
+\item $c_\stk' = ((\rw,\linear),\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1)$
+\item $c_{\ret,c}' = \sealed{\sigma',((\perm,\lin),\baddr,\eaddr,\aaddr+\calllen-\dots)}$
+\item $c_{\ret,d}' = \sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1)}$
+\end{itemize}
+\lau{We do not actually check the linearity of the stack, but it should have been checked that the base address actually is the stack base address which would give us that it is linear. This is not an assumption we have formally stated at the moment!}
+and the same memory
+\[
+  \Phi_T.\ms_T\update{\aaddr_\stk}{42}
+\]
+We have to argue (1) that this register-file pair is in the register-file relation for a world $W_R'$ with the same ownership as $W_R$ and regions $z$ and $y$ are owned, and (2) the memory-pair satisfies the memory satisfaction relation for a world $W_M'$ (i.e. with the same ownership as $W_M$).
+ 
+Let's start with (2). Here we use that we took a standard region and replaced by two standard regions. This means that when we split up the memory, we can reuse the same splitting og memory and world (w.r.t memory) except for the memory segment that previously satsfied the standard region in question. This memory segment, we split in two, so each piece fit with one of the new regions.
+
+For (1), we need to consider the contents of all registers. For the registers that were not overwritten, their safety follows from the register-file relation assumption we start with along with monotonicity and non-expansiveness of the value relation. This is also the case for $r_i$, $i=1,2$ if the capability is linear and it is trivial otherwise (as it is $0$). $\rtmp{1}$ is also trivial as it is $0$. This leaves $\rstk$, $\rretc$, and $\rretd$.
+
+For $\rstk$, we make sure the $z$ region is owned in the world we use. Now we use that we had a standard region governing the stack to get that everything on there is in the value relation. We then use the monotonicity of the value relation to conclude that everything is in the value relation in this future world which satisfies the read and write condition.
+
+For $\rretc$ we pick $W'$ as our world. It should be the case that $H_\sigma \; \sigma' \; W''_o$ only contains one \emph{executable} pair, namely the one we consider. Let $W'' \future W$, $n''<n'$, and $(c_S',\vsc_T') \in H_\sigma \; \sigma' \; W''_o$ be given and show
+\[
+  \npair[n'']{(c_{\ret,c},c_S',\sealed{\sigma',((\perm,\lin),\baddr,\eaddr,\aaddr+\calllen-\dots)},\sealed{\sigma',\vsc_T})}
+\]
+Here we can assume $(c_S',\vsc_T') \in H_\sigma \; \sigma' \;W''_o$ is a data capability\footnote{if it is not, then the execution would fail. Further, the other case we would have to consider ($c_{\reg,c}$ as the data capability) would also fail.}.\footnote{{\color{red}This suggest that $H_\sigma$ should accept only stack capabilities and specifically non-empty ones.}}
+
+
+\paragraph{Case: $\protect\txjmp{r_1}{r_2}$} 
 In the case $\txjmp{r_1}{r_2}$\footnote{$\pcreg$ is a corner case here. It will fail contradicting previous assumption of termination.} was executed, we know that $\Phi_S(r_1)$ and $\Phi_S(r_2)$ either points to two sealed capabilities or a return pointer pair (all other cases result in $\Phi_S \step \failed$ contradicting $\Phi_S\term[i]$). From assumption \ref{item:reg-ass} we know
 \[
   \npair[n']{(\Phi_S(r_i), \Phi_T(r_i))} \in \lrv(W_{R,i}) \text{ for $i = 1,2$}
@@ -57,8 +167,8 @@ In the case $\txjmp{r_1}{r_2}$\footnote{$\pcreg$ is a corner case here. It will 
 where $W_{R,i}$ are partitions of the partitioning of $W_R$ we get from assumption \ref{item:reg-ass}. From the previous observation w.r.t. $\Phi_S(r_1)$ and $\Phi_S(r_2)$, we know that we are in the "sealed capability case" of $\lrv$. This in particular gives us that
 \[
   \begin{array}{l}
-    \forall W' \future W, W_o, n'' < n', (c_S,c_T) \in H_\sigma \; \sigma \; W_o \ldotp \\
-    \quad \npair[n']{\Phi_S(r_1),c_S,\Phi_T(r_1),\sealed{\sigma,c_T}} \in \lrexj(W_{R,1} \oplus W_o) \wedge \dots
+    \forall W' \future W_{r,1}, W_o, n'' < n', (c_S,c_T) \in H_\sigma \; \sigma \; W_o \ldotp \\
+    \quad \npair[n'']{\Phi_S(r_1),c_S,\Phi_T(r_1),\sealed{\sigma,c_T}} \in \lrexj(W' \oplus W_o) \wedge \dots
   \end{array}
 \]
 and
@@ -68,7 +178,7 @@ and
 where $\Phi_T(r_2) = \sealed{\sigma,\vsc_{T,2}}$.
 Now use the former with $W'=W_{R,1}$, $W_o = W_{R,2}$, and $n'' = i-1$ to get
 \[
-  \npair[n']{\Phi_S(r_1),\Phi_S(r_2),\Phi_T(r_1),\Phi_T(r_2)} \in \lrexj(W_{R,1} \oplus W_{R,2}) 
+  \npair[i-1]{\Phi_S(r_1),\Phi_S(r_2),\Phi_T(r_1),\Phi_T(r_2)} \in \lrexj(W_{R,1} \oplus W_{R,2}) 
 \]
 Using $\lrexj$, we want to ``start from'' configuration pair $(\Phi_S,\Phi_T)$ and end up in $(\Phi_S',\Phi_T')$ where
 \begin{itemize}
@@ -79,14 +189,19 @@ so we simply pick the same memory as in $\Phi_S,\Phi_T$ and the same register fi
 
 All in all, this allows us to conclude
 \[
-  \npair[i-1]{\Phi_S',\Phi_T'} \in \lro(W_{R,1} \oplus \dots)
+  \npair[i-1]{\Phi_S',\Phi_T'} \in \lro
 \]
-From the assumption $\Phi_S\term[i]$, we get $\Phi_S\term[i-1]$ which we use with the above to conclude $\Phi_T' \term$. By the operational semantics of $\txjmp{r_1}{r_2}$, $\Phi_T \step \Phi_T'$ with which we conclude $\Phi_T \term$.
+From the assumption $\Phi_S\term[i]$, we get $\Phi'_S\term[i-1]$ which we use with the above to conclude $\Phi_T' \term$. By the operational semantics of $\txjmp{r_1}{r_2}$, $\Phi_T \step \Phi_T'$ with which we conclude $\Phi_T \term$.
 
 % Now show
 % \[
 %   \Phi_T \term[i] \Rightarrow \Phi_S \term
 % \]
+
+\subsubsection*{Assuming target machine terminates}
+\paragraph{Case: }
+In the case  is the first step of the execution,
+
 
 \end{proof}
 \end{document}
