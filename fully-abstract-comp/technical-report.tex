@@ -257,6 +257,8 @@ Target language:
   \end{cases}
 \]
 
+We now define 
+
 \[
   \nonLinear{\cb} \defeq \neg \isLinear{\cb}
 \]
@@ -1403,17 +1405,74 @@ and
   \end{array} \right.
 \]
 where $\spatial$ and $\spatialo$ are regions governing segments of memory addressed by linear capabilities. $\spatialo$ signifies that this region is addressable. $\spatial$ signifies that the region is not owned and can thus not be addressed. At the same time it signifies that if something else addresses it, it is a $\linear$ capability. Finally, $\pure$ signifies that the region is only addressed by non-linear capabilities. Notice that no region allows for both linear and non-linear capabilities to address it.
-\lau{26-20-2017: We may also want to build the infrastructure for the stack more explicitly into the worlds (but maybe we can handle it in the memory satisfaction).}
-  \[
-   \Rels = \{(\phi_\pub, \phi) \in \powerset{\State^2}\times \powerset{\State^2} \mid \phi_\pub, \phi \text{ is reflexive and transitive and } \phi_\pub \subseteq \phi \}
-  \]
 
-Disjoint union of worlds. Joins together two alike worlds with strictly disjoint ownership over $\spatialo$-regions.
+\[
+  \Rels = \{(\phi_\pub, \phi) \in \powerset{\State^2}\times \powerset{\State^2} \mid \phi_\pub, \phi \text{ is reflexive and transitive and } \phi_\pub \subseteq \phi \}
+\]
+
+We introduce a bit of notation for projecting out each part of the world:
+\[
+  \begin{array}{l}
+    \pwheap = \pi_1(W)\\
+    \pwpriv = \pi_2(W)\\
+    \pwfree = \pi_3(W)
+  \end{array}
+\]
+as well as projections for the regions:
+\[
+  \begin{array}{l}
+  \prv{(v,s,\phi_\pub,\phi,H)} = v \\
+  \prv{\revoked} = \revoked     
+  \end{array}
+\]
+
+We define erasure for worlds as follows:
+\[
+\erase{(W_{\mathrm{heap}},W_{\mathrm{priv}},W_{\mathrm{free}})}{S} =
+  \left( \erase{W_{\mathrm{heap}}}{S},\erase{W_{\mathrm{priv}}}{S},\erase{W_{\mathrm{free}}}{S} \right)
+\]
+where erasure for each part of a world is defined as follows:
+\[
+\erase{W_{\mathrm{heap}}}{S} = \lambda r \ldotp \left\{
+    \begin{array}{l}
+      \prv{W_{\mathrm{heap}}(r)} \in S\\
+      \bot
+    \end{array}
+  \right.
+\]
+\[
+\erase{W_{\mathrm{priv}}}{S} = \lambda r \ldotp \left\{
+    \begin{array}{l}
+      \prv{\pregion{W_{\mathrm{priv}}(r)}} \in S \\
+      \bot
+    \end{array}
+  \right.
+\]
+\[
+\erase{W_{\mathrm{free}}}{S} = \lambda r \ldotp \left\{
+    \begin{array}{l}
+      \prv{W_{\mathrm{free}}(r)} \in S\\
+      \bot
+    \end{array}
+  \right.
+\]
+
+The $\activeReg{}$ function takes a world and filters away all the revoked regions, so
+\[
+  \activeReg{W} = \erase{W}{\spatial,\spatialo,\pure}
+\]
+
+Disjoint union of worlds. Joins together two alike worlds with strictly disjoint ownership over $\spatialo$-regions. Two worlds can be joined together if all of their three parts agree on the region names and each of their regions can be joined together.
 \[
   W_1 \oplus W_2 = W
+  \text{ iff }
   \begin{array}[t]{l}
-    \text{if $\dom(W) = \dom(W_1) = \dom(W_2) \tand$} \\
-    \forall r \in \dom(W) \ldotp W(r) = W_1(r) \oplus W_2(r)
+    \text{$\dom(\pwheap) = \dom(\pwheap[W_1]) = \dom(\pwheap[W_2]) \tand$} \\
+    \text{$\dom(\pwfree) = \dom(\pwfree[W_1]) = \dom(\pwfree[W_2]) \tand$} \\
+    \text{$\dom(\pwpriv) = \dom(\pwpriv[W_1]) = \dom(\pwpriv[W_2]) \tand$} \\
+    \forall r \in \dom(\pwheap) \ldotp \pwheap(r) = \pwheap[W_1](r) \oplus \pwheap[W_2](r) \tand \\
+    \forall r \in \dom(\pwfree) \ldotp \pwfree(r) = \pwfree[W_1](r) \oplus \pwfree[W_2](r) \tand \\
+    \forall r \in \dom(\pwpriv) \ldotp \pi_1(\pwpriv(r)) = \pi_1(\pwpriv[W_1](r)) \oplus \pi_1(\pwpriv[W_2](r))
   \end{array}
 \]
 $\oplus$ on regions is defined as follows
@@ -1430,12 +1489,12 @@ and for all other cases $\oplus$ is undefined. Specifically, $\oplus$ is not def
 {\color{DarkGreen}
 The public part of the future world relation stays the same:
 \begin{mathpar}
-  \inferrule{ \exists m : \RegionName \fun \RegionName, \text{ injective}\ldotp \dom(W') \supseteq \dom(m(W)) \wedge \forall r \in \dom(W)\ldotp W'(m(r)) \pubft W(r) }
+  \inferrule{ \text{for $i \in \{\mathrm{heap},\mathrm{free},\mathrm{priv} \}$} \\ \exists m_i : \RegionName \fun \RegionName, \text{ injective}\ldotp \dom(W'.i) \supseteq \dom(m_i(W.i)) \wedge \forall r \in \dom(W.i)\ldotp W'.i(m_i(r)) \pubft W.i(r) }
             { W' \future W }
 \end{mathpar}
 The private future world relation becomes:
 \begin{mathpar}
-  \inferrule{ \exists m : \RegionName \fun \RegionName, \text{ injective}\ldotp \dom(W') \supseteq \dom(m(W)) \wedge \forall r \in \dom(W)\ldotp W'(m(r)) \privft W(r) \\  \exists r \in \dom(W') \setminus \dom(m(W))\ldotp W'(r) \text{ is non-empty and stack region}}
+  \inferrule{ \text{for $i \in \{\mathrm{heap},\mathrm{free},\mathrm{priv} \}$} \\ \exists m_i : \RegionName \fun \RegionName, \text{ injective}\ldotp \dom(W'.i) \supseteq \dom(m_i(W.i)) \wedge \forall r \in \dom(W.i)\ldotp W'.i(m_i(r)) \privft W.i(r) \\  \exists r \in \dom(W'.\mathrm{priv}) \setminus \dom(m_{\mathrm{priv}}(\pwpriv))\ldotp \pwpriv[W'](r) \text{ is non-empty}}
             { W' \future W }
 \end{mathpar}
 where we take "is non-empty and stack region" to mean the following:
@@ -1449,22 +1508,14 @@ where we take "is non-empty and stack region" to mean the following:
 \]
 \end{definition}
 
-\begin{definition}
-  We say a region $(k,s,\phi_\pub,\phi,H)$ is a stack region on a machine with starting stack domain $[\stkb,\eaddr]$ iff
-\[
-  \begin{array}{l}
-    \forall n, \hat{W},s'\ldotp \forall \npair{\stpair{\ms}{\ms}} \in H \; s' \; \hat{W} \ldotp \dom(\src{\ms_S}) \subseteq [\stkb,\eaddr]  \wedge \dom(\ms_T) \subseteq [\stkb,\eaddr]
-  \end{array}
-\]
-\end{definition}
 }
 
 
-For both $\privft$ and $\pubft$ we have
-\begin{mathpar}
-  \inferrule{ \exists m : \RegionName \fun \RegionName, \text{ injective}\ldotp \dom(W') \supseteq \dom(m(W)) \wedge \forall r \in \dom(W)\ldotp W'(m(r)) \future W(r) }
-            { W' \future W }
-\end{mathpar}
+% For both $\privft$ and $\pubft$ we have
+% \begin{mathpar}
+%   \inferrule{ \exists m : \RegionName \fun \RegionName, \text{ injective}\ldotp \dom(W') \supseteq \dom(m(W)) \wedge \forall r \in \dom(W)\ldotp W'(m(r)) \future W(r) }
+%             { W' \future W }
+% \end{mathpar}
 %
 The private future regions allow transitions in the private part of the transition system. They also allow $\spatial$ regions to become $\revoked$:
 \begin{mathpar}
@@ -1561,31 +1612,31 @@ Memory satisfaction for new worlds:
 
 
 
-\[
-  \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W} \text{ iff } 
-  \left\{
-    \begin{array}{l}
-      \exists R_\ms : \dom(W) \fun \MemSeg^2 \ldotp \\
-      \quad \ms_T = \biguplus_{r \in \dom(W)} \pi_2(R_\ms(r)) \wedge \\
-      \quad \stk = (\_,\ms_{\stk,0}) :: \dots :: (\_,\ms_{\stk,m}) \wedge \\
-      \quad \ms_S \uplus \ms_\stk \uplus \ms_{\stk,0} \uplus \dots \uplus \ms_{\stk,m} = \biguplus_{r \in \dom(W)} \pi_1(R_\ms(r)) \wedge \\
-      \quad \exists R_w : \dom(W) \fun \World \ldotp\\
-      \qquad W = \bigoplus_{r \in \dom(W)} R_w(r) \wedge \\
-      \qquad \forall r \in \dom(W) , n' < n \ldotp \\
-      \quad \qquad \npair[n']{R_\ms(r)} \in W(r).H \; (W(r).s) \; (\xi^{-1} (R_w (r))) 
-    \end{array}
-  \right.
-\]
-In the definition of memory satisfaction, $R_\ms$ creates a partitioning of the two related memories. As the source language is a special interpretation of the target language, part of the target memory needs to relate to the stack in the source language. We also need to split up the world which is done by $R_W$.We split up the world in order to make sure that the linearity constraints imposed by the world are satisfied.
-\lau{30-10-2017: It is not clear to me whether this definition should also talk about $\opc$.}
-\dominique{4-12-2017: Regarding the question whether $\opc$ should be mentioned in the memory satisfaction relation.
-  The relevant intuitive aspect of the proof here, I think, is that on a return, the source semantics restores opc from the copy kept in the stack, while the target semantics restores it from the copy in the code part of the return pointer.
-  We will need to prove (somewhere) that these two correspond, which means we will need to track of the invariant that guarantees this somewhere (perhaps here?).
-  I suspect the relevant invariants are (1) that any executable pointer signed with $\sealAss{a}$ must point to $a + \calllen$ and (2) that anything related to a $\rretc$ must be executable and sealed.
-  Perhaps this invariant is easiest to track in (1) the general requirement on the $H_\sigma$ and (2) in the value relation.
-  This suggests nothing should be required about opc here?
-  To be confirmed in the proof of the fundamental theorem.
-}
+% \[
+%   \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W} \text{ iff } 
+%   \left\{
+%     \begin{array}{l}
+%       \exists R_\ms : \dom(W) \fun \MemSeg^2 \ldotp \\
+%       \quad \ms_T = \biguplus_{r \in \dom(W)} \pi_2(R_\ms(r)) \wedge \\
+%       \quad \stk = (\_,\ms_{\stk,0}) :: \dots :: (\_,\ms_{\stk,m}) \wedge \\
+%       \quad \ms_S \uplus \ms_\stk \uplus \ms_{\stk,0} \uplus \dots \uplus \ms_{\stk,m} = \biguplus_{r \in \dom(W)} \pi_1(R_\ms(r)) \wedge \\
+%       \quad \exists R_w : \dom(W) \fun \World \ldotp\\
+%       \qquad W = \bigoplus_{r \in \dom(W)} R_w(r) \wedge \\
+%       \qquad \forall r \in \dom(W) , n' < n \ldotp \\
+%       \quad \qquad \npair[n']{R_\ms(r)} \in W(r).H \; (W(r).s) \; (\xi^{-1} (R_w (r))) 
+%     \end{array}
+%   \right.
+% \]
+% In the definition of memory satisfaction, $R_\ms$ creates a partitioning of the two related memories. As the source language is a special interpretation of the target language, part of the target memory needs to relate to the stack in the source language. We also need to split up the world which is done by $R_W$.We split up the world in order to make sure that the linearity constraints imposed by the world are satisfied.
+% \lau{30-10-2017: It is not clear to me whether this definition should also talk about $\opc$.}
+% \dominique{4-12-2017: Regarding the question whether $\opc$ should be mentioned in the memory satisfaction relation.
+%   The relevant intuitive aspect of the proof here, I think, is that on a return, the source semantics restores opc from the copy kept in the stack, while the target semantics restores it from the copy in the code part of the return pointer.
+%   We will need to prove (somewhere) that these two correspond, which means we will need to track of the invariant that guarantees this somewhere (perhaps here?).
+%   I suspect the relevant invariants are (1) that any executable pointer signed with $\sealAss{a}$ must point to $a + \calllen$ and (2) that anything related to a $\rretc$ must be executable and sealed.
+%   Perhaps this invariant is easiest to track in (1) the general requirement on the $H_\sigma$ and (2) in the value relation.
+%   This suggests nothing should be required about opc here?
+%   To be confirmed in the proof of the fundamental theorem.
+% }
 
 \subsection{Relation}
 \lau{19-10-2017: Rest of source configuration needs to come from somewhere in $\lre$.}
