@@ -2,6 +2,8 @@
 \usepackage[a4paper]{geometry}
 \usepackage[utf8]{inputenc}
 
+\usepackage[svgnames]{xcolor}
+
 \input{preamble}
 
 \title{FTLR proof cases}
@@ -13,6 +15,17 @@
 In this section, I have listed lemmas that seem to be necessary for the FTLR proof.
 \begin{lemma}[$\lrv$ mono]
   For all $n$, $w_1$, $w_2$, and $W' \future W$, if $\npair{(w_1,w_2)} \in \lrv(W)$, then $\npair{(w_1,w_2)} \in \lrv(W')$
+\end{lemma}
+
+\begin{lemma}[Steps-to termination]
+  For all $\Phi_S$, $\Phi_T$, $\Phi_T'$, $j$, $n$, if
+\[
+  \Phi_T \steps[j] \Phi_T' \text{ and } \npair{(\Phi_S,\Phi_T')} \in \lro,
+\]
+then
+\[
+  \npair{(\Phi_S,\Phi_T)} \in \lro
+\]
 \end{lemma}
 
 \section{FTLR proof}
@@ -135,16 +148,16 @@ and
 \[
   (\Phi_S(r_2), \vsc_{T,2}) \in H_\sigma \; \sigma \; W_{R,2}
 \]
-At this point we need to pick a suitable $W' \future W_{R,1}$. To this end, we need to know a bit about $W_{R,1}$. From the operational semantics, we know $\Phi_S(\rstk) = \stkptr{\perm,\baddr_\stk,\eaddr_\stk,\aaddr_\stk}$ and by assumption $\Phi_S(\rstk) \in \lrv(W_{R,\stk})$. From this we can conclude that there is a stack region (specifically a spatially owned region) $r$ for which $W_{R,\stk} \nequal[n'-1] \stdreg{[\baddr_\stk',\eaddr_\stk']}{\spa}$ where $[\baddr_\stk',\eaddr_\stk'] \supseteq [\baddr_\stk,\eaddr_\stk]$\footnote{Actually concluding this involves knowing that $W_{R,\stk}$ is ``well-formed'' which we use the heap satisfaction assumption to conclude. Perhaps a notion of well-formed worlds would be good along with a couple of lemmas that use it to make this reasoning once and for all.}. As $W_{R,\stk} \oplus W_{R,1}$ is well-formed, $W_{R,1}(r)$ must be a similar spatial region to the one in $W_{R,\stk}$.
+At this point, we need to pick a suitable $W' \future W_{R,1}$. To this end, we need to know a bit about $W_{R,1}$. From the operational semantics, we know $\Phi_S(\rstk) = \stkptr{\perm,\baddr_\stk,\eaddr_\stk,\aaddr_\stk}$ and by assumption $\Phi_S(\rstk) \in \lrv(W_{R,\stk})$. From this we can conclude that there is a stack region (specifically a spatially owned region) $r$ for which $W_{R,\stk} \nequal[n'-1] \stdreg{[\baddr_\stk',\eaddr_\stk']}{\spa}$ where $[\baddr_\stk',\eaddr_\stk'] \supseteq [\baddr_\stk,\eaddr_\stk]$\footnote{Actually concluding this involves knowing that $W_{R,\stk}$ is ``well-formed'' which we use the heap satisfaction assumption to conclude. Perhaps a notion of well-formed worlds would be good along with a couple of lemmas that use it to make this reasoning once and for all.}. As $W_{R,\stk} \oplus W_{R,1}$ is well-formed, $W_{R,1}(r)$ must be a similar spatial region to the one in $W_{R,\stk}$.
 We pick $W'$ to be
 \[
   \begin{array}{r l}
-    W' = W     & \updReg{r}{\revoked}\\
-               & \updReg{z}{\stdreg{[\baddr_\stk',\aaddr_\stk -1]}{\spa}}\\
-               & \updReg{y}{\stdreg{[\aaddr_\stk,\eaddr_\stk']}{\spa}}
+    W' = W     & \update{\mathrm{free}.r}{\revoked}\\
+               & \update{\mathrm{free}.x}{\stdreg{[\baddr_\stk',\aaddr_\stk -1]}{\spa}}\\
+               & \update{\mathrm{priv}.y}{\stdreg{[\aaddr_\stk,\eaddr_\stk']}{\spa}}
   \end{array}
 \]
-where $x$ and $y$ are fresh region names. To indicate similar worlds to $W'$ with the same ownership as another world well-defined w.r.t. $W$, we write $W'_{R,1}$ with the same spatially owned region as $W_{R,1}$. Using the private part of the future world relation, it is easy to see that $W'$ is a future world of $W_{R,1}$ (by the operational semantics $\baddr_\stk < \aaddr_\stk \leq \eaddr_\stk$). Using world monotonicity of $H_\sigma \; \sigma$\footnote{{\color{red}This means that $H_\sigma$ must be monotone in the world!}}, we get
+where $x$ and $y$ are fresh region names in the respective part of the world. To indicate similar worlds to $W'$ with the same ownership as another world well-defined w.r.t. $W$, we write $W'_{R,1}$ with the same spatially owned region as $W_{R,1}$. Using the private part of the future world relation, it is easy to see that $W'$ is a future world of $W_{R,1}$ (by the operational semantics $\baddr_\stk < \aaddr_\stk \leq \eaddr_\stk$). Using world monotonicity of $H_\sigma \; \sigma$\footnote{{\color{red}This means that $H_\sigma$ must be monotone in the world!}}, we get
 \[
   (\Phi_S(r_2), \vsc_{T,2}) \in H_\sigma \; \sigma \; W'_{R,2}
 \]
@@ -210,10 +223,18 @@ For $\rstk$, we make sure the $z$ region is owned in the world we use. Now we us
 
 For $\rretc$ we pick $W'$ as our world. It should be the case that $H_\sigma \; \sigma' \; W''_o$ only contains one \emph{executable} pair, namely the one we consider. Let $W'' \future W$, $n''<n'$, and $(c_S',\vsc_T') \in H_\sigma \; \sigma' \; W''_o$ be given and show
 \[
-  \npair[n'']{(c_{\ret,c},c_S',\sealed{\sigma',((\perm,\lin),\baddr,\eaddr,\aaddr+\calllen-\dots)},\sealed{\sigma',\vsc_T})}
+  \npair[n'']{(c_{\ret,c},c_S',\sealed{\sigma',((\perm,\lin),\baddr,\eaddr,\aaddr+\calllen-\dots)},\sealed{\sigma',\vsc_T})} \in \lrexj(W'')
 \]
-Here we can assume $(c_S',\vsc_T') \in H_\sigma \; \sigma' \;W''_o$ is a data capability\footnote{if it is not, then the execution would fail. Further, the other case we would have to consider ($c_{\reg,c}$ as the data capability) would also fail.}.\footnote{{\color{red}This suggest that $H_\sigma$ should accept only stack capabilities and specifically non-empty ones.}}
+Here we can assume $(c_S',\vsc_T') \in H_\sigma \; \sigma' \;W''_o$ is a data capability pair\footnote{if it is not, then the execution would fail. Further, the other case we would have to consider ($c_{\reg,c}$ as the data capability) would also fail.}.\footnote{{\color{red}This suggest that $H_\sigma$ should accept only stack capabilities and specifically non-empty ones.}}
 
+{\color{DarkRed}
+  A this point, we would like to use the induction hypothesis with the assumptions we get from $\lrexj$. That is, we use the induction hypothesis to (hopefully) get
+
+\[
+  \npair[n'']{((\perm,\lin),\baddr,\eaddr,\aaddr+\calllen-\dots),((\perm,\lin),\baddr,\eaddr,\aaddr+\calllen)} \in \lre(W'')
+\]
+(notice that the target has ``caught up'' here.) The assumptions we get from $\lrexj(W'')$ are not synced, so this would indicate that we need the target side to catch up.
+}
 
 \paragraph{Case: $\protect\txjmp{r_1}{r_2}$} 
 In the case $\txjmp{r_1}{r_2}$\footnote{$\pcreg$ is a corner case here. It will fail contradicting previous assumption of termination.} was executed, we know that $\Phi_S(r_1)$ and $\Phi_S(r_2)$ either points to two sealed capabilities or a return pointer pair (all other cases result in $\Phi_S \step \failed$ contradicting $\Phi_S\term[i]$). From assumption \ref{item:reg-ass} we know
