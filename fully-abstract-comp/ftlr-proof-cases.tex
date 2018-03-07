@@ -30,6 +30,7 @@ then
 
 
 \begin{lemma}
+  \label{lem:readcond-writecond-work}
   If
   \begin{itemize}
   \item $\memSat{(\ms_S,\stk,\ms_\stk,\ms_T)}{W_M}$
@@ -126,7 +127,7 @@ By induction over $n$\footnote{if $n=0$, then we have a contradiction with $\Phi
 \begin{proof}
   Assume
 \[
-  \npair{(b,e)}\in \readCond{\lin,W}
+  \npair{(\baddr,\eaddr)}\in \readCond{\lin,W}
 \]
 and show
 \[
@@ -140,7 +141,7 @@ Let $n' \leq n$ be given and assume
 \item $\npair[n']{[(c,c)]} \in \lrp(W)$ \dominique{Weird that this is an assumption here.  Shouldn't this be a proof obligation? Or rather: I think this should not be here at all but in the value relation instead? Remove this from the definition of $\lre$?}
 \item $\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_R)$ \label{item:reg-ass}
 \item $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$\label{item:mem-ass}
-\item $W \oplus W_R \oplus W_M$ is well-defined.
+\item $W \oplus W_R \oplus W_M$ is well-defined\label{item:worlds-def}
 \end{enumerate}
 Further let
 \begin{itemize}
@@ -161,7 +162,27 @@ and
 \]
 
 \subsubsection*{Assuming source machine terminates}
-First show the former of the two, assume $\Phi_S\term[i]$. We now consider the first step of $\Phi_S \term[i]$\footnote{if $i=0$, then we have a contradiction with $\Phi_S\term[i]$.}. 
+First show the former of the two, assume $\Phi_S\term[i]$.
+Since $\Phi_S \neq \halted$, we have that $1 \leq i \leq n'$.
+
+We know that $\Phi_S(\pcreg) = \Phi_T(\pcreg) = c$, $c=((\rx,\lin),\baddr,\eaddr,\aaddr)$ and $\npair{(\baddr,\eaddr)}\in \readCond{\lin,W}$.
+From Lemma~\ref{lem:readcond-writecond-work}, using $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$ (from assumption~\ref{item:mem-ass}) and $W \oplus W_R \oplus W_M$ is well-defined (assumption~\ref{item:worlds-def}), we get (for any $a' \in [\baddr,\eaddr]$) that $\npair[n']{(\ms_S(a'),\ms_T(a'))} \in \lrv(W')$ for some $W'$ such that $W_M = W' \oplus W_M'$.
+
+Since $\Phi_S \neq \halted$, this means that it must take a next execution step and also that $\Phi_S \not\step\failed$. 
+This is only possible if one of the following holds:
+\begin{itemize}
+\item $\callCond{\Phi_S,r_1,r_2,\aaddr}$ and
+  $\baddr \leq \aaddr \tand \aaddr + \calllen-1 \leq \eaddr$ and 
+  $\exec{\Phi_S(\pcreg)}$.
+
+  In this case, we have for all $i = 0..\calllen-1$ that $\npair[n']{(\ms_S(\aaddr+i),\ms_T(\aaddr+i))} \in \lrv(W')$ for some $W'$, and also $\ms_S(\aaddr+i) \in \ints$, so by definition of $\lrv$, $\ms_T(\aaddr+i) = \ms_S(\aaddr+i)$.
+\item ($\src{(\neg\callCond{\Phi_S,r_1,r_2,\aaddr}}$ or $\src{\eaddr < \aaddr + \calllen-1) \tand}$) and
+  $\withinBounds{\Phi_S(\pcreg)}$ and $\exec{\Phi_S(\pcreg)}$.
+
+  In this case, we have that $\npair[n']{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(W')$ for some $W'$, and also $\ms_S(\aaddr) \in \ints$ (since $\Phi_S \not\step\failed$), so by definition of $\lrv$, we have that $\ms_T(\aaddr) = \ms_S(\aaddr)$.
+\end{itemize}
+
+We now consider the first step of $\Phi_S \term[i]$ (we have already mentioned that $i \geq 1$).
 The possible instructions that could have been executed are:
 \begin{enumerate}
 \item $\tfail$
@@ -192,6 +213,8 @@ The possible instructions that could have been executed are:
 Contradiction, because then $\Phi_S \step \failed \not\nstep[i-1] \halted$.
 
 \paragraph{Case: $\protect\thalt$}
+In this case $\Phi_S \step \halted$.
+We've seen above that $\ms_T(\aaddr) = \ms_S(\aaddr)$, so because $\decInstr{}$ is shared by source and target, we have that $\Phi_T \step\halted$.
 
 \paragraph{Case: $\protect\tjmp{\trg{r}}$}
 
