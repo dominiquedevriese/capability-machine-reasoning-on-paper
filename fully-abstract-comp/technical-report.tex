@@ -366,6 +366,8 @@ We use the following step relation:
                                                   \end{array}\right.\\
   \Phi& \step \failed & & \totherwise
 \end{align*}
+\dominique{Note: The above does not allow executing code that is on the stack in the source machine, while this is in principle allowed in the target.
+This is probably fine if we make sure a stack pointer can never be executable.}
 
 \paragraph{Terminating computations}
 We use the following notation to write that a configuration $\Phi$ successfully terminates:
@@ -1843,8 +1845,8 @@ where $H_\sigma$ is a function from seals to the set of pairs of sealable capabi
     \begin{array}{l}
       \npair{(\src{\stkptr{\perm,\baddr,\eaddr,\aaddr}}, ((\perm,\linear),\baddr,\eaddr,\aaddr))} \in \lrp(W) \wedge \\
       \begin{array}{r l l}
-        \perm \in \readAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \readCond{\linear,W} \wedge \\
-        \perm \in \writeAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \writeCond{\linear,W}
+        \perm \in \readAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \stackReadCond{W} \wedge \\
+        \perm \in \writeAllowed{} &\Rightarrow& \npair{(\baddr,\eaddr)} \in \stackWriteCond{W}
       \end{array}
     \end{array}
     \right\} \cup \\
@@ -1877,7 +1879,17 @@ where $H_\sigma$ is a function from seals to the set of pairs of sealable capabi
 \[
   \readCond{\lin,W} = \left\{ \npair{(\baddr,\eaddr})) \middle| 
     \begin{array}{l}
-      \exists r \in \addressable{\lin, W} \ldotp \\
+      \exists r \in \addressable{\lin, \pwheap} \ldotp \\
+      \quad \exists [\baddr',\eaddr'] \supseteq [\baddr,\eaddr] \ldotp \\
+      \qquad W(r) \nsubeq \stdreg{[\baddr',\eaddr']}{\pur}
+    \end{array}
+  \right\}
+\]
+where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-regions}.
+\[
+  \stackReadCond{W} = \left\{ \npair{(\baddr,\eaddr})) \middle| 
+    \begin{array}{l}
+      \exists r \in \addressable{\linear, \pwfree} \ldotp \\
       \quad \exists [\baddr',\eaddr'] \supseteq [\baddr,\eaddr] \ldotp \\
       \qquad W(r) \nsubeq \stdreg{[\baddr',\eaddr']}{\pur}
     \end{array}
@@ -1912,7 +1924,18 @@ where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-region
 \[
   \writeCond{\lin,W} = \left\{ \npair{(\baddr,\eaddr)}) \middle| 
     \begin{array}{l}
-      \exists r \in \addressable{\lin, W} \ldotp \\
+      \exists r \in \addressable{\lin, \pwheap} \ldotp \\
+      \quad \exists [\baddr',\eaddr'] \supseteq [\baddr,\eaddr] \ldotp \\
+      \qquad W(r) \nsupeq[n-1] \stdreg{[\baddr',\eaddr']}{\pur} \wedge \\
+      \qquad W(r) \text{ is address-stratified}
+    \end{array}
+  \right\}
+\]
+where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-regions}.
+\[
+  \stackWriteCond{W} = \left\{ \npair{(\baddr,\eaddr)}) \middle| 
+    \begin{array}{l}
+      \exists r \in \addressable{\linear, \pwfree} \ldotp \\
       \quad \exists [\baddr',\eaddr'] \supseteq [\baddr,\eaddr] \ldotp \\
       \qquad W(r) \nsupeq[n-1] \stdreg{[\baddr',\eaddr']}{\pur} \wedge \\
       \qquad W(r) \text{ is address-stratified}
