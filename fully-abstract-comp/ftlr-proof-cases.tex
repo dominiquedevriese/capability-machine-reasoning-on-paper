@@ -14,7 +14,7 @@
 \section{Lemmas}
 In this section, I have listed lemmas that seem to be necessary for the FTLR proof.
 \begin{lemma}[$\lrv$ mono]
-  For all $n$, $w_1$, $w_2$, and $W' \future W$, if $\npair{(w_1,w_2)} \in \lrv(W)$, then $\npair{(w_1,w_2)} \in \lrv(W')$
+  For all $n$, $w_1$, $w_2$, and $W' \future W$, if $\npair{(w_1,w_2)} \in \lrv(W)$, then $\npair{(w_1,w_2)} \in \lrv(W')$.
 \end{lemma}
 
 \begin{lemma}[Steps-to termination]
@@ -27,6 +27,99 @@ then
   \npair{(\Phi_S,\Phi_T)} \in \lro
 \]
 \end{lemma}
+
+
+\begin{lemma}
+  If
+  \begin{itemize}
+  \item $\memSat{(\ms_S,\stk,\ms_\stk,\ms_T)}{W_M}$
+  \item $\npair{(b,e)}\in\readCond{l,W}$
+  \item $a \in [b,e]$
+  \item $W \oplus W_M$ is defined
+  \item $n' < n$
+  \end{itemize}
+  Then $\npair[n']{(\ms_S(a),\ms_T(a))} \in \lrv(W')$ for some $W'$ such that $W_M = W' \oplus W_M'$.
+  Additionally, if
+  \begin{itemize}
+  \item $\npair{(b,e)}\in\writeCond{l,W}$
+  \end{itemize}
+  Then $\memSat{(\ms_S[a\mapsto 0],\stk,\ms_\stk,\ms_T[a\mapsto 0])}{W_M'}$.
+\end{lemma}
+\begin{proof}
+  From $\npair{(b,e)}\in\readCond{l,W}$, we get an $r \in \addressable{\lin,
+    \pwheap}$ and $[\baddr',\eaddr'] \supseteq [\baddr,\eaddr]$ such that $\pwheap(r)
+  \nsubeq \stdreg{[\baddr',\eaddr']}{\pur}$.
+
+  Since $W \oplus W_M$ is defined, we have that $r \in \dom(\pwheap) =
+  \dom(\pwheap[W_M])$ and $\pwheap(r) \oplus \pwheap[W_M](r)$ is defined.
+
+  From $\memSat{(\ms_S,\stk,\ms_\stk,\ms_T)}{W_M}$, we get that
+  $\stk = (\opc_0,\ms_0):: \dots :: (\opc_m,\ms_m)$,
+  $\ms_S \uplus \ms_\stk \uplus \ms_0 \uplus \dots \uplus \ms_m$,
+  $W_M = W_{\var{stack}} \oplus W_{\var{free\_stack}} \oplus W_{\var{heap}}$ and
+  $\exists \ms_\var{T,stack}, \ms_\var{T,free\_stack}, \ms_\var{T,heap}$ such that
+  \begin{itemize}
+  \item $\ms_T = \ms_\var{T,stack} \uplus \ms_\var{T,free\_stack} \uplus
+    \ms_\var{T,heap}$
+  \item $\memSatStack{\stk,\ms_\var{T,stack}}{W_{\var{stack}}}$
+  \item $\memSatFStack{\ms_\stk,\ms_\var{T,free\_stack}}{W_{\var{free\_stack}}}$
+  \item $\memSatHeap{\ms_S,\ms_\var{T,heap}}{W_\var{heap}}$.
+  \end{itemize}
+
+  From $\memSatHeap{\ms_S,\ms_\var{T,heap}}{W_\var{heap}}$, we get an
+  $R_\ms : \dom(\activeReg{\pwheap[W_\var{heap}]}) \fun \MemSeg \times \MemSeg$,
+  $\ms_\var{T,heap} = \biguplus_{r \in \dom(\activeReg{\pwheap[W_\var{heap}]})} \pi_2(R_\ms(r))$,
+  $\ms_S = \biguplus_{r \in \dom(\activeReg{\pwheap[W_\var{heap}]})} \pi_1(R_\ms(r))$,
+  $\exists R_W : \dom(\activeReg{\pwheap[W_\var{heap}]}) \fun \World\ldotp$
+  $W_\var{heap} = \oplus_{r \in \dom(\activeReg{\pwheap[W_\var{heap}]})} R_W(r)$,
+  $\forall r \in \activeReg{\pwheap[W_\var{heap}]}, n' < n$, we have that
+  $\npair[n']{R_\ms(r)} \in  \pwheap[W_\var{heap}](r).H \; \pwheap[W_\var{heap}](r).s \; \xi^{-1}(R_W(r))$.
+
+  We have that $r \in \addressable{\lin, \pwheap} \subseteq
+  \activeReg{\pwheap[W_\var{heap}]}$, so $\npair[n']{R_\ms(r)} \in
+  \pwheap[W_\var{heap}](r).H \; \pwheap[W_\var{heap}](r).s \; \xi^{-1}(R_W(r))$.
+  Because $\pwheap(r) \nsubeq \stdreg{[\baddr',\eaddr']}{\pur}$ and $W\oplus W_M = W \oplus (W_\var{heap} \oplus W_\var{free\_stack} \oplus W_\var{stack})$ is defined, it follows that
+  also $\pwheap[W_\var{heap}](r) \nsubeq \stdreg{[\baddr',\eaddr']}{\pur}$ this
+  means that also $\npair[n']{R_\ms(r)} \in
+  H^{\mathrm{std}}_{[\baddr',\eaddr']}\; \xi^{-1}(R_W(r))$.
+
+  From this, it follows that $\dom(R_\ms(r).1) = \dom(R_\ms(r).2) = [\baddr',\eaddr']$ and we get a $S : [\baddr',\eaddr'] \fun \World$ with $\xi(\xi^{-1}(R_W(r))) = \oplus_{\aaddr \in [\baddr',\eaddr']} S(\aaddr)$ and $\forall \aaddr \in [\baddr',\eaddr'] \ldotp \npair[n'-1]{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))$.
+  \dominique{TODO: get rid of n'-1 above somehow.}
+
+  Since $a \in [b,e] \subseteq [\baddr',\eaddr']$, we have that $\npair[n'-1]{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))$ and
+  we can take $W_M' = W_r' \oplus W_{\var{heap}}' \oplus (W_{\var{stack}} \oplus W_{\var{free\_stack}})$ with $W_r' = \oplus_{\aaddr \in ([\baddr',\eaddr']\setminus \{\aaddr\})} S(\aaddr)$ and $W_\var{heap}' = \oplus_{r' \in (\dom(\activeReg{\pwheap[W_\var{heap}]})\setminus \{r\})} R_W(r')$, and get
+  \begin{align*}
+    S(\aaddr) \oplus W_M'
+    &=S(\aaddr) \oplus (W_r' \oplus W_\var{heap}'\oplus (W_{\var{stack}} \oplus W_{\var{free\_stack}}))\\
+    &=
+    \oplus_{\aaddr \in [\baddr',\eaddr']} S(\aaddr) \oplus W_{\var{heap}}'\oplus (W_{\var{stack}} \oplus W_{\var{free\_stack}})\\
+    &=
+    \xi(\xi^{-1}(R_W(r))) \oplus W_\var{heap}'\oplus (W_{\var{stack}} \oplus W_{\var{free\_stack}})\\
+    &=
+    R_W(r) \oplus W_\var{heap}'\oplus (W_{\var{stack}} \oplus W_{\var{free\_stack}})\\
+    &=
+    \oplus_{r \in \dom(\activeReg{\pwheap[W_\var{heap}]})} R_W(r)\oplus (W_{\var{stack}} \oplus W_{\var{free\_stack}})\\
+    &=
+      W_\var{heap} \oplus (W_{\var{stack}} \oplus W_{\var{free\_stack}})\\
+      &= W_M
+  \end{align*}
+
+  Additionally, if $\npair{(b,e)}\in\writeCond{l,W}$, then
+  we get an $r' \in \addressable{\lin, \pwheap} \subseteq \activeReg{\pwheap[W_\var{heap}]}$
+  and $[\baddr',\eaddr'] \supseteq [\baddr,\eaddr]$ such that
+  $\pwheap(r) \nsupeq[n-1] \stdreg{[\baddr',\eaddr']}{\pur}$ and
+  $\pwheap(r) \text{ is address-stratified}$. Because $W \oplus W_M$ is defined, it follows that also 
+  $\pwheap[W_\var{heap}](r) \nsupeq[n-1] \stdreg{[\baddr',\eaddr']}{\pur}$ and
+  $\pwheap[W_\var{heap}](r) \text{ is address-stratified}$.
+  \dominique{TODO: get rid of n-1 above.}
+
+  It follows that $r = r'$ because $\dom(R_\ms(r).1) = \dom(R_\ms(r).2) = [\baddr',\eaddr'] = \dom(R_\ms(r').2) = \dom(R_\ms(r').1)$ and all the $R_\ms(r).1$ and $R_\ms(r).2$ are disjoint.
+
+  We have that $\npair[n']{(R_\ms(r).1\update{a}{0},R_\ms(r).2\update{a}{0})} \in \pwheap[W_\var{heap}](r).H \;
+  \pwheap[W_\var{heap}](r).s \; \xi^{-1}(W_r')$ because $\pwheap[W_\var{heap}](r)$ is address-stratified and $\pwheap[W_\var{heap}](r) \nsupeq[n-1] \stdreg{[\baddr',\eaddr']}{\pur}$.
+
+  From this, it follows that $\memSatHeap{\ms_S\update{a}{0},\ms_\var{T,heap}\update{a}{0}}{W_r' \oplus W_\var{heap}'}$ and finally $\memSat{(\ms_S\update{a}{0},\stk,\ms_\stk,\ms_T\update{a}{0})}{W_M'}$.
+\end{proof}
 
 \section{FTLR proof}
 By induction over $n$\footnote{if $n=0$, then we have a contradiction with $\Phi_S\term[i]$ and $\Phi_T\term[i]$ when we get to $\lro$.}.
@@ -44,7 +137,7 @@ We write $c=((\rx,\lin),\baddr,\eaddr,\aaddr)$.\\
 
 Let $n' \leq n$ be given and assume
 \begin{enumerate}
-\item $\npair[n']{[(c,c)]} \in \lrp(W)$
+\item $\npair[n']{[(c,c)]} \in \lrp(W)$ \dominique{Weird that this is an assumption here.  Shouldn't this be a proof obligation? Or rather: I think this should not be here at all but in the value relation instead? Remove this from the definition of $\lre$?}
 \item $\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_R)$ \label{item:reg-ass}
 \item $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$\label{item:mem-ass}
 \item $W \oplus W_R \oplus W_M$ is well-defined.
