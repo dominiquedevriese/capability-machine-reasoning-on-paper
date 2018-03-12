@@ -17,31 +17,6 @@ In this section, I have listed lemmas that seem to be necessary for the FTLR pro
   For all $n$, $w_1$, $w_2$, and $W' \future W$, if $\npair{(w_1,w_2)} \in \lrv(W)$, then $\npair{(w_1,w_2)} \in \lrv(W')$.
 \end{lemma}
 
-\begin{lemma}
-  \label{lem:stareg-ms-subeq-stdreg}
-  If
-  \begin{itemize}
-  \item $R \nequal \stareg[(\ms,\ms)]{\pur}$
-  \item $\npair{(\ms,\ms)} \in H^{\mathrm{std}}_{\dom(\ms)} \; * \; W$
-  \item $\dom(\ms) \supseteq [\baddr,\eaddr]$
-  \end{itemize}
-  Then
-  $R \nsubeq \stdreg{\dom(\ms)}{\pur}$
-\end{lemma}
-\begin{proof}
-  \dominique{TODO: define nsubeq and friends first?}
-\end{proof}
-
-\begin{lemma}[readXCondition implies readCondition]
-  \label{lem:readXCond-readCond}
-  If $\npair{(\baddr,\eaddr)}\in\xReadCond{\lin,W}$, then $\npair{(\baddr,\eaddr)}\in\readCond{\lin,W}$.
-\end{lemma}
-\begin{proof}
-  From $\npair{(\baddr,\eaddr)}\in\xReadCond{\lin,W}$, we get by definition an $r \in \addressable{\lin, \pwheap}$ and an $\ms$ with $\dom(\ms) \supseteq [\baddr,\eaddr]$,  $\npair{(\ms,\ms)} \in H^{\mathrm{std}}_{\dom(\ms)} \; * \; W$ and $\pwheap(r) \nequal \stareg[(\ms,\ms)]{\pur}$.
-
-  The result then follows directly using Lemma~\ref{lem:stareg-ms-subeq-stdreg}.
-\end{proof}
-
 \begin{lemma}[$\lro$ closed under target language antireduction]
   For all $\Phi_S$, $\Phi_T$, $\Phi_T'$, $j$, $n$, if
 \[
@@ -162,11 +137,79 @@ then
   From this, it follows that $\memSatHeap{\ms_S\update{a}{0},\ms_\var{T,heap}\update{a}{0}}{W_r' \oplus W_\var{heap}'}$ and finally $\memSat{(\ms_S\update{a}{0},\stk,\ms_\stk,\ms_T\update{a}{0})}{W_M'}$.
 \end{proof}
 
+\begin{definition}[purePart]
+  For any world $W$, we define
+  \begin{align*}
+    \purePart{W} &\defeq (\purePart{\pwheap},\purePart{\pwpriv},\purePart{\pwfree})\\
+    \purePart{W_\var{heap}} &\defeq
+                       \begin{cases}
+                         W_{\var{heap}}(r) & \text{if } W_\var{heap}(r) = (pure,\var{sm})\\
+                         (\spatial,\var{sm}) & \text{if } W_\var{heap}(r) = (\spatial,\var{sm})\\
+                         (\spatial,\var{sm}) & \text{if } W_\var{heap}(r) = (\spatialo,\var{sm})\\
+                         \revoked & \text{if } W_\var{heap}(r) = \revoked\\
+                       \end{cases}\\
+    \purePart{W_\var{priv}} &\defeq
+                       \begin{cases}
+                         ((\spatial,\var{sm}),\sigma) & \text{if } W_\var{priv}(r) = ((\spatial,\var{sm}),\sigma)\\
+                         ((\spatial,\var{sm}),\sigma) & \text{if } W_\var{priv}(r) = ((\spatialo,\var{sm}),\sigma)\\
+                         (\revoked,\sigma) & \text{if } W_\var{priv}(r) = (\revoked,\sigma)\\
+                       \end{cases}\\
+    \purePart{W_\var{free}} &\defeq
+                       \begin{cases}
+                         W_{\var{free}}(r) & \text{if } W_{\var{free}}(r) = (pure,\var{sm})\\
+                         (\spatial,\var{sm}) & \text{if } W_{\var{free}}(r) = (\spatial,\var{sm})\\
+                         (\spatial,\var{sm}) & \text{if } W_{\var{free}}(r) = (\spatialo,\var{sm})\\
+                         \revoked & \text{if } W_{\var{free}}(r) = \revoked\\
+                       \end{cases}
+  \end{align*}
+\end{definition}
+
+\begin{lemma}[purePart is pure]
+ For all $W$, we have that $W = W \oplus \purePart{W}$.
+\end{lemma}
+
+\begin{lemma}
+  \label{lem:world-fut-purePart}
+  For all $W$, we have that $W \future \purePart{W}$.
+  \dominique{11-3-2018: Err.. this doesn't seem to hold as we don't have that $\spatialo \future \spatial$. This also means that we don't currently have that $W_1 \oplus W_2 \future W_1$. Shouldn't we?  }
+\end{lemma}
+
+\begin{lemma}[non-linear words are pure]
+  If $\npair{(w_1,w_2)} \in \lrv(H_\sigma,W)$ and ($\nonLinear{w_1}$ or $\nonLinear{w_2}$), then
+  $\npair{(w_1,w_2)} \in \lrv(H_\sigma,\purePart{W})$.
+  \dominique{11-3-2018: proving this lemma depends on lemma~\ref{lem:world-fut-purePart} for the higher-order cases.}
+\end{lemma}
+
+\begin{lemma}[load from capability works]
+  \label{lem:readcond-writecond-work}
+  If
+  \begin{itemize}
+  \item $\memSat{(\ms_S,\stk,\ms_\stk,\ms_T)}{W_M}$
+  \item $c = ((\perm,\lin),\baddr,\eaddr,\aaddr)$
+  \item $\npair{(c,c)}\in\lrv(H_\sigma,W)$
+  \item $W \oplus W_M$ is defined
+  \item $n' < n$
+  \item $w_S = \linCons{\ms_S(a)}$, $w_T = \linCons{\ms_T(a)}$
+  \item $\linConsPerm{\perm}$
+  \end{itemize}
+  Then $\exists W', W_M'\ldotp$
+  Additionally, if
+  \begin{itemize}
+  \item $W_M = W' \oplus W_M'$
+  \item $\memSat{(\ms_S\update{\mem.a}{w_S},\stk,\ms_\stk,\ms_T\update{\mem.a}{w_T})}{W_M'}$
+  \item $\npair{(\ms_S(a),\ms_T(a))} \in \lrv(W')$
+  \end{itemize}
+\end{lemma}
+\begin{proof}
+  TODO
+\end{proof}
+
 \section{FTLR proof}
 By induction over $n$\footnote{if $n=0$, then we have a contradiction with $\Phi_S\term[i]$ and $\Phi_T\term[i]$ when we get to $\lro$.}.
 \begin{proof}
   Assume
 \[
+  \npair{(\baddr,\eaddr)}\in \readCond{\lin,W}
   \npair{(\baddr,\eaddr)}\in \xReadCond{\lin,W}
 \]
 and show
@@ -207,8 +250,8 @@ and
 First show the former of the two, assume $\Phi_S\term[i]$.
 Since $\Phi_S \neq \halted$, we have that $1 \leq i \leq n'$.
 
-We know that $\Phi_S(\pcreg) = \Phi_T(\pcreg) = c$, $c=((\rx,\lin),\baddr,\eaddr,\aaddr)$ and $\npair{(\baddr,\eaddr)}\in \xReadCond{\lin,W}$.
-From Lemmas~\ref{lem:readcond-writecond-work} and~\ref{lem:readXCond-readCond}, using $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$ (from assumption~\ref{item:mem-ass}) and $W \oplus W_R \oplus W_M$ is well-defined (assumption~\ref{item:worlds-def}), we get (for any $a' \in [\baddr,\eaddr]$) that $\npair[n']{(\ms_S(a'),\ms_T(a'))} \in \lrv(W')$ for some $W'$ such that $W_M = W' \oplus W_M'$.
+We know that $\Phi_S(\pcreg) = \Phi_T(\pcreg) = c$, $c=((\rx,\lin),\baddr,\eaddr,\aaddr)$, $\npair{(\baddr,\eaddr)}\in \readCond{\lin,W}$ and $\npair{(\baddr,\eaddr)}\in \xReadCond{\lin,W}$.
+From Lemmas~\ref{lem:readcond-writecond-work}, using $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$ (from assumption~\ref{item:mem-ass}) and $W \oplus W_R \oplus W_M$ is well-defined (assumption~\ref{item:worlds-def}), we get (for any $a' \in [\baddr,\eaddr]$) that $\npair[n']{(\ms_S(a'),\ms_T(a'))} \in \lrv(W')$ for some $W'$ such that $W_M = W' \oplus W_M'$.
 
 Since $\Phi_S \neq \halted$, this means that it must take a next execution step and also that $\Phi_S \not\step\failed$. 
 This is only possible if one of the following holds:
@@ -258,42 +301,49 @@ Contradiction, because then $\Phi_S \step \failed \not\nstep[i-1] \halted$.
 In this case $\Phi_S \step \halted$.
 We've seen above that $\ms_T(\aaddr) = \ms_S(\aaddr)$, so because $\decInstr{}$ is shared by source and target, we have that $\Phi_T \step\halted$.
 
-\paragraph{Case: $\protect\tjmp{\trg{r}}$}
+\paragraph{Case: $\protect\tjmp{\trg{r_1}}$}
 
-\paragraph{Case: $\protect\tjnz{\trg{r}}{\trg{\rn}}$}
+\paragraph{Case: $\protect\tjnz{\trg{r_1}}{\trg{\rn}}$}
 
-\paragraph{Case: $\protect\tisptr{\trg{r}}{\trg{r}}$}
+\paragraph{Case: $\protect\tisptr{\trg{r_1}}{\trg{r_2}}$}
 
-\paragraph{Case: $\protect\tgeta{\trg{r}}{\trg{r}}$}
-Similar to the case for $\tisptr{\trg{r}}{\trg{r}}$.
+\paragraph{Case: $\protect\tgeta{\trg{r_1}}{\trg{r_2}}$}
+Similar to the case for $\tisptr{\trg{r_1}}{\trg{r_2}}$.
 
-\paragraph{Case: $\protect\tgetb{\trg{r}}{\trg{r}}$}
-Similar to the case for $\tisptr{\trg{r}}{\trg{r}}$.
+\paragraph{Case: $\protect\tgetb{\trg{r_1}}{\trg{r_2}}$}
+Similar to the case for $\tisptr{\trg{r_1}}{\trg{r_2}}$.
 
-\paragraph{Case: $\protect\tgete{\trg{r}}{\trg{r}}\mid$}
-Similar to the case for $\tisptr{\trg{r}}{\trg{r}}$.
+\paragraph{Case: $\protect\tgete{\trg{r_1}}{\trg{r_2}}\mid$}
+Similar to the case for $\tisptr{\trg{r_1}}{\trg{r_2}}$.
 
-\paragraph{Case: $\protect\tgetlin{\trg{r}}{\trg{r}}$}
-Similar to the case for $\tisptr{\trg{r}}{\trg{r}}$.
+\paragraph{Case: $\protect\tgetlin{\trg{r_1}}{\trg{r_2}}$}
+Similar to the case for $\tisptr{\trg{r_1}}{\trg{r_2}}$.
 
-\paragraph{Case: $\protect\tmove{\trg{r}}{\trg{\rn}}$}
+\paragraph{Case: $\protect\tmove{\trg{r_1}}{\trg{\rn}}$}
 
-\paragraph{Case: $\protect\tstore{\trg{r}}{\trg{r}}$}
+\paragraph{Case: $\protect\tstore{\trg{r_1}}{\trg{r_2}}$}
 
-\paragraph{Case: $\protect\tload{\trg{r}}{\trg{r}}$}
+\paragraph{Case: $\protect\tload{\trg{r_1}}{\trg{r_2}}$}
+Since $\Phi_S\not\step\failed$, we have that $\Phi_S \step \Phi_S' \term[i-1]$ and one of the following cases hold: 
+\begin{itemize}
+\item \[\Phi_S' = \updPcAddr{\Phi\update{\mem.a}{w_2}\updReg{r_1}{w}}\]
+  with $\Phi(r_2) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ 
+  $\perm \in \readAllowed{}$, $\withinBounds{\Phi(r_2)}$, $w = \Phi.\mem(a)$ and $w_2 = \linCons{w}$ and $\linConsPerm{w,\perm}$
+\item \[\Phi_S' = \updPcAddr{\Phi \update{\ms_\stk.a}{w_2}\updReg{r_1}{w}}\]
+  with $\Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr}$, $\perm \in \readAllowed{}$, $\withinBounds{\Phi(r_2)}$, $\aaddr \in \dom(\Phi.\ms_\stk)$, $w = \Phi.\ms_\stk(a)$ and $w_2 = \linCons{w}$ and $\linConsPerm{w,\perm}$
+\end{itemize}
 
+\paragraph{Case: $\protect\tcca{\trg{r_1}}{\trg{\rn}}$}
 
-\paragraph{Case: $\protect\tcca{\trg{r}}{\trg{\rn}}$}
+\paragraph{Case: $\protect\trestrict{\trg{r_1}}{\trg{r_2}}{\trg{\rn}}$}
 
-\paragraph{Case: $\protect\trestrict{\trg{r}}{\trg{r}}{\trg{\rn}}$}
+\paragraph{Case: $\protect\tlt{\trg{r_1}}{\trg{\rn}}{\trg{\rn}}$}
 
-\paragraph{Case: $\protect\tlt{\trg{r}}{\trg{\rn}}{\trg{\rn}}$}
+\paragraph{Case: $\protect\tplus{\trg{r_1}}{\trg{\rn}}{\trg{\rn}}$}
 
-\paragraph{Case: $\protect\tplus{\trg{r}}{\trg{\rn}}{\trg{\rn}}$}
+\paragraph{Case: $\protect\tminus{\trg{r_1}}{\trg{\rn}}{\trg{\rn}}$}
 
-\paragraph{Case: $\protect\tminus{\trg{r}}{\trg{\rn}}{\trg{\rn}}$}
-
-\paragraph{Case: $\protect\tsetatob{\trg{r}}{\trg{r}}$}
+\paragraph{Case: $\protect\tsetatob{\trg{r_1}}{\trg{r_2}}$}
 
 \paragraph{Case: $\scall[o]{}{r_1}{r_2}$}
 In case $\scall[o]{}{r_1}{r_2}$ is the first step of the execution. We can assume $r_1,r_2 \neq \pcreg$ as this would cause the execution to fail\footnote{{\color{red} TODO:} We still have to consider what happens if the temp register is jumped to.}. By assumption, $\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_R)$ which in particular means that for suitable $W_{R,1}$ and $W_{R,2}$
@@ -438,11 +488,11 @@ From the assumption $\Phi_S\term[i]$, we get $\Phi'_S\term[i-1]$ which we use wi
 %   \Phi_T \term[i] \Rightarrow \Phi_S \term
 % \]
 
-\paragraph{Case: $\protect\tcseal{\trg{r}}{\trg{r}}{\trg{r}}$}
+\paragraph{Case: $\protect\tcseal{\trg{r_1}}{\trg{r_2}}{\trg{r_3}}$}
 
-\paragraph{Case: $\protect\tsplit{\trg{r}}{\trg{r}}{\trg{r}}{\trg{\rn}}$}
+\paragraph{Case: $\protect\tsplit{\trg{r_1}}{\trg{r_2}}{\trg{r_3}}{\trg{\rn}}$}
 
-\paragraph{Case: $\protect\tsplice{\trg{r}}{\trg{r}}{\trg{r}}$}
+\paragraph{Case: $\protect\tsplice{\trg{r_1}}{\trg{r_2}}{\trg{r_3}}$}
 
 \subsubsection*{Assuming target machine terminates}
 \dominique{I suspect it would be more economical to not treat this case separately from the above (source machine terminates), but rather prove both results simultaneously by induction on the length of the terminating execution.}
