@@ -279,7 +279,7 @@ and show
 \[
   \npair[n']{(\Phi_S,\Phi_T)} \in \lro
 \]
-Let $i \leq n'$ be given \footnote{ignoring the frame...} and show
+That is, let $i \leq n'$ be given \footnote{ignoring the frame...} and show
 \[
   \Phi_S \term[i] \Rightarrow \Phi_T \term
 \]
@@ -388,7 +388,7 @@ Since $\Phi_S\not\step\failed$, we have that $\Phi_S \step \Phi_S' \term[i-1]$ a
 \paragraph{Case: $\protect\tsetatob{\trg{r_1}}{\trg{r_2}}$}
 
 \paragraph{Case: $\scall[o]{}{r_1}{r_2}$}
-In case $\scall[o]{}{r_1}{r_2}$ is the first step of the execution. We can assume $r_1,r_2 \neq \pcreg$ as this would cause the execution to fail\footnote{Assuming $\pcreg$ was one of the two registers, then the step relation would reqiure the register to contain an executable capability while the call semantics would require there to be a sealed capability.}\footnote{{\color{red} TODO:} We still have to consider what happens if the temp register is jumped to.}. By assumption, $\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_R)$ which in particular means that for suitable $W_{R,1}$ and $W_{R,2}$
+In case $\scall[o]{}{r_1}{r_2}$ is the first step of the execution. We can assume $r_1,r_2 \neq \pcreg$ as this would cause the execution to fail\footnote{Assuming $\pcreg$ was one of the two registers, then the step relation would reqiure the register to contain an executable capability while the call semantics would require there to be a sealed capability.}\footnote{{\color{red} TODO:} We still have to consider what happens if the temp register is jumped to.}. By assumption \ref{item:reg-ass}, $\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_R)$ which in particular means that for suitable $W_{R,1}$ and $W_{R,2}$
 \[
   \npair[n']{(\src{\reg_S}(r_i),\reg_T(r_i))} \in \lrv(W_{r,1}) \text{ for i = 1,2}
 \]
@@ -401,25 +401,26 @@ We can further deduce that $\src{\reg_S}(r_i)$ for $i=1,2$ are sealed capabiliti
 \]
 and
 \[
-  (\Phi_S(r_2), \vsc_{T,2}) \in H_\sigma \; \sigma \; W_{R,2}
+  (\Phi_S(r_2), \vsc_{T,2}) \in H_\sigma \; \sigma \; W_{R,2}.
 \]
-At this point, we need to pick a suitable $W' \future W_{R,1}$. To this end, we need to know a bit about $W_{R,1}$. From the operational semantics, we know $\Phi_S(\rstk) = \stkptr{\perm,\baddr_\stk,\eaddr_\stk,\aaddr_\stk}$ and by assumption $\Phi_S(\rstk) \in \lrv(W_{R,\stk})$. From this we can conclude that there is a stack region (specifically a spatially owned region) $r$ for which $W_{R,\stk} \nequal[n'-1] \stdreg{[\baddr_\stk',\eaddr_\stk']}{\spa}$ where $[\baddr_\stk',\eaddr_\stk'] \supseteq [\baddr_\stk,\eaddr_\stk]$\footnote{Actually concluding this involves knowing that $W_{R,\stk}$ is ``well-formed'' which we use the heap satisfaction assumption to conclude. Perhaps a notion of well-formed worlds would be good along with a couple of lemmas that use it to make this reasoning once and for all.}. As $W_{R,\stk} \oplus W_{R,1}$ is well-formed, $W_{R,1}(r)$ must be a similar spatial region to the one in $W_{R,\stk}$.
+At this point, we need to pick a suitable $W' \future W_{R,1}$. To this end, we need to know a bit about $W_{R,1}$. From the operational semantics and in particular the semantics of $\scall{}{}{}{}$, we know $\Phi_S(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk}$ and by assumption $\Phi_S(\rstk) \in \lrv(W_{R,\stk})$. From this we can conclude that there is a stack region (specifically a spatially owned region) $r$ for which $\pwfree{W_{R,\stk}}(r) \nequal[n'-1] \stdreg{[\baddr_\stk',\eaddr_\stk']}{\spa}$ where $[\baddr_\stk',\eaddr_\stk'] \supseteq [\baddr_\stk,\eaddr_\stk]$\footnote{Actually concluding this involves knowing that $W_{R,\stk}$ is ``well-formed'' which we use the heap satisfaction assumption to conclude. Perhaps a notion of well-formed worlds would be good along with a couple of lemmas that use it to make this reasoning once and for all.}. As $W_{R,\stk} \oplus W_{R,1}$ is well-formed, $\pwfree{W_{R,1}}(r)$ must be a similar spatial region to the one in $W_{R,\stk}$.
 We pick $W'$ to be
 \[
   \begin{array}{r l}
     W' = W     & \update{\mathrm{free}.r}{\revoked}\\
                & \update{\mathrm{free}.x}{\stdreg{[\baddr_\stk',\aaddr_\stk -1]}{\spa}}\\
-               & \update{\mathrm{priv}.y}{(\stdreg{[\aaddr_\stk,\eaddr_\stk']}{\spa},\opc)}
+               & \update{\mathrm{priv}.y}{(\stdreg{[\aaddr_\stk,\eaddr_\stk]}{\spa},\opc)}\\
+               & \update{\mathrm{free}.z}{\stdreg{[\eaddr_\stk+1,\addr_\stk']}{\spa}}
   \end{array}
 \]
 \lau{12-05-2018: Write what $\opc$ is.}
-where $x$ and $y$ are fresh region names in the respective part of the world. To indicate similar worlds to $W'$ with the same ownership as another world well-defined w.r.t. $W$, we write $W'_{R,1}$ with the same spatially owned region as $W_{R,1}$. Using the private part of the future world relation, it is easy to see that $W'$ is a future world of $W_{R,1}$ (by the operational semantics $\baddr_\stk < \aaddr_\stk \leq \eaddr_\stk$). Using world monotonicity of $H_\sigma \; \sigma$\footnote{{\color{red}This means that $H_\sigma$ must be monotone in the world!}}, we get
+where $x$, $y$, and $z$ are fresh region names in the respective part of the world. To indicate similar worlds to $W'$ with the same ownership as another world well-defined w.r.t. $W$, we write $W'_{R,1}$ with the same spatially owned region as $W_{R,1}$. Using the private part of the future world relation, it is easy to see that $W'$ is a future world of $W_{R,1}$ (by the operational semantics $\baddr_\stk < \aaddr_\stk \leq \eaddr_\stk$, so the new region at $y$ is non-empty). Using world monotonicity of $H_\sigma \; \sigma$\footnote{{\color{red}This means that $H_\sigma$ must be monotone in the world!}}, we get
 \[
   (\Phi_S(r_2), \vsc_{T,2}) \in H_\sigma \; \sigma \; W'_{R,2}
 \]
 which we use to get:
 \[
-  \npair[n'']{\Phi_S(r_1),\Phi_S(r_2),\Phi_T(r_1),\Phi_T(r_2)} \in \lrexj(W_{R,1}' \oplus W_{R,2}')
+  \npair[n'']{(\Phi_S(r_1),\Phi_S(r_2),\Phi_T(r_1),\Phi_T(r_2))} \in \lrexj(W_{R,1}' \oplus W_{R,2}')
 \]
 In order to use this, we need to pick a register-file pair and suitable memories. We pick a $\Phi_S$ in $\lrexj$, so the $\Phi_S'$ in $\lrexj$ becomes the $\Phi_S'$ we assumed $\Phi_S$ steps to. Specifically
 \[
@@ -469,13 +470,13 @@ and the same memory
 \[
   \Phi_T.\ms_T\update{\aaddr_\stk}{42}
 \]
-We have to argue (1) that this register-file pair is in the register-file relation for a world $W_R'$ with the same ownership as $W_R$ and regions $z$ and $y$ are owned, and (2) the memory-pair satisfies the memory satisfaction relation for a world $W_M'$ (i.e. with the same ownership as $W_M$).
+We have to argue (1) that this register-file pair is in the register-file relation for a world $W_R'$ with the same ownership as $W_R$ and regions $x$ and $y$ are owned, and (2) the memory-pair satisfies the memory satisfaction relation for a world $W_M'$ (i.e. with the same ownership as $W_M$).
  
-Let's start with (2). Here we use that we took a standard region and replaced by two standard regions. This means that when we split up the memory, we can reuse the same splitting og memory and world (w.r.t memory) except for the memory segment that previously satsfied the standard region in question. This memory segment, we split in two, so each piece fit with one of the new regions.
+Let's start with (2). Here we use that we took a standard region and replaced by three standard regions. This means that when we split up the memory, we can reuse the same splitting of memory and world (w.r.t memory) except for the memory segment that previously satsfied the standard region in question. This memory segment, we split in three, so each piece fit with one of the new regions.
 
 For (1), we need to consider the contents of all registers. For the registers that were not overwritten, their safety follows from the register-file relation assumption we start with along with monotonicity and non-expansiveness of the value relation. This is also the case for $r_i$, $i=1,2$ if the capability is linear and it is trivial otherwise (as it is $0$). $\rtmp{1}$ is also trivial as it is $0$. This leaves $\rstk$, $\rretc$, and $\rretd$.
 
-For $\rstk$, we make sure the $z$ region is owned in the world we use. Now we use that we had a standard region governing the stack to get that everything on there is in the value relation. We then use the monotonicity of the value relation to conclude that everything is in the value relation in this future world which satisfies the read and write condition.
+For $\rstk$, we make sure the $x$ region is owned in the world we use. Now we use that we had a standard region governing the stack to get that everything on there is in the value relation. We then use the monotonicity of the value relation to conclude that everything is in the value relation in this future world which satisfies the read and write condition.
 
 For $\rretc$ we pick $W'$ as our world. It should be the case that $H_\sigma \; \sigma' \; W''_o$ only contains one \emph{executable} pair, namely the one we consider. Let $W'' \future W$, $n''<n'$, and $(c_S',\vsc_T') \in H_\sigma \; \sigma' \; W''_o$ be given and show
 \[
