@@ -13,8 +13,22 @@
 \maketitle
 \section{Lemmas}
 In this section, I have listed lemmas that seem to be necessary for the FTLR proof.
-\begin{lemma}[$\lrv$ mono]
-  For all $n$, $w_1$, $w_2$, and $W' \future W$, if $\npair{(w_1,w_2)} \in \lrv(W)$, then $\npair{(w_1,w_2)} \in \lrv(W')$.
+\begin{lemma}[non-expansiveness of relations]
+  \label{lem:non-expansive}
+  If $n' \leq n$, then
+  \begin{itemize}
+  \item If $\npair{(b,e)}\readCond{\lin}{W}$, then $\npair[n']{(b,e)}\readCond{\lin}{W}$.
+  \end{itemize}
+\end{lemma}
+
+\begin{lemma}[World monotonicity of relations]
+  \label{lem:monotonicity}
+  For all $n$, $W' \future W$, we have that
+  \begin{itemize}
+  \item If $(w_1,w_2) \in H_\sigma~\sigma~W$, then $(w_1,w_2) \in H_\sigma~\sigma~W'$.
+  \item If $\npair{(w_1,w_2)} \in \lrv(W)$, then $\npair{(w_1,w_2)} \in
+    \lrv(W')$.
+\end{itemize}
 \end{lemma}
 
 \begin{lemma}[$\lror$ closed under target language antireduction]
@@ -156,7 +170,7 @@ then
 \end{lemma}
 
 \begin{lemma}[load from regular capability works]
-  \label{lem:readcond-writecond-work}
+  \label{lem:readcond-cap-works}
   If
   \begin{itemize}
   \item $\memSat{(\ms_S,\stk,\ms_\stk,\ms_T)}{W_M}$
@@ -182,7 +196,7 @@ then
 \end{proof}
 
 \begin{lemma}[load from stack capability works]
-  \label{lem:readcond-writecond-work}
+  \label{lem:load-stack-cap-works}
   If
   \begin{itemize}
   \item $\memSat{(\ms_S,\stk,\ms_\stk,\ms_T)}{W_M}$
@@ -251,14 +265,60 @@ and
   \Phi_T \term[i] \Rightarrow \Phi_S \term
 \]
 
+{\color{DarkGreen}
+\dominique{Proposed proof refactoring below:}
+First, we prove that one of the following holds:
+\begin{itemize}
+\item $\Phi_S \step \failed$ and $\Phi_T \step\failed$
+\item $\Phi_S \step \halted$ and $\Phi_T \step\halted$
+\item All of the following hold:
+  \begin{itemize}
+  \item $\callCond{\Phi_S,r_1,r_2,\aaddr}$
+  \item $\baddr \leq \aaddr \tand \aaddr + \calllen-1 \leq \eaddr$
+  \item $\exec{\Phi_S(\pcreg)}$
+  \item for all $i = 0..\calllen-1$, $\ms_T(\aaddr+i) = \ms_S(\aaddr+i) \in \ints$.
+  \item TODO: other useful info
+  \end{itemize}
+\item All of the following hold: (includes simple cases: gettype, geta, getb, gete, getp, getl, lt, plus, minus, that can be handled uniformly)
+  \begin{itemize}
+  \item $\Phi_S \step \Phi_S'$
+  \item $\Phi_T \step \Phi_T'$
+  \item $\Phi_S' = \updPcAddr{\Phi_S\updReg{r}{z}} \neq \failed$
+  \item $\Phi_T' = \updPcAddr{\Phi_T\updReg{r}{z}} \neq \failed$
+  \item $z \in \ints$
+  \end{itemize}
+\item All of the following hold: (includes cap-manipulation cases: move, cca, restrict, seta2b, cseal, split, splice, that can be handled mostly uniformly)
+  \begin{itemize}
+  \item \item $\Phi_S \step \Phi_S'$
+  \item $\Phi_T \step \Phi_T'$
+  \item $\Phi_S' = \updPcAddr{\Phi_S\updReg{r_1\cdots r_k}{w_1\cdots w_k}}\neq \failed$
+  \item $\Phi_T' = \updPcAddr{\Phi_T\updReg{r_1\cdots r_k}{w_1'\cdots w_k'}} \neq \failed$
+  \item One of the following holds:
+    \begin{itemize}
+    \item (restrict,cca,seta2b) $w_1 = ((\perm,\lin),\baddr,\eaddr,\aaddr)$, $w_2 = ((\perm,\lin),\baddr,\eaddr,\aaddr)$, $\Phi_S(r_1) = ((\perm',\lin),\baddr,\eaddr,\aaddr')$ and $\Phi_T(r_1) = ((\perm',\lin),\baddr,\eaddr,\aaddr')$ and $\perm' \sqsubseteq\perm$,
+      $k = 1$
+      \dominique{TODO: simplify restrict,seta2b to modify in-place}
+    \item (restrict,cca,seta2b) $w_1 = \stkptr{\perm,\baddr,\eaddr,\aaddr}$, $w_2 = ((\perm,\lin),\baddr,\eaddr,\aaddr)$, $\Phi_S(r_1) = \stkptr{\perm',\baddr,\eaddr,\aaddr'}$ and $\Phi_T(r_1) = ((\perm',\lin),\baddr,\eaddr,\aaddr')$ and $\perm' \sqsubseteq\perm$,
+      $k = 1$
+      \dominique{TODO: simplify restrict,seta2b to modify in-place}
+    \item ...
+      \end{itemize}
+  \end{itemize}
+\item Other cases: store, load, jmp, jnz
+\end{itemize}
+
+Now assume that one of the configurations terminates etc.
+
+}
+
 \subsubsection*{Assuming source machine terminates}
 First show the former of the two, assume $\Phi_S\term[i]$.
 Since $\Phi_S \neq \halted$, we have that $1 \leq i \leq n'$.
 
 We know that $\Phi_S(\pcreg) = \Phi_T(\pcreg) = c$, $c=((\rx,\lin),\baddr,\eaddr,\aaddr)$, $\npair{(\baddr,\eaddr)}\in \readCond{\lin,W}$ and $\npair{(\baddr,\eaddr)}\in \xReadCond{\lin,W}$.
-From Lemmas~\ref{lem:readcond-writecond-work}, using $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$ (from assumption~\ref{item:mem-ass}) and $W \oplus W_R \oplus W_M$ is well-defined (assumption~\ref{item:worlds-def}), we get (for any $a' \in [\baddr,\eaddr]$) that $\npair[n']{(\ms_S(a'),\ms_T(a'))} \in \lrv(W')$ for some $W'$ such that $W_M = W' \oplus W_M'$.
+From Lemma~\ref{lem:readcond-writecond-work}, using Lemma~\ref{lem:non-expansive}, $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$ (from assumption~\ref{item:mem-ass}) and $W \oplus W_R \oplus W_M$ is well-defined (assumption~\ref{item:worlds-def}), we get (for any $a' \in [\baddr,\eaddr]$) that $\npair[n'-1]{(\ms_S(a'),\ms_T(a'))} \in \lrv(W')$ for some $W'$ such that $W_M = W' \oplus W_M'$.
 
-Since $\Phi_S \neq \halted$, this means that it must take a next execution step and also that $\Phi_S \not\step\failed$. 
+Since $\Phi_S \neq \halted$ and $\Phi_S\term[i]$, it must take a next execution step and $\Phi_S \not\step\failed$. 
 This is only possible if one of the following holds:
 \begin{itemize}
 \item $\callCond{\Phi_S,r_1,r_2,\aaddr}$ and
@@ -366,22 +426,25 @@ and
 \[
   (\Phi_S(r_2), \vsc_{T,2}) \in H_\sigma \; \sigma \; W_{R,2}.
 \]
-At this point, we need to pick a suitable $W' \future W_{R,1}$. To this end, we need to know a bit about $W_{R,1}$. From the operational semantics and in particular the semantics of $\scall{}{}{}{}$, we know $\Phi_S(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk}$ and by assumption $\Phi_S(\rstk) \in \lrv(W_{R,\stk})$. From this we can conclude that there is a stack region (specifically a spatially owned region) $r$ for which $\pwfree{W_{R,\stk}}(r) \nequal[n'-1] \stdreg{[\baddr_\stk',\eaddr_\stk']}{\spa}$ where $[\baddr_\stk',\eaddr_\stk'] \supseteq [\baddr_\stk,\eaddr_\stk]$\footnote{Actually concluding this involves knowing that $W_{R,\stk}$ is ``well-formed'' which we use the heap satisfaction assumption to conclude. Perhaps a notion of well-formed worlds would be good along with a couple of lemmas that use it to make this reasoning once and for all.}. As $W_{R,\stk} \oplus W_{R,1}$ is well-formed, $\pwfree{W_{R,1}}(r)$ must be a similar spatial region to the one in $W_{R,\stk}$.
+At this point, we need to pick a suitable $W' \future W_{R,1}$. To this end, we need to know a bit about $W_{R,1}$. From the operational semantics and in particular the semantics of $\scall{}{}{}{}$, we know $\Phi_S(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk}$ and by assumption $\npair[n']{(\src{\reg_S(\rstk)},\trg{\reg_T(\rstk)})} \in \lrv(W_{R,\stk})$. From this we can conclude that there is a stack region (specifically a spatially owned region) $r$ for which $\pwfree[W_{R,\stk}](r) \nequal[n'-1] \stdreg{[\baddr_\stk',\eaddr_\stk']}{\spa}$ where $[\baddr_\stk',\eaddr_\stk'] \supseteq [\baddr_\stk,\eaddr_\stk]$\footnote{Actually concluding this involves knowing that $W_{R,\stk}$ is ``well-formed'' which we use the heap satisfaction assumption to conclude. Perhaps a notion of well-formed worlds would be good along with a couple of lemmas that use it to make this reasoning once and for all.}. As $W_{R,\stk} \oplus W_{R,1}$ is well-formed, $\pwfree[W_{R,1}](r)$ must be a similar spatial region to the one in $W_{R,\stk}$.
+\dominique{How do we know $r_1 \neq \rstk$? Exclude in syntax?}
 We pick $W'$ to be
 \[
   \begin{array}{r l}
     W' = W     & \update{\mathrm{free}.r}{\revoked}\\
                & \update{\mathrm{free}.x}{\stdreg{[\baddr_\stk',\aaddr_\stk -1]}{\spa}}\\
                & \update{\mathrm{priv}.y}{(\stdreg{[\aaddr_\stk,\eaddr_\stk]}{\spa},\opc)}\\
-               & \update{\mathrm{free}.z}{\stdreg{[\eaddr_\stk+1,\addr_\stk']}{\spa}}
+               & \update{\mathrm{free}.z}{\stdreg{[\eaddr_\stk+1,\eaddr_\stk']}{\spa}}
   \end{array}
 \]
-\lau{12-05-2018: Write what $\opc$ is.}
-where $x$, $y$, and $z$ are fresh region names in the respective part of the world. To indicate similar worlds to $W'$ with the same ownership as another world well-defined w.r.t. $W$, we write $W'_{R,1}$ with the same spatially owned region as $W_{R,1}$. Using the private part of the future world relation, it is easy to see that $W'$ is a future world of $W_{R,1}$ (by the operational semantics $\baddr_\stk < \aaddr_\stk \leq \eaddr_\stk$, so the new region at $y$ is non-empty). Using world monotonicity of $H_\sigma \; \sigma$\footnote{{\color{red}This means that $H_\sigma$ must be monotone in the world!}}, we get
+\dominique{16-3-2018: shouldn't $W'$ be defined as a modification of $W_{R,1}$ rather than $W$?}
+\lau{12-03-2018: Write what $\opc$ is.}
+where $x$, $y$, and $z$ are fresh region names in the respective part of the world. To indicate similar worlds to $W'$ with the same ownership as another world well-defined w.r.t. $W$, we write $W'_{R,1}$ with the same spatially owned region as $W_{R,1}$. Using the private part of the future world relation, it is easy to see that $W'$ is a future world of $W_{R,1}$ (by the operational semantics $\baddr_\stk < \aaddr_\stk \leq \eaddr_\stk$, so the new region at $y$ is non-empty). Using Lemma~\ref{lem:monotonicity}, we get
 \[
   (\Phi_S(r_2), \vsc_{T,2}) \in H_\sigma \; \sigma \; W'_{R,2}
 \]
 which we use to get:
+\dominique{instantiate $n''$ to something?}
 \[
   \npair[n'']{(\Phi_S(r_1),\Phi_S(r_2),\Phi_T(r_1),\Phi_T(r_2))} \in \lrexj(W_{R,1}' \oplus W_{R,2}')
 \]
