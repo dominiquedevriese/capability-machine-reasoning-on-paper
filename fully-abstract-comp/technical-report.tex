@@ -98,8 +98,8 @@ n &\in & \ints \\
 \trg{\rn} &\defbnf &  \trg{r} \mid n \\
 \trg{i} &\defbnf & \tfail \mid \thalt \mid \tjmp{\trg{r}} \mid \tjnz{\trg{r}}{\trg{\rn}} \mid \tisptr{\trg{r}}{\trg{r}} \mid \tgeta{\trg{r}}{\trg{r}} \mid \tgetb{\trg{r}}{\trg{r}} \mid \\
       & &  \tgete{\trg{r}}{\trg{r}}\mid \tgetp{\trg{r}}{\trg{r}} \mid \tgetlin{\trg{r}}{\trg{r}} \mid \tmove{\trg{r}}{\trg{\rn}} \mid \tstore{\trg{r}}{\trg{r}} \mid\\
-      & &  \tload{\trg{r}}{\trg{r}} \mid \tcca{\trg{r}}{\trg{\rn}} \mid \trestrict{\trg{r}}{\trg{r}}{\trg{\rn}} \mid \tlt{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \\
-  & & \tplus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tminus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tsetatob{\trg{r}}{\trg{r}} \mid \txjmp{\trg{r}}{\trg{r}} \mid \tcseal{\trg{r}}{\trg{r}}{\trg{r}} \mid \\ 
+      & &  \tload{\trg{r}}{\trg{r}} \mid \tcca{\trg{r}}{\trg{\rn}} \mid \trestrict{\trg{r}}{\trg{\rn}} \mid \tlt{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \\
+  & & \tplus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tminus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tsetatob{\trg{r}} \mid \txjmp{\trg{r}}{\trg{r}} \mid \tcseal{\trg{r}}{\trg{r}}{\trg{r}} \mid \\ 
       & &   \tsplit{\trg{r}}{\trg{r}}{\trg{r}}{\trg{\rn}} \mid\tsplice{\trg{r}}{\trg{r}}{\trg{r}} 
 \end{array}
 \]
@@ -410,7 +410,7 @@ This paragraph contains the implementation of $\scall{o}{}{}$. That is each of t
     \tsplit{\rstk}{\rretd}{\rstk}{\rtmp{1}}\\
     \text{// load the seal for the return pointer through the pc capability.}\\
     \tmove{\rtmp{1}}{\pcreg}\\
-    \tsetatob{\rtmp{1}}{\rtmp{1}}\\
+    \tsetatob{\rtmp{1}}\\
     \tload{\rtmp{1}}{\rtmp{1}}\\
     \tcca{\rtmp{1}}{o}\text{ // $o$ is the offset this call uses.}\\
     \text{// seal the used stack frame as the data part of the return pointer pair.}\\
@@ -751,36 +751,33 @@ For the linearity encoding, we make similar assumptions: $\encLin{} : \Linear \f
 \noindent\textbf{restrict}\\
 This instruction uses the $\decPerm{}$ function.
 \begin{align*}
-  \sem{\trestrict{r_1}{r_2}{\rn}}(\Phi) = &
+  \sem{\trestrict{r_1}{\rn}}(\Phi) = &
                                       \begin{cases}
                                         \updPcAddr{}\left(
                                           \arraycolsep=0pt
                                           \begin{array}{rl}
-                                          \Phi&\updReg{r_2}{w_2}\\
-                                              &\updReg{r_1}{c}
+                                          \Phi &\updReg{r_1}{c}
                                           \end{array} \right)
 &
                                         \arraycolsep=0pt
                                         \begin{array}[t]{l}
-                                          \Phi(r_2) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
+                                          \Phi(r_1) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
                                           \Phi(\rn) = n \tand\\
                                           \decPerm{n} \sqsubseteq \perm \tand \\
-                                          c = ((\decPerm{n},\lin),\baddr,\eaddr,\aaddr) \tand \\
-                                          w_2 = \linCons{\Phi(r_2)}
+                                          c = ((\decPerm{n},\lin),\baddr,\eaddr,\aaddr)
                                         \end{array}
                                         \\
                                         \sourcecolor\left.
                                         \updPcAddr{}\left(
                                           \arraycolsep=0pt
                                           \begin{array}{rl}
-                                          \Phi&\updReg{r_2}{0}\\
-                                                    &\updReg{r_1}{c}
+                                          \Phi &\updReg{r_1}{c}
                                           \end{array}\right)\right.
                                         &
                                         \sourcecolor\left.
                                         \arraycolsep=0pt
                                         \begin{array}[t]{l}
-                                          \Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
+                                          \Phi(r_1) = \stkptr{\perm,\baddr,\eaddr,\aaddr} \tand \\
                                           \Phi(\rn) = n \tand\\
                                           \decPerm{n} \sqsubseteq \perm \tand \\
                                           c = \stkptr{\decPerm{n},\baddr,\eaddr,\aaddr}
@@ -841,47 +838,36 @@ This instruction uses the $\decPerm{}$ function.
 
 \noindent\textbf{seta2b}\\
 \begin{align*}
-  \sem{\tsetatob{r_1}{r_2}}(\Phi) = & 
+  \sem{\tsetatob{r_1}}(\Phi) = & 
                                 \begin{cases}
                                   \updPcAddr{}\left(
-                                    \arraycolsep=0pt
-                                    \begin{array}{rl}
-                                    \Phi&\updReg{r_2}{w_2}\\
-                                        &\updReg{r_1}{c}
-                                    \end{array} \right)
+                                    \Phi \updReg{r_1}{c}
+                                    \right)
 &
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
-                                      \Phi(r_2) = ((\perm,\lin),\baddr,\eaddr,\_) \tand \\
-                                      w_2 = \linCons{\Phi(r_2)}\\
+                                      \Phi(r_1) = ((\perm,\lin),\baddr,\eaddr,\_) \tand \\
                                       c = ((\perm,\lin),\baddr,\eaddr,\baddr)
                                     \end{array} \\
                                   \updPcAddr{}\left(
-                                    \arraycolsep=0pt
-                                    \begin{array}{rl}
-                                    \Phi&\updReg{r_2}{w_2}\\
-                                        &\updReg{r_1}{c}
-                                    \end{array} \right)
+                                    \Phi \updReg{r_1}{c}
+                                    \right)
 &
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
-                                      \Phi(r_2) = \seal{\sigma_\baddr,\sigma_\eaddr,\_} \tand \\
-                                      w_2 = \linCons{\Phi(r_2)}\\
+                                      \Phi(r_1) = \seal{\sigma_\baddr,\sigma_\eaddr,\_} \tand \\
                                       c = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr}
                                     \end{array} \\
 \sourcecolor\left.
                                   \updPcAddr{}\left(
-                                    \arraycolsep=0pt
-                                    \begin{array}{rl}
-                                    \Phi&\updReg{r_2}{0}\\
-                                        &\updReg{r_1}{c}
-                                    \end{array} \right)
+                                    \Phi\updReg{r_1}{c}
+                                    \right)
 \right.
 &
 \sourcecolor\left.
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
-                                      \Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\_} \tand \\
+                                      \Phi(r_1) = \stkptr{\perm,\baddr,\eaddr,\_} \tand \\
                                       c = \stkptr{\perm,\baddr,\eaddr,\baddr}
                                     \end{array}\right. \\
                                     \failed & \totherwise
