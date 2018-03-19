@@ -2192,7 +2192,7 @@ We want to make a conditional full-abstraction statement. The condition should e
   % and $\src{\Phi'}$ has reasonable calls in $A$ for $n-i$ step.
 \end{definition}
 
-\begin{definition}[Use linker seals properly]
+\begin{definition}[Use return seals only for call]
   A configuration $\src{\Phi}$ is said to use linker seals properly in $\ta$ for $n$ steps iff\\
   for all $i \leq n$, if
   \[
@@ -2202,19 +2202,33 @@ We want to make a conditional full-abstraction statement. The condition should e
   = ((\perm,\lin),\baddr,\eaddr,\aaddr)$, $\aaddr \in [\baddr,\eaddr]$, $\aaddr
   \in \ta$ and $\Phi.\mem(\aaddr) = \seal{\sigma_b,\sigma_e}$, then
   $\src{\Phi'}$ is inside $\src{\scall{o}{r_1'}{r_2'}}$.
+  \dominique{TODO: this should be allowed to be able to construct closures. Not allowed only for return pointer seals.}
 \end{definition}
 
+\begin{definition}[Never pass trusted seals accross the trusted-untrusted boundary]
+  A configuration $\src{\Phi}$ is said to use linker seals properly in $\ta$ for $n$ steps iff\\
+  for all $i \leq n$, if
+  \[
+    \src{\Phi} \nstep[i] \src{\Phi'} \step \src{\Phi''}
+  \]
+  and $\src{\Phi'}$ is in $\ta$ and $\src{\Phi''}$ is not in $\ta$ and
+  $\src{\Phi}.\reg(r_i) = \seal{\sigma_b,\sigma_e}$ and
+  \dominique{TODO: $\sigma_b,\sigma_e$ contains a seal that was put in $\Phi$ by the linker.}
+\end{definition}
+
+\dominique{19-3-2018: components should contain information about what seals they use and for what (for building return pointers or for building closures). That should facilitate defining reasonable linking (only when seals disjoint), and for defining the condition for full abstraction and the FTLR.}
 \begin{definition}
-  A program $\program$ with memory segment $\ms_\program$ is said to be reasonably compiled if for all $n$ and all contexts $\context$ the configuration $\plug{\context}{\program}$ satisfies:
+  A program $\program$ with memory segment $\ms_\program$ and $\dom(\ms_\program) = \ta$, is reasonable if for all $n$ and all contexts $\context$ the configuration $\plug{\context}{\program}$ satisfies:
   \begin{itemize}
   \item $\plug{\context}{\program}$ has reasonable calls in $\dom(\ms_\program)$ for $n$ steps.
   \item $\plug{\context}{\program}$ uses linker seals properly for $n$ steps.
+  \item $\plug{\context}{\program}$ never passes trusted seals accross the boundary.
   \end{itemize}
 \end{definition}
 
 \begin{theorem}
   \label{thm:full-abstraction}
-  For programs $\program_1$ and $\program_2$ that are reasonably compiled, we have
+  For reasonable programs $\program_1$ and $\program_2$, we have
   \begin{gather*}
     \src{\program_1} \sconeq \src{\program_2}\\
     \Updownarrow\\
