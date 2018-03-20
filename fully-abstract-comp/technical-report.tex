@@ -1749,12 +1749,12 @@ Memory satisfaction for new worlds:
 Two expression relations: one for sealed code-data pairs being jumped to and one for capabilities being jumped to in the regular way.
 The argument for having one relation relate pairs of pairs of capabilties and the other relate pairs of capabilities is that that is how xjump and regular jumps work: xjump takes pairs while regular jumps take single capabilities.
 \begin{align*}
-  \lrexj(W) &= \left\{ \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} \middle| 
+  \lrexjg{\trust}(W) &= \left\{ \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} \middle| 
     \begin{array}{l}
       \forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk} \ldotp\\
       \quad \forall W_\lrrs , W_\lrm \ldotp \\
       \qquad\npair[n']{[\stpair[.]{v_{c,S}}{v_{c,T}},\stpair[.]{v_{d,T}}{v_{d,S}}]} \in \lrp(W) \wedge \\
-      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr (W_\lrrs ) \wedge\\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrrg{\trust} (W_\lrrs ) \wedge\\
       \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \\
       \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)}\\
       \qquad \Phi_S' = \xjumpResult{v_{c,S}}{v_{d,S}}{\Phi_S}\\
@@ -1764,12 +1764,12 @@ The argument for having one relation relate pairs of pairs of capabilties and th
       \qquad\Rightarrow\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro
     \end{array}
     \right\}\\
-  \lre(W) &= \left\{ \npair{\stpair[.]{v_{c,S}}{v_{c,T}}} \middle| 
+  \lreg{\trust}(W) &= \left\{ \npair{\stpair[.]{v_{c,S}}{v_{c,T}}} \middle| 
     \begin{array}{l}
       \forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk} \ldotp\\
       \quad \forall W_\lrrs , W_\lrm \ldotp \\
       \qquad\npair[n']{[\stpair[.]{v_{c,S}}{v_{c,T}}]} \in \lrp(W) \wedge \\
-      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr (W_\lrrs ) \wedge\\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrrg{\trust} (W_\lrrs ) \wedge\\
       \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \\
       \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)}\\
       \qquad \Phi_S' = \Phi_S \updReg{\pcreg}{v_{c,S}}\\
@@ -2198,24 +2198,30 @@ where $H_A$ is defined as follows:
 
 % \dominique{22-1-2018: the below is an alternative proposal to the above definition. It is part of a proposed refactoring to simplify the merge the cases for return pointers and closures in the value relation.}
 % Note: the below FTLR is simpler than the above thanks to the new expression relation relating pairs of caps rather than pairs of pairs of caps. It expresses that any reasonable executable capability is safe to use as the pc capability. 
-\dominique{I'm following the example of the previous FTLR by not allowing $\rwx$, but it's not clear to me why that's the right thing to do.}
 \begin{theorem}[FTLR]
   \label{thm:ftlr}
+  For all $n,W,\lin,\baddr,\eaddr,\aaddr$,
+  If
+  \begin{itemize}
+  \item $\npair{(\baddr,\eaddr)} \in \readCond{\lin,W}$
+  \item $\npair{(\baddr,\eaddr)} \in \xReadCond{\lin,W}$
+  \end{itemize}
+  and one of the following sets of requirements holds:
+  \begin{itemize}
+  \item \begin{itemize}
+    \item $[\baddr,\eaddr] \subseteq \ta$
+    \item the compilation assumptions on $n$, $W$, ...
+    \item the full abstraction conditions (difference with the previous point?)
+    \end{itemize}
+  \item
+    \begin{itemize}
+    \item $[\baddr,\eaddr] \mathrel{\#} \ta$
+    \end{itemize}
+  \end{itemize}
+  Then
   \[
-    \begin{array}{l}
-      \forall n,W,\lin,\baddr,\eaddr,\aaddr \ldotp \\
-      \quad \left(
-      \begin{array}{l}
-        \npair{(\baddr,\eaddr)} \in \readCond{\lin,W} \wedge \\
-        \npair{(\baddr,\eaddr)} \in \xReadCond{\lin,W} \wedge \\
-        \text{the compilation assumptions on $n$, $W$, ...}
-      \end{array}
-      \right)\\
-      \quad\Rightarrow 
-      \npair{\arraycolsep=0pt\array{l}((\rx,\lin),\baddr,\eaddr,\aaddr),\\
-                      ((\rx,\lin),\baddr,\eaddr,\aaddr)\endarray} \in \lre(W)
-
-    \end{array}
+    \npair{\arraycolsep=0pt\array{l}((\rx,\lin),\baddr,\eaddr,\aaddr),\\
+      ((\rx,\lin),\baddr,\eaddr,\aaddr)\endarray} \in \lre(W)
   \]
   \dominique{6-3-2018: I added $\xReadCond{\lin,W}$ since we are assuming there are no rwx pointers anywhere.}
   \begin{definition}[The compilation assumptions]
