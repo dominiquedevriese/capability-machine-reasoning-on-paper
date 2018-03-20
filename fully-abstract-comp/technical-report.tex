@@ -36,7 +36,8 @@
     &\sealendbnf & \in & \Seal \uplus \{\infty \} \\
     \scbnf \in &\SealableCaps&\defbnf & ((\permbnf,\linbnf),\basebnf,\aendbnf,\addrbnf) \mid \seal{\sealbasebnf,\sealendbnf,\sigma}\\
     & & & {\sourcecolor{} \mid \stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}}\\ 
-    \cbnf \in&\Caps& \defbnf &  \scbnf \mid \sealed{\sigma,\scbnf}{\sourcecolor{} \; \mid \retptrd(\sigma,(\basebnf,\aendbnf)) \mid \retptrc(\sigma,(\permbnf,\linbnf,\basebnf,\aendbnf,\addrbnf))}\\ 
+    & & & {\sourcecolor{} \; \mid \retptrd(\basebnf,\aendbnf) \mid \retptrc(\permbnf,\linbnf,\basebnf,\aendbnf,\addrbnf)}\\
+    \cbnf \in&\Caps& \defbnf &  \scbnf \mid \sealed{\sigma,\scbnf}\\ 
     &\rbnf & \defbnf &\pcreg \mid \rretd \mid \rretc \mid \rstk \mid \rdata \mid \rtmp{1} \mid \rtmp{2} \mid \dots \\
     &\Reg & \defeq & \RegName \fun \Word\\
     &\Mem & \defeq & \Addr \fun \Word \\
@@ -194,8 +195,8 @@ Target language:
     \baddr & \text{if $\vsc = ((\_,\_),\baddr,\_,\_)$} \\ 
     \pi_\baddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
     \src{\baddr} & \src{\text{if $\vsc = \stkptr{\_,\baddr,\_,\_}$}} \\ 
-    \src{\baddr} & \src{\text{if $\vsc = \retptrd(\_,(\baddr,\_))$}} \\ 
-    \src{\baddr} & \src{\text{if $\vsc = \retptrc(\_,(\_,\_,\baddr,\_,\_))$}}
+    \src{\baddr} & \src{\text{if $\vsc = \retptrd(\baddr,\_)$}} \\ 
+    \src{\baddr} & \src{\text{if $\vsc = \retptrc(\_,\_,\baddr,\_,\_)$}}
   \end{cases}
 \]
 \[
@@ -204,8 +205,8 @@ Target language:
     \eaddr & \text{if $\vsc = ((\_,\_),\_,\eaddr,\_)$} \\ 
     \pi_\eaddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
     \src{\eaddr} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
-    \src{\eaddr} & \src{\text{if $\vsc = \retptrd(\_,(\_,\eaddr))$}} \\ 
-    \src{\eaddr} & \src{\text{if $\vsc = \retptrc(\_,(\_,\_,\_,\eaddr,\_))$}}
+    \src{\eaddr} & \src{\text{if $\vsc = \retptrd(\_,\eaddr)$}} \\ 
+    \src{\eaddr} & \src{\text{if $\vsc = \retptrc(\_,\_,\_,\eaddr,\_)$}}
   \end{cases}
 \]
 
@@ -215,8 +216,8 @@ Target language:
     \lin & \text{if $\vsc = ((\_,\_),\_,\eaddr,\_)$} \\ 
     \pi_\lin(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
     \src{\linear} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
-    \src{\linear} & \src{\text{if $\vsc = \retptrd(\_,(\_,\_))$}} \\ 
-    \src{\lin} & \src{\text{if $\vsc = \retptrc(\_,(\_,\lin,\_,\_,\_))$}}
+    \src{\linear} & \src{\text{if $\vsc = \retptrd(\_,\_)$}} \\ 
+    \src{\lin} & \src{\text{if $\vsc = \retptrc(\_,\lin,\_,\_,\_)$}}
   \end{cases}
 \]
 
@@ -522,7 +523,7 @@ In the definitions of the semantics below, we use a function $\encType{} : \Word
 \]
  and 
 \[
-\encType{}_{\var{src}}(\src{\retptrd(\_,(\_,\_))}) = \encType{}_{\var{src}}(\src{\retptrc(\_,(\_,\_,\_,\_,\_))}) = \encType{}_{\var{trg}}(\sealed{\_,\_})
+\encType{}_{\var{src}}(\src{\retptrd(\_,\_)}) = \encType{}_{\var{src}}(\src{\retptrc(\_,\_,\_,\_,\_)}) = \encType{}_{\var{trg}}(((\_,\_),\_,\_,\_))
 \]
 \end{itemize}
 In English this means that each type of word is represented by a distinct value and that the tokens on the source machine has the type of the capability they represent on the target machine.
@@ -931,8 +932,9 @@ This instruction uses the $\decPerm{}$ function.
                                        \Phi''
                                      &
                                      \begin{array}[t]{l}
-                                       \Phi(r_1) = c_1 \tand
-                                       \Phi(r_2) = c_2 \tand\\
+                                       \Phi(r_1) = \sealed{\sigma_1,c_1} \tand
+                                       \Phi(r_2) = \sealed{\sigma_2,c_2} \tand\\
+                                       \sigma_1 = \sigma_2 \tand \\
                                        w_1 = \linCons{c_1} \tand \\
                                        w_2 = \linCons{c_2} \tand \\
                                        \Phi' = \Phi \updReg{r_1}{w_1} \updReg{r_2}{w_2} \tand\\
@@ -946,13 +948,12 @@ This instruction uses the $\decPerm{}$ function.
   \begin{cases}
     \arraycolsep=0pt
     \begin{array}[t]{rl}
-      \Phi & \updReg{\pcreg}{c_\code}\\
-           & \updReg{\rdata}{c_\data}
+      \Phi & \updReg{\pcreg}{c_1}\\
+           & \updReg{\rdata}{c_2}
     \end{array} &
     \begin{array}[t]{l}
-      c_1 = \sealed{\sigma_1,c_\code} \tand \\
-      c_2 = \sealed{\sigma_2,c_\data} \tand \\
-      \sigma_1 = \sigma_2 \tand \\
+      c_1 \neq \retptrc(\_) \tand \\
+      c_2 \neq \retptrd(\_) \tand \\
       \nonExec{c_\data}
     \end{array}
     \\&\\
@@ -968,9 +969,8 @@ This instruction uses the $\decPerm{}$ function.
       \end{array}\right.&
     \sourcecolor\left.
       \begin{array}[t]{l}
-        c_1 = \retptrc(\sigma_1,\_) \tand \\
-        c_2 = \retptrd(\sigma_2,(\aaddr_\stk,\eaddr_{\stk,\priv})) \tand \\
-        \sigma_1 = \sigma_2 \tand\\
+        c_1 = \retptrc(\_) \tand \\
+        c_2 = \retptrd(\aaddr_\stk,\eaddr_{\stk,\priv}) \tand \\
         \Phi(\rstk) = \stkptr{\rw,\stkb,\eaddr_\stk,\_} \tand \\ 
         \Phi = (\mem,\reg,\stkf::\stk,\ms_\stk) \tand \\
         \stkf = (\opc,\ms_{\stk,\priv}) \tand \\
@@ -1151,10 +1151,10 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                                         &\left[
 \arraycolsep=0pt\array{l}
 \reg.\rretc \mapsto \\
-\hfill \retptrc(\sigma_?,(\perm,\lin,\baddr,\eaddr,\aaddr+\calllen))
+\hfill \sealed{\sigma_?,\retptrc(\perm,\lin,\baddr,\eaddr,\aaddr+\calllen)}
 \endarray
 \right]\\
-                                                        &\updReg{\rretd}{\retptrd(\sigma_?,(\aaddr_\stk,\eaddr_\stk))}\\
+                                                        &\updReg{\rretd}{\sealed{\sigma_?,\retptrd(\aaddr_\stk,\eaddr_\stk)}}\\
                                                         &\updReg{\rtmp{1}}{0}
                                                  \end{array}
                                                  & 
@@ -1259,7 +1259,7 @@ The \emph{persistent data storage} is expected to be accessible through a normal
   \item $w = ((\perm,\_),\_,\_,\_) \tand \perm \neq \rwx$
   \item $\sealed{\_,\vsc}$ and $\vsc$ respects write-xor-execute
   \item $\src{\stkptr{\perm} \tand \perm \neq \rwx}$
-  \item $\src{w = \retptrc(\_,\_)}$
+  \item $\src{w = \retptrc(\_)}$
   \item $\src{w = \retptrd(\_,\_)}$
   \end{itemize}
 ~\\
@@ -1914,14 +1914,16 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
   \begin{array}[t]{l}
     \left\{ \npair{\stpair[.]{i}{i}} \;\middle|\; i \in \ints \right\}\cup \\
 %
-    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{c_S},\\ \sealed{\sigma,\vsc_T} \endarray\right)} \;\middle| \;
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\sealed{\sigma,\vsc_S}},\\ \sealed{\sigma,\vsc_T} \endarray\right)} \;\middle| \;
     \begin{array}{l}
-      \npair{(\src{c_S},\sealed{\sigma,\vsc_T})} \in \lrp(W) \wedge \\
+      \npair{(\src{\vsc_S},\vsc_T)} \in \lrp(W) \wedge \\
       \exists r \in \dom(\pwheap)\ldotp \pwheap(r) = (\pure,s,\_,\_,\_,H_\sigma) \tand \\
-      \stpair[.]{c_S}{\vsc_T} \in H_\sigma \; s \; \sigma \; W\wedge \\
-      \forall W' \future W, W_o, n' < n, \stpair[.]{c_S'}{\vsc'_T} \in H_\sigma \; s \; \sigma \; W_o \ldotp \\
-      \quad \npair[n']{\src{c_S},\src{c_S'},\sealed{\sigma,\vsc_T},\sealed{\sigma,\vsc_T'}} \in \lrexj(W'\oplus W_o) \wedge \\
-      \quad \npair[n']{\src{c_S'},\src{c_S},\sealed{\sigma,\vsc_T'},\sealed{\sigma,\vsc_T}} \in \lrexj(W' \oplus W_o)
+      \quad \stpair[.]{\vsc_S}{\vsc_T} \in H_\sigma \; s \; \sigma \; W\wedge \\
+      \quad \forall W' \future W, W_o, n' < n, \stpair[.]{\vsc_S'}{\vsc'_T} \in H_\sigma \; s \; \sigma \; W_o \ldotp \\
+      \qquad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o) 
+      % This case was never used (?) so it is not necessary.
+      % \wedge \\
+      % \quad \npair[n']{\src{\vsc_S'},\src{\vsc_S},\vsc_T',\vsc_T} \in \lrexj(W' \oplus W_o)
     \end{array}
     \right\}\cup\\
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma,\sigma_\baddr,\sigma_\eaddr}},\\ \seal{\sigma,\sigma_\baddr,\sigma_\eaddr} \endarray \right)} 
@@ -2129,7 +2131,7 @@ where $H_A$ is defined as follows:
   \begin{array}[t]{l}
 \left\{
     \begin{array}{l}
-\left. \npair{\arraycolsep=0pt\left(\array{l}\retptrc(\sigma,((\rx,\lin),\baddr,\eaddr,\aaddr'+\calllen - 1)),\\((\rx,\lin),\baddr,\eaddr,\aaddr)\endarray\right)} \middle| \right. \\
+\left. \npair{\arraycolsep=0pt\left(\array{l}\sealed{\sigma,\retptrc(\rx,\lin,\baddr,\eaddr,\aaddr'+\calllen - 1)},\\((\rx,\lin),\baddr,\eaddr,\aaddr)\endarray\right)} \middle| \right. \\
       \\
       \begin{array}{l}
         \decInstr{\code([a',a' + \calllen]-1)} = \overline{\scall{o}{r_1}{r_2}} \tand \\
@@ -2142,7 +2144,7 @@ where $H_A$ is defined as follows:
       \right\} \uplus \\
 \left\{
     \begin{array}{l}
-\left. \npair{\arraycolsep=0pt\left(\array{l}\retptrd(\sigma,(\baddr,\eaddr)),\\((\rx,\linear),\baddr,\eaddr,\aaddr)\endarray\right)} \middle| \right. \\
+\left. \npair{\arraycolsep=0pt\left(\array{l}\sealed{\sigma,\retptrd(\baddr,\eaddr)},\\((\rx,\linear),\baddr,\eaddr,\aaddr)\endarray\right)} \middle| \right. \\
       \\
       \begin{array}{l}
         \exists r \in \dom(\pwpriv[\xi(\hat{W})]) \ldotp \pwpriv[\xi(\hat{W})](r) \nequal (\stareg[(\ms,\ms)]{\spa}, ((\rx,\lin),\baddr',\eaddr',\aaddr')) \tand \\
@@ -2454,9 +2456,9 @@ To remedy this, we decided to modify our source language to use a different way 
 This alternative approach stays even closer to the target language.
 The problem is not actually that we shouldn't offer push/pop and call/return instructions, but rather that our language should also offer an equivalent for the more low-level interactions with the stack that are possible in the target language.
 As such, we introduce special token values that play the role of the stack pointer/return pointer and we allow all interactions with them that are possible using instructions like \sstore{}{}, \smove{}{} etc.
-Specifically, as shown in \cref{sec:domains}, there are new token capabilities $\stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}$, $\retptrd$ and $\retptrc$ which represent a copy of the stack pointer, and the code and data parts of the sealed return closure.
+Specifically, as shown in \cref{sec:domains}, there are new token capabilities $\stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}$, $\retptrd$ and $\retptrc$ which represent a copy of the stack pointer, and the sealed part of a code and data return closure.
 Rather than invoking \spush{} or \spop{}, one can store into the $\stkptr{}$ and modify its current address and as we can see in \cref{sec:syntax}, this has the semantic effect that one would expect.
-Similarly, rather than invoking \sreturn{}, one would ccall the $\retptrd$ and $\retptrc$ sealed code/data pair.
+Similarly, rather than invoking \sreturn{}, one would ccall \lau{now xjmp?} the $\retptrd$ and $\retptrc$ sealed code/data pair.
 
 We do not offer primitive \sreturn{}, \spush{} and \spop{} instructions, even though there is nothing keeping us from doing that, either as an additional primitive instruction or as a macro on top of the primitive token values mentioned above.
 We do offer a primitive \scall{o}{}{} instruction, and it offers the only way to create a new stack frame.
