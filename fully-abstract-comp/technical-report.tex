@@ -100,7 +100,7 @@ n &\in & \ints \\
 \trg{i} &\defbnf & \tfail \mid \thalt \mid \tjmp{\trg{r}} \mid \tjnz{\trg{r}}{\trg{\rn}} \mid \tisptr{\trg{r}}{\trg{r}} \mid \tgeta{\trg{r}}{\trg{r}} \mid \tgetb{\trg{r}}{\trg{r}} \mid \\
       & &  \tgete{\trg{r}}{\trg{r}}\mid \tgetp{\trg{r}}{\trg{r}} \mid \tgetlin{\trg{r}}{\trg{r}} \mid \tmove{\trg{r}}{\trg{\rn}} \mid \tstore{\trg{r}}{\trg{r}} \mid\\
       & &  \tload{\trg{r}}{\trg{r}} \mid \tcca{\trg{r}}{\trg{\rn}} \mid \trestrict{\trg{r}}{\trg{\rn}} \mid \tlt{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \\
-  & & \tplus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tminus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tsetatob{\trg{r}} \mid \txjmp{\trg{r}}{\trg{r}} \mid \tcseal{\trg{r}}{\trg{r}}{\trg{r}} \mid \\ 
+  & & \tplus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tminus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tsetatob{\trg{r}} \mid \txjmp{\trg{r}}{\trg{r}} \mid \tcseal{\trg{r}}{\trg{r}} \mid \\ 
       & &   \tsplit{\trg{r}}{\trg{r}}{\trg{r}}{\trg{\rn}} \mid\tsplice{\trg{r}}{\trg{r}}{\trg{r}} 
 \end{array}
 \]
@@ -415,11 +415,11 @@ This paragraph contains the implementation of $\scall{o}{}{}$. That is each of t
     \tload{\rtmp{1}}{\rtmp{1}}\\
     \tcca{\rtmp{1}}{o}\text{ // $o$ is the offset this call uses.}\\
     \text{// seal the used stack frame as the data part of the return pointer pair.}\\
-    \tcseal{\rretd}{\rretd}{\rtmp{1}}\\
+    \tcseal{\rretd}{\rtmp{1}}\\
     \text{// obtain the code part of the return pointer pair and seal it too.}\\
     \tmove{\rretc}{\pcreg}\\
     \tcca{\rretc}{5} \text{ //magic number is offset to return code}\\
-    \tcseal{\rretc}{\rretc}{\rtmp{1}}\\
+    \tcseal{\rretc}{\rtmp{1}}\\
     \text{// now clear temporary register and jump to the adversary.}\\
     \tmove{\rtmp{1}}{0}\\
     \txjmp{r_1}{r_2}\\
@@ -986,23 +986,20 @@ This instruction uses the $\decPerm{}$ function.
 
 \noindent\textbf{cseal}\\
 \begin{align*}
-  \sem{\tcseal{r_1}{r_2}{r_3}}(\Phi) = &
+  \sem{\tcseal{r_1}{r_2}}(\Phi) = &
                                   \begin{cases}
                                     \updPcAddr{}\left(
                                     \arraycolsep=0pt
                                     \begin{array}{rl}
-                                      \Phi&\updReg{r_2}{w_2}\\
-                                          &\updReg{r_1}{\vsc}
+                                      \Phi&\updReg{r_1}{\vsc}
                                     \end{array}\right)
 &
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
-                                      \Phi(r_2) \in \SealableCaps \tand \\
-                                      \Phi(r_3) = \seal{\sigma_\baddr, \sigma_\eaddr,\sigma} \tand \\
-                                      \withinBounds{\Phi(r_3)} \tand \\
+                                      \Phi(r_1) \in \SealableCaps \tand \\
+                                      \Phi(r_2) = \seal{\sigma_\baddr, \sigma_\eaddr,\sigma} \tand \\
                                       \vsc = \sealed{\sigma,\Phi(r_2)} \tand\\
-                                      w_2 = \linCons{\Phi(r_2)}                                     
-                                    \end{array}
+                                      w_2 = \linCons{\Phi(r_2)}                                                           \end{array}
                                     \\
                                     \failed & \totherwise
                                   \end{cases}
@@ -2337,12 +2334,10 @@ We want to make a conditional full-abstraction statement. The condition should e
   \[
     \src{\Phi} \nstep[i] \src{\Phi'}
   \]
-  and $\src{\Phi'}$ points to $\src{\tload{r_1}{r_2}}$ in $\ta$ and $\Phi'(r_2)
-  = ((\perm,\lin),\baddr,\eaddr,\aaddr)$, $\aaddr \in [\baddr,\eaddr]$, $\aaddr
-  \in \ta$ and $\Phi.\mem(\aaddr) = \seal{\sigma_b,\sigma_e}$, then
-  $\src{\Phi'}$ is inside $\src{\scall{o}{r_1'}{r_2'}}$.
-  \dominique{TODO: this should be allowed to be able to construct closures. Not allowed only for return pointer seals.}
+  and $\src{\Phi'}$ points to $\src{\tcseal{r_1}{r_2}}$ in $\ta$ and $\Phi'(r_1) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$, then either $\src{\Phi'}$ is inside $\src{\scall{o}{r_1'}{r_2'}}$ and $\sigma_\baddr \leq \sigma \leq \sigma_\baddr + \nrcalls$ or $\sigma_\baddr + \nrcalls < \sigma \leq \sigma_\baddr + \nrcalls + \nrclosures+1$.
 \end{definition}
+
+
 
 \begin{definition}[Never pass trusted seals accross the trusted-untrusted boundary]
   A configuration $\src{\Phi}$ is said to use linker seals properly in $\ta$ for $n$ steps iff\\
