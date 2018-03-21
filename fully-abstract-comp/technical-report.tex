@@ -2325,33 +2325,75 @@ We want to make a conditional full-abstraction statement. The condition should e
   \[
     \src{\Phi'}(\src{r_\stk}) = \src{\stkptr{\_,\stkb,\_,\_}}
   \]
+  and
+  \[
+    r_1' \neq \rtmp{1}
+  \]
   % and $\src{\Phi'}$ has reasonable calls in $A$ for $n-i$ step.
 \end{definition}
 
 \begin{definition}[Use return seals only for call]
-  A configuration $\src{\Phi}$ is said to use linker seals properly in $\ta$ for $n$ steps iff\\
+  A configuration $\src{\Phi}$ is said to use linker seals properly in $\ta$ with component parameters $\compbaseseal$, $\nrcalls$, and $\nrclosures$ for $n$ steps iff\\
   for all $i \leq n$, if
   \[
     \src{\Phi} \nstep[i] \src{\Phi'}
   \]
-  and $\src{\Phi'}$ points to $\src{\tcseal{r_1}{r_2}}$ in $\ta$ and $\Phi'(r_1) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$, then either $\src{\Phi'}$ is inside $\src{\scall{o}{r_1'}{r_2'}}$ and $\sigma_\baddr \leq \sigma < \sigma_\baddr + \nrcalls$ or $\sigma_\baddr + \nrcalls \leq \sigma < \sigma_\baddr + \nrcalls + \nrclosures$.
+  and $\src{\Phi'}$ points to $\src{\tcseal{r_1}{r_2}}$ in $\ta$ and $\Phi'(r_1) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$, then either $\src{\Phi'}$ is inside $\src{\scall{o}{r_1'}{r_2'}}$ and $\compbaseseal \leq \sigma < \compbaseseal + \nrcalls$ or $\compbaseseal + \nrcalls \leq \sigma < \compbaseseal + \nrcalls + \nrclosures$.
 \end{definition}
 
-
-
 \begin{definition}[Never pass trusted seals accross the trusted-untrusted boundary]
-  A configuration $\src{\Phi}$ is said to use linker seals properly in $\ta$ for $n$ steps iff\\
+  A configuration $\src{\Phi}$ is said to use linker seals properly in $\ta$ with component parameters $\compbaseseal$, $\nrcalls$, and $\nrclosures$ for $n$ steps iff\\
   for all $i \leq n$, if
   \[
     \src{\Phi} \nstep[i] \src{\Phi'} \step \src{\Phi''}
   \]
-  and $\src{\Phi'}$ is in $\ta$ and $\src{\Phi''}$ is not in $\ta$ and
-  $\src{\Phi}.\reg(r_i) = \seal{\sigma_b,\sigma_e}$ and
-  \dominique{TODO: $\sigma_b,\sigma_e$ contains a seal that was put in $\Phi$ by the linker.}
-  \dominique{TODO: Also not allowed: passing a capability to a code area that points (a.o.) to a memory location containing a seal like the one above.}
-  \dominique{TODO: Also not allowed: storing a seal or a code capability in memory.}
-  \dominique{TODO: Also not allowed: sealing such a value with a seal that you do not own.}
+  and $\src{\Phi'}$ is in $\ta$ and $\src{\Phi''}$ is not in $\ta$ and, then for all $r \in \RegName$
+  %\dominique{TODO: $\sigma_b,\sigma_e$ contains a seal that was put in $\Phi$ by the linker.}
+  \[
+    \src{\Phi}.\reg(r) = \seal{\sigma_b,\sigma_e,\_} \Rightarrow [\compbaseseal,\compbaseseal + \nrcalls + \nrclosures - 1] \# [\sigma_b,\sigma_e]
+  \]
+and
+%  \dominique{TODO: Also not allowed: passing a capability to a code area that points (a.o.) to a memory location containing a seal like the one above.}
+  \[
+    \src{\Phi}.\reg(r) = ((\perm,\_),\baddr,\eaddr,\_) \wedge \perm \sqsubseteq \rx \Rightarrow [\baddr,\eaddr] \# \ta
+  \]
+  and
+    \begin{multline*}
+      \src{\Phi}.\reg(r) = \sealed{\sigma,\vsc} \wedge \sigma \not\in [\compbaseseal,\compbaseseal + \nrcalls + \nrclosures - 1] \Rightarrow 
+      \\  \left(  
+      \begin{array}{r l}
+        (\vsc = \seal{\sigma_b,\sigma_e,\_} & \Rightarrow [\compbaseseal,\compbaseseal + \nrcalls + \nrclosures - 1] \# [\sigma_b,\sigma_e]) \wedge\\
+        ( \vsc = ((\perm,\_),\baddr,\eaddr,\_) \wedge \perm \sqsubseteq \rx & \Rightarrow [\baddr,\eaddr] \# \ta )
+      \end{array}
+      \right)
+  \end{multline*}
 \end{definition}
+
+%  \dominique{TODO: Also not allowed: storing a seal or a code capability in memory.}a
+\begin{definition}[Never store link seals and code capability]
+  A configuration $\src{\Phi}$ is said to not store seals and code capability in $\ta$ with component parameters $\compbaseseal$, $\nrcalls$, and $\nrclosures$ for $n$ steps iff\\
+  for all $i \leq n$, if
+  \[
+    \src{\Phi} \nstep[i] \src{\Phi'}
+  \]
+  and $\src{\Phi'}$ points to $\src{\tload{r_1}{r_2}}$ in $\ta$, then 
+\[
+  \Phi'(r_2) = \seal(\sigma_\baddr,\sigma_\eaddr,\_) \Rightarrow [\compbaseseal, \compbaseseal + \nrcalls  + \nrclosures - 1] \# [\sigma_\baddr,\sigma_\eaddr]
+\]
+and
+\[
+  \Phi'(r_2) = ((\perm,\_),\baddr,\eaddr,) \wedge \perm \sqsubseteq \rx \Rightarrow [\baddr,\eaddr] \# \ta
+\]
+\end{definition}
+
+
+%   \dominique{TODO: Also not allowed: sealing such a value with a seal that you do not own.}
+%   \lau{is this covered by definition 14 (Use return seals only for call)? }
+% \begin{definition}[Never seal link seals and code capabilities with unknown seal]  
+% \end{definition}
+
+
+
 
 \dominique{19-3-2018: components should contain information about what seals they use and for what (for building return pointers or for building closures). That should facilitate defining reasonable linking (only when seals disjoint), and for defining the condition for full abstraction and the FTLR.}
 \begin{definition}
