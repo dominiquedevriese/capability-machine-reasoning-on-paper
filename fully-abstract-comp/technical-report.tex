@@ -1267,41 +1267,42 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
   \and
   \inference{
   }{
-    A_{\mathrm{code}},A_{\mathrm{data}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} z
+    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} z
   }
   \and
   \inference{
     c \in \overline{c_{\mathrm{import}}}
   }{
-    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} c
+    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} c
   }
   \and
   \inference{
     [\baddr,\eaddr] \subseteq A_{\mathrm{code}} & \perm \sqsubseteq \rx
   }{
-    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} ((\perm,\normal),\baddr,\eaddr,\aaddr)
+    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} ((\perm,\normal),\baddr,\eaddr,\aaddr)
   }
   \and
   \inference{
-    [\baddr,\eaddr] \subseteq A_{\mathrm{data}} & \permbnf \sqsubseteq \rw&
-    \lin = \linear \Rightarrow \emptyset \subset [\baddr,\eaddr] \subseteq A_{\mathrm{own}}
+    \permbnf \sqsubseteq \rw&
+    \lin = \linear \Rightarrow \emptyset \subset [\baddr,\eaddr] \subseteq A_{\mathrm{own}} &
+    \lin = \linear \Rightarrow [\baddr,\eaddr] \subseteq A_{\mathrm{non-linear}}
   }{
-    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} ((\perm,\lin),\baddr,\eaddr,\aaddr)
+    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} ((\perm,\lin),\baddr,\eaddr,\aaddr)
   }
   \and
   \inference{
-    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \vsc \\
+    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \vsc \\
     \sigma \in \sigcloss
   }{
-    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \sealed{\sigma,\vsc}
+    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \sealed{\sigma,\vsc}
   }
   \and
   \inference{
     \dom(\mscode) \mathrel{\#} \dom(\msdata)\\
     \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode \\
-    \exists A_\mathrm{own} : \dom(\msdata) \rightarrow \powerset{\dom(\msdata)} & \dom(\msdata) = \biguplus_{a \in \dom(\msdata)} A_{\mathrm{own}}(a) \\
-    \forall a \in \dom(\msdata)\ldotp \dom(\mscode),\dom(\msdata),A_{\mathrm{own}}(a),\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \msdata(a)\\
-    \overline{\dom(\mscode), \dom(\msdata), \emptyset, \overline{c_{\mathrm{import}}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-value}} c_{\mathrm{export}}}\\
+    \exists A_\mathrm{own} : \dom(\msdata) \rightarrow \powerset{\dom(\msdata)} & \dom(\msdata) = A_{\mathrm{non-linear}} \uplus \biguplus_{a \in \dom(\msdata)} A_{\mathrm{own}}(a) \\
+    \forall a \in \dom(\msdata)\ldotp \dom(\mscode),\dom(\msdata),A_{\mathrm{own}}(a),A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \msdata(a)\\
+    \overline{\dom(\mscode), \dom(\msdata), \emptyset, A_{\mathrm{non-linear}}, \overline{c_{\mathrm{import}}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-value}} c_{\mathrm{export}}}\\
   }{
     \vdash (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss)
   }
@@ -1330,7 +1331,7 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
 \label{sec:programs}
 
 \begin{definition}[Programs and Contexts]
-  We define a program as a $(\var{comp}, c_{\mathrm{main},c}, c_{\mathrm{main},d})$ component with an empty import list and $c_{\mathrm{main},c}$ and $c_{\mathrm{main},d}$ are two of the exported symbols.
+  We define a program $(\var{comp}, c_{\mathrm{main},c}, c_{\mathrm{main},d})$ as a component with an empty import list and $c_{\mathrm{main},c}$ and $c_{\mathrm{main},d}$ are two of the exported symbols.
 
   Given a component $\var{comp}$, a context is a tuple $(\var{comp'}, c_{\mathrm{main},c}, c_{\mathrm{main},d})$ such that $\var{comp'}$ is a component and $(\var{comp} \bowtie \var{comp'}, c_{\mathrm{main},c}, c_{\mathrm{main},d})$ is a program.
 \end{definition}
@@ -1338,11 +1339,11 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
 \begin{definition}[Initial execution configuration]
   \begin{mathpar}
     \inference{
-      \reg(\pc) = c_{\mathrm{main},c} & 
+      \reg(\pcreg) = c_{\mathrm{main},c} & 
       \reg(\rdata) = c_{\mathrm{main},d} \\
       \src{\reg(\rstk) = \stkptr{\rx,\baddr_\stk,\eaddr_\stk,\eaddr_\stk}} & 
       \trg{\reg(\rstk) = ((\rx,\linear),\baddr_\stk,\eaddr_\stk,\eaddr_\stk)} \\
-      \reg(\RegName \setminus \{\pc,\rdata,\rstk\}) = 0\\
+      \reg(\RegName \setminus \{\pcreg,\rdata,\rstk\}) = 0\\
       \range{\ms_\stk} = \{0\}&
       \mem = \mscode \uplus \msdata \trg{\;\uplus\; \ms_\stk} \\
       [\baddr_\stk,\eaddr_\stk] = \dom(\ms_\stk ) \mathrel{\#} (\dom(\mscode) \cup \dom(\msdata)) &
