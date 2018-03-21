@@ -2297,9 +2297,9 @@ where $H_A$ is defined as follows:
 \section{Full Abstraction}
 \begin{definition}
   \label{def:points-to-instr}
-  A configuration $(\ms,\reg)$ {\sourcecolor or $(\ms,\reg,\_,\_)$} is said to point instruction $i$ in $A$ iff
+  A configuration $(\ms,\reg)$ {\sourcecolor or $\Phi = (\ms,\reg,\_,\_)$} is said to point to non-$\scall{}{}{}$ instruction $i$ in $A$ iff
   \[
-    \reg(\pcreg) = ((\_,\_),\_,\_,\aaddr) \tand \aaddr \in A
+    \reg(\pcreg) = ((\_,\_),\_,\eaddr,\aaddr) \tand \aaddr \in A
   \]
 and
 \[
@@ -2307,15 +2307,30 @@ and
 \]
 \end{definition}
 
-We want to make a conditional full-abstraction statement. The condition should express two things (1) the compilation so far has been reasonable, so we do not have to setup protection against things any reasonable compiler wouldn't do. (2) the compilation so far has taken care of certain checks that we do not have information to place correctly at this point of the compilation
+\begin{definition}
+  \label{def:points-to-call}
+  A configuration {\sourcecolor $\Phi = (\ms,\reg,\_,\_)$} is said to point to instruction $\scall{o}{r_1}{r_2}$ in $A$ iff
+  \[
+    \reg(\pcreg) = ((\_,\_),\_,\eaddr,\aaddr) \tand [\aaddr,\aaddr+\calllen-1] \subseteq A
+  \]
+and
+\[
+  \aaddr+\calllen - 1 \leq \eaddr
+\]
+and
+\[
+  \callCond{\Phi,r_1,r_2,\aaddr}
+\]
+\end{definition}
+We want to make a conditional full-abstraction statement. The condition should express two things (1) the compilation so far has been reasonable, so we do not have to setup protection against things any reasonable compiler wouldn't do. (2) the compilation so far has taken care of certain checks that we do not have information to place correctly at this point of the compilation.
 \begin{definition}
   \label{def:check-stack-addr-before-call}
-  A configuration $\src{\Phi}$ is said to have reasonable calls in $\ta$ for $n$ steps iff\\
+  A configuration $\src{\Phi}$ is said to check $\stkb$ before calls in $\ta$ for $n$ steps iff\\
   for all $i \leq n$ if
   \[
     \src{\Phi} \nstep[i] \src{\Phi'}
   \]
-  and $\src{\Phi'}$ points to $\src{\scall{o}{r_1}{r_2}}$ in $A$ for some $\src{r_1}$ and $\src{r_2}$
+  and $\src{\Phi'}$ points to $\src{\scall{o}{r_1}{r_2}}$ in $\ta$ for some $\src{r_1}$ and $\src{r_2}$
   % and there exists no $j<i$ s.t.
   % \[
   %   \src{\Phi} \nstep[j] \src{\Phi''}
@@ -2386,14 +2401,10 @@ and
 \]
 \end{definition}
 
-
 %   \dominique{TODO: Also not allowed: sealing such a value with a seal that you do not own.}
 %   \lau{is this covered by definition 14 (Use return seals only for call)? }
 % \begin{definition}[Never seal link seals and code capabilities with unknown seal]  
 % \end{definition}
-
-
-
 
 \dominique{19-3-2018: components should contain information about what seals they use and for what (for building return pointers or for building closures). That should facilitate defining reasonable linking (only when seals disjoint), and for defining the condition for full abstraction and the FTLR.}
 \begin{definition}
