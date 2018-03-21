@@ -113,12 +113,12 @@ The source machine is also a capability machine with memory capabilities and sea
 \[
   \begin{array}{rcl}
     o & \in & \nats \\
-    \src{i} & \defbnf &  \trg{i} \mid \scall{o}{r}{r}
+    \src{i} & \defbnf &  \trg{i} \mid \scall{\offpc,\offsigma}{r}{r}
   \end{array}
 \]
-There is one syntactic difference between the source language and the target language, namely the target language has an extra instruction in the $\scall{o}{}{}$ instruction (the $o$ refers to the seal it uses, namely the offset in the seals made available by linking). 
+There is one syntactic difference between the source language and the target language, namely the target language has an extra instruction in the $\scall{\offpc,\offsigma}{}{}$ instruction (the $o$ refers to the seal it uses, namely the offset in the seals made available by linking). 
 
-The source machine allows for variable length instructions which we utilise for $\scall{o}{}{}$. In other words, when $\scall{o}{}{}$ is decoded, a series of addresses in memory must contain what corresponds to the call instruction (and be within the range of the pc capability). This is described in more detail when we present the decoding function.
+The source machine allows for variable length instructions which we utilise for $\scall{\offpc,\offsigma}{}{}$. In other words, when $\scall{\offpc,\offsigma}{}{}$ is decoded, a series of addresses in memory must contain what corresponds to the call instruction (and be within the range of the pc capability). This is described in more detail when we present the decoding function.
 
 \subsection{Permissions}
 %\lau{23-03-2017: I am not sure we need the opaque capabilities anymore.} % I am not sure why I did not think the opaque capabilities where necessary, but I have a feeling we talked about this in Leuven and came to the conclusion that they were necessary.
@@ -346,14 +346,14 @@ Further $\decInstr{}$ must be the left inverse of $\encInstr{}$ that is for all 
 These functions are used for both the target and source level machine. When we write instructions in places where words are required, we will assume that $\encInstr{}$ is implicit.
 
 \paragraph{Step relation}
-The instruction $\scall{o}{}{}$ has length $\calllen$ which means that it does not fit in one memory address. In fact, $\scall{o}{}{}$ should be seen as a different way of interpreting a series of instruction rather than an instruction on its own. We therefore introduce $\scall[0]{o}{r_1}{r_2},\dots,\scall[\calllen-1]{o}{r_1}{r_2}$ as aliases for the instructions that constitute $\scall{o}{r_1}{r_2}$ (see Paragraph~\ref{par:call-impl} for details). We define the following condition that indicates that $\aaddr$ is the first address of a $\scall{o}{r_1}{r_2}$ instruction in the configuration $\Phi$:
+The instruction $\scall{\offpc,\offsigma}{}{}$ has length $\calllen$ which means that it does not fit in one memory address. In fact, $\scall{\offpc,\offsigma}{}{}$ should be seen as a different way of interpreting a series of instruction rather than an instruction on its own. We therefore introduce $\scall[0]{\offpc,\offsigma}{r_1}{r_2},\dots,\scall[\calllen-1]{\offpc,\offsigma}{r_1}{r_2}$ as aliases for the instructions that constitute $\scall{\offpc,\offsigma}{r_1}{r_2}$ (see Paragraph~\ref{par:call-impl} for details). We define the following condition that indicates that $\aaddr$ is the first address of a $\scall{\offpc,\offsigma}{r_1}{r_2}$ instruction in the configuration $\Phi$:
 \[
   \sourcecolor\left.
     \callCond{\Phi,r_1,r_2,\aaddr} = \left\{
       \begin{array}{l}
-        \Phi.\mem(\aaddr) = \scall[0]{o}{r_1}{r_2} \tand\\
+        \Phi.\mem(\aaddr) = \scall[0]{\offpc,\offsigma}{r_1}{r_2} \tand\\
         \vdots \\
-        \Phi.\mem(\addr+\calllen-1) = \scall[\calllen-1]{o}{r_1}{r_2}
+        \Phi.\mem(\addr+\calllen-1) = \scall[\calllen-1]{\offpc,\offsigma}{r_1}{r_2}
       \end{array}
       \right.
   \right.
@@ -362,7 +362,7 @@ The instruction $\scall{o}{}{}$ has length $\calllen$ which means that it does n
 We use the following step relation:
 
 \begin{align*}
-  \src{\Phi} & \; \src{\step \sem{\scall{o}{r_1}{r_2}}(\Phi)} &  &\sourcecolor\left.\arraycolsep=0pt
+  \src{\Phi} & \; \src{\step \sem{\scall{\offpc,\offsigma}{r_1}{r_2}}(\Phi)} &  &\sourcecolor\left.\arraycolsep=0pt
                                                   \begin{array}[t]{l}
                                                     \text{if }\Phi(\pcreg) 
 = ((\perm,\_),\baddr,\eaddr,\aaddr) \tand \\
@@ -396,10 +396,10 @@ if we just know $\Phi$ terminates in some number of steps, then we write
 
 \paragraph{Call implementation}
 \label{par:call-impl}
-This paragraph contains the implementation of $\scall{o}{}{}$. That is each of the instructions in the implementation corresponds to $\scall[1]{o}{r_1}{r_2} \dots \scall[\calllen-1]{o}{r_1}{r_2}$, respectively.
+This paragraph contains the implementation of $\scall{\offpc,\offsigma}{}{}$. That is each of the instructions in the implementation corresponds to $\scall[1]{\offpc,\offsigma}{r_1}{r_2} \dots \scall[\calllen-1]{\offpc,\offsigma}{r_1}{r_2}$, respectively.
 
-%\lau{16-10-2017: Fill this paragraph with $\scall{o}{}{}$ implementation, i.e., the instructions $\scall[1]{o}{r_1}{r_2} \dots \scall[\calllen]{o}{r_1}{r_2}$ is equal to. Add convenience notation like $\update{\mem.a}{\scall{o}{r_1}{r_2}} = \dots$}
-\lau{16-10-2017: Implementation of $\scall{o}{}{}$ may need registers for temporary registers - we should update the semantics accordingly.}
+%\lau{16-10-2017: Fill this paragraph with $\scall{\offpc,\offsigma}{}{}$ implementation, i.e., the instructions $\scall[1]{\offpc,\offsigma}{r_1}{r_2} \dots \scall[\calllen]{\offpc,\offsigma}{r_1}{r_2}$ is equal to. Add convenience notation like $\update{\mem.a}{\scall{\offpc,\offsigma}{r_1}{r_2}} = \dots$}
+\lau{16-10-2017: Implementation of $\scall{\offpc,\offsigma}{}{}$ may need registers for temporary registers - we should update the semantics accordingly.}
 \[
   \begin{array}{l}
     \text{// push 42 on the stack (so it is non-empty).}\\
@@ -411,9 +411,9 @@ This paragraph contains the implementation of $\scall{o}{}{}$. That is each of t
     \tsplit{\rstk}{\rretd}{\rstk}{\rtmp{1}}\\
     \text{// load the seal for the return pointer through the pc capability.}\\
     \tmove{\rtmp{1}}{\pcreg}\\
-    \tsetatob{\rtmp{1}}\\
+    \tcca{\rtmp{1}}{\offpc} \text{ // $\offpc$ is the offset from pc to the location of the seal for this code}\\
     \tload{\rtmp{1}}{\rtmp{1}}\\
-    \tcca{\rtmp{1}}{o}\text{ // $o$ is the offset this call uses.}\\
+    \tcca{\rtmp{1}}{\offsigma}\text{ // $\offsigma$ is the offset for the seal used by this call.}\\
     \text{// seal the used stack frame as the data part of the return pointer pair.}\\
     \tcseal{\rretd}{\rtmp{1}}\\
     \text{// obtain the code part of the return pointer pair and seal it too.}\\
@@ -443,12 +443,12 @@ This paragraph contains the implementation of $\scall{o}{}{}$. That is each of t
   \end{array}
 \]
 \dominique{Return code could be simplified if we had jz in addition to jnz.}
-\dominique{It is a bit annoying that we store the stack end address before invocation if we do not use it.
-  I understand this is for ensuring that our private stack frame is not empty, which is important.
-  But why don't we just push a constant then?
-  Also: perhaps we could only do it if the current private stack frame is empty to begin with?
-}
-\dominique{4-12-2017: update: Lau executed the first suggestion (push a constant instead), and convinced me that the last suggestion didn't make sense (only push if the current private stack is empty), because it is then not clear whether or not to pop in the return code.}
+% \dominique{It is a bit annoying that we store the stack end address before invocation if we do not use it.
+%   I understand this is for ensuring that our private stack frame is not empty, which is important.
+%   But why don't we just push a constant then?
+%   Also: perhaps we could only do it if the current private stack frame is empty to begin with?
+% }
+% \dominique{4-12-2017: update: Lau executed the first suggestion (push a constant instead), and convinced me that the last suggestion didn't make sense (only push if the current private stack is empty), because it is then not clear whether or not to pop in the return code.}
 The call code does the following:
 \begin{itemize}
 \item Store 42 (it could be anything) to the stack (this ensures the stack is non-empty), and decrement the pointer according to convention.
@@ -469,13 +469,13 @@ The call code does the following:
   \end{itemize}
 \end{itemize}
 
-For convenience, we will add the convention that the memory update $\update{\mem.a}{\scall{o}{r_1}{r_2}}$ corresponds to
+For convenience, we will add the convention that the memory update $\update{\mem.a}{\scall{\offpc,\offsigma}{r_1}{r_2}}$ corresponds to
 \[
   \begin{array}{l}
-    \update{\mem.a}{\scall[0]{o}{r_1}{r_2}}\\
-    \update{\mem.a+1}{\scall[1]{o}{r_1}{r_2}}\\
+    \update{\mem.a}{\scall[0]{\offpc,\offsigma}{r_1}{r_2}}\\
+    \update{\mem.a+1}{\scall[1]{\offpc,\offsigma}{r_1}{r_2}}\\
     \dots\\
-    \update{\mem.a+\calllen-1}{\scall[\calllen-1]{o}{r_1}{r_2}}\\
+    \update{\mem.a+\calllen-1}{\scall[\calllen-1]{\offpc,\offsigma}{r_1}{r_2}}\\
   \end{array}
 \]
 
@@ -1135,7 +1135,7 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
 \lau{20-12-2017: At some point, I added an offset annotation $o$ to all calls. I believe this removes the need for a function that annotate seals. It will still have to be checked that all calls in a program uses different offsets, but I suspect this can be done as some assumption in what we want to prove.}
 \lau{20-12-2017: Until this day, we had a $\sealAss{}$ function: This instruction assumes that the current address of the stack pointer, $\aaddr_\stk$, points to the first free address of the stack. We assume a seal assignment function $\sealAss{}$ that given an address assigns a seal.\lau{25-09-2017: This will need some more explanation - namely, there should be some relationship between the available seals and this function (I also need to think more about the specifics of this).}}
 \begin{align*}
-  \sem{\scall{o}{\src{r_1}}{\src{r_2}}}(\Phi) = & 
+  \sem{\scall{\offpc,\offsigma}{\src{r_1}}{\src{r_2}}}(\Phi) = & 
                                                \begin{cases}
                                                  \Phi'
                                                  \arraycolsep=0pt
@@ -1171,8 +1171,8 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                                    \opc = ((\perm,\lin),\baddr,\eaddr,\aaddr+\calllen) \tand \\
                                                    \stk' = (\opc,\ms_{\stk,\priv}) :: \stk \tand\\
                                                    \Phi' = (\mem,\reg,\stk',\ms_{\stk,\var{rest}})\tand\\
-                                                   \mem(\baddr) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\aaddr}\tand\\
-                                                   \sigma_? = \sigma_\aaddr + o \tand\\
+                                                   \mem(a+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\aaddr}\tand\\
+                                                   \sigma_? = \sigma_\aaddr + \offsigma \tand\\
                                                    \sigma_\baddr \leq \sigma_? \leq \sigma_\eaddr \tand\\
                                                    w_1 = \linCons{\Phi(r_1)} \tand \\
                                                    w_2 = \linCons{\Phi(r_2)}
@@ -1190,7 +1190,9 @@ This behavior is in principle fine.
 Source semantics will define that only the non-split-off part will be encapsulated.
 The parts that were split off and passed to the adversary are not protected, as expected.
 
-\subsection{Program layout and linking}
+\subsection{Component layout and linking}
+We define a notion of 
+
 A target-level program needs a number of things available in order to be able to execute securely. In the following, we list what it needs followed by a description of how they are made available.
 
 A program needs access to the following:
@@ -1225,55 +1227,85 @@ The \emph{persistent data storage} is expected to be accessible through a normal
 
 We define a component as follows:
 \begin{align*}
-  \var{comp} &\mathrel{::=} (\ms_{\mathrm{code}},\ms_{\mathrm{data}},\overline{c}_{\mathrm{import}},\overline{c}_{\mathrm{export}},\sigma_\baddr,\nrcalls,\nrclosures)
+  \var{comp} &\mathrel{::=} (\ms_{\mathrm{code}},\ms_{\mathrm{data}},\overline{c}_{\mathrm{import}},\overline{c}_{\mathrm{export}},\sigrets,\sigcloss)
 \end{align*}
 
 We define inductively when a component is valid ($\vdash \var{comp}$) by the below inference rules:
 \begin{mathpar}
-  \inference{}{
-    A_{\mathrm{code}},A_{\mathrm{data}},\overline{c_{\mathrm{import}}},\sigma_\baddr,\nrcalls,\nrclosures \vdash_{\mathrm{comp-value}} z
+  \inference{
+    \mscode(a) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\aaddr} & [\sigma_\baddr,\sigma_\eaddr] \subseteq (\sigrets \cup \sigcloss)
+  }{
+    \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode,a
+  }
+  \and
+  \inference{
+    \mscode(a) \in \ints\\
+    \mscode([a \cdots a + \calllen-1]) = \scall[0..\calllen-1]{\offpc,\offsigma}{r_1}{r_2} \Rightarrow (\mscode(a+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\aaddr} \wedge \sigma_\baddr+\offsigma \in \sigrets)
+  }{
+    \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode,a
+  }
+  \and
+  \inference{
+    \exists d_\sigma : \dom(\mscode) \rightarrow \powerset{\Seal} \ldotp
+    \sigrets = \biguplus_{a \in \dom(\mscode)} d_\sigma(a) \tand\\
+    \forall a \in \dom(\mscode) \ldotp 
+    d_\sigma(a),\sigcloss \vdash_{\mathrm{comp-code}} \mscode,a
+  }{
+    \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode
+  }
+  \and
+  \inference{
+  }{
+    A_{\mathrm{code}},A_{\mathrm{data}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} z
   }
   \and
   \inference{
     c \in \overline{c_{\mathrm{import}}}
   }{
-    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},\overline{c_{\mathrm{import}}},\sigma_\baddr,\nrcalls,\nrclosures \vdash_{\mathrm{comp-value}} c
+    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} c
   }
   \and
   \inference{
     [\baddr,\eaddr] \subseteq A_{\mathrm{code}} & \perm \sqsubseteq \rx
   }{
-    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},\overline{c_{\mathrm{import}}},\sigma_\baddr,\nrcalls,\nrclosures \vdash_{\mathrm{comp-value}} ((\perm,\normal),\baddr,\eaddr,\aaddr)
+    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} ((\perm,\normal),\baddr,\eaddr,\aaddr)
   }
   \and
   \inference{
     [\baddr,\eaddr] \subseteq A_{\mathrm{data}} & \permbnf \sqsubseteq \rw&
     \lin = \linear \Rightarrow \emptyset \subset [\baddr,\eaddr] \subseteq A_{\mathrm{own}}
   }{
-    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},\overline{c_{\mathrm{import}}},\sigma_\baddr,\nrcalls,\nrclosures \vdash_{\mathrm{comp-value}} ((\perm,\lin),\baddr,\eaddr,\aaddr)
+    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} ((\perm,\lin),\baddr,\eaddr,\aaddr)
   }
   \and
   \inference{
-    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},\overline{c_{\mathrm{import}}},\sigma_\baddr,\nrcalls,\nrclosures \vdash_{\mathrm{comp-value}} \vsc \\
-    \sigma = \sigma_b + o & \nrcalls \leq o < \nrcalls + \nrclosures
+    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \vsc \\
+    \sigma \in \sigcloss
   }{
-    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},\overline{c_{\mathrm{import}}},\sigma_\baddr,\nrcalls,\nrclosures \vdash_{\mathrm{comp-value}} \sealed{\sigma,\vsc}
+    A_{\mathrm{code}},A_{\mathrm{data}},A_{\mathrm{own}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \sealed{\sigma,\vsc}
   }
   \and
   \inference{
-    \dom(\ms_{\mathrm{code}}) = [\baddr_{\mathrm{code}},\eaddr_{\mathrm{code}}] &
-    \ms_{\mathrm{code}}(\baddr_{\mathrm{code}}) = \seal{\sigma_\baddr,\sigma_\baddr+\nrcalls+\nrclosures-1,\sigma_\baddr}\\
-    \forall a \in [\baddr_{\mathrm{code}}+1,\eaddr_{\mathrm{code}}]\ldotp \ms_{\mathrm{code}}(a) \in \ints\\
-    \exists \var{offset\_use\_site} \in [0\cdots \nrcalls-1] \fun \dom(\ms_{\mathrm{code}}) \\
-    \forall a \in [\baddr_{\mathrm{code}}+1,\eaddr_{\mathrm{code}}-\calllen+1]\ldotp \ms_{\mathrm{code}}([a\cdots a+\calllen-1]) = \scall[0..\calllen-1]{o}{r_1}{r_2} \Rightarrow \var{offset\_use\_site}(o) =a\\
-    \exists A_\mathrm{own} : \dom(\ms_{\mathrm{data}}) \rightarrow \powerset{\dom(\ms_{\mathrm{data}})} & \dom(\ms_{\mathrm{data}}) = \biguplus_{a \in \dom(\ms_{\mathrm{data}})} A_{\mathrm{own}}(a) \\
-    \forall a \in \dom(\ms_{\mathrm{data}})\ldotp \dom(\ms_{\mathrm{code}}),\dom(\ms_{\mathrm{data}}),A_{\mathrm{own}}(a),\overline{c_{\mathrm{import}}},\sigma_\baddr,\nrcalls,\nrclosures \vdash_{\mathrm{comp-value}}\ms_{\mathrm{data}}(a)\\
-    \overline{\dom(\ms_{\mathrm{code}}), \dom(\ms_{\mathrm{data}}), \emptyset, \overline{c_{\mathrm{import}}}, \sigma_\baddr, \nrcalls, \nrclosures \vdash_{\mathrm{comp-value}} c_{\mathrm{export}}}
+    \dom(\mscode) \mathrel{\#} \dom(\msdata)\\
+    \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode \\
+    \exists A_\mathrm{own} : \dom(\msdata) \rightarrow \powerset{\dom(\msdata)} & \dom(\msdata) = \biguplus_{a \in \dom(\msdata)} A_{\mathrm{own}}(a) \\
+    \forall a \in \dom(\msdata)\ldotp \dom(\mscode),\dom(\msdata),A_{\mathrm{own}}(a),\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash \msdata(a)\\
+    \overline{\dom(\mscode), \dom(\msdata), \emptyset, \overline{c_{\mathrm{import}}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-value}} c_{\mathrm{export}}}\\
   }{
-    \vdash (\ms_{\mathrm{code}},\ms_{\mathrm{data}},\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigma_\baddr,\nrcalls,\nrclosures)
+    \vdash (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss)
   }
 \end{mathpar}
 
+\subsection{Linking}
+\label{sec:linking}
+
+TODO:
+\begin{mathpar}
+  \inference{
+  }{
+    \var{comp}_1 \bowtie \var{comp}_2 = \var{comp}_3
+  }
+\end{mathpar}
 
 \subsection{Programs and contexts}
 \begin{definition}
@@ -1410,7 +1442,7 @@ In this definition, the source level specific conditions replace the equivalent 
 \lau{28-09-2017: Yes, that was the thought at the moment, but this may very well change soon. This compiler would then use a compiler that compiles single instructions. That said, this part was added a long time ago and for some reason (some details about the compilation probably did not make sense to me at the moment), I did not complete it. I think the compiler will probably change to be from programs to programs, and a programs is not just going to be a list of instructions.}
 
 \[
-  \comp{\scall{o}{r_1}{r_2}} = 
+  \comp{\scall{\offpc,\offsigma}{r_1}{r_2}} = 
   \begin{array}[t]{l}
     % Make the stack capability into the return capability and seal it:
     %   Push r_data to the stack (should this be made the responsibility of the programmer? If it happens here, then it should probably also be part of the call semantics. Especially, the call semantics should "eat" another piece of memory on the stack to make sure there is no discrepancy.)
@@ -2174,32 +2206,28 @@ where $H_A$ is defined as follows:
 % \]
 
 \[
-  \codereg{\ta,\sigma_\baddr,\nrcalls,\nrclosures,\code} \defeq (\pure,*,=,=,H^\mathrm{code} \; \ta \; \sigma_\baddr \; \nrcalls \; \nrclosures \; \code,H^\mathrm{code}_\sigma \; \ta \; \sigma_\baddr \; \nrcalls \nrclosures \; \code)
+  \codereg{\ta,\sigrets,\sigcloss} \defeq (\pure,*,=,=,H^\mathrm{code} \; \ta \; \sigrets \; \sigcloss \; \code,H^\mathrm{code}_\sigma \; \ta \; \sigrets \; \sigcloss \; \code)
 \]
 
-\begin{multline*}
-  H^\mathrm{code} \; \ta \; \sigma_\baddr \; \nrcalls \; \nrclosures \; \code \; s \; \hat{W} = \\\left\{
-    \npair{(\code,\code)} \middle|
-  \begin{multlined}
-    \dom(\code) = [\aaddr,\baddr] \tand \sigma_\eaddr = \sigma_\baddr + \nrcalls+\nrclosures - 1 \tand \\
-    \code(a) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr}
-  \end{multlined}
+\begin{equation*}
+  H^\mathrm{code} \; \ta \; \sigrets \; \sigcloss \; \code \; s \; \hat{W} = \left\{\npair{(\code,\code)} \middle|
+    \dom(\code) = [\aaddr,\baddr]
   \right\}
-\end{multline*}
+\end{equation*}
 
 \lau{19-03-2018: Add the link capability to the above? code in ta?}
 \begin{multline*}
-  H^\mathrm{code}_\sigma \; \ta \; \sigma_\baddr \; \nrcalls \; \nrclosures \; \code \; s \; \sigma \; \hat{W} = \\
+  H^\mathrm{code}_\sigma \; \ta \; \sigrets \; \sigcloss \; \code \; s \; \sigma \; \hat{W} = \\
   \begin{array}[t]{l}
 \left\{
     \begin{array}{l}
 \left. \npair{\arraycolsep=0pt\left(\array{l}\retptrc(\rx,\lin,\baddr,\eaddr,\aaddr'+\calllen - 1),\\((\rx,\lin),\baddr,\eaddr,\aaddr)\endarray\right)} \middle| \right. \\
       \\
       \begin{array}{l}
-        \decInstr{\code([a',a' + \calllen-1])} = \overline{\scall{o}{r_1}{r_2}} \tand \\
+        \decInstr{\code([a',a' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
         \aaddr = \aaddr' + \retoffset \tand \\
-        \sigma = \sigma_\baddr + o \tand o < \nrcalls\\
-        \lbrack \baddr, \eaddr \rbrack = \dom(\code) \subseteq \ta
+        \code(a+\offpc) = \seal{\sigma_b,\sigma_e,\_} \tand \sigma = \sigma_b + \offsigma \in \sigrets \tand\\
+        \lbrack \baddr, \eaddr \rbrack \subseteq \dom(\code) \subseteq \ta
       \end{array}
     \end{array}
       \right\} \uplus \\
@@ -2210,10 +2238,10 @@ where $H_A$ is defined as follows:
       \begin{array}{l}
         \exists r \in \dom(\pwpriv[\xi(\hat{W})]) \ldotp \pwpriv[\xi(\hat{W})](r) \nequal (\stareg[(\ms,\ms)]{\spa}, ((\rx,\lin),\baddr',\eaddr',\aaddr'+\calllen)) \tand \\
         \quad \dom(\ms) = [\baddr,\eaddr] \tand\\
-        \quad \decInstr{\code([a',a' + \calllen-1])} = \overline{\scall{o}{r_1}{r_2}} \tand \\
-        \quad \sigma = \sigma_\baddr + o \tand o < \nrcalls \tand\\
+        \quad \decInstr{\code([a',a' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
+        \quad \code(a+\offpc) = \seal{\sigma_b,\sigma_e,\_} \tand \sigma = \sigma_b + \offsigma \in \sigrets \tand\\
         \quad a = b-1\tand \\
-        \quad \lbrack \baddr', \eaddr' \rbrack = \dom(\code) \subseteq \ta
+        \quad \lbrack \baddr', \eaddr' \rbrack \subseteq \dom(\code) \subseteq \ta
       \end{array}
     \end{array}
       \right\} \uplus\\
@@ -2221,7 +2249,7 @@ where $H_A$ is defined as follows:
     \begin{array}{l}
 \left. \npair{(\vsc, \vsc' )} \middle| \right. \\
       \begin{array}{l}
-        \sigma = \sigma_\baddr + o \tand \nrcalls \leq o < \nrcalls + \nrclosures \tand\\
+        \sigma \in \sigcloss \tand\\
         (\dom(\code) \mathrel{\#} \ta \tand \npair{(\vsc,\vsc')} \in \lrv \; W) \tor\\
         (\dom(\code) \subseteq \ta \tand \npair{(\vsc,\vsc')} \in \lrvtrusted \; W)
       \end{array}
@@ -2330,12 +2358,12 @@ We want to make a conditional full-abstraction statement. The condition should e
   \[
     \src{\Phi} \nstep[i] \src{\Phi'}
   \]
-  and $\src{\Phi'}$ points to $\src{\scall{o}{r_1}{r_2}}$ in $\ta$ for some $\src{r_1}$ and $\src{r_2}$
+  and $\src{\Phi'}$ points to $\src{\scall{\offpc,\offsigma}{r_1}{r_2}}$ in $\ta$ for some $\src{r_1}$ and $\src{r_2}$
   % and there exists no $j<i$ s.t.
   % \[
   %   \src{\Phi} \nstep[j] \src{\Phi''}
   % \]
-  % where $\src{\Phi''}$ points to $\src{\scall{o}{r_1'}{r_2'}}$ in $A$ for some $\src{r_1'}$ and $\src{r_2'}$,
+  % where $\src{\Phi''}$ points to $\src{\scall{\offpc,\offsigma}{r_1'}{r_2'}}$ in $A$ for some $\src{r_1'}$ and $\src{r_2'}$,
   then
   \[
     \src{\Phi'}(\src{r_\stk}) = \src{\stkptr{\_,\stkb,\_,\_}}
@@ -2349,16 +2377,16 @@ We want to make a conditional full-abstraction statement. The condition should e
 \end{definition}
 
 \begin{definition}[Use return seals only for call]
-  A configuration $\src{\Phi}$ is said to use linker seals properly in $\ta$ with component parameters $\compbaseseal$, $\nrcalls$, and $\nrclosures$ for $n$ steps iff\\
+  A configuration $\src{\Phi}$ is said to use linker seals properly in $\ta$ with component parameters $\sigrets$, $\sigcloss$ for $n$ steps iff\\
   for all $i \leq n$, if
   \[
     \src{\Phi} \nstep[i] \src{\Phi'}
   \]
-  and $\src{\Phi'}$ points to $\src{\tcseal{r_1}{r_2}}$ in $\ta$ and $\Phi'(r_1) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$, then either $\src{\Phi'}$ is inside $\src{\scall{o}{r_1'}{r_2'}}$ and $\compbaseseal \leq \sigma < \compbaseseal + \nrcalls$ or $\compbaseseal + \nrcalls \leq \sigma < \compbaseseal + \nrcalls + \nrclosures$.
+  and $\src{\Phi'}$ points to $\src{\tcseal{r_1}{r_2}}$ in $\ta$ and $\Phi'(r_1) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$, then either ($\src{\Phi'}$ is inside $\src{\scall{\offpc,\offsigma}{r_1'}{r_2'}}$ and $\sigma \in \sigrets$) or $\sigma \in \sigcloss$.
 \end{definition}
 
 \begin{definition}[Never pass trusted seals accross the trusted-untrusted boundary]
-  A configuration $\src{\Phi}$ is said to use linker seals properly in $\ta$ with component parameters $\compbaseseal$, $\nrcalls$, and $\nrclosures$ for $n$ steps iff\\
+  A configuration $\src{\Phi}$ is said to use linker seals properly in $\ta$ with component parameters $\sigrets$, $\sigcloss$ for $n$ steps iff\\
   for all $i \leq n$, if
   \[
     \src{\Phi} \nstep[i] \src{\Phi'} \step \src{\Phi''}
@@ -2366,7 +2394,7 @@ We want to make a conditional full-abstraction statement. The condition should e
   and $\src{\Phi'}$ is in $\ta$ and $\src{\Phi''}$ is not in $\ta$ and, then for all $r \in \RegName$
   %\dominique{TODO: $\sigma_b,\sigma_e$ contains a seal that was put in $\Phi$ by the linker.}
   \[
-    \src{\Phi}.\reg(r) = \seal{\sigma_b,\sigma_e,\_} \Rightarrow [\compbaseseal,\compbaseseal + \nrcalls + \nrclosures - 1] \# [\sigma_b,\sigma_e]
+    \src{\Phi}.\reg(r) = \seal{\sigma_b,\sigma_e,\_} \Rightarrow (\sigrets \cup \sigcloss) \mathrel{\#} [\sigma_b,\sigma_e]
   \]
 and
 %  \dominique{TODO: Also not allowed: passing a capability to a code area that points (a.o.) to a memory location containing a seal like the one above.}
@@ -2375,10 +2403,10 @@ and
   \]
   and
     \begin{multline*}
-      \src{\Phi}.\reg(r) = \sealed{\sigma,\vsc} \wedge \sigma \not\in [\compbaseseal,\compbaseseal + \nrcalls + \nrclosures - 1] \Rightarrow 
+      \src{\Phi}.\reg(r) = \sealed{\sigma,\vsc} \wedge \sigma \not\in (\sigrets\cup\sigcloss) \Rightarrow 
       \\  \left(  
       \begin{array}{r l}
-        (\vsc = \seal{\sigma_b,\sigma_e,\_} & \Rightarrow [\compbaseseal,\compbaseseal + \nrcalls + \nrclosures - 1] \# [\sigma_b,\sigma_e]) \wedge\\
+        (\vsc = \seal{\sigma_b,\sigma_e,\_} & \Rightarrow (\sigrets\cup\sigcloss) \# [\sigma_b,\sigma_e]) \wedge\\
         ( \vsc = ((\perm,\_),\baddr,\eaddr,\_) \wedge \perm \sqsubseteq \rx & \Rightarrow [\baddr,\eaddr] \# \ta )
       \end{array}
       \right)
@@ -2387,14 +2415,14 @@ and
 
 %  \dominique{TODO: Also not allowed: storing a seal or a code capability in memory.}a
 \begin{definition}[Never store link seals and code capability]
-  A configuration $\src{\Phi}$ is said to not store seals and code capability in $\ta$ with component parameters $\compbaseseal$, $\nrcalls$, and $\nrclosures$ for $n$ steps iff\\
+  A configuration $\src{\Phi}$ is said to not store seals and code capability in $\ta$ with component parameters $\sigrets$, $\sigcloss$ for $n$ steps iff\\
   for all $i \leq n$, if
   \[
     \src{\Phi} \nstep[i] \src{\Phi'}
   \]
   and $\src{\Phi'}$ points to $\src{\tload{r_1}{r_2}}$ in $\ta$, then 
 \[
-  \Phi'(r_2) = \seal(\sigma_\baddr,\sigma_\eaddr,\_) \Rightarrow [\compbaseseal, \compbaseseal + \nrcalls  + \nrclosures - 1] \# [\sigma_\baddr,\sigma_\eaddr]
+  \Phi'(r_2) = \seal(\sigma_\baddr,\sigma_\eaddr,\_) \Rightarrow (\sigrets\cup\sigcloss) \mathrel{\#} [\sigma_\baddr,\sigma_\eaddr]
 \]
 and
 \[
@@ -2434,7 +2462,7 @@ and
 
 \dominique{27-09-2017: Is this example still relevant? Isn't it solved differently by the variable-length-instructions idea?}
 \lau{28-09-2017: It seems to me that this is indeed solved by the variable length instructions. That said, I would like to keep it around (maybe change it so it becomes an argument for variable length instructions).}
-This example was introduced when we envisioned a capability machine with $\spush{}$, $\spop{}$, $\ssload{}{}$, $\scall{o}{}{}$ and $\sreturn$ instructions. The below example is a motivation for having variable length instructions in the source language because if we have enough memory to ``do the same'' in the target language as in the source language, then the below example does not work.
+This example was introduced when we envisioned a capability machine with $\spush{}$, $\spop{}$, $\ssload{}{}$, $\scall{\offpc,\offsigma}{}{}$ and $\sreturn$ instructions. The below example is a motivation for having variable length instructions in the source language because if we have enough memory to ``do the same'' in the target language as in the source language, then the below example does not work.
 
 The following pseudo program demonstrates the need of opaque capabilities. If we assume a system with no opaque capabilities, then the following programs break compiler correctness
 \begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
@@ -2456,10 +2484,10 @@ The diverging closure could just contain $\sjmp{\pcreg}$, which diverges. The te
 
 The context with $r1$ as an executable capability pointing to:
 \begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
-$\scall{o}{r5}{0}$
+$\scall{\offpc,\offsigma}{r5}{0}$
 $\sjmp{r5}$
 \end{lstlisting}
-\footnote{At this time $\scall{o}{}{}$ did argument spilling and it only takes one argument because we were considering enter capabilities.}distinguishes the two contexts, but two instructions are not enough to do the same at the target level. We would not have enough instructions to set up a proper return pointer for the compiled return to use.
+\footnote{At this time $\scall{\offpc,\offsigma}{}{}$ did argument spilling and it only takes one argument because we were considering enter capabilities.}distinguishes the two contexts, but two instructions are not enough to do the same at the target level. We would not have enough instructions to set up a proper return pointer for the compiled return to use.
 
 \clearpage
 \section{Back translation}
@@ -2580,16 +2608,16 @@ Rather than invoking \spush{} or \spop{}, one can store into the $\stkptr{}$ and
 Similarly, rather than invoking \sreturn{}, one would jump to the $\retptrd$ and $\retptrc$ sealed code/data pair.
 
 We do not offer primitive \sreturn{}, \spush{} and \spop{} instructions, even though there is nothing keeping us from doing that, either as an additional primitive instruction or as a macro on top of the primitive token values mentioned above.
-We do offer a primitive \scall{o}{}{} instruction, and it offers the only way to create a new stack frame.
+We do offer a primitive \scall{\offpc,\offsigma}{}{} instruction, and it offers the only way to create a new stack frame.
 It is the only instruction that does not have a target language counterpart.
-However, there is a counterpart to \sxjmp{}{}, the instruction that would be used for jumping in the code that \scall{o}{}{} compiles to.
+However, there is a counterpart to \sxjmp{}{}, the instruction that would be used for jumping in the code that \scall{\offpc,\offsigma}{}{} compiles to.
 We will discuss later that this means that if we back translate an adversary piece of code (in the full abstraction proof), then it will be back translated (under our trivial back-translation) to equivalent code that \emph{never} does an actual call, but always just jumps to where it wants to go.
 In other words, the back-translated code never uses call to protect its own stack frame from the code that it passes control to.
 This means that the back-translated code is quite insecure, but we don't need it to be: it just needs to be behaviorally equivalent to the target language code that it represents.
 
 % Finally, rather than invoking call, \dominique{7-9-2017: err, what's the reason we don't follow the same pattern for call?}.
-% \lau{07-09-2017: One would use $\scall{o}{}{}$ with a pair of sealed capabilities to securely jump to this pair - that is to have this pair executed in a new stack frame. The return would happen just by using $\sxjmp{}{}$ with the $\retptrd$ and $\retptrc$. However, this would work with the local capabilities as the real implementation of $\retptrd$ would be a sealed version of the entire stack pointer. In other words, upon jumping back no extra work would have to be done. Now, however, the old stack pointer should be spliced (using the new $\ssplice{}{}$ instruction) with the stack pointer we sent away in order to regain the old stack pointer. In other words, we need something to recognise when a return happens.}
-% \lau{07-09-2017: On second thought, when compiled all the code necessary for the call will be generated based on the $\scall{o}{}{}$ instruction. The real implementation of the $\retptrc$ will simply point to a piece of clean up code that splices together the old/private stack pointer with the one we got from the untrusted party. This may, however, give some issues when we want to reason about it because there will be a disconnect between where the clean up job is done in the operational semantics of the source language (namely as part of the $\sxjmp{}{}$), but in a translated program, the code that does the clean up origins with the $\scall{o}{}{}$ instruction. }
+% \lau{07-09-2017: One would use $\scall{\offpc,\offsigma}{}{}$ with a pair of sealed capabilities to securely jump to this pair - that is to have this pair executed in a new stack frame. The return would happen just by using $\sxjmp{}{}$ with the $\retptrd$ and $\retptrc$. However, this would work with the local capabilities as the real implementation of $\retptrd$ would be a sealed version of the entire stack pointer. In other words, upon jumping back no extra work would have to be done. Now, however, the old stack pointer should be spliced (using the new $\ssplice{}{}$ instruction) with the stack pointer we sent away in order to regain the old stack pointer. In other words, we need something to recognise when a return happens.}
+% \lau{07-09-2017: On second thought, when compiled all the code necessary for the call will be generated based on the $\scall{\offpc,\offsigma}{}{}$ instruction. The real implementation of the $\retptrc$ will simply point to a piece of clean up code that splices together the old/private stack pointer with the one we got from the untrusted party. This may, however, give some issues when we want to reason about it because there will be a disconnect between where the clean up job is done in the operational semantics of the source language (namely as part of the $\sxjmp{}{}$), but in a translated program, the code that does the clean up origins with the $\scall{\offpc,\offsigma}{}{}$ instruction. }
 
 Note that the token values representing the stack and return pointer in our source language are essentially just a weird alternative syntax for something we would otherwise write using call/return and push/pop.
 However, it does remove the problem described above of relying on facts that follow from code length, because we can now write exactly the same code in source and target and it will do exactly the same thing if it is well-behaved.
@@ -2604,7 +2632,7 @@ The reason is that back-translating should become essentially trivial: rather th
 
 Another novelty in this work is the fact that we do not want to prove general full abstraction (i.e. two source programs are behaviorally equivalent if and only if they are compiled to behaviorally equivalent target programs).
 The reason is that we only want to prove a result about programs that respect the calling convention, i.e.\ that do not do anything stupid.
-For example, in the old setup with global/local capabilities, when trusted code performs an \scall{o}{}{}, it should make sure that it does not store a copy of its stack pointer in a place that is accessible to the callee (e.g.\ in a register or in the callee's part of the stack).
+For example, in the old setup with global/local capabilities, when trusted code performs an \scall{\offpc,\offsigma}{}{}, it should make sure that it does not store a copy of its stack pointer in a place that is accessible to the callee (e.g.\ in a register or in the callee's part of the stack).
 Such sanity conditions are necessary (we cannot guarantee anything for code that does such stupid things) but we do not want to spend computation time on checking them.
 Instead, we expect a reasonable compiler to guarantee in some way that its generated code never does such stupid things and then our guarantees should apply.
 
