@@ -411,8 +411,9 @@ This paragraph contains the implementation of $\scall{\offpc,\offsigma}{}{}$. Th
     \tsplit{\rstk}{\rretd}{\rstk}{\rtmp{1}}\\
     \text{// load the seal for the return pointer through the pc capability.}\\
     \tmove{\rtmp{1}}{\pcreg}\\
-    \tcca{\rtmp{1}}{\offpc} \text{ // $\offpc$ is the offset from pc to the location of the seal for this code}\\
+    \tcca{\rtmp{1}}{(\offpc - 5)} \text{ // $\offpc$ is the offset from pc to the location of the seal for this code. \footnote{-5 is the offset from the previous instruction where the $\pcreg$ was moved to $\rtmp{1}$ to the first instruction of the call implementation.}}\\
     \tload{\rtmp{1}}{\rtmp{1}}\\
+    
     \tcca{\rtmp{1}}{\offsigma}\text{ // $\offsigma$ is the offset for the seal used by this call.}\\
     \text{// seal the used stack frame as the data part of the return pointer pair.}\\
     \tcseal{\rretd}{\rtmp{1}}\\
@@ -2190,10 +2191,12 @@ We want to make a conditional full-abstraction statement. The condition should e
   \[
     r_1' \neq \rtmp{1}
   \]
+  \lau{maybe the last bit should have its own definition.}
   % and $\src{\Phi'}$ has reasonable calls in $A$ for $n-i$ step.
 \end{definition}
 
 \begin{definition}[Use return seals only for call]
+  \label{def:use-return-seals-call}
   A configuration $\src{\Phi}$ is said to use linker seals properly in $\ta$ with component parameters $\sigrets$, $\sigcloss$ for $n$ steps iff\\
   for all $i \leq n$, if
   \[
@@ -2203,7 +2206,8 @@ We want to make a conditional full-abstraction statement. The condition should e
 \end{definition}
 
 \begin{definition}[Never pass trusted seals accross the trusted-untrusted boundary]
-  A configuration $\src{\Phi}$ is said to use linker seals properly in $\ta$ with component parameters $\sigrets$, $\sigcloss$ for $n$ steps iff\\
+  \label{def:handle-trusted-seals-properly}
+  A configuration $\src{\Phi}$ is said to handle trusted seals properly in $\ta$ with component parameters $\sigrets$, $\sigcloss$ for $n$ steps iff\\
   for all $i \leq n$, if
   \[
     \src{\Phi} \nstep[i] \src{\Phi'} \step \src{\Phi''}
@@ -2232,14 +2236,15 @@ and
 
 %  \dominique{TODO: Also not allowed: storing a seal or a code capability in memory.}a
 \begin{definition}[Never store link seals and code capability]
-  A configuration $\src{\Phi}$ is said to not store seals and code capability in $\ta$ with component parameters $\sigrets$, $\sigcloss$ for $n$ steps iff\\
+  \label{def:never-store-seal-code-cap}
+  A configuration $\src{\Phi}$ is said to not store link seals and code capability in $\ta$ with component parameters $\sigrets$, $\sigcloss$ for $n$ steps iff\\
   for all $i \leq n$, if
   \[
     \src{\Phi} \nstep[i] \src{\Phi'}
   \]
   and $\src{\Phi'}$ points to $\src{\tload{r_1}{r_2}}$ in $\ta$, then 
 \[
-  \Phi'(r_2) = \seal(\sigma_\baddr,\sigma_\eaddr,\_) \Rightarrow (\sigrets\cup\sigcloss) \mathrel{\#} [\sigma_\baddr,\sigma_\eaddr]
+  \Phi'(r_2) = \seal{\sigma_\baddr,\sigma_\eaddr,\_} \Rightarrow (\sigrets\cup\sigcloss) \mathrel{\#} [\sigma_\baddr,\sigma_\eaddr]
 \]
 and
 \[
@@ -2254,11 +2259,12 @@ and
 
 \dominique{19-3-2018: components should contain information about what seals they use and for what (for building return pointers or for building closures). That should facilitate defining reasonable linking (only when seals disjoint), and for defining the condition for full abstraction and the FTLR.}
 \begin{definition}
-  A program $\program$ with memory segment $\ms_\program$ and $\dom(\ms_\program) = \ta$, is reasonable if for all $n$ and all contexts $\context$ the configuration $\plug{\context}{\program}$ satisfies:
+  A component $\program = (\ms_{\mathrm{code}},\ms_{\mathrm{data}},\overline{c}_{\mathrm{import}},\overline{c}_{\mathrm{export}},\sigrets,\sigcloss)$ with $\dom(\ms_{\mathrm{code}}) = \ta$, is reasonable if for all $n$ and all contexts $\context$ the configuration $\plug{\context}{\program}$ satisfies:
   \begin{itemize}
-  \item $\plug{\context}{\program}$ has reasonable calls in $\dom(\ms_\program)$ for $n$ steps.
-  \item $\plug{\context}{\program}$ uses linker seals properly for $n$ steps.
-  \item $\plug{\context}{\program}$ never passes trusted seals across the boundary.
+  \item $\plug{\context}{\program}$ checks $\stkb$ before calls in $\ta$ for $n$ steps (Definition~\ref{def:check-stack-addr-before-call}).
+  \item $\plug{\context}{\program}$ uses link seals properly in $\ta$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:use-return-seals-call}).
+  \item $\plug{\context}{\program}$ handle trusted seals properly in $\ta$ with components parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:handle-trusted-seals-properly}).
+  \item $\plug{\context}{\program}$ does not store link seals and code capabilities in $\ta$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:never-store-seal-code-cap}).
   \end{itemize}
 \end{definition}
 
