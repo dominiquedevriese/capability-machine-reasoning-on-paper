@@ -2,6 +2,7 @@
 \usepackage[svgnames]{xcolor}
 \usepackage[a4paper,margin=0.7in]{geometry}
 \usepackage[utf8]{inputenc}
+\usepackage{url}
 
 % References
 \usepackage{natbib}
@@ -95,13 +96,13 @@ The target machine is a simple capability machine with memory capabilities and s
 \[
 \begin{array}{rcl}
 n &\in & \ints \\
-\trg{r} &\in &  \tRegName \\
-\trg{\rn} &\defbnf &  \trg{r} \mid n \\
-\trg{i} &\defbnf & \tfail \mid \thalt \mid \tjmp{\trg{r}} \mid \tjnz{\trg{r}}{\trg{\rn}} \mid \tisptr{\trg{r}}{\trg{r}} \mid \tgeta{\trg{r}}{\trg{r}} \mid \tgetb{\trg{r}}{\trg{r}} \mid \\
-      & &  \tgete{\trg{r}}{\trg{r}}\mid \tgetp{\trg{r}}{\trg{r}} \mid \tgetlin{\trg{r}}{\trg{r}} \mid \tmove{\trg{r}}{\trg{\rn}} \mid \tstore{\trg{r}}{\trg{r}} \mid\\
-      & &  \tload{\trg{r}}{\trg{r}} \mid \tcca{\trg{r}}{\trg{\rn}} \mid \trestrict{\trg{r}}{\trg{\rn}} \mid \tlt{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \\
-  & & \tplus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tminus{\trg{r}}{\trg{\rn}}{\trg{\rn}} \mid \tsetatob{\trg{r}} \mid \txjmp{\trg{r}}{\trg{r}} \mid \tcseal{\trg{r}}{\trg{r}} \mid \\ 
-      & &   \tsplit{\trg{r}}{\trg{r}}{\trg{r}}{\trg{\rn}} \mid\tsplice{\trg{r}}{\trg{r}}{\trg{r}} 
+\com{r} &\in &  \tRegName \\
+\com{\rn} &\defbnf &  \com{r} \mid n \\
+\com{i} &\defbnf & \tfail \mid \thalt \mid \tjmp{\com{r}} \mid \tjnz{\com{r}}{\com{\rn}} \mid \tisptr{\com{r}}{\com{r}} \mid \tgeta{\com{r}}{\com{r}} \mid \tgetb{\com{r}}{\com{r}} \mid \\
+      & &  \tgete{\com{r}}{\com{r}}\mid \tgetp{\com{r}}{\com{r}} \mid \tgetlin{\com{r}}{\com{r}} \mid \tmove{\com{r}}{\com{\rn}} \mid \tstore{\com{r}}{\com{r}} \mid\\
+      & &  \tload{\com{r}}{\com{r}} \mid \tcca{\com{r}}{\com{\rn}} \mid \trestrict{\com{r}}{\com{\rn}} \mid \tlt{\com{r}}{\com{\rn}}{\com{\rn}} \mid \\
+  & & \tplus{\com{r}}{\com{\rn}}{\com{\rn}} \mid \tminus{\com{r}}{\com{\rn}}{\com{\rn}} \mid \tsetatob{\com{r}} \mid \txjmp{\com{r}}{\com{r}} \mid \tcseal{\com{r}}{\com{r}} \mid \\ 
+      & &   \tsplit{\com{r}}{\com{r}}{\com{r}}{\com{\rn}} \mid\tsplice{\com{r}}{\com{r}}{\com{r}} 
 \end{array}
 \]
 $i$ defines the set $\Instr$
@@ -113,7 +114,7 @@ The source machine is also a capability machine with memory capabilities and sea
 \[
   \begin{array}{rcl}
     o & \in & \nats \\
-    \src{i} & \defbnf &  \trg{i} \mid \scall{\offpc,\offsigma}{r}{r}
+    \src{i} & \defbnf &  \com{i} \mid \scall{\offpc,\offsigma}{r}{r}
   \end{array}
 \]
 There is one syntactic difference between the source language and the target language, namely the target language has an extra instruction in the $\scall{\offpc,\offsigma}{}{}$ instruction (the $o$ refers to the seal it uses, namely the offset in the seals made available by linking). 
@@ -1192,26 +1193,35 @@ Source semantics will define that only the non-split-off part will be encapsulat
 The parts that were split off and passed to the adversary are not protected, as expected.
 
 \subsection{Component layout and linking}
-We define a notion of 
-
-A target-level program needs a number of things available in order to be able to execute securely. In the following, we list what it needs followed by a description of how they are made available.
+\dominique{21-3-2018: TODO: update this section (further) to reflect recent changes.}
+A target- or source-level component needs a number of things.
+In the following, we list what it needs followed by a description of how they are made available.
 
 A program needs access to the following:
 \begin{description}
-\item[Code] The instructions of a program should of course be available so they can be executed.
-\item[Program seals] Each call/return point of the program needs a unique seal in order to enforce well-bracketedness. This seal needs to be unique on the entire machine.
-\item[Stack] A program stores the value of local variables on the stack. 
-\item[Persistent data storage] A program may also need to use "global variables" these are stored in a piece of memory separate from the stack.
-\item[Linking table] A program may need to call other programs. Other programs are made available in a linking table.
+\item[Code] The instructions of a component should of course be available so they can be executed.
+\item[Component seals] Each call/return point of the component, as well as every location where new closures are created, needs a unique seal in order to enforce well-bracketedness.
+  This seal needs to be unique on the entire machine.
+\item[Stack] A component stores the value of local variables on the stack. 
+\item[Persistent data storage] A component may also need to use "global variables" these are stored in a piece of memory separate from the stack.
+\item[Access to other components' exported functions] A component may need to call other components.
+  Every component makes available a number of exported values (e.g. sealed code-data pairs for invoking certain functions) and components are allowed to include these exported values in their data memory.
+  They could, for example, keep a linking table there through which they can invoke other components' exports.
 \end{description}
 
-In the following, we describe the setup in detail. Figure~\ref{fig:trg-prog-link} illustrates the setup.
+In the following, we describe the setup in detail.
+Figure~\ref{fig:trg-prog-link} illustrates the setup (modulo the fact that the code memory contains a reference to the linking table, which is now no longer allowed).
 
-The \emph{code}, \emph{program seals}, and \emph{linking table} are available through a normal read-execute capability in the $\pc$ register. The program seals are found on the first address governed by this capability. The second address governed by the capability contains a normal read capability that governs the linking table and points to the first address. The remaining addresses governed by the capability in the $\pc$ register contain the instructions of the program.
+The \emph{code} and \emph{program seals} are available through a normal read-execute capability in the $\pc$ register.
+The program seals are stored as part of the code memory and can be accessed through the $\pc$ register.
+The data memory may contain references to references exported by other components, organised, for example, as a linking table.
+The remaining addresses governed by the capability in the $\pc$ register contain the instructions of the program.
 
-The \emph{linking table} contains pairs of sealed code and data capabilities. So the first two addresses of the linking table contains the first pair, the two next contains the next pair and so on.
+The \emph{linking table} contains pairs of sealed code and data capabilities.
+So the first two addresses of the linking table contains the first pair, the two next contains the next pair and so on.
 
-The \emph{program seals} contain at least a seal for each of the ``call/return points'' in the program.\lau{it is not clear what this means for a target level program that does not contain the call instruction.} The seals are globally unique in the sense that no other program has access to this range of seals.
+The \emph{program seals} contain at least a seal for each of the ``call/return points'' in the program.\lau{it is not clear what this means for a target level program that does not contain the call instruction.}
+The seals are globally unique in the sense that no other program has access to this range of seals.
 
 The \emph{stack} is available through a capability in the register $r_\stk$. The stack pointer is a linear read write capability. There are three ways of receiving a stack: (1) the first program executing has a stack pointer in the $r_\stk$ register, (2) call backs and programs can expect to be called with a stack pointer as an argument in the $r_\stk$ register, and (3) when returning from a call, part of the stack is unsealed as the data part of a return pointer the other part is returned from the callee (the callee is allowed to keep part of the stack, but the callee must at least return a non-empty part of the stack adjacent to the part of the stack that was unsealed by returning).
 
@@ -1219,7 +1229,7 @@ The \emph{persistent data storage} is expected to be accessible through a normal
 \begin{figure}
   \centering
   \includegraphics[angle=90,width=\textwidth]{img/linking.pdf}
-  \caption{Linking and program layout.}
+  \caption{Linking and program layout (modulo the fact that the code memory contains a reference to the linking table, which is now no longer allowed).}
   \label{fig:trg-prog-link}
 \end{figure}
 
@@ -1234,7 +1244,7 @@ We define a component as follows:
 We define inductively when a component is valid ($\vdash \var{comp}$) by the below inference rules:
 \begin{mathpar}
   \inference{
-    \mscode(a) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\aaddr} & [\sigma_\baddr,\sigma_\eaddr] \subseteq (\sigrets \cup \sigcloss)
+    \mscode(a) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr} & [\sigma_\baddr,\sigma_\eaddr] \subseteq (\sigrets \cup \sigcloss)
   }{
     \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode,a
   }
@@ -1320,40 +1330,31 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
 \label{sec:programs}
 
 \begin{definition}[Programs and Contexts]
-  We define a program as a $(\var{comp},c_{\mathrm{main}})$ component with an empty import list and $c_{\mathrm{main}}$ is one of the exported symbols.
+  We define a program as a $(\var{comp}, c_{\mathrm{main},c}, c_{\mathrm{main},d})$ component with an empty import list and $c_{\mathrm{main},c}$ and $c_{\mathrm{main},d}$ are two of the exported symbols.
 
-  Given a component $\var{comp}$, a context is a tuple $(\var{comp'},c_{\mathrm{main}})$ such that $\var{comp'}$ is a component and $(\var{comp} \bowtie \var{comp'},c_{\mathrm{main}})$ is a program.
+  Given a component $\var{comp}$, a context is a tuple $(\var{comp'}, c_{\mathrm{main},c}, c_{\mathrm{main},d})$ such that $\var{comp'}$ is a component and $(\var{comp} \bowtie \var{comp'}, c_{\mathrm{main},c}, c_{\mathrm{main},d})$ is a program.
+\end{definition}
+
+\begin{definition}[Initial execution configuration]
+  \begin{mathpar}
+    \inference{
+      \reg(\pc) = c_{\mathrm{main},c} & 
+      \reg(\rdata) = c_{\mathrm{main},d} \\
+      \src{\reg(\rstk) = \stkptr{\rx,\baddr_\stk,\eaddr_\stk,\eaddr_\stk}} & 
+      \trg{\reg(\rstk) = ((\rx,\linear),\baddr_\stk,\eaddr_\stk,\eaddr_\stk)} \\
+      \mem = \mscode \uplus \msdata \trg{\;\uplus\; \ms_\stk} \\
+      [\baddr_\stk,\eaddr_\stk] = \dom(\ms_\stk ) \mathrel{\#} (\dom(\mscode) \cup \dom(\msdata)) &
+      \overline{c_{\mathrm{import}}} = \emptyset
+    }{
+      ((\mscode, \msdata, \overline{c_{\mathrm{import}}}, \overline{c_{\mathrm{export}}}, \sigrets, \sigcloss),  c_{\mathrm{main},c}, c_{\mathrm{main},d}) \rightsquigarrow (\mem, \reg\src{, \emptyset, \ms_\stk})
+    }
+  \end{mathpar}
 \end{definition}
 
 \section{Compiler}
 \label{sec:compiler}
-\[
-\comp{\cdot} : \src{i}^* \fun \trg{i}^*
-\]
-\dominique{27-09-2017: Regarding the type signature for $[\cdot]$ above: does this mean that it maps lists of instructions to lists of instructions? Is there another function that compiles a single instruction to a list of instructions?}
-\lau{28-09-2017: Yes, that was the thought at the moment, but this may very well change soon. This compiler would then use a compiler that compiles single instructions. That said, this part was added a long time ago and for some reason (some details about the compilation probably did not make sense to me at the moment), I did not complete it. I think the compiler will probably change to be from programs to programs, and a programs is not just going to be a list of instructions.}
 
-\[
-  \comp{\scall{\offpc,\offsigma}{r_1}{r_2}} = 
-  \begin{array}[t]{l}
-    % Make the stack capability into the return capability and seal it:
-    %   Push r_data to the stack (should this be made the responsibility of the programmer? If it happens here, then it should probably also be part of the call semantics. Especially, the call semantics should "eat" another piece of memory on the stack to make sure there is no discrepancy.)
-    %   Seal the stack capability (with what? where does the seal come from? I think we talked about this, and it is something that should be handled like linking (a fresh seal is available in the beginning of a programs code along with a capability for a linking table)).
-    % restrict the stack capability to the unused part (and clear this part (is this really necessary?)).
-    % make return capability and ceal it:
-    %   Move a copy of pc to a different register.
-    %   Adjust the pc copy to point to the return address.
-    %   Seal it with the seal.
-    % remove all data from temp registers (that is at least the seal).
-    % jmpx to r1 and r2
-    % restore code:
-    %   check the stack end address.
-    %   move the stack pointer to the proper register
-    %   pop the data capability
-  \end{array}
-\]
-
-\clearpage
+The compiler is the identity.
 
 \section{Logical Relation}
 In the following definitions, \src{blue} is used to indicate values related to the source machine. This is unlike previous definitions, where \src{blue} was used to indicate source language specific parts of definitions.
@@ -2332,7 +2333,7 @@ The back translation is an embedding of the target language into the source lang
 \section{Notes}
 \subsection{Leuven stay conclusions}
 \begin{enumerate}
-\item Enter capabilities replaces by sealed code/data pairs \label{item:first-point}
+\item Enter capabilities replaced by sealed code/data pairs \label{item:first-point}
   \begin{itemize}
   \item To allow us to forbid dynamic code generation
   \end{itemize}
@@ -2358,23 +2359,6 @@ The back translation is an embedding of the target language into the source lang
   \item Export refs (Question: do we allow other things than sealed code/data pairs to be exported?)
   \item Import refs
   \item Fresh seal requirement
-  \end{itemize}
-\item Components are memory segments and symbols.
-\item Variable instruction length in the source to avoid leaking information through code size that cannot be matched after compilation (breaks compiler correctness, see example in subsection~\ref{subsec:capability-opacity}).
-  \begin{itemize}
-  \item Notice x86 allows instructions of up to infinite length, so this is not weird.
-  \end{itemize}
-\item Have opaque capabilities.
-  \begin{itemize}
-  \item Without opaque capabilities, stack consumption could be inferred through stack pointer index etc.
-  \end{itemize}
-\item Considered PORs for transition systems to: ($a \rightarrow b \Rightarrow a \rightarrow a \text{ and } b \rightarrow b$)
-  \dominique{27-09-2017: I don't remember what we meant with PORs, but perhaps quasi-reflexive partial orders.  Not sure what the point of this was again... }
-  \lau{28-09-2017: I think the next three points is the answer. We basically wanted a formalism in which we could design one region that would govern the stack. I do not remember why it was made possible with PORs.}
-  \begin{itemize}
-  \item Define one region that governs the stack
-  \item Make the regions more general
-  \item For now, we have not done this: instead we stick with the transition systems we have and have two regions governing the stack reflecting the CSF work.
   \end{itemize}
 \end{enumerate}
 
@@ -2605,6 +2589,9 @@ One way to solve this problem is to make the "top address" of the stack known. T
 \subsection{Conditional Full-Abstraction}
 The idea of conditional full-abstraction was used by \citet{Juglaret2016} to define full abstraction for unsafe languages. Their definition requires both the programs and the context to be fully defined (i.e.\ not cause undefined behavior). If the programs are not required to be fully-defined, then anything can happen which makes it impossible to reason about.. In our work, undefined behavior marks cases that we do not want to consider because they should be excluded further up in the compilation chain. Further, if we have to take these cases into account, then we need to add checks which protects the trusted code against itself, but properly compiled code should not have to protect itself against itself.
 \lau{03-10-2017: We can adjust this when we have actually done something.}
+
+Update: followup paper to the above presented at PriSC 2018, perhaps published elsewhere?
+\url{https://popl18.sigplan.org/event/prisc-2018-formally-secure-compilation-of-unsafe-low-level-components}
 
 \bibliography{references}
 \end{document}
