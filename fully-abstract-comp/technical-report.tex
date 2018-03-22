@@ -1380,16 +1380,15 @@ and
 where $\RegionName = \nats$.
 \begin{multline*}
   \Regionh = 
-  \{\pure \} \times \State \times \Rels \times\\
-  (\State \fun \World \monnefun \URel{\MemSeg^2}) \times \\
-  (\State \fun \Seal \parfun \World \monnefun \URel{\SealableCaps \times \SealableCaps})
+  \{\pure \} \times (\World \monnefun \URel{\MemSeg^2}) \times \\
+  (\Seal \parfun \World \monnefun \URel{\SealableCaps \times \SealableCaps})
 \end{multline*}
 and
 \[
   \Regions = \left\{
   \begin{array}{l}
-    \{\spatial \} \times \State \times \Rels \times (\State \fun \World \monnefun \URel{\MemSeg^2}) \uplus \\
-    \{\spatialo \} \times \State \times \Rels \times (\State \fun \World \monnefun \URel{\MemSeg^2})\uplus \\ 
+    \{\spatial \} \times (\World \monnefun \URel{\MemSeg^2}) \uplus \\
+    \{\spatialo \} \times (\World \monnefun \URel{\MemSeg^2})\uplus \\ 
     \{\revoked\}
   \end{array} \right.
 \]
@@ -1401,9 +1400,9 @@ Finally, $\pure$ signifies that the region is only addressed by non-linear capab
 Notice that no region allows for both linear and non-linear capabilities to address it.
 Notice also that $\pure$ regions have an additional component that allows them to claim ownership of part of the address space of seals and impose a relational invariant on everything signed with those seals.
 
-\[
-  \Rels = \{(\phi_\pub, \phi) \in \powerset{\State^2}\times \powerset{\State^2} \mid \phi_\pub, \phi \text{ is reflexive and transitive and } \phi_\pub \subseteq \phi \}
-\]
+% \[
+%   \Rels = \{(\phi_\pub, \phi) \in \powerset{\State^2}\times \powerset{\State^2} \mid \phi_\pub, \phi \text{ is reflexive and transitive and } \phi_\pub \subseteq \phi \}
+% \]
 
 We introduce a bit of notation for projecting out each part of the world:
 \[
@@ -1472,12 +1471,12 @@ Disjoint union of worlds. Joins together two alike worlds with strictly disjoint
 \]
 $\oplus$ on regions is defined as follows
 \begin{align*}
-  (\pure,\var{sm}) \oplus (\pure,\var{sm}) =  & \; (\pure,\var{sm}) \\
-  (\spatial,\var{sm}) \oplus (\spatial,\var{sm}) =  & \; (\spatial,\var{sm}) \\
-  (\spatialo,\var{sm}) \oplus (\spatial,\var{sm}) = & \; (\spatial,\var{sm}) \oplus (\spatialo,\var{sm})\\
-                                           =  & \; (\spatialo,\var{sm})
+  (\pure,H,H_\sigma) \oplus (\pure,H,H_\sigma) =  & \; (\pure,H,H_\sigma) \\
+  (\spatial,H) \oplus (\spatial,H) =  & \; (\spatial,H) \\
+  (\spatialo,H) \oplus (\spatial,H) = & \; (\spatial,H) \oplus (\spatialo,H)\\
+                                           =  & \; (\spatialo,H)
 \end{align*}
-and for all other cases $\oplus$ is undefined. Specifically, $\oplus$ is not defined when both sides are a $\spatialo$-region. It is further not defined if the two sides do not agree on region type or state machine. Here $\var{sm}$ is the state machine of the region.
+and for all other cases $\oplus$ is undefined. Specifically, $\oplus$ is not defined when both sides are a $\spatialo$-region. It is further not defined if the two sides do not agree on region type or heap or sealed value relations.
 
 \begin{lemma}
   $\oplus$ is associative and commutative.
@@ -1504,7 +1503,7 @@ where we take ``is non-empty'' to mean the following:
   We say a region $(k,s,\phi_\pub,\phi,H)$ is non-empty iff
 \[
   \begin{array}{l}
-    \forall n, \hat{W},s'\ldotp \forall \npair{\stpair{\ms}{\ms}} \in H \; s' \; \hat{W} \ldotp \dom(\src{\ms_S}) > 0 \wedge \dom(\ms_T) > 0 
+    \forall n, \hat{W}\ldotp \forall \npair{\stpair{\ms}{\ms}} \in H \;  \hat{W} \ldotp \dom(\src{\ms_S}) > 0 \wedge \dom(\ms_T) > 0 
   \end{array}
 \]
 \end{definition}
@@ -1520,18 +1519,21 @@ where we take ``is non-empty'' to mean the following:
 %
 The private future regions allow transitions in the private part of the transition system. They also allow $\spatial$ regions to become $\revoked$.
 Also: both future region relations allow $\spatial$ regions to become $\spatialo$, which expresses that our system is affine, rather than linear.
+\lau{22-3-2018: need extra rules for regions with seal interpretations}
 \begin{mathpar}
   \inferrule{ }
-  { \revoked \privft (\spatial,\_,\_,\_,\_)}
+  { \revoked \privft (\spatial,\_)}
 \and
   \inferrule{ }
             { \revoked \privft \revoked }
-\and
-  \inferrule{ (s,s') \in \phi}
-            { (\spatialo,s',\phi_\pub,\phi,H) \privft (\spatial,s,\phi_\pub,\phi,H)  }
             \and
-  \inferrule{ (s,s') \in \phi }
-            { (v,s',\phi_\pub,\phi,H) \privft (v,s,\phi_\pub,\phi,H)  }
+            \inferrule{}{(\spatialo,H) \privft (\spatial,H)}
+% \and
+%   \inferrule{ (s,s') \in \phi}
+%             { (\spatialo,s',\phi_\pub,\phi,H) \privft (\spatial,s,\phi_\pub,\phi,H)  }
+%             \and
+%   \inferrule{ (s,s') \in \phi }
+%             { (v,s',\phi_\pub,\phi,H) \privft (v,s,\phi_\pub,\phi,H)  }
 \end{mathpar}
 %
 Public future regions are allowed to transition according to the public part of their transition system.
@@ -1539,11 +1541,13 @@ Public future regions are allowed to transition according to the public part of 
     \inferrule{ }
             { \revoked \pubft \revoked }
             \and
-  \inferrule{ (s,s') \in \phi_\pub}
-            { (\spatialo,s',\phi_\pub,\phi,H) \pubft (\spatial,s,\phi_\pub,\phi,H)  }
-            \and
-  \inferrule{ (s,s') \in \phi_\pub}
-            { (v,s',\phi_\pub,\phi,H) \pubft (v,s,\phi_\pub,\phi,H)  }
+            \inferrule{}{(\spatialo,H) \privft (\spatial,H)}
+  %           \and
+  % \inferrule{ (s,s') \in \phi_\pub}
+  %           { (\spatialo,s',\phi_\pub,\phi,H) \pubft (\spatial,s,\phi_\pub,\phi,H)  }
+  %           \and
+  % \inferrule{ (s,s') \in \phi_\pub}
+  %           { (v,s',\phi_\pub,\phi,H) \pubft (v,s,\phi_\pub,\phi,H)  }
 \end{mathpar}
 
 \begin{definition}[The pure part of a world]
@@ -1632,7 +1636,7 @@ Memory satisfaction for new worlds:
       \quad \exists R_W : \dom(\activeReg{W_\var{stack}}) \fun \World \ldotp \\
       \qquad W = \bigoplus_{r \in \dom(\activeReg{W_\var{stack}})} R_W(r) \wedge \\
       \qquad \forall r \in \dom(\activeReg{W_\var{stack}}), n' < n \ldotp \\
-      \qquad \quad \npair[n']{(\pi_1(R_\ms(r)),\pi_3(R_\ms(r))} \in W_\var{stack}(r).H \; W_\var{stack}(r).s \; \xi^{-1}(R_W(r)) \\
+      \qquad \quad \npair[n']{(\pi_1(R_\ms(r)),\pi_3(R_\ms(r))} \in W_\var{stack}(r).H \; \xi^{-1}(R_W(r)) \\
       \qquad \quad \pi_2(R_\ms(r)) = W_\var{stack}(r).\opc \wedge\\
       \qquad \quad \exists i \ldotp \opc_i = W_\var{stack}(r).\opc \wedge \ms_i = \pi_1 (R_\ms(r))
     \end{array}
@@ -1650,7 +1654,7 @@ Memory satisfaction for new worlds:
       \quad \exists R_W : \dom(\activeReg{W_\var{stack}}) \fun \World\ldotp\\
       \qquad W = \oplus_{r \in \dom(\activeReg{W_\var{stack}})} R_W(r) \wedge\\
       \qquad \forall r \in \dom(\activeReg{W_\var{stack}}), n' < n \ldotp \\
-      \qquad \quad \npair[n']{R_\ms(r)} \in  W_\var{stack}(r).H \; W_\var{stack}(r).s \; \xi^{-1}(R_W(r))
+      \qquad \quad \npair[n']{R_\ms(r)} \in  W_\var{stack}(r).H \; \xi^{-1}(R_W(r))
     \end{array}
   \right.
 \]
@@ -1665,10 +1669,10 @@ Memory satisfaction for new worlds:
       \quad \exists R_W : \dom(\activeReg{\pwheap}) \fun \World\ldotp\\
       \qquad W = \oplus_{r \in \dom(\activeReg{\pwheap})} R_W(r) \wedge\\
       \qquad \forall r \in \activeReg{\pwheap}, n' < n \ldotp \\
-      \qquad \quad \npair[n']{R_\ms(r)} \in  \pwheap(r).H \; \pwheap(r).s \; \xi^{-1}(R_W(r)) \wedge\\
+      \qquad \quad \npair[n']{R_\ms(r)} \in  \pwheap(r).H \; \xi^{-1}(R_W(r)) \wedge\\
       \exists R_\var{seal} : \dom(\activeReg{\pwheap}) \fun \powerset{\Seal} \wedge\\
       \quad \biguplus_{r \in \dom(\activeReg{\pwheap})} R_\var{seal}(r)) \text{ is defined }\\
-      \quad \dom(\pwheap(r).H_\sigma \; \pwheap(r).s) = R_\var{seal}(r)
+      \quad \dom(\pwheap(r).H_\sigma) = R_\var{seal}(r)
     \end{array}
   \right.
 \]
@@ -1687,7 +1691,7 @@ Memory satisfaction for new worlds:
 %       \quad \exists R_w : \dom(W) \fun \World \ldotp\\
 %       \qquad W = \bigoplus_{r \in \dom(W)} R_w(r) \wedge \\
 %       \qquad \forall r \in \dom(W) , n' < n \ldotp \\
-%       \quad \qquad \npair[n']{R_\ms(r)} \in W(r).H \; (W(r).s) \; (\xi^{-1} (R_w (r))) 
+%       \quad \qquad \npair[n']{R_\ms(r)} \in W(r).H \; (\xi^{-1} (R_w (r))) 
 %     \end{array}
 %   \right.
 % \]
@@ -1792,7 +1796,7 @@ The argument for having one relation relate pairs of pairs of capabilities and t
       \qquad\baddr = \pi_\baddr(c_i') \wedge \eaddr = \pi_\eaddr(c_i') \wedge \\
       \qquad\src{\lin} = \pi_\lin(\src{c_i}) = \pi_\lin(c_i') \wedge \\
       \qquad \exists r \in \addressable{l,S(i)} \ldotp\\
-      \qquad \quad \forall \npair{\stpair{\ms}{\ms}} \in S(i)(r).H \; S(i)(r).s \; \xi^{-1}(S(i))  \ldotp \\
+      \qquad \quad \forall \npair{\stpair{\ms}{\ms}} \in S(i)(r).H \; \xi^{-1}(S(i))  \ldotp \\
       \qquad \qquad \dom(\src{\ms_S}) \supseteq [\src{\baddr},\src{\eaddr}] \wedge \dom(\ms_T) \supseteq [\baddr,\eaddr]      
     \end{array}
   \right\}
@@ -1823,11 +1827,11 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
     \left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\sealed{\sigma,\vsc_S}},\\ \sealed{\sigma,\vsc_T} \endarray\right)} \;\middle| \;
     \begin{array}{l}
       \npair{(\src{\vsc_S},\vsc_T)} \in \lrp(W) \wedge \\
-      \exists r \in \dom(\pwheap)\ldotp \pwheap(r) = (\pure,s,\_,\_,\_,H_\sigma) \tand \\
-      \quad \stpair[.]{\vsc_S}{\vsc_T} \in H_\sigma \; s \; \sigma \; W\wedge \\
-      \quad (\isLinear{\vsc_1} \Rightarrow \forall W' \future W, W_o, n' < n, \stpair[.]{\vsc_S'}{\vsc'_T} \in H_\sigma \; s \; \sigma \; W_o \ldotp \\
+      \exists r \in \dom(\pwheap)\ldotp \pwheap(r) = (\pure,\_,H_\sigma) \tand \\
+      \quad \stpair[.]{\vsc_S}{\vsc_T} \in H_\sigma \; \sigma \; W\wedge \\
+      \quad (\isLinear{\vsc_1} \Rightarrow \forall W' \future W, W_o, n' < n, \stpair[.]{\vsc_S'}{\vsc'_T} \in H_\sigma \; \sigma \; W_o \ldotp \\
       \qquad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o)) \wedge \\
-      \quad (\nonLinear{\vsc_1} \Rightarrow \forall W' \future \purePart{W}, W_o, n' < n, \stpair[.]{\vsc_S'}{\vsc'_T} \in H_\sigma \; s \; \sigma \; W_o \ldotp \\
+      \quad (\nonLinear{\vsc_1} \Rightarrow \forall W' \future \purePart{W}, W_o, n' < n, \stpair[.]{\vsc_S'}{\vsc'_T} \in H_\sigma \; \sigma \; W_o \ldotp \\
       \qquad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o))
 
       % This case was never used (?) so it is not necessary.
@@ -1837,7 +1841,7 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
     \right\}\cup\\
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma,\sigma_\baddr,\sigma_\eaddr}},\\ \seal{\sigma,\sigma_\baddr,\sigma_\eaddr} \endarray \right)} 
     \; \middle| \;
-    \exists r \in \dom(\pwheap) \ldotp \pwheap(r) = (\pure,s,\_,\_,\_,H_\sigma) \tand H_\sigma\; s \; \sigma \nequal \lrv
+    \exists r \in \dom(\pwheap) \ldotp \pwheap(r) = (\pure,\_,H_\sigma) \tand H_\sigma \; \sigma \nequal \lrv
     \right\} \cup \\
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\stkptr{\perm,\baddr,\eaddr,\aaddr}},\\ ((\perm,\linear),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\;
     \begin{array}{l}
@@ -1930,14 +1934,14 @@ where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-region
 
 \begin{definition}
   \label{def:address-stratified}
-  We say that a region $\iota = (\_,\_,\_,\_,H)$ is address stratified iff
+  We say that a region $\iota = (\_,H,\_)$ is address stratified iff
   \[
     \begin{array}{l}
       \forall n, \src{\ms_S},\ms_T,\src{\ms_S'},\ms_T',s,\hat{W}\ldotp \\
-      \quad \npair{\stpair{\ms}{\ms}}, \npair{\stpair[.]{\ms_S'}{\ms_T'}} \in H \; s \; \hat{W} \wedge \\
+      \quad \npair{\stpair{\ms}{\ms}}, \npair{\stpair[.]{\ms_S'}{\ms_T'}} \in H \; \hat{W} \wedge \\
       \quad \dom(\src{\ms_S}) = \dom(\ms_T) = \dom(\src{\ms_S'}) = \dom(\ms_T') \\
       \quad \Rightarrow \\
-      \qquad \forall \aaddr \in \dom(\ms_S) \ldotp \npair{(\src{\ms_S}\update{\aaddr}{\src{\ms_S'}(\aaddr)},\ms_T\update{\aaddr}{\ms_T'(\aaddr)})} \in H \; s \; \hat{W}
+      \qquad \forall \aaddr \in \dom(\ms_S) \ldotp \npair{(\src{\ms_S}\update{\aaddr}{\src{\ms_S'}(\aaddr)},\ms_T\update{\aaddr}{\ms_T'(\aaddr)})} \in H \; \hat{W}
     \end{array}
   \]
 \end{definition}
@@ -1996,13 +2000,13 @@ Note: this new version of execCond uses the expression relation for regular jump
 \label{sec:standard-regions}
 Standard region:
 \[
-  \stdreg{A}{v} \defeq (v,*,=,=,H_A^{\mathrm{std}})
+  \stdreg{A}{v} \defeq (v,H_A^{\mathrm{std}})
 \]
 for readability, we use $\spao$ short for $\spatialo$, $\spa$ short for $\spatial$, and $\pur$ as short for $\pure$.
 \lau{02-11-2017: I am not sure whether it should be a $\normal$ region. In previous work $\nsubeq$ ignored the ``view'' which it may also do here, and then then it does not matter which one it is.}
 where $H_A$ is defined as follows:
 \[
-  H_A^{\mathrm{std}} \; * \; \hat{W} \defeq \left\{ \npair{\ms_S,\ms_T} \middle|
+  H_A^{\mathrm{std}} \; \hat{W} \defeq \left\{ \npair{\ms_S,\ms_T} \middle|
     \begin{array}{l}
       \dom(\ms_S) = \dom(\ms_T) = A \wedge \\
       \exists S : A \fun \World \ldotp \xi(W) = \oplus_{\aaddr \in A} S(\aaddr) \wedge\\
@@ -2014,7 +2018,7 @@ where $H_A$ is defined as follows:
 \dominique{7-3-2018: is it necessary to have $n-1$ above? there is already a quantification over $n'<n$ in the memory satisfaction relation.}
 
 \[
-  \stareg{v} = (v,*,=,=,H^\mathrm{sta}_{\stpair{\ms}{\ms}})
+  \stareg{v} = (v,H^\mathrm{sta}_{\stpair{\ms}{\ms}})
 \]
 \[
   H^\mathrm{sta}_{\stpair{\ms}{\ms}} = \{ \npair{\stpair{\ms}{\ms}} \}
@@ -2034,18 +2038,18 @@ where $H_A$ is defined as follows:
 % \]
 
 \[
-  \codereg{\sigrets,\sigcloss,\code} \defeq (\pure,*,=,=,H^\mathrm{code} \; \sigrets \; \sigcloss \; \code,H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code)
+  \codereg{\sigrets,\sigcloss,\code} \defeq (\pure,H^\mathrm{code} \; \sigrets \; \sigcloss \; \code,H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code)
 \]
 
 \begin{equation*}
-  H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; s \; \hat{W} = \left\{\npair{(\code,\code)} \middle|
+  H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; \hat{W} = \left\{\npair{(\code,\code)} \middle|
     \dom(\code) = [\aaddr,\baddr]
   \right\}
 \end{equation*}
 
 \lau{19-03-2018: Add the link capability to the above? code in ta?}
 \begin{multline*}
-  H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; s \; \sigma \; \hat{W} = \\
+  H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; \sigma \; \hat{W} = \\
   \begin{array}[t]{l}
 \left\{
     \begin{array}{l}
@@ -2280,6 +2284,10 @@ and
     \comp{\src{\program_1}} \tconeq \comp{\src{\program_2}}
   \end{gather*}
 \end{theorem}
+\begin{proof}
+  First, 
+  TODO
+\end{proof}
 
 \clearpage
 \section{Examples}
