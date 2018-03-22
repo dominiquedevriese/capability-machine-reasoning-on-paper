@@ -37,7 +37,7 @@
     &\sealendbnf & \in & \Seal \uplus \{\infty \} \\
     \scbnf \in &\SealableCaps&\defbnf & ((\permbnf,\linbnf),\basebnf,\aendbnf,\addrbnf) \mid \seal{\sealbasebnf,\sealendbnf,\sigma}\\
     & & & {\sourcecolor{} \mid \stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}}\\ 
-    & & & {\sourcecolor{} \; \mid \retptrd(\basebnf,\aendbnf) \mid \retptrc(\permbnf,\linbnf,\basebnf,\aendbnf,\addrbnf)}\\
+    & & & {\sourcecolor{} \; \mid \retptrd(\basebnf,\aendbnf) \mid \retptrc(\basebnf,\aendbnf,\addrbnf)}\\
     \cbnf \in&\Caps& \defbnf &  \scbnf \mid \sealed{\sigma,\scbnf}\\ 
     &\rbnf & \defbnf &\pcreg \mid \rretd \mid \rretc \mid \rstk \mid \rdata \mid \rtmp{1} \mid \rtmp{2} \mid \dots \\
     &\Reg & \defeq & \RegName \fun \Word\\
@@ -197,7 +197,7 @@ Target language:
     \pi_\baddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
     \src{\baddr} & \src{\text{if $\vsc = \stkptr{\_,\baddr,\_,\_}$}} \\ 
     \src{\baddr} & \src{\text{if $\vsc = \retptrd(\baddr,\_)$}} \\ 
-    \src{\baddr} & \src{\text{if $\vsc = \retptrc(\_,\_,\baddr,\_,\_)$}}
+    \src{\baddr} & \src{\text{if $\vsc = \retptrc(\baddr,\_,\_)$}}
   \end{cases}
 \]
 \[
@@ -207,7 +207,7 @@ Target language:
     \pi_\eaddr(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
     \src{\eaddr} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
     \src{\eaddr} & \src{\text{if $\vsc = \retptrd(\_,\eaddr)$}} \\ 
-    \src{\eaddr} & \src{\text{if $\vsc = \retptrc(\_,\_,\_,\eaddr,\_)$}}
+    \src{\eaddr} & \src{\text{if $\vsc = \retptrc(\_,\eaddr,\_)$}}
   \end{cases}
 \]
 
@@ -218,7 +218,7 @@ Target language:
     \pi_\lin(c) & \text{if $\vsc = \sealed{\_,c}$} \\ 
     \src{\linear} & \src{\text{if $\vsc = \stkptr{\_,\_,\eaddr,\_}$}} \\ 
     \src{\linear} & \src{\text{if $\vsc = \retptrd(\_,\_)$}} \\ 
-    \src{\lin} & \src{\text{if $\vsc = \retptrc(\_,\lin,\_,\_,\_)$}}
+    \src{\normal} & \src{\text{if $\vsc = \retptrc(\_,\_,\_)$}}
   \end{cases}
 \]
 
@@ -255,7 +255,6 @@ Target language:
     \begin{array}[t]{l}
       c = \stkptr{\_,\_,\_,\_}\\
       c = \retptrd(\_,\_)\\
-      c = \retptrc(\_,\linear,\_,\_,\_)
     \end{array}\right.\\
     \bot & \totherwise
   \end{cases}
@@ -525,7 +524,7 @@ In the definitions of the semantics below, we use a function $\encType{} : \Word
 \]
  and 
 \[
-\encType{}_{\var{src}}(\src{\retptrd(\_,\_)}) = \encType{}_{\var{src}}(\src{\retptrc(\_,\_,\_,\_,\_)}) = \encType{}_{\var{trg}}(((\_,\_),\_,\_,\_))
+\encType{}_{\var{src}}(\src{\retptrd(\_,\_)}) = \encType{}_{\var{src}}(\src{\retptrc(\_,\_,\_)}) = \encType{}_{\var{trg}}(((\_,\_),\_,\_,\_))
 \]
 \end{itemize}
 In English this means that each type of word is represented by a distinct value and that the tokens on the source machine has the type of the capability they represent on the target machine.
@@ -971,7 +970,7 @@ This instruction uses the $\decPerm{}$ function.
       \end{array}\right.&
     \sourcecolor\left.
       \begin{array}[t]{l}
-        c_1 = \retptrc(\_,\_,\baddr,\eaddr,\aaddr) \tand \\
+        c_1 = \retptrc(\baddr,\eaddr,\aaddr) \tand \\
         c_2 = \retptrd(\aaddr_\stk,\eaddr_{\stk,\priv}) \tand \\
         \Phi(\rstk) = \stkptr{\rw,\stkb,\eaddr_\stk,\_} \tand \\ 
         \Phi = (\mem,\reg,\stkf::\stk,\ms_\stk) \tand \\
@@ -1152,7 +1151,7 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                                         &\left[
 \arraycolsep=0pt\array{l}
 \reg.\rretc \mapsto \\
-\hfill \sealed{\sigma_?,\retptrc(\perm,\lin,\baddr,\eaddr,\aaddr+\calllen)}
+\hfill \sealed{\sigma_?,\retptrc(\baddr,\eaddr,\aaddr+\calllen)}
 \endarray
 \right]\\
                                                         &\updReg{\rretd}{\sealed{\sigma_?,\retptrd(\aaddr_\stk,\eaddr_\stk)}}\\
@@ -2062,7 +2061,7 @@ where $H_A$ is defined as follows:
   \begin{array}[t]{l}
 \left\{
     \begin{array}{l}
-\left. \npair{\arraycolsep=0pt\left(\array{l}\retptrc(\rx,\lin,\baddr,\eaddr,\aaddr'+\calllen),\\((\rx,\lin),\baddr,\eaddr,\aaddr)\endarray\right)} \middle| \right. \\
+\left. \npair{\arraycolsep=0pt\left(\array{l}\retptrc(\baddr,\eaddr,\aaddr'+\calllen),\\((\rx,\normal),\baddr,\eaddr,\aaddr)\endarray\right)} \middle| \right. \\
       \\
       \begin{array}{l}
         \decInstr{\code([a',a' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
