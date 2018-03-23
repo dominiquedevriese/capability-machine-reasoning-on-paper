@@ -368,7 +368,7 @@ We use the following step relation:
 = ((\perm,\_),\baddr,\eaddr,\aaddr) \tand \\
                                                     \callCond{\Phi,r_1,r_2,\aaddr} \tand\\
                                                     \lbrack \aaddr ,\aaddr + \calllen - 1\rbrack \subseteq \ta \tand \\
-                                                    \baddr \leq \aaddr \tand \aaddr + \calllen-1 \leq \eaddr \tand \\
+                                                    [\aaddr,\aaddr + \calllen-1] \subseteq [\baddr,\eaddr] \tand \\
                                                     \exec{\Phi(\pcreg)}
                                                   \end{array}\right.\\
   \Phi & \step \sem{\decInstr{\Phi.\mem(\aaddr)}}(\Phi) & &\left.\arraycolsep=0pt
@@ -1875,15 +1875,21 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
 %
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma,\sigma_\baddr,\sigma_\eaddr}},\\ \seal{\sigma,\sigma_\baddr,\sigma_\eaddr} \endarray \right)} 
     \; \middle| \;
-    \exists r \in \dom(\pwheap) \ldotp \pwheap(r) =_n \text{TODO: code region for trusted code}
+    \begin{array}{l}
+      \exists r \in \dom(\pwheap) \ldotp \pwheap(r) =_n \codereg{\sigrets,\sigcloss,\code} \wedge\\
+      \hfill\dom(\code) \subseteq \ta \wedge [\sigma_\baddr,\sigma_\eaddr] \subseteq (\sigrets\cup\sigcloss)
+    \end{array}
     \right\} \cup \\
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{((\perm,\normal),\baddr,\eaddr,\aaddr)},\\ ((\perm,\normal),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\; 
-    \begin{array}{l}
-      \exists r \in \dom(\pwheap) \ldotp \pwheap(r) =_n \text{TODO: code region for trusted code} \wedge\\
-      \perm \sqsubseteq \rx \wedge [\baddr,\eaddr] \subseteq \dom(\var{code})
-    \end{array}\right\}
+      \perm \sqsubseteq \rx \wedge \npair{(\baddr,\eaddr)} \in \xReadCond{\normal,W}
+    \right\}
   \end{array}
 \]
+
+Note: the case for sub-$\rx$ capabilities in the trusted value relation allows for pointers to trusted code blocks.
+Such pointers will not satisfy the read condition, which requires the standard region, which is defined in terms of the untrusted value relation.
+Trusted code blocks contain trusted seal capabilities which do not satisfy the untrusted code relation.
+An alternative might be to introduce a trust parameter to the readcondition and standard region and merge the case with the regular case for rx capabilities.
 
 \subsection{Permission based conditions}
 \lau{28-02-2018: These definitions need to be updated to fit with the new worlds}.
