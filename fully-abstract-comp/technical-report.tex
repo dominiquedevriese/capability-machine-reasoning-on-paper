@@ -427,7 +427,7 @@ This paragraph contains the implementation of $\scall{\offpc,\offsigma}{}{}$. Th
     \text{// the following is the return code}\\
     \text{// check that the stack pointer is the same we handed out.}\\
     \tgetb{\rtmp{1}}{\rstk}\\
-    \tminus{\rtmp{1}}{t_{t1}}{\stkb} \text{ //$\stkb$ is the stack base constant} \\
+    \tminus{\rtmp{1}}{\rtmp{1}}{\stkb} \text{ //$\stkb$ is the stack base constant} \\
     \tmove{\rtmp{2}}{\pcreg}\\
     \tcca{\rtmp{2}}{5} \text{ //magic number is the offset to fail} \\
     \tjnz{\rtmp{2}}{\rtmp{1}} \\
@@ -961,8 +961,7 @@ This instruction uses the $\decPerm{}$ function.
     \sourcecolor\left.
       \arraycolsep=0pt
       \begin{array}[t]{rl}
-        \Phi' & \updReg{r_2}{0} \\
-              & \updReg{\pcreg}{c_\opc}\\
+        \Phi' & \updReg{\pcreg}{c_\opc}\\
               & \updReg{\rdata}{0}\\
               & \updReg{\rstk}{c_\stk}\\
               & \updReg{\rtmp{1}}{0}\\
@@ -2131,7 +2130,7 @@ where $H_A$ is defined as follows:
   For all $n,W,\lin,\baddr,\eaddr,\aaddr$,
   If
   \begin{itemize}
-  \item $\npair{(\baddr,\eaddr)} \in \readCond{\lin,W}$
+  \item $\trust = \trusted \vee \npair{(\baddr,\eaddr)} \in \readCond{\lin,W}$
   \item $\npair{(\baddr,\eaddr)} \in \xReadCond{\lin,W}$
   \end{itemize}
   and one of the following sets of requirements holds:
@@ -2160,6 +2159,7 @@ where $H_A$ is defined as follows:
       ((\rx,\lin),\baddr,\eaddr,\aaddr)\endarray\right)} \in \lreg{\trust}(W)
   \]
 \end{theorem}
+Note: we don't require the readcondition in the trusted case because trusted code pointers point to trusted code blocks which may require seals for trusted seals which are not in the untrusted value relation.
 
 \section{Full Abstraction}
 \begin{definition}
@@ -2279,13 +2279,28 @@ and
 
 \dominique{19-3-2018: components should contain information about what seals they use and for what (for building return pointers or for building closures). That should facilitate defining reasonable linking (only when seals disjoint), and for defining the condition for full abstraction and the FTLR.}
 \begin{definition}
-  A component $\program = (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss)$ with $\dom(\mscode) = \ta$, is reasonable if for all $n$ and all contexts $\context$ the configuration $\plug{\context}{\program}$ satisfies:
+  A component $\program = (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss)$ with $\dom(\mscode) = A$, is reasonable if for all $n$ and all contexts $\context$ the configuration $\plug{\context}{\program}$ satisfies:
   \begin{itemize}
-  \item $\plug{\context}{\program}$ checks $\stkb$ before calls in $\ta$ for $n$ steps (Definition~\ref{def:check-stack-addr-before-call}).
-  \item $\plug{\context}{\program}$ uses link seals properly in $\ta$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:use-return-seals-call}).
-  \item $\plug{\context}{\program}$ handle trusted seals properly in $\ta$ with components parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:handle-trusted-seals-properly}).
-  \item $\plug{\context}{\program}$ does not store link seals and code capabilities in $\ta$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:never-store-seal-code-cap}).
+  \item $\plug{\context}{\program}$ checks $\stkb$ before calls in $A$ for $n$ steps (Definition~\ref{def:check-stack-addr-before-call}).
+  \item $\plug{\context}{\program}$ uses link seals properly in $A$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:use-return-seals-call}).
+  \item $\plug{\context}{\program}$ handle trusted seals properly in $A$ with components parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:handle-trusted-seals-properly}).
+  \item $\plug{\context}{\program}$ does not store link seals and code capabilities in $A$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:never-store-seal-code-cap}).
   \end{itemize}
+\end{definition}
+
+\begin{definition}[Source language contextual equivalence]
+  In the source language, we define that $\src{\program_1 \sconeq \program_2}$ iff
+  \begin{equation*}
+    \forall \src{\context} \ldotp \src{\plug{\context}{\program_1} \term^{\ta_1}} \Leftrightarrow \src{\plug{\context}{\program_2} \term^{\ta_2}}
+  \end{equation*}
+  with $\src{\ta_i} = \src{\dom(\program_i.\mscode)}$
+\end{definition}
+
+\begin{definition}[Target language contextual equivalence]
+  In the target language, we define that $\trg{\program_1 \tconeq \program_2}$ iff
+  \begin{equation*}
+    \forall \trg{\context} \ldotp \trg{\plug{\context}{\program_1} \term} \Leftrightarrow \trg{\plug{\context}{\program_2} \term}
+  \end{equation*}
 \end{definition}
 
 \begin{theorem}
