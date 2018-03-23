@@ -1605,7 +1605,7 @@ Also: the future region relation allows $\spatial$ regions to become $\spatialo$
 \subsection{Memory satisfaction}
 \lau{14-02-2018: No matter what the memory satisfaction ends up looking like, remember to handle the revoked case.}
 % {\color{DarkGreen}
-\lau{TODO add frame to memory satisfaction and remove it from observation relation.}
+\lau{RESOLVED add frame to memory satisfaction and remove it from observation relation.}
 Memory satisfaction for new worlds:
 \[
   \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W} \text{ iff } 
@@ -1785,7 +1785,7 @@ The argument for having one relation relate pairs of pairs of capabilities and t
 \]
 
 
-
+\lau{TODO make this only take a pair (the other uses are gone)}
 \[
   \lrp(W) =
     \left\{
@@ -1876,19 +1876,22 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
 \]
 
 \[
-  \lrvtrusted(W) =
+  \lrvtrusted[\square,(\ta,\stkb)](W) =
   \begin{array}[t]{l}
     \lrv(W)\cup \\
 %
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma,\sigma_\baddr,\sigma_\eaddr}},\\ \seal{\sigma,\sigma_\baddr,\sigma_\eaddr} \endarray \right)} 
     \; \middle| \;
     \begin{array}{l}
-      \exists r \in \dom(\pwheap) \ldotp \pwheap(r) =_n \codereg{\sigrets,\sigcloss,\code,\gc} \wedge\\
+      \exists r \in \dom(\pwheap) \ldotp \pwheap(r) =_n \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)} \wedge\\
       \hfill\dom(\code) \subseteq \ta \wedge [\sigma_\baddr,\sigma_\eaddr] \subseteq (\sigrets\cup\sigcloss)
     \end{array}
     \right\} \cup \\
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{((\perm,\normal),\baddr,\eaddr,\aaddr)},\\ ((\perm,\normal),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\; 
-      \perm \sqsubseteq \rx \wedge \npair{(\baddr,\eaddr)} \in \xReadCond{\normal,W}
+    \begin{array}{l}
+      \perm \sqsubseteq \rx \wedge \\
+      \npair{(\baddr,\eaddr)} \in \xReadCond[\square,(\ta,\stkb)]{\normal,W}
+    \end{array}
     \right\}
   \end{array}
 \]
@@ -2009,13 +2012,13 @@ Note: this new version of execCond uses the expression relation for regular jump
 \label{sec:standard-regions}
 Standard region:
 \[
-  \stdreg{A,\gc}{v} \defeq (v,H_A^{\mathrm{std}} \; \gc)
+  \stdreg{A,\gc}{v} \defeq (v,H_A^{\mathrm{std},\square} \; \gc)
 \]
 for readability, we use $\spao$ short for $\spatialo$, $\spa$ short for $\spatial$, and $\pur$ as short for $\pure$.
 \lau{02-11-2017: I am not sure whether it should be a $\normal$ region. In previous work $\nsubeq$ ignored the ``view'' which it may also do here, and then then it does not matter which one it is.}
 where $H_A$ is defined as follows:
 \[
-  H_A^{\mathrm{std}} \; \gc \; \hat{W} \defeq \left\{ \npair{\ms_S,\ms_T} \middle|
+  H_A^{\mathrm{std},\square} \; \gc \; \hat{W} \defeq \left\{ \npair{\ms_S,\ms_T} \middle|
     \begin{array}{l}
       \dom(\ms_S) = \dom(\ms_T) = A \wedge \\
       \exists S : A \fun \World \ldotp \xi(W) = \oplus_{\aaddr \in A} S(\aaddr) \wedge\\
@@ -2027,10 +2030,10 @@ where $H_A$ is defined as follows:
 \dominique{7-3-2018: is it necessary to have $n-1$ above? there is already a quantification over $n'<n$ in the memory satisfaction relation.}
 
 \[
-  \stareg[\stpair{\ms}{\ms},\gc]{v} = (v,H^\mathrm{sta}_{\stpair{\ms}{\ms}} \; \gc)
+  \stareg[\stpair{\ms}{\ms},\gc]{v,\square} = (v,H^\mathrm{sta,\square}_{\stpair{\ms}{\ms}} \; \gc)
 \]
 \[
-  H^\mathrm{sta}_{\stpair{\ms}{\ms}} \; \gc = \left\{ \npair{\stpair{\ms}{\ms}} \middle| 
+  H^\mathrm{sta,\square}_{\stpair{\ms}{\ms}} \; \gc = \left\{ \npair{\stpair{\ms}{\ms}} \middle| 
     \begin{array}{l}
       \exists S : \dom(\ms) \fun \World \ldotp \xi(W) = \oplus_{\aaddr \in \dom(\ms)} S(\aaddr) \wedge\\
       \quad \forall \aaddr \in \dom(\ms) \ldotp \npair[n-1]{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
@@ -2052,11 +2055,13 @@ where $H_A$ is defined as follows:
 % \]
 
 \[
-  \codereg{\sigrets,\sigcloss,\code,\gc} \defeq (\pure,H^\mathrm{code} \; \sigrets \; \sigcloss \; \code,H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
+  \codereg{\sigrets,\sigcloss,\code,\gc} \defeq (\pure,
+H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; \gc,
+H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
 \]
 
 \begin{equation*}
-  H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; \hat{W} = \left\{\npair{(\code,\code)} \middle|
+  H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; (\ta,\_) \; \hat{W} = \left\{\npair{(\code,\code)} \middle|
     \begin{array}{l}
     \dom(\code) = [\aaddr,\baddr] \wedge \\
     \dom(\code) \nsubseteq \ta \Rightarrow \sigrets = \emptyset \wedge \\
@@ -2068,7 +2073,7 @@ where $H_A$ is defined as follows:
 \lau{19-03-2018: Add the link capability to the above? code in ta?}
 \lau{TODO: look at the $[b,e] \subseteq ...$ condition - will it work for splice?}
 \begin{multline*}
-  H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc \; \sigma \; \hat{W} = \\
+  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; (\ta,\stkb) \; \sigma \; \hat{W} = \\
   \begin{array}[t]{l}
 \left\{
     \begin{array}{l}
@@ -2087,7 +2092,7 @@ where $H_A$ is defined as follows:
 \left. \npair{\arraycolsep=0pt\left(\array{l}\retptrd(\baddr,\eaddr),\\((\rw,\linear),\baddr,\eaddr,\baddr-1)\endarray\right)} \middle| \right. \\
       \\
       \begin{array}{l}
-        \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]} \ldotp \pwpriv[\xi(\hat{W})](r) \nequal (\stareg[(\ms,\ms),\gc]{\spa}, \aaddr'+\calllen) \tand \\
+        \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]} \ldotp \pwpriv[\xi(\hat{W})](r) \nequal (\stareg[(\ms,\ms),(\ta,\stkb)]{\spa,\square}, \aaddr'+\calllen) \tand \\
         \quad \dom(\ms) = [\baddr,\eaddr] \tand\\
         \quad \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
         \quad \code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\_} \tand \sigma = \sigma_b + \offsigma \in \sigrets \tand\\
@@ -2175,6 +2180,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 \lau{TODO: Component lemma for initial executable configurations.}
 \lau{TODO: Executable configuration lemma.}
 \lau{TODO: ... should use initial executable configuration.}
+\lau{TODO: Did we agree that memory satisfaction should require $\stkb$ to be a free stack address (or at least not in the heap part)? I think we did.}
 \begin{definition}
   \label{def:points-to-instr}
   A configuration $(\ms,\reg)$ {\sourcecolor or $\Phi = (\ms,\reg,\_,\_)$} is said to point to non-$\scall{}{}{}$ instruction $i$ in $A$ iff
