@@ -363,7 +363,7 @@ We use the following step relation:
 \lau{TODO: Add $\ta$ to the source step.}
 \lau{TODO: Add $\stkb$ to source term and everything else where it is necessary. Consider how $\stkb$ and $\ta$ can be added without passing around these values in LR and source semantics (solution to parameterize both with it, so they need to be provided only once.)}
 \begin{align*}
-  \src{\Phi} & \; \src{\step \sem{\scall{\offpc,\offsigma}{r_1}{r_2}}(\Phi)} &  &\sourcecolor\left.\arraycolsep=0pt
+  \src{\Phi} & \; \src{\step[\src{\ta,\stkb}] \sem{\scall{\offpc,\offsigma}{r_1}{r_2}}(\Phi)} &  &\sourcecolor\left.\arraycolsep=0pt
                                                   \begin{array}[t]{l}
                                                     \text{if }\Phi(\pcreg) 
 = ((\perm,\_),\baddr,\eaddr,\aaddr) \tand \\
@@ -372,7 +372,7 @@ We use the following step relation:
                                                     \lbrack\aaddr,\aaddr + \calllen-1\rbrack \subseteq [\baddr,\eaddr] \tand \\
                                                     \exec{\Phi(\pcreg)}
                                                   \end{array}\right.\\
-  \Phi & \step \sem{\decInstr{\Phi.\mem(\aaddr)}}(\Phi) & &\left.\arraycolsep=0pt
+  \Phi & \step[\src{\ta,\stkb}] \sem{\decInstr{\Phi.\mem(\aaddr)}}(\Phi) & &\left.\arraycolsep=0pt
                                                   \begin{array}[t]{l}
                                                     \text{if }\Phi(\pcreg) = ((\perm,\_),\baddr,\eaddr,\aaddr) \tand \\
                                                     \src{(\neg\callCond{\Phi,r_1,r_2,\aaddr} \tor}\\
@@ -380,7 +380,7 @@ We use the following step relation:
                                                     \withinBounds{\Phi(\pcreg)} \tand \\
                                                     \exec{\Phi(\pcreg)}
                                                   \end{array}\right.\\
-  \Phi& \step \failed & & \totherwise
+  \Phi& \step[\src{\ta,\stkb}] \failed & & \totherwise
 \end{align*}
 \dominique{Note: The above does not allow executing code that is on the stack in the source machine, while this is in principle allowed in the target.
 This is probably fine if we make sure a stack pointer can never be executable.}
@@ -388,19 +388,11 @@ This is probably fine if we make sure a stack pointer can never be executable.}
 \paragraph{Terminating computations}
 We use the following notation to write that a configuration $\Phi$ successfully terminates:
 \[
-  \Phi\term[i] \defeq \Phi \nstep[i] \halted
+  \Phi\sterm[i]{\src{\ta,\stkb}} \defeq \Phi \nstep[i]{\src{\ta,\stkb}} \halted
 \]
 if we just know $\Phi$ terminates in some number of steps, then we write
 \[
-  \Phi\term \defeq \exists i \ldotp \term[i]
-\]
-We use a similar notation for source configuration termination
-\[
-  \Phi\sterm[i]{\ta} \defeq \Phi \nstep[i] \halted
-\]
-if we just know $\Phi$ terminates in some number of steps, then we write
-\[
-  \Phi\sterm{\ta} \defeq \exists i \ldotp \sterm[i]{\ta}
+  \Phi\sterm{\src{\ta,\stkb}} \defeq \exists i \ldotp \sterm[i]{\src{\ta,\stkb}}
 \]
 
 \paragraph{Call implementation}
@@ -1775,7 +1767,7 @@ The argument for having one relation relate pairs of pairs of capabilities and t
   \lrol = \left\{ \npair{\left(\array{l}\src{(\ms_S,\reg_S,\stk_S,\ms_{\stk,S})},\\(\ms_T,\reg_T)\endarray\right)} \middle|
     \begin{array}{l}
       \forall i \leq n, \src{\ms_{f,S}}, \ms_{f,T} \ldotp \\
-      \quad \src{(\ms_S \uplus \ms_{f,S},\reg_S,\stk_S,\ms_{\stk,S})} \sterm[i]{\ta} \Rightarrow (\ms_T \uplus \ms_{f,T},\reg_T) \term\\
+      \quad \src{(\ms_S \uplus \ms_{f,S},\reg_S,\stk_S,\ms_{\stk,S})} \sterm[i]{\ta,\stkb} \Rightarrow (\ms_T \uplus \ms_{f,T},\reg_T) \term\\
     \end{array}
 \right\}
 \]
@@ -1783,7 +1775,7 @@ The argument for having one relation relate pairs of pairs of capabilities and t
   \lror = \left\{ \npair{\left(\array{l}\src{(\ms_S,\reg_S,\stk_S,\ms_{\stk,S})},\\(\ms_T,\reg_T)\endarray\right)} \middle|
     \begin{array}{l}
       \forall i \leq n, \src{\ms_{f,S}}, \ms_{f,T} \ldotp \\
-      \quad (\ms_T \uplus \ms_{f,T},\reg_T) \term[i] \Rightarrow \src{(\ms_S \uplus \ms_{f,S},\reg_S,\stk_S,\ms_{\stk,S})} \term{\ta}
+      \quad (\ms_T \uplus \ms_{f,T},\reg_T) \term[i] \Rightarrow \src{(\ms_S \uplus \ms_{f,S},\reg_S,\stk_S,\ms_{\stk,S})} \sterm{\ta,\stkb}
     \end{array}
 \right\}
 \]
@@ -1887,7 +1879,7 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma,\sigma_\baddr,\sigma_\eaddr}},\\ \seal{\sigma,\sigma_\baddr,\sigma_\eaddr} \endarray \right)} 
     \; \middle| \;
     \begin{array}{l}
-      \exists r \in \dom(\pwheap) \ldotp \pwheap(r) =_n \codereg{\sigrets,\sigcloss,\code} \wedge\\
+      \exists r \in \dom(\pwheap) \ldotp \pwheap(r) =_n \codereg{\sigrets,\sigcloss,\code,\gc} \wedge\\
       \hfill\dom(\code) \subseteq \ta \wedge [\sigma_\baddr,\sigma_\eaddr] \subseteq (\sigrets\cup\sigcloss)
     \end{array}
     \right\} \cup \\
@@ -1917,7 +1909,7 @@ An alternative might be to introduce a trust parameter to the readcondition and 
     \begin{array}{l}
       \exists r \in \addressable{\lin, \pwheap} \ldotp \\
       \quad \exists A \supseteq [\baddr,\eaddr] \ldotp \\
-      \qquad \pwheap(r) \nsubeq \stdreg{A}{\pur}
+      \qquad \pwheap(r) \nsubeq \stdreg{A,\gc}{\pur}
     \end{array}
   \right\}
 \]
@@ -1928,7 +1920,7 @@ where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-region
     \begin{array}{l}
       \exists r \in \addressable{\linear, \pwfree} \ldotp \\
       \quad \exists [\baddr',\eaddr'] \supseteq [\baddr,\eaddr] \ldotp \\
-      \qquad \pwfree(r) \nsubeq \stdreg{[\baddr',\eaddr']}{\pur}
+      \qquad \pwfree(r) \nsubeq \stdreg{[\baddr',\eaddr'],\gc}{\pur}
     \end{array}
   \right\}
 \]
@@ -1936,9 +1928,9 @@ where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-region
 \[
   \xReadCond{\lin,W} = \left\{ \npair{(\baddr,\eaddr})) \middle| 
     \begin{array}{l}
-      \exists r \in \addressable{\lin, \pwheap}, \sigrets, \sigcloss, \code,  \ldotp\\
+      \exists r \in \addressable{\lin, \pwheap}, \sigrets, \sigcloss, \code  \ldotp\\
       \quad \dom(\ms) \supseteq [\baddr,\eaddr] \wedge \\
-      \quad \pwheap(r) \nequal \codereg{\sigrets,\sigcloss,\code}
+      \quad \pwheap(r) \nequal \codereg{\sigrets,\sigcloss,\code,\gc}
     \end{array}
   \right\}
 \]
@@ -1965,20 +1957,20 @@ where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-region
     \begin{array}{l}
       \exists r \in \addressable{\lin, \pwheap} \ldotp \\
       \quad \exists [\baddr',\eaddr'] \supseteq [\baddr,\eaddr] \ldotp \\
-      \qquad \pwheap(r) \nsupeq[n-1] \stdreg{[\baddr',\eaddr']}{\pur} \wedge \\
+      \qquad \pwheap(r) \nsupeq[n-1] \stdreg{[\baddr',\eaddr'],\gc}{\pur} \wedge \\
       \qquad \pwheap(r) \text{ is address-stratified}
     \end{array}
   \right\}
 \]
 \lau{TODO: Make this condition require a set of adjacent regions. Check whether necessary for the stack region.}
 where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-regions}.
-\dominique{Why $n-1$ above?  There is already a quantification over $n' <n$ in the memory satisfaction relation and another $n-1$ is used in $\stdreg{[\baddr',\eaddr']}{\pur}$. Also: readCond doesn't have the $n-1$.}
+\dominique{Why $n-1$ above?  There is already a quantification over $n' <n$ in the memory satisfaction relation and another $n-1$ is used in $\stdreg{[\baddr',\eaddr'],\gc}{\pur}$. Also: readCond doesn't have the $n-1$.}
 \[
   \stackWriteCond{W} = \left\{ \npair{(\baddr,\eaddr)}) \middle| 
     \begin{array}{l}
       \exists r \in \addressable{\linear, \pwfree} \ldotp \\
       \quad \exists [\baddr',\eaddr'] \supseteq [\baddr,\eaddr] \ldotp \\
-      \qquad \pwfree(r) \nsupeq[n-1] \stdreg{[\baddr',\eaddr']}{\pur} \wedge \\
+      \qquad \pwfree(r) \nsupeq[n-1] \stdreg{[\baddr',\eaddr'],\gc}{\pur} \wedge \\
       \qquad \pwfree(r) \text{ is address-stratified}
     \end{array}
   \right\}
@@ -2013,13 +2005,13 @@ Note: this new version of execCond uses the expression relation for regular jump
 \label{sec:standard-regions}
 Standard region:
 \[
-  \stdreg{A}{v} \defeq (v,H_A^{\mathrm{std}})
+  \stdreg{A,\gc}{v} \defeq (v,H_A^{\mathrm{std}} \; \gc)
 \]
 for readability, we use $\spao$ short for $\spatialo$, $\spa$ short for $\spatial$, and $\pur$ as short for $\pure$.
 \lau{02-11-2017: I am not sure whether it should be a $\normal$ region. In previous work $\nsubeq$ ignored the ``view'' which it may also do here, and then then it does not matter which one it is.}
 where $H_A$ is defined as follows:
 \[
-  H_A^{\mathrm{std}} \; \hat{W} \defeq \left\{ \npair{\ms_S,\ms_T} \middle|
+  H_A^{\mathrm{std}} \; \gc \; \hat{W} \defeq \left\{ \npair{\ms_S,\ms_T} \middle|
     \begin{array}{l}
       \dom(\ms_S) = \dom(\ms_T) = A \wedge \\
       \exists S : A \fun \World \ldotp \xi(W) = \oplus_{\aaddr \in A} S(\aaddr) \wedge\\
@@ -2031,10 +2023,10 @@ where $H_A$ is defined as follows:
 \dominique{7-3-2018: is it necessary to have $n-1$ above? there is already a quantification over $n'<n$ in the memory satisfaction relation.}
 
 \[
-  \stareg{v} = (v,H^\mathrm{sta}_{\stpair{\ms}{\ms}})
+  \stareg[\stpair{\ms}{\ms},\gc]{v} = (v,H^\mathrm{sta}_{\stpair{\ms}{\ms}} \; \gc)
 \]
 \[
-  H^\mathrm{sta}_{\stpair{\ms}{\ms}} = \left\{ \npair{\stpair{\ms}{\ms}} \middle| 
+  H^\mathrm{sta}_{\stpair{\ms}{\ms}} \; \gc = \left\{ \npair{\stpair{\ms}{\ms}} \middle| 
     \begin{array}{l}
       \exists S : \dom(\ms) \fun \World \ldotp \xi(W) = \oplus_{\aaddr \in \dom(\ms)} S(\aaddr) \wedge\\
       \quad \forall \aaddr \in \dom(\ms) \ldotp \npair[n-1]{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
@@ -2056,7 +2048,7 @@ where $H_A$ is defined as follows:
 % \]
 
 \[
-  \codereg{\sigrets,\sigcloss,\code} \defeq (\pure,H^\mathrm{code} \; \sigrets \; \sigcloss \; \code,H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code)
+  \codereg{\sigrets,\sigcloss,\code,\gc} \defeq (\pure,H^\mathrm{code} \; \sigrets \; \sigcloss \; \code,H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
 \]
 
 \begin{equation*}
@@ -2072,7 +2064,7 @@ where $H_A$ is defined as follows:
 \lau{19-03-2018: Add the link capability to the above? code in ta?}
 \lau{TODO: look at the $[b,e] \subseteq ...$ condition - will it work for splice?}
 \begin{multline*}
-  H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; \sigma \; \hat{W} = \\
+  H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc \; \sigma \; \hat{W} = \\
   \begin{array}[t]{l}
 \left\{
     \begin{array}{l}
@@ -2091,7 +2083,7 @@ where $H_A$ is defined as follows:
 \left. \npair{\arraycolsep=0pt\left(\array{l}\retptrd(\baddr,\eaddr),\\((\rw,\linear),\baddr,\eaddr,\baddr-1)\endarray\right)} \middle| \right. \\
       \\
       \begin{array}{l}
-        \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]} \ldotp \pwpriv[\xi(\hat{W})](r) \nequal (\stareg[(\ms,\ms)]{\spa}, \aaddr'+\calllen) \tand \\
+        \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]} \ldotp \pwpriv[\xi(\hat{W})](r) \nequal (\stareg[(\ms,\ms),\gc]{\spa}, \aaddr'+\calllen) \tand \\
         \quad \dom(\ms) = [\baddr,\eaddr] \tand\\
         \quad \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
         \quad \code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\_} \tand \sigma = \sigma_b + \offsigma \in \sigrets \tand\\
@@ -2116,18 +2108,18 @@ where $H_A$ is defined as follows:
 \subsection{Fundamental Theorem of Logical Relations}
 
 \begin{definition}[World specifies component]
-  We define that a world $W$ specifies the presence of a component
+  We define that a world $W$ specifies the presence of a component with global constants $\gc$
   \begin{equation*}
     \var{comp} = (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss)
   \end{equation*}
-  (written as $W \vdash \var{comp}$)
+  (written as $W \vdash_\gc \var{comp}$)
   iff
   \begin{equation*}
     \vdash (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss)
   \end{equation*}
   and there exist $r_1 \cdots r_n \in \dom(\pwheap)$ such that
   \begin{itemize}
-  \item $\pwheap(r_i) = \codereg{\sigrets_i,\sigcloss_i,\code_i}$
+  \item $\pwheap(r_i) = \codereg{\sigrets_i,\sigcloss_i,\code_i,\gc}$
   \item $\mscode = \biguplus_i \code_i$
   \item $\sigrets = \biguplus_i \sigrets_i$
   \item $\sigcloss = \biguplus_i \sigcloss_i$.
@@ -2145,7 +2137,7 @@ where $H_A$ is defined as follows:
   and one of the following sets of requirements holds:
   \begin{itemize}
   \item \begin{itemize}
-    \item $W \vdash (\mscode,\_,\_,\_,\sigrets,\sigcloss)$
+    \item $W \vdash_{(\ta,\stkb)} (\mscode,\_,\_,\_,\sigrets,\sigcloss)$
     \item $[\baddr,\eaddr] \subseteq \dom(\mscode) = \ta$
     \item $\trust = \trusted$
     \item For all $\npair{\stpair{\reg}{\reg}} \in \lrrtrusted(W)$ and $\memSat{\src{\ms_S},\src{\ms_\stk},\src{\stk},\ms_T}{W}$ and $\ms_f$, we have $\src{\Phi} = (\src{\ms_S} \uplus \ms_f, \src{reg_S}, \src{\stk}, \src{\ms_\stk})$ and 
@@ -2212,12 +2204,12 @@ We want to make a conditional full-abstraction statement. The condition should e
   A configuration $\src{\Phi}$ is said to check $\stkb$ before calls in $\ta$ for $n$ steps iff\\
   for all $i \leq n$ if
   \[
-    \src{\Phi} \nstep[i] \src{\Phi'}
+    \src{\Phi} \nstep[i]{(\ta,\stkb)} \src{\Phi'}
   \]
   and $\src{\Phi'}$ points to $\src{\scall{\offpc,\offsigma}{r_1}{r_2}}$ in $\ta$ for some $\src{r_1}$ and $\src{r_2}$
   % and there exists no $j<i$ s.t.
   % \[
-  %   \src{\Phi} \nstep[j] \src{\Phi''}
+  %   \src{\Phi} \nstep[j]{} \src{\Phi''}
   % \]
   % where $\src{\Phi''}$ points to $\src{\scall{\offpc,\offsigma}{r_1'}{r_2'}}$ in $A$ for some $\src{r_1'}$ and $\src{r_2'}$,
   then
@@ -2237,7 +2229,7 @@ We want to make a conditional full-abstraction statement. The condition should e
   A configuration $\src{\Phi}$ is said to use linker seals properly in $\ta$ with component parameters $\sigrets$, $\sigcloss$ for $n$ steps iff\\
   for all $i \leq n$, if
   \[
-    \src{\Phi} \nstep[i] \src{\Phi'}
+    \src{\Phi} \nstep[i]{(\ta,\_)} \src{\Phi'}
   \]
   and $\src{\Phi'}$ points to $\src{\tcseal{r_1}{r_2}}$ in $\ta$ and $\Phi'(r_1) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$, then either ($\src{\Phi'}$ is inside $\src{\scall{\offpc,\offsigma}{r_1'}{r_2'}}$ and $\sigma \in \sigrets$) or $\sigma \in \sigcloss$.
 \end{definition}
@@ -2247,7 +2239,7 @@ We want to make a conditional full-abstraction statement. The condition should e
   A configuration $\src{\Phi}$ is said to handle trusted seals properly in $\ta$ with component parameters $\sigrets$, $\sigcloss$ for $n$ steps iff\\
   for all $i \leq n$, if
   \[
-    \src{\Phi} \nstep[i] \src{\Phi'} \step \src{\Phi''}
+    \src{\Phi} \nstep[i]{(\ta,\stkb)} \src{\Phi'} \step[(\ta,\stkb)] \src{\Phi''}
   \]
   and $\src{\Phi'}$ is in $\ta$ and $\src{\Phi''}$ is not in $\ta$ and, then for all $r \in \RegName$
   %\dominique{TODO: $\sigma_b,\sigma_e$ contains a seal that was put in $\Phi$ by the linker.}
@@ -2277,7 +2269,7 @@ and
   A configuration $\src{\Phi}$ is said to not store link seals and code capability in $\ta$ with component parameters $\sigrets$, $\sigcloss$ for $n$ steps iff\\
   for all $i \leq n$, if
   \[
-    \src{\Phi} \nstep[i] \src{\Phi'}
+    \src{\Phi} \nstep[i]{(\ta,\_)} \src{\Phi'}
   \]
   and $\src{\Phi'}$ points to $\src{\tstore{r_1}{r_2}}$ in $\ta$, then 
 \[
@@ -2308,7 +2300,7 @@ and
 \begin{definition}[Source language contextual equivalence]
   In the source language, we define that $\src{\program_1 \sconeq \program_2}$ iff
   \begin{equation*}
-    \forall \src{\context} \ldotp \src{\plug{\context}{\program_1} \sterm{\ta[,1]}} \Leftrightarrow \src{\plug{\context}{\program_2} \sterm{\ta[,2]}}
+    \forall \src{\context} \ldotp \src{\plug{\context}{\program_1} \sterm{\ta[,1],\stkb_1}} \Leftrightarrow \src{\plug{\context}{\program_2} \sterm{\ta[,2],\stkb_2}}
   \end{equation*}
   with $\src{\ta[,i]} = \src{\dom(\program_i.\mscode)}$
 \end{definition}
