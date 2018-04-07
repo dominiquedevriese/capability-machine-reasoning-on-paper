@@ -1234,9 +1234,14 @@ The \emph{persistent data storage} is expected to be accessible through a normal
 \subsection{Components}
 \label{sec:components}
 
+A component can be either a component with a main (i.e. a program that still needs to be linked with library implementations) or one without (i.e. a library implementation that will be used by other components). 
+It contains code memory, data memory a list of imported symbols, a list of exported symbols, a list of seals used for producing return capability pairs and a list of seals used for producing closures.
+
 We define a component as follows:
 \begin{align*}
-  \var{comp} &\mathrel{::=} (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss)
+  \var{comp}_0 &\mathrel{::=} (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss)\\
+  \var{comp} &\mathrel{::=} \var{comp}_0\\
+               &\mid  (\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})
 \end{align*}
 
 We define inductively when a component is valid ($\vdash \var{comp}$) by the below inference rules:
@@ -1245,7 +1250,7 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
     \mscode(a) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr} & [\sigma_\baddr,\sigma_\eaddr] \subseteq (\sigrets \cup \sigcloss)
   }{
     \sigrets,\sigrets[\mathrm{owned}],\sigcloss \vdash_{\mathrm{comp-code}} \mscode,a
-  }b
+  }
   \and
   \inference{
     \mscode(a) \in \ints\\
@@ -1304,6 +1309,13 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
   }{
     \vdash (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss)
   }
+  \and
+  \inference{
+    \var{comp}_0 = (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss)\\
+    \vdash \var{comp}_0 & c_{\mathrm{main},c}, c_{\mathrm{main},d} \in \overline{c_{\mathrm{export}}}
+  }{
+    \vdash (\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})
+  }
 \end{mathpar}
 
 \subsection{Linking}
@@ -1321,22 +1333,33 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
     \sigrets[3] = \sigrets[1] \uplus \sigrets[2] &
     \sigcloss[3] = \sigcloss[1] \uplus \sigcloss[2]
   }{
-     \var{comp}_3 = \var{comp}_1 \bowtie \var{comp}_2
+    \var{comp}_3 = \var{comp}_1 \bowtie \var{comp}_2
+  }
+  \and
+  \inference{
+    \var{comp}_0'' = \var{comp}_0 \bowtie \var{comp}_0'
+  }{
+    (\var{comp}_0'',c_{\mathrm{main},c}, c_{\mathrm{main},d}) = \var{comp}_0 \bowtie (\var{comp}_0',c_{\mathrm{main},c}, c_{\mathrm{main},d})
+  }
+  \and
+  \inference{
+    \var{comp}_0'' = \var{comp}_0 \bowtie \var{comp}_0'
+  }{
+    (\var{comp}_0'',c_{\mathrm{main},c}, c_{\mathrm{main},d}) = (\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d}) \bowtie \var{comp}_0'
   }
 \end{mathpar}
 
 \subsection{Programs, contexts, initial execution configuration}
 \label{sec:programs}
 
+A program is intuitively a component that is ready to be executed, i.e. it must have an empty import list and a pair of capabilities to be used as main.
+A context for a given component is any other component that can be linked with it to produce a program.
+
 \begin{definition}[Programs and Contexts]
-  We define a program to be either a component $\var{comp}$ or a tuple $(\var{comp}, c_{\mathrm{main},c}, c_{\mathrm{main},d})$ with component $\comp$ with an empty import list and $c_{\mathrm{main},c}$ and $c_{\mathrm{main},d}$ are two of the exported symbols.
+  We define a program to be a component $(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})$ with an empty import list.
 
-A context is a program defined as above.
-% Given a component $\var{comp}$, a context is a tuple $(\var{comp'}, c_{\mathrm{main},c}, c_{\mathrm{main},d})$ such that $\var{comp'}$ is a component and $(\var{comp} \bowtie \var{comp'}, c_{\mathrm{main},c}, c_{\mathrm{main},d})$ is a program.
-
-Two programs $\var{comp}$ and $(\var{comp}', c_{\mathrm{main},c}, c_{\mathrm{main},d})$ can be linked into a new program $(\var{comp} \bowtie \var{comp'}, c_{\mathrm{main},c}, c_{\mathrm{main},d})$.
+  A context for a component $\var{comp}$ is another component $\var{comp}'$ such that $\var{comp} \bowtie \var{comp}'$ is a program.
 \end{definition}
-\dominique{A program is intuitively a component that is ready to be run.  From that point of view, I don't see the point of a program without main. I would propose changing the definitions: a program should be a component that is ready to be executed, i.e. it must have an empty import list and a pair of capabilities to be used as main. A component can be either a component with a main (i.e. a program that still needs to be linked with library implementations) or one without (i.e. a library implementation that will be used by other components). A context for a given component is any other component that can be linked with it to produce a program.}
 
 \begin{definition}[Initial execution configuration]
   \begin{mathpar}
