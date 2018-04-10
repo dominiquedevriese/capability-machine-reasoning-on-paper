@@ -1,0 +1,610 @@
+\documentclass{beamer}
+\addtobeamertemplate{navigation symbols}{}{%
+    \usebeamerfont{footline}%
+    \usebeamercolor[fg]{footline}%
+    \hspace{1em}%
+    \insertframenumber/\inserttotalframenumber
+}
+
+\input{../illustrations/preamble}
+\title{Reasoning About a Machine with Local Capabilities}
+\subtitle{Provably Safe Stack and Return Pointer Management}
+\author{\textbf{Lau Skorstengaard}\inst{1} \and Dominique Devriese\inst{2} \and Lars Birkedal\inst{1}}
+\institute{\inst{1} Aarhus University \and %
+  \inst{2} imec-DistriNet, KU Leuven}
+
+\date{ESOP, April 17, 2018}
+
+\tikzset{
+    gray on/.style={alt=#1{gray}{}},
+    alt/.code args={<#1>#2#3}{%
+      \alt<#1>{\pgfkeysalso{#2}}{\pgfkeysalso{#3}} % \pgfkeysalso doesn't change the path
+    },
+}
+
+
+\begin{document}
+\maketitle
+
+\begin{frame}
+  \frametitle{}
+%  let x = ref 0 in
+%    λf.(x := 0; f() x := 1; f(); !x)
+  % Motivation
+\end{frame}
+
+\begin{frame}
+  \frametitle{Traditional Stack Pointers}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \begin{scope}
+      \clip (-.1,-.1) rectangle (6.1,15.1);
+      \fill[gray!20,draw=none,opacity=.8] (0,0) rectangle (6,15);
+      \draw[draw=gray!80] (0,0) -- (0,15);
+      \draw[draw=gray!80] (6,0) -- (6,15);
+      \draw[fill=white] (0,-.5) rectangle (6,2.5) node[pos=.5] {\footnotesize lower stack frames...};
+    \end{scope}
+    \draw (-1.5,0) node {};
+    \draw (-1.5,15) node {};
+    % \draw[->] (-1,0) -- node[midway,sloped,above] {stack grows upward} (-1,15);
+
+    % traditional:
+    \draw<+>[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\footnotesize caller stack frame};
+    \draw<.> (8,7) node[draw=black] (sp0) {};
+    \draw<.> node[right=0cm of sp0] (sp0l) { stack pointer };
+    \draw<.> (sp0) edge[->,out=235,in=0] (6,5.25);
+
+    % traditional call:
+    \draw<+>[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\footnotesize caller stack frame};
+    \draw<.>[fill=white] (0,5.5) rectangle (6,8.5) node[pos=.5] {\footnotesize callee stack frame};
+    \draw<.> (8,7) node[draw=black] (sp0) {};
+    \draw<.> node[right=0cm of sp0] (sp0l) { stack pointer };
+    \draw<.> (sp0) edge[->,out=235,in=0] (6,8.25);
+
+    % traditional return:
+    \draw<+>[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\footnotesize caller stack frame};
+    \draw<.> (8,7) node[draw=black] (sp0) {};
+    \draw<.> node[right=0cm of sp0] (sp0l) { stack pointer };
+    \draw<.> (sp0) edge[->,out=235,in=0] (6,5.25);
+
+    % traditional call, attack:
+    \draw<+->[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\footnotesize caller stack frame};
+    \draw<.->[fill=white] (0,5.5) rectangle (6,8.5) node[pos=.5] {\footnotesize callee stack frame};
+    \draw<.-> (8,7) node[draw=black] (sp0) {};
+    \draw<.-> node[right=0cm of sp0] (sp0l) { stack pointer };
+
+    % read other stack frames
+    \draw<.> (sp0) edge[->,out=235,in=0] (6,8.25);
+    \actadv[.]{(0,5.5)}{(6,8.5)}{callee stack frame}
+    \draw<.> (sp0) edge[->,color=red,very thick,out=235,in=0] node[sloped, below] {read/write} (6,4);
+
+    % break well-bracketedness
+    \draw<+>[fill=red,opacity=.7] (-.5,2.5) rectangle (6.5,8.5);
+    \draw<.-> (8,7) node[draw=black] (sp0) {};
+    \draw<.>[red] (sp0) edge[->,out=235,in=0] (6,1.75);
+    \draw<.> node[color=red,align=left,below=of sp0l] {return but\\
+      skip caller frame};
+  \end{tikzpicture}
+
+\end{frame}
+
+\begin{frame}
+  % Desired properties
+  % Capability machine as enforcement mechanism
+\end{frame}
+
+\begin{frame}
+  \frametitle{Road map?}
+  % Road map?
+\end{frame}
+
+\begin{frame}
+  \frametitle{Capability machine}
+  % Short description of capabilities
+\end{frame}
+
+\begin{frame}
+  \frametitle{Stack and return capabilities: Attack 1}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+
+    % attacker...
+    \begin{onlyenv}<+-+(2)>
+      \draw[fill=gray!50] (0,2.5) rectangle (6,6.5) node[pos=.5] {\footnotesize caller stack frame};
+      \actadv{(0,6.5)}{(6,9.5)}{callee stack frame}
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,6.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+
+    % stores stack pointer in heap
+    \begin{onlyenv}<+->
+      \begin{scope}
+        \fill[gray!20] (14,6) rectangle (18,13);
+        \draw (14,6) -- (14,13);
+        \draw (18,6) -- (18,13);
+      \end{scope}
+      \draw (16,14) node {heap memory};
+      \draw[fill=gray!50] (14,8) rectangle node[color=red] {\scriptsize copy of old sp} (18,8.5);
+    \end{onlyenv}
+    \draw<.> (14,8.25) edge[->,red,thick,bend left] (sp1);
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (11.5,6.5) -- (11.5,16) node[draw=black] (spold) [black,midway,xshift=0.8cm] {};
+      \draw (14,8.25) edge[->,red,thick,bend left] (spold);
+    \end{onlyenv}
+
+    % attacker returns
+    \begin{onlyenv}<+>
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,2.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+      \draw[fill=white] (0,2.5) rectangle (6,6.5) node[pos=.5] {\footnotesize current stack frame};
+    \end{onlyenv}
+
+    % attacker gets called again + uses old stack pointer.
+    \begin{onlyenv}<+>
+      \draw[fill=gray!50] (0,2.5) rectangle (6,10.5) node[pos=.5] {\footnotesize caller stack frame};
+      \actadv{(0,10.5)}{(6,13.5)}{callee stack frame}
+      \draw (14,8.25) edge[->,color=red,very thick,out=235,in=0] node[sloped, below] {read/write} (6,8);
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+        (6.5,10.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+      % \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      % (6,2.5) -- (6,16) node (callerframe1) [draw=black,midway,xshift=0.8cm] {};
+      % \draw node[fill=gray!50,right=0cm of callerframe1] (rp1l) {return pointer data};
+    \end{onlyenv}
+  \end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Stack and return capabilities: Attack 2}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+
+    % first step: capabilities
+    \begin{onlyenv}<+>
+      \draw[fill=white] (0,2.5) rectangle (6,4) node[pos=.5] {\footnotesize current stack frame};
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+        (6.5,2.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+      % \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      % (6,0) -- (6,16) node (oldframe1) [black,midway,xshift=0.5cm] {};
+      % \draw node[fill=gray!50,right=0cm of oldframe1] (rp1l) {return pointer data};
+    \end{onlyenv}
+
+    % attacker stores copy of stack pointer high in the stack
+    \draw<+->[fill=gray!50] (0,2.5) rectangle (6,4) node[pos=.5] {\footnotesize caller stack frame};
+    \begin{onlyenv}<.-.(2)>
+      \actadv{(0,4)}{(6,7)}{callee stack frame}
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+        (6.5,4) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+    \draw<+->[fill=white] (0,13) rectangle (6,13.5) node[pos=.5,color=red] {\footnotesize copy of sp};
+    \draw<.> (6,13.25) edge[red,thick,->,in=45] (sp1);
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+        (13.5,4) -- (13.5,16) node[draw=black] (spold) [black,midway,xshift=0.8cm] {};
+      \draw (6,13.25) edge[red,thick,->,in=45] (spold);
+    \end{onlyenv}
+
+    % attacker calls trusted code again
+%    \draw<+->[fill=gray!50] (0,4) rectangle (6,7) node[pos=.5] {\footnotesize callee stack frame};
+    \begin{onlyenv}<+->
+      \inactadv{(0,4)}{(6,7)}{callee stack frame}
+    \end{onlyenv}
+    \begin{onlyenv}<.>
+      \draw[fill=white] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+        (6.5,7) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+
+    % attacker uses old stack pointer
+    \draw<+->[fill=gray!50] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
+    \begin{onlyenv}<.-.(1)>
+      \actadv{(0,9)}{(6,12)}{callee (3) stack frame}
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,9) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+    \draw<+> (spold) edge[->,color=red,very thick,out=235,in=0] node[sloped, below] {read/write} (6,8);
+  \end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    \frametitle{Stack and return capabilities: Attack 3}
+    \begin{scope}
+    \clip (-.1,-.1) rectangle (5.1,10.1);
+    \fill[fill=gray!50] (0,0) rectangle (5,10);
+    \draw (0,0) -- (0,10);
+    \draw (5,0) -- (5,10);
+    \end{scope}
+    \draw (2.5,11) node {code memory};
+
+    \begin{scope}
+    \clip (12.9,3.9) rectangle (18.1,11.1);
+    \fill[fill=gray!50] (13,4) rectangle (18,11);
+    \draw (13,4) -- (13,11);
+    \draw (18,4) -- (18,11);
+    \end{scope}
+    \draw (15.5,12) node {more code memory}; 
+
+    \begin{scope}
+    \clip (12.9,-.1) rectangle (18.1,2.1);
+    \fill[fill=gray!50] (13,0) rectangle (18,2);
+    \draw (13,0) -- (13,2);
+    \draw (18,0) -- (18,2);
+    \end{scope}
+    \draw (14.5,3) node {heap memory}; 
+
+\note{Caller calls callee}
+    \draw<+->[fill=white] (0,1) rectangle (5,4) node[pos=.5] {\footnotesize caller code};
+
+
+    \begin{onlyenv}<+->
+      \capbrace[ret1]{(5.1,1)}{(5.1,4)}
+      \draw node[fill=gray!50, right=0cm of ret1] { \phantom{ret-ptr} };
+      \draw node[right=0cm of ret1] { ret-ptr };
+    \end{onlyenv}
+
+\note{Callee has access to some place to store things.}
+    \begin{onlyenv}<+->
+      \draw[fill=gray!30] (0,1) rectangle (5,4) node[pos=.5] {\footnotesize caller code};
+      \draw[fill=white] (13,5) rectangle (18,6) node[pos=.5] {\footnotesize callee code};
+      \draw[fill=white] (13,1) rectangle (18,1.5) node[pos=.5] {};
+    \end{onlyenv}
+
+    \begin{onlyenv}<.-.(2)>
+      \draw [decorate,decoration={brace,amplitude=2pt,mirror,raise=4pt},yshift=0pt]
+      (18.1,1) -- (18.1,1.5) node[draw=black] (copy) [black,midway,xshift=0.5cm] {};
+      \draw (18,5.5)  edge[->,bend left] (copy);
+    \end{onlyenv}
+
+\note{Callee stores the return pointer they got from caller.}
+    \begin{onlyenv}<+->
+      \draw[fill=white] (13,1) rectangle (18,1.5) node[pos=.5] {\scriptsize {\color{red} copy of ret-ptr}};
+      \draw (13,1.25) edge[->,red,thick,bend left] (ret1);
+    \end{onlyenv}
+
+\note{Callee calls callee (1)}
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,amplitude=3pt,raise=4pt},yshift=0pt]
+      (12.9,5) -- (12.9,6) node[draw=black] (ret2) [black,midway,xshift=-0.8cm] {};
+      \draw node[fill=gray!50,left=0cm of ret2] { \phantom{ret-ptr (1)} };
+      \draw node[left=0cm of ret2] (retptr1) { ret-ptr (1) };
+    \end{onlyenv}
+
+    \begin{onlyenv}<+->
+      \draw[fill=white] (0,5) rectangle (5,8) node[pos=.5] {\footnotesize callee code (1)};
+      \draw[fill=gray!30] (13,5) rectangle (18,6) node[pos=.5] {\footnotesize callee code};
+      \draw[fill=gray!30] (13,1) rectangle (18,1.5) node[pos=.5] {\scriptsize {\color{red} copy of ret-ptr}};
+    \end{onlyenv}
+
+\note{Callee (1) calls callee (2)}
+    \begin{onlyenv}<+->
+      \capbrace[ret3]{(5.1,5)}{(5.1,8)}
+      \draw node[fill=gray!50,right=0cm of ret3] { \phantom{ret-ptr (2)} };
+      \draw node[right=0cm of ret3] (retptr2) { ret-ptr (2) };
+    \end{onlyenv}
+
+    \begin{onlyenv}<+->
+      \draw[fill=gray!30] (0,5) rectangle (5,8) node[pos=.5] {\footnotesize callee code (1)};
+      \draw[fill=white] (13,7) rectangle (18,10) node[pos=.5] {\footnotesize callee code (2)};
+    \end{onlyenv}
+\note{Callee (2) colludes with callee}
+    \begin{onlyenv}<+->
+      \draw (21,7.5) node[devil,opaque=0.5,mirrored,minimum size=1cm] {};
+    \end{onlyenv}
+\note{Callee (2) has access to ret-ptr (the return pointer caller passed to callee)}
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,amplitude=2pt,mirror,raise=4pt},yshift=0pt]
+      (18.1,1) -- (18.1,1.5) node[draw=black] (copy) [black,midway,xshift=0.5cm] {};
+      \draw (18,8.25)  edge[->,red,thick,bend left] (copy);
+      \draw[fill=white] (13,1) rectangle (18,1.5) node[pos=.5] {\scriptsize {\color{red} copy of ret-ptr}};
+    \end{onlyenv}
+
+\note{Callee (2) uses ret-ptr to return}
+    \begin{onlyenv}<+->
+      \draw[fill=gray!30] (13,7) rectangle (18,10) node[pos=.5] {\footnotesize callee code (2)};
+      \draw[fill=white] (0,1) rectangle (5,4) node[pos=.5] {\footnotesize caller code};
+      \draw[fill=gray!30] (13,1) rectangle (18,1.5) node[pos=.5] {\scriptsize {\color{red} copy of ret-ptr}};
+    \end{onlyenv}
+
+\note{This breaks well-bracketedness as ret-ptr (2) and ret-ptr (1) was not returned to}
+    \begin{onlyenv}<+->
+      \draw node [ellipse, fit=(retptr1) (retptr2), draw, red] { };
+      \draw node[red,cloud,cloud puffs=10.8,cloud puff arc=110, aspect=3, draw, fill=white, align=center] () at (12,10) { These were skipped!};  
+    \end{onlyenv}
+  \end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Local capabilities}
+  % Short description of local capabilities
+  \begin{itemize}
+  \item Capabilities tagged with locality (local or normal)
+  \item New \emph{write-local} permission.
+  \item Local capabilities can only be stored by capabilities with \emph{write-local} permission
+  \end{itemize}
+  Calling convention highlights
+  \begin{itemize}
+  \item Stack capability is local with permission read, write-local, and execute.
+  \item Clear stack before passing stack capability to untrusted code.
+  \end{itemize}
+
+\end{frame}
+
+% \begin{frame}
+%   \frametitle{Calling convention}
+%   % and stack management  
+%   \begin{itemize}
+%   \item Initially:
+%     \begin{itemize}
+%     \item Stack capabilitiy local write-local capability
+%     \item No global write-local capabilities on the machine
+%     \end{itemize}
+%   \item Prior to returning to untrusted code:
+%     \begin{itemize}
+%     \item Clear the stack
+%     \item Clear non-return registers
+%     \end{itemize}
+%   \item Prior to calls to untrusted code:
+%     \begin{itemize}
+%     \item Push activation record to stack and create enter-capability for it
+%     \item Restrict the stack pointer to the unused part and clear that part
+%     \item Clear non-argument registers
+%     \item Only invoke global call-backs
+%     \end{itemize}
+%   \item When invoked by untrusted code, make sure stack capability has permission read, write-local and execute.
+%   \end{itemize}
+% \end{frame}
+
+\begin{frame}
+  \frametitle{Local Stack Capabilities Prevent Attack 1}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+    
+    % attacker...
+    \draw[fill=gray!50] (0,2.5) rectangle (6,6.5) node[pos=.5] {\footnotesize caller stack frame};
+    \actadv{(0,6.5)}{(6,9.5)}{callee stack frame}
+    \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,6.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+    \draw node[right=0cm of sp1] { stack pointer };
+
+    % stores stack pointer in heap
+    \begin{scope}
+      \fill[gray!20] (14,6) rectangle (18,13);
+      \draw (14,6) -- (14,13);
+      \draw (18,6) -- (18,13);
+    \end{scope}
+    \draw (16,14) node {heap memory};
+    \draw[fill=gray!50] (14,8) rectangle node[color=red] {\scriptsize copy of old sp} (18,8.5);
+    \draw (14,8.25) edge[->,red,thick,bend left] (sp1);
+    \draw[teal,very thick] (13.5,7.5) -- (18.5,9);
+    \draw[teal,very thick] (18.5,7.5) -- (13.5,9);
+    \draw node[teal,cloud,cloud puffs=10.8,cloud puff arc=110, aspect=3, draw, fill=white] () at (14,4) {Stack pointer is local!};  
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Stack Clearing Prevents Attack 2}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+
+    % attacker stores copy of stack pointer high in the stack
+    \draw[fill=gray!50] (0,2.5) rectangle (6,4) node[pos=.5] {\footnotesize caller stack frame};
+    \begin{onlyenv}<+>
+      \actadv{(0,4)}{(6,7)}{callee stack frame}
+    \end{onlyenv}
+    \draw<.-.(2)>[fill=white] (0,13) rectangle (6,13.5) node[pos=.5,color=red] {\footnotesize copy of sp};
+    \draw<.-.(2)> [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+    (13.5,4) -- (13.5,16) node[draw=black] (spold) [black,midway,xshift=0.8cm] {};
+    \draw<.-.(2)> (6,13.25) edge[red,thick,->,in=45] (spold);
+
+    % attacker calls trusted code again
+    \begin{onlyenv}<+->
+      \inactadv{(0,4)}{(6,7)}{callee stack frame}
+    \end{onlyenv}
+    \begin{onlyenv}<.-.(1)>
+      \draw[fill=white] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+        (6.5,7) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+
+    % trusted code clears the stack
+    \begin{onlyenv}<+->
+      \foreach \x in {9,9.5,...,14}
+      {
+        \draw[fill=white] (0,\x) rectangle (6,\x+.5) node[pos=.5,color=teal] {\footnotesize 0};
+      };
+    \end{onlyenv}
+    \draw<.>[very thick,color=teal] (10,13.5) -- (13,14.5)
+    (13,13.5) -- (10,14.5);
+    
+    % attacker uses old stack pointer
+    \draw<+->[fill=gray!50] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
+    \begin{onlyenv}<.>
+      \actadv{(0,9)}{(6,12)}{callee (3) stack frame}
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,9) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+
+    % attacker returns
+    \draw<+>[fill=white] (0,9) rectangle (6,12) node[pos=.5] {?};
+    \begin{onlyenv}<.>
+      \draw[fill=white] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+        (6.5,7) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+
+    % trusted code clears stack again
+    \begin{onlyenv}<+->
+      \foreach \x in {7,7.5,...,14}
+      {
+        \draw[fill=white] (0,\x) rectangle (6,\x+.5) node[pos=.5,color=teal] {\footnotesize 0};
+      };
+    \end{onlyenv}
+    % then, the trusted code can return
+    \begin{onlyenv}<+>
+      \actadv{(0,4)}{(6,7)}{callee stack frame}
+    \end{onlyenv}
+    
+  \end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Local Stack Capabilities Prevent Attack 3}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+    
+    \begin{scope}
+      \fill[gray!50] (13,4) rectangle (18,14);
+      \draw (13,4) -- (13,14);
+      \draw (18,4) -- (18,14);
+      \draw (14.5,15) node {code memory};
+    \end{scope}
+
+    \begin{scope}
+      \fill[gray!50] (13,0) rectangle (18,2);
+      \draw (13,0) -- (13,2);
+      \draw (18,0) -- (18,2);
+      \draw (14.5,3) node {heap memory};
+    \end{scope}
+
+    \begin{onlyenv}<+->
+      \actsf{(0,2.5)}{(6,5.5)}{caller stack frame}
+      \draw[fill=white] (13,5) rectangle (18,6.5) node[pos=.5] {\footnotesize caller code};
+    \end{onlyenv}
+
+\note{Caller calls callee}
+\note{Caller clears the stack}
+    \begin{onlyenv}<+->
+      \foreach \x in {5.5,6,...,14}
+      {
+        \draw[fill=white] (0,\x) rectangle (6,\x+.5) node[pos=.5,color=teal] {\footnotesize 0};
+      };
+    \end{onlyenv}
+
+\note{Return pointers always point to the stack as we need to be able to regain the stack pointer itself}
+\note{note: the open ended braces are assumed to stretch over the rest of the stack (in the direction it is open)}
+    \begin{onlyenv}<+->
+      \begin{scope}
+        \clip (6.1,2.5) rectangle (8.1,5.5);
+        \capbrace[ret1]{(6.1,2.5)}{(6.1,6.5)}
+      \end{scope}
+      \draw node[fill=gray!50,right=0cm of ret1] { \phantom{ret-ptr} };
+      \draw node[right=0cm of ret1] { ret-ptr };
+    \end{onlyenv}
+
+    \begin{onlyenv}<+->
+      \inactsf{(0,2.5)}{(6,5.5)}{caller stack frame}
+      \draw[fill=gray!30] (13,5) rectangle (18,6.5) node[pos=.5] {\footnotesize caller code};
+      \draw[fill=white] (13,7) rectangle (18,8.5) node[pos=.5] {\footnotesize callee code};
+      \actadv{(0,5.5)}{(6,8.5)}{callee stack frame}
+    \end{onlyenv}
+
+\note{Callee cannot store ret-ptr on the heap as it is local!}
+    \begin{onlyenv}<+-.(2)>
+      \draw (13,1.5) edge[red,bend right,thick,->] (ret1);
+    \end{onlyenv}
+
+    \begin{onlyenv}<+>
+      \draw[teal,very thick] (11.3,3) -- (13,2.8);
+      \draw[teal,very thick] (11.8,3.7) -- (12.4,2);
+      \draw node[teal,cloud,cloud puffs=10.8,cloud puff arc=110, aspect=3, draw, fill=white] () at (14,10) {Return pointer is local!};  
+    \end{onlyenv}
+
+\note{Callee tries to store ret-ptr on the stack (just like for attack 2)}
+    \begin{onlyenv}<+->
+      \draw[fill=white] (0,13) rectangle (6,13.5) node[pos=.5,color=red] {\footnotesize copy of sp};
+    \end{onlyenv}
+    \draw<.> (6,13.25) edge[red,thick,->,in=45] (ret1);
+
+\note{Callee calls callee (1)}
+    \begin{onlyenv}<+->
+      \begin{scope}
+        \clip (6.1,5.5) rectangle (8.1,8.5);
+        \capbrace[ret2]{(6.1,5.5)}{(6.1,9.5)}
+      \end{scope}
+      \draw node[fill=gray!50,right=0cm of ret2] { \phantom{ret-ptr (1)} };
+      \draw node[right=0cm of ret2] { ret-ptr (1) };
+    \end{onlyenv}
+    \draw<.-.(1)> (6,13.25) edge[red,thick,->,in=45] (ret1);
+
+    \begin{onlyenv}<+->
+      % \inactsf{(0,2.5)}{(6,5.5)}{caller stack frame}
+      \inactadv{(0,5.5)}{(6,8.5)}{callee stack frame}
+      \actsf{(0,8.5)}{(6,11.5)}{callee stack frame (1)}
+      \draw[fill=gray!30] (13,7) rectangle (18,8.5) node[pos=.5] {\footnotesize callee code};
+      \draw[fill=white] (13,9) rectangle (18,10.5) node[pos=.5] {\footnotesize callee code (1)};
+    \end{onlyenv}
+
+\note{Callee (1) clears the stack erasing the copy of the ret-ptr!}
+    \begin{onlyenv}<+->
+      \foreach \x in {11.5,12,...,14}
+      {
+        \draw[fill=white] (0,\x) rectangle (6,\x+.5) node[pos=.5,color=teal] {\footnotesize 0};
+      };
+    \end{onlyenv}
+
+\note{Callee (1) calls callee (2)}
+    \begin{onlyenv}<+->
+      \begin{scope}
+        \clip (6.1,8.5) rectangle (8.1,11.5);
+        \capbrace[ret3]{(6.1,8.5)}{(6.1,12.5)}
+      \end{scope}
+      \draw node[fill=gray!50,right=0cm of ret3] { \phantom{ret-ptr (2)} };
+      \draw node[right=0cm of ret3] { ret-ptr (2) };
+    \end{onlyenv}
+
+    \begin{onlyenv}<+->
+      % \inactsf{(0,2.5)}{(6,5.5)}{caller stack frame}
+      % \inactadv{(0,5.5)}{(6,8.5)}{callee stack frame}
+      \inactsf{(0,8.5)}{(6,11.5)}{callee stack frame (1)}
+      \actadv{(0,11.5)}{(6,14.5)}{callee stack frame (2)}
+      \draw[fill=gray!30] (13,9) rectangle (18,10.5) node[pos=.5] {\footnotesize callee code (1)};
+      \draw[fill=white] (13,11) rectangle (18,12.5) node[pos=.5] {\footnotesize callee code (2)};
+    \end{onlyenv}
+
+\note{The copy of ret-ptr callee (2) hoped to use has been erased}
+    \begin{onlyenv}<+->
+      \draw node[teal,cloud,cloud puffs=10.8,cloud puff arc=110, aspect=3, draw, fill=white, align=center] () at (14,4) {ret-ptr capability gone,\\can only access ret-ptr (2)!};  
+    \end{onlyenv}
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Contributions}
+  \begin{itemize}
+    \item Formalisation of a capability machine with local capabilities
+    \item Novel calling convention for enforcing control-flow correctness and local-state encapsulation
+    \item A calling convention utilizing local capabilities to ensure well-bracketed control-flow and local-state encapsulation
+    \item Step-indexed Kripke Logical Relation to reason about programs on said machine
+      \begin{itemize}
+        \item Single orthogonal closure
+        \item Variant of public/private future world relation to express nature of local capabilities
+      \end{itemize}
+      %new insights for low-level systems?
+    \item FTLR
+      \begin{itemize}
+      \item Semantic statement of guarantees offered by capability machine
+      \end{itemize}
+    \item Logical relation applied to a number of examples
+      \begin{itemize}
+      \item ``Awkward example''
+      \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\end{document}
