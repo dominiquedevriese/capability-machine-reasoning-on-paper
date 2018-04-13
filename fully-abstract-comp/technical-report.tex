@@ -1583,6 +1583,7 @@ Also: the future region relation allows $\spatial$ regions to become $\spatialo$
 % \end{mathpar}
 
 \begin{definition}[The pure part of a world]
+  \label{def:purePart}
   For any world $W$, we define
   \begin{align*}
     \purePart{W} &\defeq (\purePart{\pwheap},\purePart{\pwpriv},\purePart{\pwfree})\\
@@ -1649,7 +1650,7 @@ Memory satisfaction for new worlds:
   \left\{
     \begin{array}{l}
       \stk = (\opc_0,\ms_0):: \dots :: (\opc_m,\ms_m) \wedge \\
-      \ms_S \uplus \ms_\stk \uplus \ms_0 \uplus \dots \uplus \ms_m  \wedge\\
+      \ms_S \uplus \ms_\stk \uplus \ms_0 \uplus \dots \uplus \ms_m  \text{ is defined} \wedge\\
       W = W_{\var{stack}} \oplus W_{\var{free\_stack}} \oplus W_{\var{heap}} \wedge\\
       \exists \ms_\var{T,stack}, \ms_\var{T,free\_stack}, \ms_\var{T,heap}, \ms_{T,f}, \ms_{S,f}, \ms_S',\ldotp \\
       \quad \ms_S = \ms_{f,S} \uplus \ms_S' \wedge \\
@@ -1859,6 +1860,7 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
     \begin{array}{l}
       \exists r \in \dom(\pwheap)\ldotp \pwheap(r) = (\pure,\_,H_\sigma) \tand \\
       \quad \stpair[.]{\vsc_S}{\vsc_T} \in H_\sigma \; \sigma \; W\wedge \\
+      \quad (\isLinear{\src{\vsc_S}} \text{ iff } \isLinear{\vsc_T}) \wedge\\
       \quad (\isLinear{\src{\vsc_S}} \Rightarrow \\
       \qquad\forall W' \future W, W_o, n' < n, \stpair[.]{\vsc_S'}{\vsc'_T} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \\
       \qquad \quad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o)) \wedge \\
@@ -1971,8 +1973,8 @@ where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-region
       \exists S \subseteq \addressable{\lin, \pwfree} \ldotp \\
       \quad \exists M : S \fun \powerset{\MemSeg}, R : S \fun \powerset{\Seal}, C : S \fun \powerset{\Seal} \\
       \qquad \biguplus_{r\in S} \dom(M(r)) \supseteq [\baddr,\eaddr] \wedge\\
-      \qquad \biguplus_{r\in S} R(r) \# \biguplus_{r\in S} C(r) \wedge \\
-      \qquad \quad \forall r \in S \ldotp  \pwheap(r) \nequal \codereg{R(r),C(r),M(r),\gc}
+      % \qquad \biguplus_{r\in S} R(r) \# \biguplus_{r\in S} C(r) \wedge \\
+      \qquad \quad \forall r \in S \ldotp  \pwheap(r) \nequal \codereg{\_,\_,M(r),\gc}
     \end{array}
   \right\}
 \]
@@ -2058,7 +2060,7 @@ where $H^{\mathrm{std},\square}_A$ is defined as follows:
     \begin{array}{l}
       \dom(\ms_S) = \dom(\ms_T) = A \wedge \\
       \exists S : A \fun \World \ldotp \xi(W) = \oplus_{\aaddr \in A} S(\aaddr) \wedge\\
-      \quad \forall \aaddr \in A \ldotp \npair[n-1]{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
+      \quad \forall \aaddr \in A, n' < n \ldotp \npair[n']{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
     \end{array}
   \right\}
 \]
@@ -2166,10 +2168,21 @@ H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
   \begin{itemize}
   \item $\pwheap(r_i) = \codereg{\sigrets_i,\sigcloss_i,\code_i,\gc}$
   \item $\mscode = \biguplus_i \code_i$
-  \item $\sigrets = \biguplus_i \sigrets_i$
-  \item $\sigcloss = \biguplus_i \sigcloss_i$.
+  \item One of the following holds:
+    \begin{itemize}
+    \item $\dom(\mscode) \subseteq \ta$ and $\sigrets = \biguplus_i \sigrets_i$ and $\sigcloss = \biguplus_i \sigcloss_i$.
+    \item $\dom(\mscode) \mathrel{\#} \ta$ and $\sigrets = \emptyset$ and $\sigcloss = \biguplus_i \sigrets_i \uplus \biguplus_i \sigcloss_i$.
+    \end{itemize}
   \end{itemize}
+  and there exist $r_1 \cdots r_m \in \dom(\pwheap)$ such that
+  \begin{itemize}
+  \item $\pwheap(r_i) = \stdreg{A_i,\gc}{\pure}$
+  \item $\dom(\msdata) = \biguplus_i A_i$
+  \end{itemize}
+  with $\gc = (\ta,\stkb)$
 \end{definition}
+Note that for untrusted components, we require all seals to be in the corresponding code region as closure seals.
+That is because we cannot trust untrusted components to treat their seals correctly (e.g. not hand them out to other components, only sign return capabilities with return seals etc.), so instead, they must be considered as closure seals, which the component is essentially allowed to sign anything with.
 
 \begin{theorem}[FTLR]
   \label{thm:ftlr}
@@ -2230,7 +2243,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
     \right\} 
 \end{align*}
 
-\begin{lemma}
+\begin{lemma}[Compatibility lemma for linking]
   If
   \begin{itemize}
   \item $\npair{(\var{comp}_1,\var{comp}_1)} \in \lrcomp(W_1)$
@@ -2242,16 +2255,92 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \end{itemize}
 \end{lemma}
 
+\subsection{FTLR for components}
+\label{sec:ftlr-for-comps}
+
+\begin{lemma}[FTLR for components]
+  If
+  \begin{itemize}
+  \item $\gc = (\ta,\stkb)$
+  \item One of the following holds:
+    \begin{itemize}
+    \item $\trust = \trusted$, $\var{comp}$ is a reasonable component (see
+      Section~\ref{sec:full-abstraction}) and $\dom(\comp.\mscode) \subseteq \ta$
+    \item $\trust = \untrusted$ and $\dom(\var{comp}.\mscode) \mathrel{\#} \ta$
+    \end{itemize}
+  \item $W \vdash \var{comp}$
+  \end{itemize}
+  Then $\npair{(\var{comp},\var{comp})} \in \lrcomp(W)$.
+\end{lemma}
+Note: the trusted case of the above lemma can be considered as a compiler correctness result.
+The untrusted case can be considered as a back-translation correctness result.
+
+\subsection{Related execution configurations}
+\label{sec:related-exec-confs}
+
+\[
+  \lrec(W) = \left\{ \npair{\left(
+        \arraycolsep=0pt\array{l}
+        (\ms_S,\reg_S,\stk,\ms_\stk),\\
+        (\ms_T,\reg_T)\endarray\right)} \middle|
+    \begin{array}{l}
+      \gc = (\ta,\stkb) \tand\\
+      \exists W_M,W_R,W_\pcreg \ldotp W = W_M \oplus W_R \oplus W_\pcreg \tand\\
+      \reg_S(\pcreg) = ((\rx,\lin),\baddr,\eaddr,\aaddr) \tand (\trust = \trusted \text{ iff } \aaddr \in \ta) \tand \\
+      \npair{( \reg_S(\pcreg),\reg_T(\pcreg) )} \in \lrvg{\trust}(W_\pcreg) \tand \\
+      \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W_M} \tand\\
+      \npair{\stpair{\reg}{\reg}} \in \lrrg{\trust}(W_R)
+    \end{array}
+            \right\}
+\]
+
+\begin{lemma}[Compatibility lemma for initial execution configuration construction]
+  If
+  \begin{itemize}
+  \item $\npair{\stpair{\var{comp}}{\var{comp}}} \in \lrcomp(W)$
+  \item $\var{comp}_S\rightsquigarrow \Phi_S$
+  \item $\var{comp}_T \rightsquigarrow \Phi_T$,
+  \end{itemize}
+  then
+  \begin{itemize}
+  \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec(W)$
+  \end{itemize}
+\end{lemma}
+
+\begin{lemma}[Adequacy of logical relation]
+  If
+  \begin{itemize}
+  \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\preceq](W)$
+  \item $i \leq n$
+  \item $\Phi_S \sterm[i]{\gc}$
+  \end{itemize}
+  then $\Phi_T\term$.
+
+  Also, if
+  \begin{itemize}
+  \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\succeq](W)$
+  \item $i \leq n$
+  \item $\Phi_T \term[i]$,
+  \end{itemize}
+  then $\Phi_S\sterm{\gc}$.
+\end{lemma}
+
+\begin{lemma}[Compatibility lemma for context plugging]
+  If $\npair{\stpair{C}{C}}\in\lrcomp(W_1)$ and $\npair{\stpair{P}{P}} \in \lrcomp(W_2)$, then
+  $\npair{(\plug{C_S}{P_S},\plug{C_T}{P_T})} \in \lrec(W_1 \oplus W_2)$.
+\end{lemma}
+
 \section{Full Abstraction}
+\label{sec:full-abstraction}
 \lau{TODOs from last day in Leuven}
 \lau{RESOLVED: components have optional main (pc/data pair)}
 \lau{RESOLVED: linking component and context requires only one main (i.e., it is undefined if both or none of the two expose main.)}
 \lau{RESOLVED?: Component logical relation. Rough sketch is in white-board-notes/leuven-23-3-2018-3.jpg (top left).}
-\dominique{RESOLVED?: Compatibility lemma for linking: if $c_1$ and $c_1'$ are related and $c_2$ and $c_2'$, then so should be $c_1\bowtie c_2$ and $c_1' \bowtie c_2'$ (if defined).}
-\lau{TODO: Version of FTLR for programs.}
-\lau{TODO: Compatibility lemma for initial executable configuration construct, i.e. a lemma that says ``if two programs are related, then their initial executable configurations will be related''.}
-\lau{TODO: A logical relation for executable configurations.}
-\lau{TODO: contextual equivalence should be defined in terms of initial executable configuration.}
+\dominique{RESOLVED: Compatibility lemma for linking: if $c_1$ and $c_1'$ are related and $c_2$ and $c_2'$, then so should be $c_1\bowtie c_2$ and $c_1' \bowtie c_2'$ (if defined).}
+\lau{RESOLVED: Version of FTLR for programs.}
+\lau{RESOLVED: Compatibility lemma for initial executable configuration construct, i.e. a lemma that says ``if two programs are related, then their initial executable configurations will be related''.}
+\lau{RESOLVED: A logical relation for executable configurations.}
+\lau{RESOLVED: contextual equivalence should be defined in terms of initial executable configuration.}
 \lau{TODO: Did we agree that memory satisfaction should require $\stkb$ to be a free stack address (or at least not in the heap part)? I think we did.}
 \begin{definition}
   \label{def:points-to-instr}
@@ -2368,7 +2457,7 @@ and
 % \begin{definition}[Never seal link seals and code capabilities with unknown seal]  
 % \end{definition}
 
-\dominique{19-3-2018: components should contain information about what seals they use and for what (for building return pointers or for building closures). That should facilitate defining reasonable linking (only when seals disjoint), and for defining the condition for full abstraction and the FTLR.}
+% \dominique{19-3-2018: components should contain information about what seals they use and for what (for building return pointers or for building closures). That should facilitate defining reasonable linking (only when seals disjoint), and for defining the condition for full abstraction and the FTLR. Update: this is resolved}
 \begin{definition}
   A component $\program = (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss)$ with $\dom(\mscode) = A$, is reasonable if for all $n$ and all contexts $\context$ the configuration $\plug{\context}{\program}$ satisfies:
   \begin{itemize}
@@ -2418,43 +2507,39 @@ This works perfectly fine, except that the context does not get any well-bracket
   TODO
 \end{proof}
 
-\clearpage
-\section{Examples}
-\subsection{Capability Opacity}
-\label{subsec:capability-opacity}
+% \clearpage
+% \section{Examples}
+% \subsection{Capability Opacity}
+% \label{subsec:capability-opacity}
 
-\dominique{27-09-2017: Is this example still relevant? Isn't it solved differently by the variable-length-instructions idea?}
-\lau{28-09-2017: It seems to me that this is indeed solved by the variable length instructions. That said, I would like to keep it around (maybe change it so it becomes an argument for variable length instructions).}
-This example was introduced when we envisioned a capability machine with $\spush{}$, $\spop{}$, $\ssload{}{}$, $\scall{\offpc,\offsigma}{}{}$ and $\sreturn$ instructions. The below example is a motivation for having variable length instructions in the source language because if we have enough memory to ``do the same'' in the target language as in the source language, then the below example does not work.
+% \dominique{27-09-2017: Is this example still relevant? Isn't it solved differently by the variable-length-instructions idea?}
+% \lau{28-09-2017: It seems to me that this is indeed solved by the variable length instructions. That said, I would like to keep it around (maybe change it so it becomes an argument for variable length instructions).}
+% This example was introduced when we envisioned a capability machine with $\spush{}$, $\spop{}$, $\ssload{}{}$, $\scall{\offpc,\offsigma}{}{}$ and $\sreturn$ instructions. The below example is a motivation for having variable length instructions in the source language because if we have enough memory to ``do the same'' in the target language as in the source language, then the below example does not work.
 
-The following pseudo program demonstrates the need of opaque capabilities. If we assume a system with no opaque capabilities, then the following programs break compiler correctness
-\begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
-p1 ::= if r1 is length 2 then
-         call r1 with the following callback in r5:
-           {put $\textit{\texttt{diverging}}$ closure in r2;
-            return};
-         halt
-       else diverge
+% The following pseudo program demonstrates the need of opaque capabilities. If we assume a system with no opaque capabilities, then the following programs break compiler correctness
+% \begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
+% p1 ::= if r1 is length 2 then
+%          call r1 with the following callback in r5:
+%            {put $\textit{\texttt{diverging}}$ closure in r2;
+%             return};
+%          halt
+%        else diverge
 
-p2 ::= if r1 is length 2 then
-         call r1 with the following callback in r5:
-           {put $\textit{\texttt{terminating}}$ closure in r2;
-            return};
-         halt
-       else diverge
-\end{lstlisting}
-The diverging closure could just contain $\sjmp{\pcreg}$, which diverges. The terminating closure could just be $\sreturn$.
+% p2 ::= if r1 is length 2 then
+%          call r1 with the following callback in r5:
+%            {put $\textit{\texttt{terminating}}$ closure in r2;
+%             return};
+%          halt
+%        else diverge
+% \end{lstlisting}
+% The diverging closure could just contain $\sjmp{\pcreg}$, which diverges. The terminating closure could just be $\sreturn$.
 
-The context with $r1$ as an executable capability pointing to:
-\begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
-$\scall{\offpc,\offsigma}{r5}{0}$
-$\sjmp{r5}$
-\end{lstlisting}
-\footnote{At this time $\scall{\offpc,\offsigma}{}{}$ did argument spilling and it only takes one argument because we were considering enter capabilities.}distinguishes the two contexts, but two instructions are not enough to do the same at the target level. We would not have enough instructions to set up a proper return pointer for the compiled return to use.
-
-\clearpage
-\section{Back translation}
-The back translation is an embedding of the target language into the source language.
+% The context with $r1$ as an executable capability pointing to:
+% \begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
+% $\scall{\offpc,\offsigma}{r5}{0}$
+% $\sjmp{r5}$
+% \end{lstlisting}
+% \footnote{At this time $\scall{\offpc,\offsigma}{}{}$ did argument spilling and it only takes one argument because we were considering enter capabilities.}distinguishes the two contexts, but two instructions are not enough to do the same at the target level. We would not have enough instructions to set up a proper return pointer for the compiled return to use.
 
 \section{Notes}
 \subsection{Leuven stay conclusions}
