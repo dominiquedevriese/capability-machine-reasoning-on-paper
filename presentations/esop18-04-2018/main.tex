@@ -55,21 +55,39 @@ let x = ref 0 in
       f();
       x := 1;
       f();
-      assert(x == 1))
+      assert(!x == 1))
     \end{lstlisting}
   \end{tabular}
-  
-  \note{Informally, what does this program do?}
-  \note{It allocates a reference to 0 and saves a closure to x. The closure takes a callback, assigns 0 to x, calls the callback, assigns 1 to x, calls the callback another time and finally asserts x to be 1.}
-  \note{As a programmer that is how I would think. But what happens if I compile this closure to assembly and let some untrusted piece of code interact with it?}
-  \note{My reasoning depends on the assumption that when I call f, then if f returns it returns to a certain point. The low-level machine needs to enforce this if I want to be able to do have this closure interact with arbitrary machine code.} 
+
+
+  \note<1>[item]{Consider program. Assuming a standard ML semantics we can say what it does.}
+  \note<1>[item]{Bind x to freshly allocated reference in a closure that...}
+  \note<1>[item]{takes callback f, sets x to 0, calls f, sets x to 1, calls f and finally asserts x points to 1.}
+  \note<1>[item]{Note the assumption that when we call f, then we return to a specific program point. This is what we call well-bracketedness and we assume we have this in many programming languages.}
+  \note<1>[item]{However, in order to execute this code, we need to compile it to assembly. }
+  \note<1>[item]{How is well-bracketedness guaranteed? In particular, how is it guaranteed if f is a piece of code we do not trust (maybe handwritten assembly).}
+  \note<2>[item]{\emph{We present a calling convention for capability machines that provide well-bracketedness and local state encapsulation as well as a logical relation that allows us to reason about such programs.}}
+  \note<2>[item]{Let's first consider how stack pointers traditionally are handled.}
+
+  % \note{Informally, what does this program do?}
+  % \note{It allocates a reference to 0 and saves a closure to x. The closure takes a callback, assigns 0 to x, calls the callback, assigns 1 to x, calls the callback another time and finally asserts x to be 1.}
+  % \note{As a programmer that is how I would think. But what happens if I compile this closure to assembly and let some untrusted piece of code interact with it?}
+  % \note{My reasoning depends on the assumption that when I call f, then if f returns it returns to a certain point. The low-level machine needs to enforce this if I want to be able to do have this closure interact with arbitrary machine code.} 
 \end{frame}
 
 
 
 \begin{frame}
   \frametitle{Traditional Stack Pointers}
-  \note{Let's first consider what happens with the stack during a call on a traditional low-level machine and what can go wrong.}
+  % \note{Let's first consider what happens with the stack during a call on a traditional low-level machine and what can go wrong.}
+  \note<1-3>[item]{Simply put, a caller calls a function which}
+  \note<1-3>[item]{pushes a new stack frame on the stack the callee uses for its execution. }
+  \note<1-3>[item]{When the callee is done, then it returns to the caller by popping its stack frams.}
+  \note<4->[item]{If \emph{callee (evil) assembly code with no intention to follow the CC}, then there are multiple ways for them to break things:}
+  \note<5->[item]{Read or write directly from or to the caller's stack frame, breaking local-state encapsulation}
+  \note<6->[item]{Skip the caller's stack frame and return to one further down breaking well-bracketedness.}
+  \note<6->[item]{Clearly we need some kind of low-level enforcement mechanism.}
+
   \begin{tikzpicture}[scale=.5, every node={scale=.5}]
     % recurrent parts
     \begin{scope}
@@ -108,9 +126,13 @@ let x = ref 0 in
     \draw<.-> (8,7) node[draw=black] (sp0) {};
     \draw<.-> node[right=0cm of sp0] (sp0l) { stack pointer };
 
-    % read other stack frames
-    \draw<.> (sp0) edge[->,out=235,in=0] (6,8.25);
+        % read other stack frames
     \actadv[.]{(0,5.5)}{(6,8.5)}{callee stack frame}
+    \draw<.-.(1)> (sp0) edge[->,out=235,in=0] (6,8.25);
+
+    % read other stack frames
+
+    \actadv[+]{(0,5.5)}{(6,8.5)}{callee stack frame}
     \draw<.> (sp0) edge[->,color=red,very thick,out=235,in=0] node[sloped, below] {read/write} (6,4);
 
     % break well-bracketedness
@@ -120,7 +142,7 @@ let x = ref 0 in
     \draw<.> node[color=red,align=left,below=of sp0l] {return but\\
       skip caller frame};
   \end{tikzpicture}
-  \note{We need something to enforce security properties on a low-level machine.}
+  % \note{We need something to enforce security properties on a low-level machine.}
 \end{frame}
 
 \begin{frame}
@@ -130,34 +152,70 @@ let x = ref 0 in
   \begin{columns}
 \begin{column}{0.5\textwidth}
   \begin{itemize}
-  \item Low-level machine
-    \note{Has instructions as you would expect, load, store, jmp, etc.}
-  \item Capabilities replace pointers
+  \item<1-> Low-level machine
+    \note<1->[item]{Capability machines are low-level machines proposed in the systems community.}
+    \note<1->[item]{For instance, the CHERI OS operates on one.}
+    \note<1->[item]{Has all the instructions we expect, load, store, jmp, etc.}
+    % \note{Has instructions as you would expect, load, store, jmp, etc.}
+  \item<2-> Capabilities replace pointers
     \begin{itemize}
-    \item Pointer
-    \item Range of authority
-    \item Kind of authority
+    \item<3-> Pointer
+    \item<4-> Range of authority
+    \item<5-> Kind of authority
+      \note<5->[item]{Roughly two kinds of capabilities:}
       \begin{itemize}
-      \item read/write/execute
+      \item read, write, and execute
+        \note<5->[item]{Memory capabilities, allows you to do all the standard memory operations.}
       \item enter
+        \note<5->[item]{Provides encapsulation mechanism which allows seperation of security domains.}
+        \note<5->[item]{Can not be used for anything but jump, when jumped to becomes read/execute.}
       \end{itemize}
-      \note{Has instructions for manipulating capabilities.}
     \end{itemize}
-    \item Authority checked dynamically
-  \end{itemize}
+    \item<6-> Capability manipulation instructions
+    \item<7-> Authority checked dynamically
+    \end{itemize}
 \end{column}
+
 \begin{column}{0.5\textwidth}
-    \begin{center}
-      % Insert capability figure
-     \end{center}
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    \draw (1,9) node {Memory};
+    \draw (-3.5,0) node {\phantom{.}};
+    \scope
+      \clip (-.1,-.1) rectangle (6.1,8.1);
+      \fill[fill=white] (0,0) rectangle (6,8);
+      \draw (0,0) -- (0,8);
+      \draw (6,0) -- (6,8);
+    \endscope
+    % \draw[->] (-2,0) -- node[midway,sloped,above] {stack grows upward} (-2,15);
+    \draw (-1.5,0) node {};
+    \draw (-1.5,8) node {};
+    \foreach \x in {0.5,1,...,7}
+    {
+      \draw[fill=white] (0,\x) rectangle (6,\x+.5) node[pos=.5,color=teal] {};
+    };
+
+    \draw<3>  (-3,1.5) edge[black,->,in=180] (0,2.75);
+
+    \draw<4-> [decorate,decoration={brace,amplitude=3pt,raise=0pt},yshift=0pt]
+    (-0.25,1) -- (-0.25,4.5) node[draw=black] (sp1) [black,midway,xshift=-12pt] {};
+    \draw<4>  (-3,1.5) edge[black,->,in=180] node[above left] {\footnotesize\phantom{\textsc{rw}}} (sp1);
+    \draw<5->  (-3,1.5) edge[black,->,in=180] node[above left] {\footnotesize \textsc{rw}} (sp1);
+  \end{tikzpicture}
 \end{column}
 \end{columns}
-  \note{This particular setup gives a very fine-grained memory control.}
+ % \note{This particular setup gives a very fine-grained memory control.}
 \end{frame}
 
 \begin{frame}
   \frametitle{Stack and Return Capabilities: Attack 1}
-  \note{In the following, part of memory is used for the stack and we use capabilities to govern them. Callee not able to read from the caller stack frame, so that is already an improvement.}
+%  \note{In the following, part of memory is used for the stack and we use capabilities to govern them. Callee not able to read from the caller stack frame, so that is already an improvement.}
+  \note[item]<1->{Let's see how this changes things: Now the \emph{untrusted code cannot immediately read from the caller stack frame}, because the stack capability does not have authority over that part of memory.}
+  \note[item]<1->{There is nothing that prevents the \emph{untrusted code from storing the stk ptr on the heap.}}
+  \note[item]<3->{Upon return the \emph{callee regains its stack capability} which has authority over the callee stack frame and everything above. }
+  \note[item]<3->{The \emph{caller pushes some important things} on the stack and \emph{calls the untrusted code again}. With a smaller stack pointer.}
+  \note[item]<4->{The stack pointer the caller gives the untrusted code cannot be used to access the callee stack frame, but because the untrusted code stored the old stack pointer, it now has access to part of the callee's stack frame.}
+  \note[item]<4->{Again breaking local state encapsulation.}
+  \note[item]<4->{Need a way to make sure stack pointer is not stored for later use.}
   \begin{tikzpicture}[scale=.5, every node={scale=.5}]
     % recurrent parts
     \stdstackstart
@@ -168,10 +226,11 @@ let x = ref 0 in
       \actadv{(0,6.5)}{(6,9.5)}{callee stack frame}
       \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       (6.5,6.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
-      \draw node[right=0cm of sp1] { stack pointer };
+      \draw (11,14) node[above right=1cm of sp1, xshift=-0.5cm] (a) { stack pointer };
+      \draw (a) edge[->,bend left] node[below] {\footnotesize \textsc{rw}} (sp1);
     \end{onlyenv}
 
-    \note{Evil callee stores stack pointer on the heap.}
+%    \note{Evil callee stores stack pointer on the heap.}
     % stores stack pointer in heap
     \begin{onlyenv}<+->
       \begin{scope}
@@ -182,25 +241,26 @@ let x = ref 0 in
       \draw (16,14) node {heap memory};
       \draw[fill=gray!50] (14,8) rectangle node[color=red] {\scriptsize copy of old sp} (18,8.5);
     \end{onlyenv}
-    \draw<.> (14,8.25) edge[->,red,thick,bend left] (sp1);
+    \draw<.> (14,8.25) edge[->,red,thick,bend left] node[below] {\footnotesize \textsc{rw}} (sp1);
     \begin{onlyenv}<+->
       \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       (11.5,6.5) -- (11.5,16) node[draw=black] (spold) [black,midway,xshift=0.8cm] {};
-      \draw (14,8.25) edge[->,red,thick,bend left] (spold);
+      \draw (14,8.25) edge[->,red,thick,bend left] node[left] {\footnotesize \textsc{rw}}(spold);
     \end{onlyenv}
 
-    \note{Evil callee returns to the caller.}
+%    \note{Evil callee returns to the caller.}
     % attacker returns
     \begin{onlyenv}<+>
       \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       (6.5,2.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
-      \draw node[right=0cm of sp1] { stack pointer };
+      \draw (11,14) node (a) { stack pointer };
+      \draw (a) edge[->,bend left] node[below right] {\footnotesize \textsc{rw}} (sp1);
       \draw[fill=white] (0,2.5) rectangle (6,6.5) node[pos=.5] {\footnotesize current stack frame};
     \end{onlyenv}
     
 
-    \note{caller uses a bit more of the stack and calls the evil callee again.}
-    \note{the evil callee can now load the old stack capability from memory and access part of the callers private stack!}
+%    \note{caller uses a bit more of the stack and calls the evil callee again.}
+%    \note{the evil callee can now load the old stack capability from memory and access part of the callers private stack!}
     % attacker gets called again + uses old stack pointer.
     \begin{onlyenv}<+>
       \draw[fill=gray!50] (0,2.5) rectangle (6,10.5) node[pos=.5] {\footnotesize caller stack frame};
@@ -208,7 +268,8 @@ let x = ref 0 in
       \draw (14,8.25) edge[->,color=red,very thick,out=235,in=0] node[sloped, below] {read/write} (6,8);
       \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
         (6.5,10.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
-      \draw node[right=0cm of sp1] { stack pointer };
+      \draw (11,14) node (a) { stack pointer };
+      \draw (a) edge[->,bend left] node[below] {\footnotesize \textsc{rw}} (sp1);
       % \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       % (6,2.5) -- (6,16) node (callerframe1) [draw=black,midway,xshift=0.8cm] {};
       % \draw node[fill=gray!50,right=0cm of callerframe1] (rp1l) {return pointer data};
@@ -219,21 +280,29 @@ let x = ref 0 in
 \begin{frame}
   \frametitle{Local Capabilities}
   % Short description of local capabilities
+  CHERI inspired
   \begin{itemize}
-  \item Capabilities tagged with locality (local or global)   \note{We call non-local capabilities global}
-  \item New \emph{write-local} permission.
-  \item Local capabilities can only be stored by capabilities with \emph{write-local} permission
+  \item Capabilities tagged with locality (local or global)   %\note{We call non-local capabilities global}
+  \item New \textit{write-local} permission
+  \item Local capabilities can only be stored by capabilities with \textit{write-local} permission
   \end{itemize}
-  Calling convention highlights
-  \begin{itemize}
+  \note[item]<1->{To revoke a capability, we need to find it in memory which means we need access + need to search the entire memory.}
+  \note[item]<1->{Restricted where local capabilities can be stored. restricts where we need to look for a capability.}
+  \note[item]<1->{We define a calling convention. In order to prevent attack 1, we do the follwoing.}
+  \onslide<2->{Calling convention}
+  \begin{itemize}[<2->]
   \item Stack capability is local with permission read, write-local, and execute.
-  \item Clear stack before passing stack capability to untrusted code.
+    \note[item]<2->{Local stack capability cannot be stored on the heap. We need to be able to store old stack pointers somewhere, traditionally stack. }
+  \item No global write-local capabilities.
+    \note[item]<2->{Global write-local capabilities would undermine the entire idea as it would allow local capabilities to be stored indirectly.}
   \end{itemize}
 \end{frame}
 
 \begin{frame}
   \frametitle{Local Stack Capabilities Prevent Attack 1}
   \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    \note{In the attack from before, when the attacker \emph{attempts to store the stack capability} on the heap, then the \emph{machine checks} that we have the correct authority to perform the operation. \emph{Assuming we only have global capabilities} for the heap, it cannot have write-local authority, due to the assumption on the previous slide, so we try to store the stack capability through a capability that does not have write-local authority, so it fails.}
+
     % recurrent parts
     \stdstackstart
     
@@ -242,7 +311,9 @@ let x = ref 0 in
     \actadv{(0,6.5)}{(6,9.5)}{callee stack frame}
     \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       (6.5,6.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
-    \draw node[right=0cm of sp1] { stack pointer };
+    \draw (11,14) node (a) { stack pointer };
+    \draw (a) edge[->,bend left] node[sloped,below] {\footnotesize local,\textsc{rwlx}} (sp1);
+
 
     % stores stack pointer in heap
     \begin{scope}
@@ -252,7 +323,7 @@ let x = ref 0 in
     \end{scope}
     \draw (16,14) node {heap memory};
     \draw[fill=gray!50] (14,8) rectangle node[color=red] {\scriptsize copy of old sp} (18,8.5);
-    \draw (14,8.25) edge[->,red,thick,bend left] (sp1);
+    \draw (14,8.25) edge[->,red,thick,bend left] node[sloped,below] {\footnotesize local,\textsc{rwlx}} (sp1);
     \draw[teal,very thick] (13.5,7.5) -- (18.5,9);
     \draw[teal,very thick] (18.5,7.5) -- (13.5,9);
     \draw node[teal,cloud,cloud puffs=10.8,cloud puff arc=110, aspect=3, draw, fill=white] () at (14,4) {Stack pointer is local!};  
@@ -262,15 +333,22 @@ let x = ref 0 in
 \begin{frame}
   \frametitle{Stack and Return Capabilities: Attack 2}
   \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    \note[item]{While this prevents attack 1, we are not quite safe done.}
     % recurrent parts
     \stdstackstart
-
+    \note[item]{Trusted caller calls untrusted code.}
+    \note[item]<2->{untrusted code stores the stack pointer on the stack.}
+    \note[item]<2->{stack pointer local, but stack pointer has write local permission, so no problem.}
+    \note[item]<3->{untrusted code calls some trusted code with a callback.}
+    \note[item]<5->{trusted code runs for a bit pushes some local data to the stack and calls the callback.}
+    \note[item]<6->{The stack pointer is still on the stack allowing the untrusted code to read write to the stack frame of the trusted code.}
     % first step: capabilities
     \begin{onlyenv}<+>
       \draw[fill=white] (0,2.5) rectangle (6,4) node[pos=.5] {\footnotesize current stack frame};
       \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
         (6.5,2.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
-      \draw node[right=0cm of sp1] { stack pointer };
+      \draw (11,12.5) node (a) { stack pointer };
+      \draw (a) edge[->,bend left] node[sloped,below] {\footnotesize local,\textsc{rwlx}} (sp1);
       % \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       % (6,0) -- (6,16) node (oldframe1) [black,midway,xshift=0.5cm] {};
       % \draw node[fill=gray!50,right=0cm of oldframe1] (rp1l) {return pointer data};
@@ -282,14 +360,15 @@ let x = ref 0 in
       \actadv{(0,4)}{(6,7)}{callee stack frame}
       \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
         (6.5,4) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
-      \draw node[right=0cm of sp1] { stack pointer };
+      \draw (11,12.5) node (a) { stack pointer };
+      \draw (a) edge[->,bend left] node[sloped,below] {\footnotesize local,\textsc{rwlx}} (sp1);        
     \end{onlyenv}
     \draw<+->[fill=white] (0,13) rectangle (6,13.5) node[pos=.5,color=red] {\footnotesize copy of sp};
-    \draw<.> (6,13.25) edge[red,thick,->,in=45] (sp1);
+    \draw<.> (6,13.25) edge[red,thick,->,in=45] node[above right,yshift=0.1cm,xshift=-0.2cm] {\footnotesize local,\textsc{rwlx}}(sp1);
     \begin{onlyenv}<+->
       \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
         (13.5,4) -- (13.5,16) node[draw=black] (spold) [black,midway,xshift=0.8cm] {};
-      \draw (6,13.25) edge[red,thick,->,in=45] (spold);
+      \draw (6,13.25) edge[red,thick,->,in=45] node[sloped, above] {\footnotesize local,\textsc{rwlx}}(spold);
     \end{onlyenv}
 
     % attacker calls trusted code again
@@ -301,7 +380,8 @@ let x = ref 0 in
       \draw[fill=white] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
       \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
         (6.5,7) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
-      \draw node[right=0cm of sp1] { stack pointer };
+        \draw (11,12.5) node (a) { stack pointer };
+        \draw (a) edge[->,bend left] node[sloped,below] {\footnotesize local,\textsc{rwlx}} (sp1);
     \end{onlyenv}
 
     % attacker uses old stack pointer
@@ -310,17 +390,22 @@ let x = ref 0 in
       \actadv{(0,9)}{(6,12)}{callee (3) stack frame}
       \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       (6.5,9) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
-      \draw node[right=0cm of sp1] { stack pointer };
+
+      \draw (11,12.5) node (a) { stack pointer };
+      \draw (a) edge[->,bend left] node[sloped,below] {\footnotesize local,\textsc{rwlx}} (sp1);
     \end{onlyenv}
     \draw<+> (spold) edge[->,color=red,very thick,out=235,in=0] node[sloped, below] {read/write} (6,8);
   \end{tikzpicture}
-  \note{The stack was the only place to store the local capability, so the adversary hid it there.}
+%  \note{The stack was the only place to store the local capability, so the adversary hid it there.}
 \end{frame}
 
 \begin{frame}
   \frametitle{Calling Convention (Continued)}
+  \note[item]{Stack is basically the only place we can store local capabiliites.}
+  \note[item]{Make sure that untrusted code don't ``sneak'' capabilities between calls on the stack}
+  \note[item]{Clear stack and argument registers}
+  $\dots$
   \begin{itemize}
-  \item $\dots$
   \item Clear stack and non-argument registers before invoking untrusted code.
   \end{itemize}
 \end{frame}
@@ -328,6 +413,10 @@ let x = ref 0 in
 \begin{frame}
   \frametitle{Stack Clearing Prevents Attack 2}
   \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    \note[item]{Let's see that the addition to the CC prevents attack 2.}
+    \note[item]{The untrusted code has been called. It calls the well-behaved code.}
+    \note[item]{The well-behaved code does its thing, but this time it clears the stack overwritting the old stack pointer the untrusted code had saved for later.}
+    \note[item]{The untrusted code starts running, but it does not have an old stack pointer available only the one given to them by the well-behaved code}
     % recurrent parts
     \stdstackstart
     % attacker stores copy of stack pointer high in the stack
@@ -348,7 +437,8 @@ let x = ref 0 in
       \draw[fill=white] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
       \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
         (6.5,7) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
-      \draw node[right=0cm of sp1] { stack pointer };
+      \draw (11,12.5) node (a) { stack pointer };
+      \draw (a) edge[->,bend left] node[sloped,below] {\footnotesize local,\textsc{rwlx}} (sp1);
     \end{onlyenv}
 
     % trusted code clears the stack
@@ -367,47 +457,48 @@ let x = ref 0 in
       \actadv{(0,9)}{(6,12)}{callee (3) stack frame}
       \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       (6.5,9) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
-      \draw node[right=0cm of sp1] { stack pointer };
+      \draw (11,12.5) node (a) { stack pointer };
+      \draw (a) edge[->,bend left] node[sloped,below] {\footnotesize local,\textsc{rwlx}} (sp1);      
     \end{onlyenv}
 
-    % attacker returns
-    \draw<+>[fill=white] (0,9) rectangle (6,12) node[pos=.5] {?};
-    \begin{onlyenv}<.>
-      \draw[fill=white] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
-      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
-        (6.5,7) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
-      \draw node[right=0cm of sp1] { stack pointer };
-    \end{onlyenv}
+    % % attacker returns
+    % \draw<+>[fill=white] (0,9) rectangle (6,12) node[pos=.5] {?};
+    % \begin{onlyenv}<.>
+    %   \draw[fill=white] (0,7) rectangle (6,9) node[pos=.5] {\footnotesize callee (2) stack frame};
+    %   \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+    %     (6.5,7) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+    %   \draw node[right=0cm of sp1] { stack pointer };
+    % \end{onlyenv}
 
-    % trusted code clears stack again
-    \begin{onlyenv}<+->
-      \foreach \x in {7,7.5,...,14}
-      {
-        \draw[fill=white] (0,\x) rectangle (6,\x+.5) node[pos=.5,color=teal] {\footnotesize 0};
-      };
-    \end{onlyenv}
-    % then, the trusted code can return
-    \begin{onlyenv}<+>
-      \actadv{(0,4)}{(6,7)}{callee stack frame}
-    \end{onlyenv}
+    % % trusted code clears stack again
+    % \begin{onlyenv}<+->
+    %   \foreach \x in {7,7.5,...,14}
+    %   {
+    %     \draw[fill=white] (0,\x) rectangle (6,\x+.5) node[pos=.5,color=teal] {\footnotesize 0};
+    %   };
+    % \end{onlyenv}
+    % % then, the trusted code can return
+    % \begin{onlyenv}<+>
+    %   \actadv{(0,4)}{(6,7)}{callee stack frame}
+    % \end{onlyenv}
     
   \end{tikzpicture}
 \end{frame}
 
 \begin{frame}
-  \frametitle{(Full) Calling Convention}
+  \frametitle{(Full) Calling Convention}  
   % and stack management
-  \note{We need to do a few more things, but this is the rest (just to illustrate that it is fairly simple).}
-  \note{Every point is motivated by some attack.}
+  \note[item]{The calling convention contains a bit more, but all of it is motivated by some attack.}
+  \note[item]{I won't motivate the rest here, but I wanted to show you that it does not take many more precautions.}
   \begin{itemize}
   \item Initially:
     \begin{itemize}
-    \item Stack capabilitiy local capability with read, write-local, and execute authority.
-    \item No global write-local capabilities on the machine.
+    \item \textit{Stack capability local capability with read, write-local, and execute authority.}
+    \item \textit{No global write-local capabilities on the machine.}
     \end{itemize}
   \item Prior to returning to untrusted code:
     \begin{itemize}
-    \item Clear the stack.
+    \item \textit{Clear the stack.}
     \item Clear non-return registers.
     \end{itemize}
   \item Prior to calls to untrusted code:
@@ -428,25 +519,25 @@ let x = ref 0 in
 
 \begin{frame}
   \frametitle{Formalizing the Guarantees of a Capability Machine}
-  \note{How can we be sure calling convention works. Specifically, if a program interacts with intrusted code using the CC, can we formally show the correctness of the program if it relies on well-bracketedness or local-state encapsulation.}
-
-  \note{Need formal statement of the guarantees provided by the capability machine including the specific guarantees for local capabilities.}
+  \note[item]{How can we be sure the calling convention works?}
+  \note[item]{Specifically, if we have a \emph{program that interacts with untrusted code using the calling convention}, how do we formally show correctness of the program.}
+  \note[item]{We need a formal statement about the guarantees provided by the capabilities including the specific guarantees for local capabilities.}
+  \note[item]{Traditionally syntactic very syntactic (e.g. reference graph), does not take into account what the program does with its capabilities.}
+  \note[item]{\emph{We} have defined a logical relation which also give us a statement about the guarantees provided by the capability machine.}
   \begin{itemize}
-  \item How do we know the calling convention works?
-  \item Unary step-indexed Kripke logical relation over recursive worlds
+  \item How can we be sure the calling convention works?
+  \item<2-> Unary step-indexed Kripke logical relation over recursive worlds
     \begin{itemize}
     \item Statement of guarantees provided by the capability machine
     \end{itemize}
   \end{itemize}
-  \note{We state this formal statement in terms of a unary step-indexed Kripke logical relation over recursive worlds}
+  \note[item]<2->{Calling convention main application, but it is general}
 
-  \note{Calling convention main application, but it is very general - can be used to reason about other programs.}
+  \note[item]<2->{In the following: give some intuition about what a LR looks like for a capability machine}
 
-  \note{In the following: give some intuition for different parts of LR}
+  % \note{correctness here could be assert not violated}
 
-  \note{correctness here could be assert not violated}
-
-  \note{mention better than previous. Define the guarantees}
+  % \note{mention better than previous. Define the guarantees}
 \end{frame}
 
 
@@ -455,7 +546,9 @@ let x = ref 0 in
 \begin{columns}
   \begin{column}{0.5\textwidth}
     \begin{itemize}
-    \item<1-> Capabilities represent bound on executing code
+      \note[item]<1->{Compared to standard assembly language, capabilities executing code has access to represent bound.}
+    \item<1-> Capabilities represent bounds on executing code
+      \note[item]<1->{That is, the capabilities the executing code has access to.}
     \item<2-> World, $W$      
       \begin{itemize}
       \item Collection of invariants
@@ -509,37 +602,37 @@ let x = ref 0 in
 
 \end{column}
 \end{columns}
-  % Do this as a series of figures?
+  % % Do this as a series of figures?
 
-  % Figure with memory and one capability to make the bound explicit
-  \note{compared to normal assembly, capabilities represent bounds on executing block of code.}
+  % % Figure with memory and one capability to make the bound explicit
+  % \note{compared to normal assembly, capabilities represent bounds on executing block of code.}
 
-  \note{we have no observable I/O, so the authority bounds we consider are related to memory. However, more fine-grained/detailed than read/write-authority.}
+  % \note{we have no observable I/O, so the authority bounds we consider are related to memory. However, more fine-grained/detailed than read/write-authority.}
 
-  % Color the memory to illustrate different regions of the world
-  \note{a piece of code can be bound by arbitrary memory invariants which we define in a \emph{world}.}
+  % % Color the memory to illustrate different regions of the world
+  % \note{a piece of code can be bound by arbitrary memory invariants which we define in a \emph{world}.}
 
-  % Write down a static invariant (some address contains 42, maybe write a legend on the left side of slide.).
-  \note{essentially, a world is a collection of invariants and safety of words defined with respect to a world.}
+  % % Write down a static invariant (some address contains 42, maybe write a legend on the left side of slide.).
+  % \note{essentially, a world is a collection of invariants and safety of words defined with respect to a world.}
 
-  \note{Define a set of words that are safe w.r.t. world W V(W) in P(Word)}
+  % \note{Define a set of words that are safe w.r.t. world W V(W) in P(Word)}
 
 
 
-  \note{Whether a capability is safe depends on the authority it carries}
+  % \note{Whether a capability is safe depends on the authority it carries}
 
-  % Add a read capability to the address that contains 42, safe
-  % Add read/write capability to the address that contains 42, not safe - can be used to violate the invariant.
-  \note{Example, w.r.t. a world with the invariant that an address contains constant. Safe for read capability, not write as write capability can break this invariant.}
+  % % Add a read capability to the address that contains 42, safe
+  % % Add read/write capability to the address that contains 42, not safe - can be used to violate the invariant.
+  % \note{Example, w.r.t. a world with the invariant that an address contains constant. Safe for read capability, not write as write capability can break this invariant.}
 
-  % Add a read capability that refers to itself
-  \note{safety for a read capability is the case if the read capability only gives access to safe capabilities.}
+  % % Add a read capability that refers to itself
+  % \note{safety for a read capability is the case if the read capability only gives access to safe capabilities.}
 
-  \note{What if that part of memory contains a read capability for the same part of memory? Cyclic definition. Solved by step-indexing.}
+  % \note{What if that part of memory contains a read capability for the same part of memory? Cyclic definition. Solved by step-indexing.}
 
-  \note{related to similar issue with languages with recursive types or higher-order ML-list references.}
+  % \note{related to similar issue with languages with recursive types or higher-order ML-list references.}
 
-  \note{Solved by step-indexing - safety up to a certain number of interaction steps.}
+  % \note{Solved by step-indexing - safety up to a certain number of interaction steps.}
 \end{frame}
 
 \begin{frame}
@@ -731,15 +824,15 @@ let x = ref 0 in
       f();
       x := 1;
       f();
-      assert(x == 1))
+      assert(!x == 1))
     \end{lstlisting}
   \end{tabular}
-\note{example known from the litterature}
+\note{example known from the literature}
 \note{even just in ML difficult as f can be the closure.}
 \note{the assert can fail if the calls are not well-bracketed!}  
-\note{the local state is difficult to handle as the closure and the contex needs to be able to update the invariant for x in different ways. (closure can switch between 0 and 1 as it pleases, but context can transition only from 0 to 1.)}
+\note{the local state is difficult to handle as the closure and the context needs to be able to update the invariant for x in different ways. (closure can switch between 0 and 1 as it pleases, but context can transition only from 0 to 1.)}
 \note{relies heavily on well-bracketedness}
-\note{we have made a faithfull translation and proved correctness (i.e., the assertion never fails).}
+\note{we have made a faithful translation and proved correctness (i.e., the assertion never fails).}
 \note{more semantic statement of guarantees allows us to do this.}
 \end{frame} 
 
@@ -769,14 +862,14 @@ let x = ref 0 in
 \begin{frame}
   \frametitle{Conclusion}
   \begin{itemize}
-  \item Capability machines can guarantee properties of high-level languages
-  \item Calling convention for well-bracketedness and local-state encapsulation
-  \item Unary step-indexed Kripke logical relation over recursive worlds
+  \item Capability machines can guarantee properties of high-level languages.
+  \item We developed a calling convention that ensures well-bracketedness and local-state encapsulation.
+  \item We define a unary step-indexed Kripke logical relation over recursive worlds.
     \begin{itemize}
-    \item Formal statement about guarantees provided by capability machine
-    \item Reasoning about programs in general
+    \item Formal statement about guarantees provided by capability machine.
+    \item Allows reasoning about programs on capability machine.
     \end{itemize}
-  \item Applied on the ``awkward example''
+  \item We apply it on the ``awkward example''.
   \end{itemize}
 \end{frame}
 
