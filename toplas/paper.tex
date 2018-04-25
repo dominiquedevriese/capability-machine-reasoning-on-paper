@@ -180,6 +180,19 @@
 \newcommand{\unused}{\var{unused}}
 \newcommand{\act}{\var{act}}
 
+\newcommand{\hsframe}{\hs_\var{frame}}
+\newcommand{\size}{\var{size}}
+\newcommand{\rio}{r_{io}}
+\newcommand{\advb}{\var{adv_{base}}}
+\newcommand{\adve}{\var{adv_{end}}}
+\newcommand{\initb}{\var{init}_{base}}
+\newcommand{\inite}{\var{init}_{end}}
+\newcommand{\mrlen}{5cm}
+\newcommand{\retm}{\var{ret}_{\malloc}}
+\newcommand{\reta}{\var{ret}_{\adv}}
+\newcommand{\base}{\var{base}}
+\newcommand{\eend}{\var{end}}
+
 
 % Memory projections
 \newcommand{\plainproj}[1]{\mathrm{#1}}
@@ -1169,11 +1182,13 @@ in software, precisely to allow experimenting with alternative models like ours.
 
 In order to have a reasonably realistic system, we use a simple model of linking
 where a program has access to a linking table that contains capabilities for
-other programs.  We also assume malloc to be part of the trusted computing base
+other programs. We also assume malloc to be part of the trusted computing base
 satisfying a certain specification. Malloc and linking tables are described
-further in the next section, but we refer to the technical
-appendix~\citep{technical_appendix} for full details.
 further in the next section.
+\itoplas{The specification of malloc is presented in \sectionname~\ref{sec:malloc-and-macros} as it uses the semantic model we build in Section~\ref{sec:logical-relation}.
+For full details on the linking table, we refer to the technical
+appendix~\citep{technical_appendix}.} \itoplas{(Reviewer A, esop suggest explaining the
+  linking model)\\}
 \itoplassug{Suggestion: We also have the flag table ussed
   for assertions, maybe we should add a description of it here.\\}
 \itoplassug{Reviewer C, popl, would have liked a discussion of the relationship
@@ -1416,51 +1431,20 @@ make sure the stack capability carries $\rwlx$ authority, since the system wide 
 tells us that the adversary cannot have global capabilities to our local stack.
 
 \textbf{Calling convention} With the security measures introduced and motivated,
-let us summarize our proposed calling convention: \textit{At program start-up} A
-local $\rwlx$ stack pointer resides in register $r_\stk$. No global write-local
-capabilities. \textit{Before returning to the adversary} Clear non-return-value
-registers. Clear the part of the stack we had access to (not just the part we
-used). \textit{Before invoking the adversary} Push activation record to the
+let us summarize our proposed calling convention:
+\begin{description}[font=\normalfont\itshape]
+\item[At program start-up] A
+local $\rwlx$ stack pointer resides in register $r_\stk$. No global write-local capabilities.
+\item[Before returning to the adversary] Clear non-return-value
+registers. Clear the part of the stack we had access to (not just the part we used).
+\item[Before invoking the adversary] Push activation record to the
 stack. Create return pointer as local $\entry$-capability to the instructions in
 the record.  Restrict the stack capability to the unused part and clear
-it. Clear non-argument registers. \textit{Before invoking an adversary callback}
-Make sure callback is global. \textit{When invoked by an adversary} Make sure
-received stack pointer has permission $\rwlx$.
+it. Clear non-argument registers.
+\item[Before invoking an adversary callback] Make sure callback is global.
+  \item[When invoked by an adversary] Make sure received stack pointer has permission $\rwlx$.
+\end{description}
 
-\textbf{Reusable macro instructions} 
-\label{para:macros}
-\itoplas{Add examples of macros to this section to make it clear what we mean by macros.}
-\itoplas{Move this subsection forward so it is just before the macros are used, i.e. the example section.}
-\itoplas{Reviewer C, ESOP, asks for high-level specifications for the macros in the style of malloc. I am not sure we want to actually include this in the submission, so it is maybe not here we should put our attention. (see review in tex comment}
-% Finally, as already mentioned above, the approach relies on `call` and `scall` macro-instructions that are only outlined in the submission, and described by very complicated pseudocode and English prose in the companion technical appendix.  I still miss a fully formal description of 1- what instructions the macros expand to, exactly, and 2- what contract they satisfy (in the style of the contract for malloc in section 2 of the technical appendix).
-We define a number of reusable macros
-capturing the calling convention and other conveniences. All macros that use the
-stack assume a stack pointer in register $r_\stk$. The macro
-\texttt{\footnotesize{fetch $r$ $\var{name}$}} fetches the capability related to
-$\var{name}$ from the linking table and stores it in register $r$.  The macros
-\texttt{\footnotesize{push $r$}} and \texttt{\footnotesize{pop $r$}} add and
-remove elements from the stack. The macro \texttt{\footnotesize{prepstk $r$}} is
-used when a callback is invoked by the adversary and prepares the received stack
-pointer by checking that it has permission $\rwlx$.  The macro
-\texttt{\footnotesize{scall
-    $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}} jumps to the
-capability in register $r$ in the manner described above. That is, it pushes
-local state (the contents of registers $\overline{r_{\var{priv}}}$) and the
-activation record (return code, return pointer, stack pointer) to the stack,
-creates an $\entry$ return pointer, restricts the stack pointer, clears the
-unused part of the stack, clears the necessary registers and jumps to $r$.  Upon
-return, the private state is restored. The macro \texttt{\footnotesize{mclear
-    $r$}} clears all the memory the capability in register $r$ has authority
-over.  The macro \texttt{\footnotesize{rclear $\var{regSet}$}} clears all the
-registers in $\var{regSet}$. The macro \texttt{\footnotesize{reqglob $r$}}
-checks whether the word in register $r$ is a global capability. The macro
-\texttt{\footnotesize{crtcls $\overline{(x_i,r_i)}$ $r$}} allocates a closure
-where $r$ points to the closure's code and a new environment is allocated (using
-malloc) where the contents of $\overline{r_i}$ is stored. In the code referred
-to by $r$, an implicit fetch happens when an instruction refers to $x_i$.
-
-The technical appendix~\citep{technical_appendix} contains detailed descriptions
-of all the macros.
 %\itoplassug{Suggestion: Make it more clear that this CC can be used to protect multiple components (reviewer A, ESOP), see tex comment.\\}
 \begin{toplas}
   \textbf{Modularity} The calling convention ensures well-bracketed calls and local-state encapsulation for the caller, but not the callee. In the above presentation to make it easy to distinguish between the parties involved, we present the callee as some adversarial code that we do not trust. In reality, the callee could be well-behaved and wish to ensure well-bracketed calls and local-state encapsulation. The calling convention puts no restriction on the callee that the caller itself does not follow, so by following the calling convention, the callee would also get well-bracketedness and local-state encapsulation. Generally, the calling convention ensures the two properties for anyone that employ it, so it scales to the setting where multiple distrusting parties need to invoke each other and each of them can protect themself by using the calling convention.
@@ -2294,6 +2278,92 @@ proof (by induction over the step-index $n$) of the theorem.
 
 \itoplassug{Suggestion: Add a small section about reasoning about programs. Add the ``scall works'' and ``malloc works'' lemmas and describe how they are used. This section could also point out the things one have to argue about that are hidden in similar high-level proofs (e.g., the return pointer valid when we return corresponding to restoring memory invariants of caller.).}
 
+\begin{toplas}
+  \section{Malloc and macros}
+  \label{sec:malloc-and-macros}
+  Assembly code can be difficult for people to easily read and understand as it is close to byte code and offers none of the abstractions of high-level languages. In \sectionname~\ref{sec:examples}, we present a number of program examples for the simple capability machine we present in this paper. In order to make these examples readable, we introduce a series of macros that each corresponds to a series of actual instructions on the machine.
+
+  In \sectionname~\ref{sec:examples}, we will prove correctness lemmas for each of the program examples. Some of the program examples use malloc and with the logical relation defined in \sectionname~\ref{sec:logical-relation}, we can present the specification of malloc.
+
+  In this section, we present the specification of malloc as well as the macros used in \sectionname~\ref{sec:examples}.
+
+\subsection{Malloc specification}
+  \itoplassug{Suggestion: add the malloc specification}
+\begin{definition}[Malloc Specification]
+  \label{spec:malloc}
+  $c_\malloc$ satisfies the specification for malloc iff
+  \[  
+    \begin{array}{l}
+      c_\malloc = ((\entry,\glob),\_,\_,\_) \land\\
+      \exists \iota_{\malloc,0} \ldotp \\
+      \quad \left(\forall \iota' \futurestr \iota_{\malloc,0} \ldotp \forall W,i \ldotp W(i)=\iota' \Rightarrow \iota'.H (\iota'.s) (\xi^{-1}(W)) = \iota'.H (\iota'.s) (\xi^{-1}([i \mapsto W(i)])) \right) \wedge \\
+      \quad \iota_{\malloc,0}.v = \perma \; \land \\
+      \quad (\forall \Phi \in \ExecConfs \ldotp \forall \ms_{\var{footprint}}, \hsframe \in \HeapSegments \ldotp \\
+      \qquad \forall i, n, \size \in \nats \ldotp \forall
+      w_{\var{ret}} \in \Words \ldotp \\
+      \qquad \quad \forall \iota_\malloc \futurestr \iota_{\malloc,0} \land \\
+      \qquad \quad \memheap = \ms_{\var{footprint}} \uplus \hsframe \land \heapSat[\ms_{\var{footprint}}]{n}{[i \mapsto \iota_\malloc]} \land \\
+      \qquad \quad \memreg(r_1) = \size \land \size \geq 0 \land  \memreg(r_0) = w_{\var{ret}} \land \\
+      \qquad \quad \memreg(\pcreg) = \updatePcPerm{c_\malloc} \\ %and this needs to change with ABI.
+      \qquad \quad \Rightarrow \\
+      \qquad \qquad\exists \Phi' \in \ExecConfs \ldotp \exists \ms_{\var{footprint}}', \ms_{\var{alloc}} \in \HeapSegments\ldotp\\
+      \qquad \qquad \quad \exists j \in \nats \ldotp j > 0 \land \exists b',e'\in \Addrs \ldotp \exists \iota_\malloc' \in \Regions \ldotp \\
+      \qquad \qquad \qquad \Phi \step[j] \Phi' \land \\
+      \qquad \qquad \qquad \memheap[\Phi']=\ms_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land\\
+      \qquad \qquad \qquad \iota_{\malloc}' \futurewk \iota_\malloc \land \\
+      \qquad \qquad \qquad \heapSat[\ms_{\var{footprint}}']{n-j}{[i \mapsto \iota_\malloc']} \land \\
+      \qquad \qquad \qquad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land \\
+      \qquad \qquad \qquad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{w_{\var{ret}}}}\update{r_1}{((\rwx,\glob),b',e',b')} \land \\
+      \qquad \qquad \qquad \size - 1 = e'-b' ) \land\\
+      \quad (\forall \Phi \in \ExecConfs \ldotp (\memreg(r_1)
+      \not\in \ints \vee \memreg(r_1) < 0) \land \memreg(\pcreg) = \updatePcPerm{c_\malloc} \Rightarrow \exists j \in \nats \ldotp \Phi \step[j] \failed)
+    \end{array}
+  \]
+\end{definition}
+
+\subsection{Macros}
+\textbf{Reusable macro instructions} 
+\label{para:macros}
+\itoplassug{Add examples of macros to this section to make it clear what we mean by macros.\\}
+\itoplassug{Move this subsection forward so it is just before the macros are used, i.e. the example section.\\}
+\itoplassug{Reviewer C, ESOP, asks for high-level specifications for the macros in the style of malloc. I am not sure we want to actually include this in the submission, so it is maybe not here we should put our attention. (see review in tex comment)\\}
+% Finally, as already mentioned above, the approach relies on `call` and `scall` macro-instructions that are only outlined in the submission, and described by very complicated pseudocode and English prose in the companion technical appendix.  I still miss a fully formal description of 1- what instructions the macros expand to, exactly, and 2- what contract they satisfy (in the style of the contract for malloc in section 2 of the technical appendix).
+We define a number of reusable macros
+capturing the calling convention and other conveniences. All macros that use the
+stack assume a stack pointer in register $r_\stk$. The macro
+\texttt{\footnotesize{fetch $r$ $\var{name}$}} fetches the capability related to
+$\var{name}$ from the linking table and stores it in register $r$.  The macros
+\texttt{\footnotesize{push $r$}} and \texttt{\footnotesize{pop $r$}} add and
+remove elements from the stack. The macro \texttt{\footnotesize{prepstk $r$}} is
+used when a callback is invoked by the adversary and prepares the received stack
+pointer by checking that it has permission $\rwlx$.  The macro
+\texttt{\footnotesize{scall
+    $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}} jumps to the
+capability in register $r$ in the manner described above. That is, it pushes
+local state (the contents of registers $\overline{r_{\var{priv}}}$) and the
+activation record (return code, return pointer, stack pointer) to the stack,
+creates an $\entry$ return pointer, restricts the stack pointer, clears the
+unused part of the stack, clears the necessary registers and jumps to $r$.  Upon
+return, the private state is restored. The macro \texttt{\footnotesize{mclear
+    $r$}} clears all the memory the capability in register $r$ has authority
+over.  The macro \texttt{\footnotesize{rclear $\var{regSet}$}} clears all the
+registers in $\var{regSet}$. The macro \texttt{\footnotesize{reqglob $r$}}
+checks whether the word in register $r$ is a global capability. The macro
+\texttt{\footnotesize{crtcls $\overline{(x_i,r_i)}$ $r$}} allocates a closure
+where $r$ points to the closure's code and a new environment is allocated (using
+malloc) where the contents of $\overline{r_i}$ is stored. In the code referred
+to by $r$, an implicit fetch happens when an instruction refers to $x_i$.
+
+The technical appendix~\citep{technical_appendix} contains detailed descriptions
+of all the macros.
+\itoplassug{Suggestion: Add the call implementation (and possibly other macros?) in the above?}
+\end{toplas}
+
+\begin{toplas}
+\section{Reasoning about programs}
+\label{sec:reasoning}
+
+\end{toplas}
 
 \section{Examples}
 \label{sec:examples}
