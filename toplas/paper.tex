@@ -159,6 +159,7 @@
 \newcommand{\heap}{\var{mem}}
 \newcommand{\mode}{\var{mode}}
 \newcommand{\perm}{\var{perm}}
+\newcommand{\inftyend}{-42}
 \newcommand{\permp}{\var{permPair}}
 \newcommand{\roll}{\var{roll}}
 \newcommand{\instr}{\var{instr}}
@@ -205,6 +206,8 @@
 \newcommand{\encodeLoc}{\mathit{encodeLoc}{}}
 \newcommand{\decodePermPair}{\plainfun{decodePermPair}}
 \newcommand{\decodePerm}[1]{\plainfun{decodePerm}{#1}}
+\newcommand{\decodeEnd}[1]{\plainfun{decodeEndAddr}{#1}}
+\newcommand{\decodeStart}[1]{\plainfun{decodeStartAddr}{#1}}
 \newcommand{\updatePcPerm}[1]{\plainfun{updPcPerm}{#1}}
 
 \newcommand{\executeAllowed}[1]{\plainfun{executeAllowed}{#1}}
@@ -925,16 +928,20 @@ infinite address space and unbounded integers.
     \hline
     $\load{\refreg{r_1}}{\refheap{r_2}}$&$\stdUpdatePc{\updateReg{r_1}{w}}$&$\memreg(r_2) = \stdcap{}$ and  $w = \memheap(\addr)$ and $\start \leq \addr \leq \addrend$ and $\perm \in \{ \rwx, \rwlx, \exec, \readwrite, \readwritel, \readonly \}$ \\
     \hline
-    $\restricttwo{\refreg{r_1}}{r_2}$&$\stdUpdatePc{}(\updateReg{r_1}{w})$  & $\memreg(r_2) = \stdcap$ and $(\perm',g') = \decodePermPair{\memreg(r_2)}$
-                                                      and $(\perm',g') \sqsubseteq (\perm,g)$ and  $w =((\perm',g'),\start,\addrend,\addr)$\\
-    \hline
-    $\geta{\refreg{r_1}}{\refreg{r_2}}$ & $\stdUpdatePc{\updateReg{r_1}{\addr}}$ &
-                                                $\memreg(r_2) = ((\_,\_),\_,\_,\addr)$\\
+    $\store{\refheap{r_1}}{\refreg{r_2}}$&$\stdUpdatePc{\updateHeap{\addr}{\var{w}}}$&$\memreg(r_1) = \stdcap$ and $\perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\}$  and $\start \leq \addr \leq \addrend$ and $\var{w} = \memreg(r_2)$
+                                                                                       and if $\var{w} = ((\_,\local),\_,\_,\_)$, then $\perm \in \{\rwlx,\readwritel \}$\\
     \hline
     $\jmp{\lv}$&$\updateReg{\pcreg}{\var{newPc}}$& if $\memreg(r) = ((\entry,\gl),\start,\addrend,\addr)$, then $\var{newPc} = ((\exec,\gl),\start,\addrend,\addr)$ otherwise $\var{newPc} = \memreg(r)$\\
     \hline
-    $\store{\refheap{r_1}}{\refreg{r_2}}$&$\stdUpdatePc{\updateHeap{\addr}{\var{w}}}$&$\memreg(r_1) = \stdcap$ and $\perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\}$  and $\start \leq \addr \leq \addrend$ and $\var{w} = \memreg(r_2)$
-                                                                                       and if $\var{w} = ((\_,\local),\_,\_,\_)$, then $\perm \in \{\rwlx,\readwritel \}$\\
+    $\restricttwo{\refreg{r_1}}{r_2}$&$\stdUpdatePc{}(\updateReg{r_1}{w})$  & $\memreg(r_2) = \stdcap$ and $(\perm',g') = \decodePermPair{\memreg(r_2)}$
+                                                                              and $(\perm',g') \sqsubseteq (\perm,g)$ and  $w =((\perm',g'),\start,\addrend,\addr)$\\
+    \hline
+    \itoplas{$\subseg{\refreg{r_1}}{r_2}{r_3}$} & \itoplas{$\stdUpdatePc{\updateReg{r_1}{\var{w}}}$} &  \itoplas{$\memreg(r_1) = \stdcap$ and for $i \in \{2,3\}$ $n_i = \memreg(\rv_i)$ and $n_2 \in \nats$ and $\start \leq n_2$ and $n_3 \leq \addrend$ where either $n_3 \in \nats$ or ($n_3=\inftyend$ and $\addrend = \infty$) and $\perm \neq \entry$ and $w = ((\perm,\gl),n_1,n_2,\addr)$}\\
+    \hline
+    \itoplas{$\lea{\refreg{r_1}}{r_2}$} & \itoplas{$\stdUpdatePc{\updateReg{r_1}{\var{c}}}$} &\itoplas{$\memreg(r_1) = \stdcap$ and $n = \memreg(r_2)$ and $n \in \ints $ and $\perm \neq \entry$ and $\var{c} = ((\perm,\gl),\start,\addrend,\addr + n)$} \\
+    \hline
+    $\geta{\refreg{r_1}}{\refreg{r_2}}$ & $\stdUpdatePc{\updateReg{r_1}{\addr}}$ &
+                                                $\memreg(r_2) = ((\_,\_),\_,\_,\addr)$\\
     \hline
     \multicolumn{3}{|c|}{$\cdots$}\\
     \hline
