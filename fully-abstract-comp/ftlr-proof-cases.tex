@@ -17,7 +17,7 @@ In this section, I have listed lemmas that seem to be necessary for the FTLR pro
   \label{lem:non-expansive}
   If $n' \leq n$, then
   \begin{itemize}
-  \item If $\npair{(b,e)}\readCond{\lin}{W}$, then $\npair[n']{(b,e)}\readCond{\lin}{W}$.
+  \item If $\npair{(b,e)} \in \readCond{\lin,W}$, then $\npair[n']{(b,e)} \in \readCond{\lin,W}$.
   \item $\memSat{(\ms_S,\stk,\ms_\stk,\ms_T)}{W}$, then also $\memSat[n']{(\ms_S,\stk,\ms_\stk,\ms_T)}{W}$.
   \end{itemize}
 \end{lemma}
@@ -27,6 +27,7 @@ In this section, I have listed lemmas that seem to be necessary for the FTLR pro
   For all $n$, $W' \future W$, we have that
   \begin{itemize}
   \item If $(w_1,w_2) \in H_\sigma~\sigma~W$, then $(w_1,w_2) \in H_\sigma~\sigma~W'$.
+    \lau{This should hold for any valid $H_\sigma$, but we need to prove it for specific instantiations.}
   \item If $\npair{(w_1,w_2)} \in \lrv(W)$, then $\npair{(w_1,w_2)} \in
     \lrv(W')$.
 \end{itemize}
@@ -180,7 +181,7 @@ then
   $\npair{(w_1,w_2)} \in \lrv(H_\sigma,\purePart{W})$.
 \end{lemma}
 \begin{proof}
-  Follows easily by inspecting the definitions of $\lrv$, $\readCond$, $\addressable$, $\writeCond$, $\execCond$ and $\xReadCond$ and using Lemma~\ref{lem:purePart-idempotent}.
+  Follows easily by inspecting the definitions of $\lrv$, $\readCond[]{}$, $\addressable{}$, $\writeCond[]{}$, $\execCond[]{}$ and $\xReadCond[]{}$ and using Lemma~\ref{lem:purePart-idempotent}.
 \end{proof}
 
 \begin{lemma}[load from regular capability works]
@@ -253,25 +254,40 @@ then
 By induction over $n$\footnote{if $n=0$, then we have a contradiction with $\Phi_S\term[i]$ and $\Phi_T\term[i]$ when we get to $\lro$.}.
 \begin{proof}
   Assume
-\[
-  \begin{array}{l}
-  \npair{(\baddr,\eaddr)}\in \readCond{\lin,W}\\
-  \npair{(\baddr,\eaddr)}\in \xReadCond{\lin,W}
-  \end{array}
-\]
+  \begin{itemize}
+  \item $\trust = \trusted \vee \npair{(\baddr,\eaddr)} \in \readCond{\lin,W}$
+  \item $\npair{(\baddr,\eaddr)} \in \xReadCond{\lin,W}$
+  \end{itemize}
+  and one of the following sets of requirements holds:
+  \begin{enumerate}[label={\roman*)}]
+  \item \begin{itemize}
+    \item $W \vdash_{(\ta,\stkb)} (\mscode,\_,\_,\_,\sigrets,\sigcloss)$
+    \item $[\baddr,\eaddr] \subseteq \dom(\mscode) = \ta$
+    \item $\trust = \trusted$
+    \item For all $\npair{\stpair{\reg}{\reg}} \in \lrrtrusted(W)$ and $\memSat{\src{\ms_S},\src{\ms_\stk},\src{\stk},\ms_T}{W}$ and $\ms_f$, we have $\src{\Phi} = (\src{\ms_S} \uplus \ms_f, \src{reg_S}, \src{\stk}, \src{\ms_\stk})$ and 
+      \begin{itemize}           
+      \item $\src{\Phi}$ checks $\stkb$ before calls in $\ta$ for $n$ steps (Definition~\ref{def:check-stack-addr-before-call}).
+      \item $\src{\Phi}$ uses link seals properly in $\ta$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:use-return-seals-call}).
+      \item $\src{\Phi}$ handle trusted seals properly in $\ta$ with components parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:handle-trusted-seals-properly}).
+      \item $\src{\Phi}$ does not store link seals and code capabilities in $\ta$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:never-store-seal-code-cap}).
+      \end{itemize}
+    \end{itemize}
+  \item
+    \begin{itemize}
+    \item $[\baddr,\eaddr] \mathrel{\#} \ta$
+    \item $\trust = \untrusted$
+    \end{itemize}
+  \end{enumerate}
 and show
 \[
 \npair{((\rx,\lin),\baddr,\eaddr,\aaddr),
-       ((\rx,\lin),\baddr,\eaddr,\aaddr)} \in \lre(W)
+       ((\rx,\lin),\baddr,\eaddr,\aaddr)} \in \lreg{\trust}(W)
 \]
 We write $c=((\rx,\lin),\baddr,\eaddr,\aaddr)$.\\
 
 Let $n' \leq n$ be given and assume
 \begin{enumerate}
-\item $\npair[n']{[(c,c)]} \in \lrp(W)$ 
-\dominique{Weird that this is an assumption here.  Shouldn't this be a proof obligation? Or rather: I think this should not be here at all but in the value relation instead? Remove this from the definition of $\lre$?}
-\lau{$(c,c)$ is not shown or assumed to be in the value relation, so to make sure it respects lineraity, this condition is placed here. Further, this does become a proof obligation when you use the FTLR.}
-\item $\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_R)$ \label{item:reg-ass}
+\item $\npair[n']{\stpair{\reg}{\reg}} \in \lrrg{\trust}(W_R)$ \label{item:reg-ass}
 \item $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$\label{item:mem-ass}
 \item $W \oplus W_R \oplus W_M$ is well-defined\label{item:worlds-def}
 \end{enumerate}
@@ -280,22 +296,16 @@ Further let
 \item $\Phi_S = (\ms_S,\reg_S\updReg{\pcreg}{c},\stk,\ms_\stk)$
 \item $\Phi_T = (\ms_T,\reg_T\updReg{\pcreg}{c})$
 \end{itemize}
+and pick
+\begin{itemize}
+\item $\Phi_S' = \xjumpResult{c}{c}{\Phi_S}$
+\item $\Phi_T' = \xjumpResult{c}{c}{\Phi_T}$
+\end{itemize}
 and show
 \[
-  \npair[n']{(\Phi_S,\Phi_T)} \in \lro
+  \npair[n']{(\Phi_S',\Phi_T')} \in \lro
 \]
-That is, let $i \leq n'$ be given \footnote{ignoring the frame...} and show
-\[
-  \Phi_S \term[i] \Rightarrow \Phi_T \term
-\]
-and 
-\[
-  \Phi_T \term[i] \Rightarrow \Phi_S \term
-\]
-
-{\color{DarkGreen}
-\dominique{Proposed proof refactoring below:}
-First, we prove that one of the following holds:
+In order to do this, we first, we prove that one of the following holds:
 \begin{itemize}
 \item $\Phi_S \step \failed$ and $\Phi_T \step\failed$
 \item $\Phi_S \step \halted$ and $\Phi_T \step\halted$
@@ -334,8 +344,6 @@ First, we prove that one of the following holds:
 \end{itemize}
 
 Now assume that one of the configurations terminates etc.
-
-}
 
 \subsubsection*{Assuming source machine terminates}
 First show the former of the two, assume $\Phi_S\term[i]$.
