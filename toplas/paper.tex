@@ -2282,14 +2282,74 @@ proof (by induction over the step-index $n$) of the theorem.
 \begin{toplas}
   \section{Malloc and macros}
   \label{sec:malloc-and-macros}
-  Assembly code can be difficult for people to easily read and understand as it is close to byte code and offers none of the abstractions of high-level languages. In \sectionname~\ref{sec:examples}, we present a number of program examples for the simple capability machine we present in this paper. In order to make these examples readable, we introduce a series of macros that each corresponds to a series of actual instructions on the machine.
+With the semantic model defined, we would like to show its usefulness by proving
+the correctness of a series of examples that use the calling convention and rely
+on well-bracketedness and local-state encapsulation. However, the programs that
+run on our capability are assembly programs and even program examples that would
+be small in a high-level language, they become big and unintelligible at this
+low level. In order to make our program examples intelligible, we introduce a
+series of low-level abstractions in the form of macros.
 
-  In \sectionname~\ref{sec:examples}, we will prove correctness lemmas for each of the program examples. Some of the program examples use malloc and with the logical relation defined in \sectionname~\ref{sec:logical-relation}, we can present the specification of malloc.
-
-  In this section, we present the specification of malloc as well as the macros used in \sectionname~\ref{sec:examples}.
+In order to make the program examples realistic, we allow them to allocate fresh
+memory by invoking a trusted malloc. Our results are not specific to
+any one implementation of malloc, so rather than providing one implementation,
+we provide a specification that malloc must satisfy.
 
 \subsection{Malloc specification}
   \itoplassug{Suggestion: add the malloc specification}
+Before we give the malloc specification, we provide some intuition about what
+the malloc specification should look like.
+
+Malloc is assumed to be part of the trusted computing base, as mentioned in
+\sectionname~\ref{sec:capab-mach-with}. A program with access to malloc should
+be able to retain this access even if it invokes code it does not trust. In
+order to achieve this, a capability for malloc must be global. It is also
+important that malloc remains trustworthy to all entities on the machine
+throughout execution. That is, malloc should encapsulate its local state and
+not depend on any external code. To make sure that malloc cannot be tampered
+with through the capability for invoking malloc, we also require the capability
+to have enter permission. 
+
+The requirements so far prevent direct tampering in the sense that the
+capability intended for invoking malloc only can be used for invocation. This
+does, however, not prevent the implementation of malloc from colluding with
+other code. Specifically, malloc could depend on the state of a piece of memory
+not just under the control of malloc. We also need to make sure that malloc
+actually behave as intended. That is when malloc is invoked with a length
+argument in the correct register, then it should actually return a capability
+for a fresh piece of memory of that size. It should be fresh in the sense that
+malloc hasn't given out a capability for any part of that memory before and
+won't do it in the future. Finally, we also need to make sure that malloc
+behaves correctly when given a nonsensical length argument such as a negative
+integer or a capability. These requirements relate to the behaviour of malloc,
+so we cannot hope to specify them syntactically. Instead we will use the
+semantic model defined in  Section~\ref{sec:logical-relation} to express this
+part of the specification. 
+
+In order to express the semantic requirements on malloc, the specification will
+require the existence of some initial region for malloc. Malloc does not
+disappear from the system, so the malloc region must permanent. This also means
+that the malloc specification should guarantee that use of malloc is safe at any
+point of execution and no matter who has invoked it. To this end, the
+requirement on the initial malloc region should also hold true in any private
+future world.
+
+The implementation of malloc should not depend on any memory outside the
+implementation of malloc. This means that malloc should not have any
+capabilities in its internals that govern other programs. The malloc region's
+memory interpretation function determines what malloc may contain, so we require
+it to allow the same memory segments whether it is with respect to some world
+with the malloc region in it or a world that just contains the malloc region.
+Malloc should retain this property throughout execution, so it must hold true
+for any private future region of the initial malloc region.
+
+The malloc specification also dictates what malloc should do when invoked. We
+specify the two cases where malloc is invoked with a valid and an invalid length
+argument, respectively. When malloc is invoked with an invalid length argument,
+that is a negative integer or a capability, we require malloc to simply fail.
+This part of the specification does not rely on the malloc region as we do not
+need to make sure that the memory invariants are respected. 
+On the other hand,
 \begin{definition}[Malloc Specification]
   \label{spec:malloc}
   $c_\malloc$ satisfies the specification for malloc iff
@@ -2297,30 +2357,60 @@ proof (by induction over the step-index $n$) of the theorem.
     \begin{array}{l}
       c_\malloc = ((\entry,\glob),\_,\_,\_) \land\\
       \exists \iota_{\malloc,0} \ldotp \\
-      \quad \left(\forall \iota' \futurestr \iota_{\malloc,0} \ldotp \forall W,i \ldotp W(i)=\iota' \Rightarrow \iota'.H (\iota'.s) (\xi^{-1}(W)) = \iota'.H (\iota'.s) (\xi^{-1}([i \mapsto W(i)])) \right) \wedge \\
       \quad \iota_{\malloc,0}.v = \perma \; \land \\
-      \quad (\forall \Phi \in \ExecConfs \ldotp \forall \ms_{\var{footprint}}, \hsframe \in \HeapSegments \ldotp \\
-      \qquad \forall i, n, \size \in \nats \ldotp \forall
-      w_{\var{ret}} \in \Words \ldotp \\
-      \qquad \quad \forall \iota_\malloc \futurestr \iota_{\malloc,0} \land \\
-      \qquad \quad \memheap = \ms_{\var{footprint}} \uplus \hsframe \land \heapSat[\ms_{\var{footprint}}]{n}{[i \mapsto \iota_\malloc]} \land \\
-      \qquad \quad \memreg(r_1) = \size \land \size \geq 0 \land  \memreg(r_0) = w_{\var{ret}} \land \\
-      \qquad \quad \memreg(\pcreg) = \updatePcPerm{c_\malloc} \\ %and this needs to change with ABI.
-      \qquad \quad \Rightarrow \\
-      \qquad \qquad\exists \Phi' \in \ExecConfs \ldotp \exists \ms_{\var{footprint}}', \ms_{\var{alloc}} \in \HeapSegments\ldotp\\
-      \qquad \qquad \quad \exists j \in \nats \ldotp j > 0 \land \exists b',e'\in \Addrs \ldotp \exists \iota_\malloc' \in \Regions \ldotp \\
-      \qquad \qquad \qquad \Phi \step[j] \Phi' \land \\
-      \qquad \qquad \qquad \memheap[\Phi']=\ms_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land\\
-      \qquad \qquad \qquad \iota_{\malloc}' \futurewk \iota_\malloc \land \\
-      \qquad \qquad \qquad \heapSat[\ms_{\var{footprint}}']{n-j}{[i \mapsto \iota_\malloc']} \land \\
-      \qquad \qquad \qquad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land \\
-      \qquad \qquad \qquad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{w_{\var{ret}}}}\update{r_1}{((\rwx,\glob),b',e',b')} \land \\
-      \qquad \qquad \qquad \size - 1 = e'-b' ) \land\\
-      \quad (\forall \Phi \in \ExecConfs \ldotp (\memreg(r_1)
-      \not\in \ints \vee \memreg(r_1) < 0) \land \memreg(\pcreg) = \updatePcPerm{c_\malloc} \Rightarrow \exists j \in \nats \ldotp \Phi \step[j] \failed)
+      \quad \left(
+        \begin{array}{l}
+          \forall \iota' \futurestr \iota_{\malloc,0}, W,i \ldotp\\
+          \quad W(i)=\iota' \Rightarrow \iota'.H (\iota'.s) (\xi^{-1}(W)) = \iota'.H (\iota'.s) (\xi^{-1}([i \mapsto W(i)]))
+        \end{array}
+        \right) \wedge \\
+      \quad \left(
+      \begin{array}{l}
+        \forall \Phi \in \ExecConfs \ldotp \forall \ms_{\var{footprint}}, \hsframe \in \HeapSegments \ldotp \\
+        \quad \forall i, n, \size \in \nats \ldotp \forall
+        w_{\var{ret}} \in \Words \ldotp \\
+        \quad \quad \forall \iota_\malloc \futurestr \iota_{\malloc,0} \land \\
+        \quad \quad \memheap = \ms_{\var{footprint}} \uplus \hsframe \land \heapSat[\ms_{\var{footprint}}]{n}{[i \mapsto \iota_\malloc]} \land \\
+        \qquad \memreg(r_1) = \size \land \size \geq 0 \land  \memreg(r_0) = w_{\var{ret}} \land \\
+        \qquad \memreg(\pcreg) = \updatePcPerm{c_\malloc} \\ %and this needs to change with ABI.
+        \qquad \Rightarrow \\
+        \qquad \quad \exists \Phi' \in \ExecConfs \ldotp \exists \ms_{\var{footprint}}', \ms_{\var{alloc}} \in \HeapSegments\ldotp\\
+        \qquad \qquad \exists j \in \nats \ldotp j > 0 \land \exists b',e'\in \Addrs \ldotp \exists \iota_\malloc' \in \Regions \ldotp \\
+        \qquad \qquad \quad \Phi \step[j] \Phi' \land \\
+        \qquad \qquad \quad \memheap[\Phi']=\ms_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land\\
+        \qquad \qquad \quad \iota_{\malloc}' \futurewk \iota_\malloc \land \\
+        \qquad \qquad \quad \heapSat[\ms_{\var{footprint}}']{n-j}{[i \mapsto \iota_\malloc']} \land \\
+        \qquad \qquad \quad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land \\
+        \qquad \qquad \quad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{w_{\var{ret}}}}\update{r_1}{((\rwx,\glob),b',e',b')} \land \\
+        \qquad \qquad \quad \size - 1 = e'-b'
+      \end{array}
+      \right) \land\\
+      \quad \left(
+      \begin{array}{l}
+        \forall \Phi \in \ExecConfs \ldotp\\
+        \quad(\memreg(r_1) \notin \ints \vee \memreg(r_1) < 0) \land
+        \memreg(\pcreg) = \updatePcPerm{c_\malloc} \\
+        \qquad \Rightarrow \exists j \in \nats \ldotp \Phi \step[j] \failed
+      \end{array}
+        \right)
     \end{array}
   \]
 \end{definition}
+
+\itoplassug{Write something about initial capabilities to malloc. We will always
+assume that capabilities for malloc satisfy the malloc specification. The malloc
+specification prevents malloc from giving away internal capabilities and the
+capability machine semantics does not allow capabilities to appear out of thin air.}
+
+\begin{lemma}[Malloc is safe to pass to adversary]
+  \label{lem:malloc-in-vr}
+  If $W(r) \futurestr \iota_{\malloc,0}$, then
+  $\npair{c_\malloc} \in \stdvr(W)$ for all $n$.
+\end{lemma}
+
+
+\itoplassug{Add the assumption that the malloc capability in examples
+  satisfies specification.}
 
 \subsection{Macros}
 \textbf{Reusable macro instructions} 
@@ -3201,4 +3291,3 @@ and shows soundness, seemingly without relying on capabilities.
 % Text of appendix \ldots
 
 \end{document}
-
