@@ -2475,6 +2475,72 @@ to by $r$, an implicit fetch happens when an instruction refers to $x_i$.
 The technical appendix~\citep{technical_appendix} contains detailed descriptions
 of all the macros.
 \itoplassug{Suggestion: Add the call implementation (and possibly other macros?) in the above?}
+
+\begin{figure}[htb]
+  \centering
+\begin{lstlisting}
+// push private registers to the stack
+  push $r_{\var{priv},1}$
+  ...
+  push $r_{\var{priv},n}$
+// push restoration code to the stack
+  push $\encode(i_1)$
+  ...
+  push $\encode(i_4)$
+// push old pc to the stack
+  move r_t1 pc
+  lea r_t1 $\var{ofc}$ 
+  push r_t1
+// push stack pointer to the stack
+  push r_stk
+// set up protected return pointer
+  move r_0 r_stk
+  lea r_0 $\var{ofc_\var{act}}$ // -5 is the offset to the first instruction of the activation code
+  restrict r_0 $\encodePermPair((\local,\entry))$
+// restrict stack capability to unused part
+  geta r_t1 r_stk
+  plus r_t1 r_t1 1
+  getb r_t2 r_stk
+  subseg r_stk r_t1 r_t2
+// clear unused part of the stack
+  mclear r_stk
+// clear non-argument registers
+  rclear $R$
+  jmp r
+after:
+// pop the restore code
+  pop r_t1
+  pop r_t1
+  pop r_t1
+  pop r_t1
+// pop the private state into approriate registers
+  pop $r_{\var{priv},1}$
+  ...
+  pop $r_{\var{priv},n}$
+\end{lstlisting}
+  \caption{Implementation of \texttt{scall} $r(r_{\var{args},1},\dots,
+    r_{\var{args},m},r_{\var{priv},1},\dots, r_{\var{priv},n})$. The restoration
+  code is given in \figurename~\ref{fig:scall-rest-code}. The variable
+  $\var{ofc}$ is the offset to the label after, and $\var{ofc_\var{act}} =
+  -5$ which is the offset to the first instruction of the activation record. The
+set $R = \RegName \setminus
+\{\texttt{pc},\texttt{r\_stk},\texttt{r\_0},r,r_{\var{args},1},\dots,r_{\var{args},m}\}$.}
+  \label{fig:scall-impl}
+\end{figure}
+\begin{figure}[htb]
+  \centering
+  \begin{lstlisting}
+ $i_1$ = move r_t1 pc
+ $i_2$ = lea r_t1 $\var{ofc}$
+ $i_3$ = load r_stk r_t1
+ $i_4$ = pop pc
+\end{lstlisting}
+  \caption{The restoration code used in \texttt{scall}. The variable $\var{ofc}$ is 5
+    which is the offset to the address where the old stack pointer is stored on
+    the stack.} 
+  \label{fig:scall-rest-code}
+\end{figure}
+
 \end{toplas}
 
 \begin{toplas}
@@ -3333,6 +3399,7 @@ and shows soundness, seemingly without relying on capabilities.
 \appendix
 \section{Appendix}
 \subsection{Logical relation}
+\label{app:logical-relation}
 % Text of appendix \ldots
 \textbf{$n$-subset simulation}
 \begin{mathpar}
@@ -3353,5 +3420,59 @@ and shows soundness, seemingly without relying on capabilities.
   \activeReg{} & : \Worlds \fun 2^\RegionNames \\
   \activeReg{W} & \defeq \dom(\erase{W}{\perma,\temp})
 \end{align*}
+
+\subsection{Macros}
+Implementation of the macros used in \texttt{scall}. Implementations of the
+macros not presented here can be found in the technical
+appendix~\citep{technical_appendix}.\\
+\label{app:macros}
+\texttt{push $r$}
+\begin{lstlisting}
+  lea r_stk 1
+  store r_stk r
+\end{lstlisting}
+\texttt{pop $r$}
+\begin{lstlisting}
+  load r r_stk
+  minus r_t1 0 1
+  lea r_stk r_t1
+\end{lstlisting}
+\texttt{rclear $r_1,\dots, r_n$}
+\begin{lstlisting}
+move $r_1$ 0
+move $r_2$ 0
+$\dots$
+move $r_n$ 0
+\end{lstlisting}
+\texttt{mclear $r$}
+\begin{lstlisting}
+        move r_t $r$
+        getb r_t1 r_t
+        geta r_t2 r_t
+        minus r_t2 r_t1 r_t2
+        lea r_t r_t2
+        gete r_t2
+        minus r_t1 r_t2 r_t1
+        plus r_t1 r_t1 1
+        move r_t2 pc
+        lea r_t2 $\var{ofc}_\var{end}$ 
+        move r_t3 pc
+        lea r_t3 $\var{ofc}_\var{iter}$
+iter:
+        jnz r_t2 r_t1
+        store r_t 0
+        lea r_t 1
+        plus r_t1 r_t1 1
+        jmp r_t3
+end:
+        move r_t 0
+        move r_t1 0
+        move r_t2 0
+        move r_t3 0
+\end{lstlisting}
+Where $\var{ofc}_\var{end}$ and $\var{ofc}_\var{iter}$ are the offsets to the
+label \texttt{end} % 9?
+and \texttt{iter}, % 2?
+respectively.
 
 \end{document}
