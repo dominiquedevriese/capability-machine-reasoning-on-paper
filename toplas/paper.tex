@@ -2086,11 +2086,39 @@ temporary) region.  Revoked regions are not taken into account as their memory p
     \end{array}
     \right\} \\
    \text{where } \gl = \local \Rightarrow \future = \futurewk \text{ and } \gl = \glob \Rightarrow \future = \futurestr \span
-  \end{align*}
+   \end{align*}
 \caption{Permission-based conditions}
 \label{fig:perm-conds}
 \end{figure}
+\begin{figure}[htb]
+  \begin{align*}
+  H^\nwl_A,  H^\pwl_A :{} & \States \fun (\Wor \monwknefun \UPred{\HeapSegments})\\
+  \iota^\pwl_A, \iota^\nwl_A :{} & \Regions \\
+  \iota^\pwl_A \defeq{} & (\temp,1,=,=,H^\pwl_A) \\
+  H^\pwl_A \; s \; \hat{W} \defeq{} & \left\{\npair{\hs} \middle|
+    \begin{aligned}
+      &\dom(\hs) = A \land \\
+      &\forall \addr \in A \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W}))
+    \end{aligned}
+        \right\} \union \{\npair[0]{\ms} \} \\
+  \iota^\nwl_A \defeq{} & (\temp,1,=,=,H^\nwl_A) \\
+  \iota^{\nwl,p}_A \defeq{} & (\perma,1,=,=,H^\nwl_A)\\
+  H^\nwl_A \; s \;\hat{W} \defeq{} & \left\{\npair{\hs} \middle|
+    \begin{aligned}
+      &\dom(\hs) = A \land \\
+      &\forall \addr \in A \ldotp \\
+      &\quad \nonlocal{\ms(\addr)} \land\\ 
+      &\quad \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W}))
+    \end{aligned}
+        \right\} \union \{\npair[0]{\ms} \}
+\end{align*}
+
+  \caption{The standard permit write-local and no write-local regions.}
+  \label{fig:std-reg}
+\end{figure}
 }
+
+
 %subsection introduction
 % \dominique{I would try to motivate the LR defs by saying that the LR is
 %   constructed to express the FTLR and the FTLR says that if a piece of code only
@@ -2141,20 +2169,18 @@ For capabilities with read permission, the $\readCond{}$ ensures that it can
 only be used to read safe words, i.e.\ words in the value relation. To guarantee
 this, we require that the addressed memory is governed by a region $W(r)$ that
 imposes safety as a requirement on the values contained. This safety requirement
-is formulated in terms of a standard region $\iota^\pwl_{\start,\addrend}$. The
-definition of that standard region is omitted for space reasons, but it simply
+is formulated in terms of a standard region $\iota^\pwl_{[\start,\addrend]}$. It simply
 requires all the words in the range $[\start,\addrend]$ to be safe, i.e.\ in the
-value relation. Requiring that $W(r)\nsubsim[n]\iota^\pwl_{\start,\addrend}$
+value relation. Requiring that $W(r)\nsubsim[n]\iota^\pwl_{[\start,\addrend]}$
 means that $W(r)$ must accept only safe values like
-$\iota^\pwl_{\start,\addrend}$, but can be even more restrictive if desired. The
+$\iota^\pwl_{[\start,\addrend]}$, but can be even more restrictive if desired. The
 read condition also takes into account the locality of the capability because,
 generally speaking, global capabilities should only depend on permanent regions.
 Concretely, we use the function $\var{localityReg}(\gl,W)$, which projects out
 all active (non-revoked) regions when the locality $\gl$ is local, but only the
-permanent regions when $\gl$ is global. The 
-the definition of the standard region
-$\iota^\pwl_{\start,\addrend}$ can be found
-in~\citep{technical_appendix}; it makes use of the isomorphism from
+permanent regions when $\gl$ is global. The definition of the standard region
+$\iota^\pwl_{[\start,\addrend]}$ can be found
+in \figurename~\ref{fig:std-reg}; it makes use of the isomorphism from
 Theorem~\ref{thm:world-existence}. 
 
 For a capability with write permission, $\writeCond{}$ must be satisfied for the
@@ -2174,9 +2200,9 @@ be written, but in the case of write capabilities, the capability cannot be used
 to write local capabilities, so the region only needs to allow safe non-local
 values. In the write condition, this is handled by parameterizing it with a
 region. For the write-local capabilities the write condition is applied with the
-standard region $\iota^\pwl_{\start,\addrend}$ that we described previously. For
+standard region $\iota^\pwl_{[\start,\addrend]}$ that we described previously. For
 the write capabilities we use a different standard region
-$\iota^\nwl_{\start,\addrend}$ which requires that the words in
+$\iota^\nwl_{[\start,\addrend]}$ which requires that the words in
 $[\start,\addrend]$ are non-local and safe. As before, we use
 $\var{localityReg}$ to pick an appropriate region based on the capability's
 locality. Finally, there is a technical requirement that the region must be
@@ -2187,6 +2213,7 @@ two accepted memory segments. An interesting property of the write condition is
 that they prohibit global write-local capabilities which, as discussed in
 \sectionname~\ref{sec:stack-and-return-pointer}, is necessary for any safe use of
 local capabilities.
+The standard region $\iota^\nwl_{[\start,\addrend]}$ is defined in \figurename~\ref{fig:std-reg}.
 
 The conditions $\entryCond{}$ and $\execCond{}$ are very similar. Both require
 that the capability can be safely jumped to. However, executable capabilities
