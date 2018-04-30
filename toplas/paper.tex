@@ -2275,6 +2275,51 @@ authority is capability safe as a program counter.
   \end{align*}
   then $\npair{((\perm,\gl),\start,\addrend,\addr)} \in \stder(W)$
 \end{theorem}
+\begin{toplas}
+  \begin{proof}
+    Induction over $n$. By definition of $\stder(W)$, show
+    $\npair[n']{(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\ms)}
+    \in \observations(W)$ assuming $n' \leq n$, $\npair[n']{\reg}$, and
+    $\heapSat[\ms]{n'}{W}$. By definition of $\observations$ let $\ms_f$,
+    $\mem'$, and $i \leq n'$ be given and assume $\Phi \step[i]
+    (\halted,\mem')$ and show there exists $W' \futurestr W$ that part of
+    $\mem'$ satisfies. First observe that $i \neq 0$ as $\Phi$ is a non-halting
+    configuration, so $\Phi$ takes at least one step, i.e.\ $\Phi \step
+    \var{conf}' \step[i-1] (\halted,\mem')$.
+
+    The rest of the proof roughly consists of two parts (1) argue that
+    $\var{conf}'$ is consistent with the world in the sense that the
+    register-file and memory still respect the world. (2) Argue that the rest of
+    the execution respects the world. The second case, relies on where the
+    $\pcreg$ in $\var{conf}'$ comes from. If the step to $\var{conf}'$ was a
+    jump, then use the fact that the register-file contains safe values in the
+    initial configuration. On the other hand, if the $\pcreg$ was just
+    incremented, then we need to apply the induction hypothesis which is
+    possible as all of the permission based conditions are downwards closed.
+    For instance in the case where the $\pcreg$ is read-execute, i.e.\ $\perm =
+    \exec$, we also assume $\npair{(\start,\addrend)} \in \readCond{}(\gl)(W)$
+    which entails $\npair[n'-1]{(\start,\addrend)} \in \readCond{}(\gl)(W)$ and
+    allows us to use the induction hypothesis.
+    In order to argue (1), we just need to consider the configurations the
+    operational semantics allows us to get to from the initial state. If we
+    consider the memory in $\var{conf}'$, then it either (a) remains unchanged
+    or (b) one address has been updated and in that case, the register-file contains an 
+    appropriate capability for writing. The latter case, (b) corresponds to the first
+    step executing a $\texttt{store}$ instruction, and the former (a) corresponds to
+    any other instruction.
+    In case (a), we can conclude that the memory still respects the world just
+    by downwards closure of memory satisfaction. In the other case, (b), we use
+    an auxiliary lemma called \emph{Conditions for \texttt{store} are
+      sufficient} (see the appendix, Lemma~\ref{lem:conds-store-stuff})
+    that states that given all the assumptions we have done so far, the updated
+    memory still satisfies the world.
+    All the possible changes to the register-file correspond to the effect of
+    some instruction, so for the non-trivial instructions we use a sufficiency
+    lemma.
+
+    The complete proof can be found in the technical appendix~\citep{technical_appendix}.
+  \end{proof}
+\end{toplas}
 The permission-based conditions of Theorem~\ref{thm:ftlr} make sure that the
 capability only provides safe authority in which case the capability must be in
 the $\stder$ relation, i.e. it can safely be used as a program counter in an
@@ -2295,8 +2340,9 @@ capabilities that point to arbitrary instructions. The relation between
 Theorem~\ref{thm:ftlr} and local-state encapsulation and control-flow
 correctness, will also be shown by example in \sectionname~\ref{sec:examples} as the
 examples depend on these properties for correctness.
-See the technical appendix~\citep{technical_appendix} for a detailed
-proof (by induction over the step-index $n$) of the theorem.
+% See the technical appendix~\citep{technical_appendix} for a detailed
+% proof (by induction over the step-index $n$) of the theorem.
+
 % LB: following omitted for brevity:
 % From another point of view, the Fundamental Theorem also serves as a sanity
 % check of the logical relation as it guarantees a large class of
@@ -3493,5 +3539,28 @@ Where $\var{ofc}_\var{end}$ and $\var{ofc}_\var{iter}$ are the offsets to the
 label \texttt{end} % 9?
 and \texttt{iter}, % 2?
 respectively.
+
+\subsection{Sufficiency lemma}
+ \begin{lemma}[Conditions for store instruction are sufficient]
+   \label{lem:conds-store-suff}
+   If 
+   \begin{itemize}
+   \item $\ms = \ms' \uplus \ms_f$
+   \item $\heapSat[\ms']{n}{W}$
+   \item $((\perm,\gl),\start,\addrend,\addr) = c$
+   \item $\npair{c}\in\stdvr(W)$
+   \item $\writeAllowed{\perm}$
+   \item $\withinBounds{\var{c}}$
+   \item $\npair{\var{w}}\in\stdvr(W)$
+   \item if $\var{w} = ((\_,\local),\_,\_,\_)$, then $\perm \in
+     \{\rwlx,\readwritel \}$
+   \end{itemize}
+ 
+   then $\addr \in \dom(\ms')$ (i.e. $\ms\update{a}{w} =
+   \ms'\update{a}{w}\uplus\ms_f$) and
+   $\heapSat[{\ms'\update{\addr}{\var{w}}}]{n}{W}$
+ \end{lemma}
+
+
 
 \end{document}
