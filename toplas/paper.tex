@@ -1647,6 +1647,7 @@ general sanity requirement when using local capabilities\footnote{In fact, local
   they are local versions of valid global capabilities.}.
 \end{toplas}
 \subsection{Worlds}
+\label{subsec:worlds}
 \begin{figure}[htb]
   \centering
   \includegraphics{w11}
@@ -2356,22 +2357,22 @@ examples depend on these properties for correctness.
   \section{Malloc and macros}
   \label{sec:malloc-and-macros}
 With the semantic model defined, we would like to show its usefulness by proving
-the correctness of a series of examples that use the calling convention and rely
-on well-bracketedness and local-state encapsulation. However, the programs that
+the correctness of a series of examples that rely
+on well-bracketedness and local-state encapsulation and use the calling
+convention to enforce these properties. However, the programs that
 run on our capability are assembly programs and even program examples that would
 be small in a high-level language, they become big and unintelligible at this
 low level. In order to make our program examples intelligible, we introduce a
 series of low-level abstractions in the form of macros.
 
-In order to make the program examples realistic, we allow them to allocate fresh
-memory by invoking a trusted malloc. Our results are not specific to
-any one implementation of malloc, so rather than providing one implementation,
+To make the program examples realistic, they have access to a trusted malloc, so
+they can allocate new memory. Our results are not specific to
+any one implementation of malloc, so rather than providing the implementation,
 we provide a specification that malloc must satisfy.
 
 \subsection{Malloc specification}
   \itoplassug{Suggestion: add the malloc specification}
-Before we give the malloc specification, we provide some intuition about what
-the malloc specification should look like.
+Before we give the malloc specification, we provide some intuition about its requirements.
 
 Malloc is assumed to be part of the trusted computing base, as mentioned in
 \sectionname~\ref{sec:capab-mach-with}. A program with access to malloc should
@@ -2380,49 +2381,77 @@ order to achieve this, a capability for malloc must be global. It is also
 important that malloc remains trustworthy to all entities on the machine
 throughout execution. That is, malloc should encapsulate its local state and
 not depend on any external code. To make sure that malloc cannot be tampered
-with through the capability for invoking malloc, we also require the capability
-to have enter permission. 
+with directly through the malloc capability, we require it to have enter
+permission. 
 
-The requirements so far prevent direct tampering in the sense that the
-capability intended for invoking malloc only can be used for invocation. This
-does, however, not prevent the implementation of malloc from colluding with
-other code. Specifically, malloc could depend on the state of a piece of memory
-not just under the control of malloc. We also need to make sure that malloc
-actually behave as intended. That is when malloc is invoked with a length
-argument in the correct register, then it should actually return a capability
-for a fresh piece of memory of that size. It should be fresh in the sense that
-malloc hasn't given out a capability for any part of that memory before and
-won't do it in the future. Finally, we also need to make sure that malloc
-behaves correctly when given a nonsensical length argument such as a negative
-integer or a capability. These requirements relate to the behaviour of malloc,
-so we cannot hope to specify them syntactically. Instead we will use the
-semantic model defined in  Section~\ref{sec:logical-relation} to express this
-part of the specification. 
+The requirements so far are syntactic and prevent direct tampering in the sense
+that the capability intended for invoking malloc only can be used for
+invocation. This does, however, not prevent the implementation of malloc from
+colluding with other code. Specifically, malloc could depend on the state of a
+piece of memory not just under the control of malloc. We also need to make sure
+that malloc actually behave as intended. That is when malloc is invoked with a
+length argument, then it actually returns a capability for a fresh piece of
+memory of that size. It should be fresh in the sense that malloc hasn't given
+out a capability for any part of that memory before and won't do it in the
+future. Finally, we also need to make sure that malloc behaves correctly when
+given a nonsensical length argument such as a negative integer or a capability.
+These requirements relate to the behaviour of malloc, so we cannot hope to
+express them syntactically. Instead we will use the semantic model defined in
+Section~\ref{sec:logical-relation} to express this part of the specification.
 
 In order to express the semantic requirements on malloc, the specification will
 require the existence of some initial region for malloc. Malloc does not
-disappear from the system, so the malloc region must permanent. This also means
-that the malloc specification should guarantee that use of malloc is safe at any
-point of execution and no matter who has invoked it. To this end, the
+disappear from the system, so the malloc region must be permanent. This also
+means that the malloc specification should guarantee that use of malloc is safe
+at any point of execution no matter who has invoked it. To this end, the
 requirement on the initial malloc region should also hold true in any private
 future world.
+% priv future means that malloc should not depend on local capabilities?
 
 The implementation of malloc should not depend on any memory outside the
 implementation of malloc. This means that malloc should not have any
-capabilities in its internals that govern other programs. The malloc region's
-memory interpretation function determines what malloc may contain, so we require
-it to allow the same memory segments whether it is with respect to some world
-with the malloc region in it or a world that just contains the malloc region.
-Malloc should retain this property throughout execution, so it must hold true
-for any private future region of the initial malloc region.
+capabilities in its internals that govern other programs. As explained in
+\sectionname~\ref{subsec:worlds}, a region's state interpretation function
+determines what memory segments it permits with respect to some world. The state
+interpretation function of malloc should permit the same regions with respect to
+a world with the malloc region as it would with respect to a world that only
+contains the malloc region. In other words, the remaining regions in the world
+do not influence which regions malloc accepts. Malloc should retain this
+property throughout execution, so it must hold true for any private future
+region of the initial malloc region.
 
-The malloc specification also dictates what malloc should do when invoked. We
-specify the two cases where malloc is invoked with a valid and an invalid length
-argument, respectively. When malloc is invoked with an invalid length argument,
-that is a negative integer or a capability, we require malloc to simply fail.
-This part of the specification does not rely on the malloc region as we do not
-need to make sure that the memory invariants are respected. 
-On the other hand,
+The malloc specification will also dictate what malloc should do when invoked.
+Malloc can be invoked with either a valid or an invalid length argument. In the
+case where malloc is invoked with an invalid argument, that is a negative
+integer or a capability, we require malloc to simply fail. This part of the
+specification does not rely on the malloc region as failing is considered
+safe behaviour. When malloc is invoked with a valid length, then malloc should
+return a fresh memory segment of the correct length.
+\todo[inline]{Everything below this is work in progress..}
+Malloc may have been invoked a number of times before any given invocation, so
+the internal data structures of malloc may be in a different state than it
+started in.
+We know that the memory of malloc is in a state consistent with the
+protocol dictated by the initial malloc region in the sense that we can assume
+that malloc is invoked in a configuration where part of it satisfies a private
+future region of the initial malloc region. Knowing the state of the malloc
+region allows us to express what we mean by a \emph{fresh} region. This means
+that malloc should not keep any capabilities for the freshly allocated region.
+To ensure this, we require the footprint of malloc after the call to be disjoint
+from the freshly allocated memory. Further, the footprint should satisfy a
+public future region of the malloc region the invocation happened in. This means
+that it cannot depend on the freshly allocated region. It further allows
+subsequent calls to malloc as it provides one of the requirements in the malloc
+specification. 
+
+Malloc is part of the trusted computing base. If we cannot trust malloc, then we
+cannot use the memory it allocates as we have no idea whether it is aliased by
+some untrusted program. Because of this assumption, we also require malloc to
+promise that the non-argument registers of the register-file remain unchanged
+after the call. This allows the caller to keep private capabilities in the
+register file. This is strictly speaking not necessary as we can use our calling
+convention to protect our local state.
+
 \begin{definition}[Malloc Specification]
   \label{spec:malloc}
   $c_\malloc$ satisfies the specification for malloc iff
@@ -2469,15 +2498,23 @@ On the other hand,
     \end{array}
   \]
 \end{definition}
+As described previously, the specification of malloc ensure that malloc has no
+capabilities pointing \emph{out} of malloc. It does, however, not say anything about
+capabilities that point \emph{in} to malloc. We obviously can obviously not
+allow this if we want to trust malloc. We have chosen to keep the malloc
+specification simple and let this assumption be in the lemmas that use malloc.
+It is sufficient for these lemmas to require that there are no outside
+capabilities for malloc in the initial configuration as capabilities cannot
+appear out of thin air and the malloc specification makes sure that capabilities
+are not leaked.
 
-\itoplassug{Write something about initial capabilities to malloc. We will always
-assume that capabilities for malloc satisfy the malloc specification. The malloc
-specification prevents malloc from giving away internal capabilities and the
-capability machine semantics does not allow capabilities to appear out of thin air.}
-
+Malloc should not just be available to trusted programs, but also to possibly
+malicious programs. The specification should therefore entail that the malloc
+capability is safe which would make it safe to let even malicious programs have
+access to it.
 \begin{lemma}[Malloc is safe to pass to adversary]
   \label{lem:malloc-in-vr}
-  If $W(r) \futurestr \iota_{\malloc,0}$, then
+  For $c_\malloc$ that satisfies the specification for malloc with region $\iota_{\malloc,0}$,  if $W(r) \futurestr \iota_{\malloc,0}$, then
   $\npair{c_\malloc} \in \stdvr(W)$ for all $n$.
 \end{lemma}
 
@@ -2638,8 +2675,8 @@ they do this. Program \texttt{\footnotesize{f1}} uses our stack-based
 calling convention (captured by \texttt{\footnotesize{scall}}) to call
 the adversary, so it can use the available stack to store its local
 state.  On the other hand, \texttt{\footnotesize{f2}} uses malloc to
-allocate memory for its local state and uses an activation-record
-based calling convention (described in the technical appendix) to run
+allocate memory for its local state and uses a calling convention based on heap
+allocated activation records (described in the technical appendix) to invoke
 the adversarial code.
 
 \begin{figure}[t]
