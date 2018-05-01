@@ -3601,6 +3601,194 @@ respectively.
    $\heapSat[{\ms'\update{\addr}{\var{w}}}]{n}{W}$
  \end{lemma}
 
+ \subsection{Example correctness lemmas}
+\begin{lemma}[Correctness lemma for \texttt{f1}] \forcenewline
+  \label{lem:correctness-f1-app}
+  For all $n \in \nats$
+  let
+  \begin{align*}
+    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
+    c_{f1} & \defeq ((\rwx,\glob),\mathtt{f1}-\olf,\mathtt{1f},\mathtt{f1}) \\
+    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
+    m & \defeq \hs_{f1} \uplus 
+        \hs_\flag \uplus                
+        \ms_{\var{link}} \uplus 
+        \hs_\adv \uplus 
+        \ms_{\malloc} \uplus 
+        \hs_{\var{frame}} 
+  \end{align*}
+  and
+  \begin{itemize}
+  \item $c_\malloc$ satisfies the specification for malloc and $\iota_{\malloc,0}$ is the region from the specification.
+  \end{itemize}
+  where 
+  \begin{align*}
+    &\dom(\hs_{f1}) = [\mathtt{f1}-\olf,\mathtt{1f}] \\
+    &\dom(\hs_\flag) = [\flag,\flag] \\
+    &\dom(\ms_\link) = [\link,\link+1]\\
+    &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
+    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]}
+  \end{align*}
+  and
+  \begin{itemize}
+  \item $\ms_{f1}(\mathtt{f1}-\olf) = ((\readonly,\glob),\link,\link+1,\link)$, $\ms_{f1}(\mathtt{f1}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{f1}$ contains the code of $f1$.
+  \item $\ms_\flag = [\flag \mapsto 0]$
+  \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
+  \item $\hs_\adv$ contains a global read-only capability for $\hs_\link$ on its first address. The remaining cells of the memory segment only contain instructions.
+  \end{itemize}
+  if 
+  \[
+    (\reg\update{\pcreg}{c_{f1}},m) \step[n] (\halted,m'),
+  \]
+  then
+  \[
+    m'(\flag) = 0
+  \]  
+\end{lemma}
 
+\begin{lemma}[Correctness lemma for \texttt{f2}]
+  \label{lem:correctness-f2-app}
+  let
+  \begin{align*}
+    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
+    c_{f2} & \defeq ((\rwx,\glob),\mathtt{f2}-\olf,\mathtt{2f},\mathtt{f2}) \\
+    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
+    c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_\stk,\start_\stk-1) \\
+    c_\link & \defeq ((\readonly,\glob),\link,\link+1,\link)\\
+    \reg & \in \Regs \\
+    m & \defeq \hs_{f2} \uplus 
+        \hs_\flag \uplus                
+        \ms_{\var{link}} \uplus 
+        \hs_\adv \uplus 
+        \ms_{\malloc} \uplus 
+        \ms_{\var{stk}} \uplus
+        \ms_{\var{frame}} 
+  \end{align*}
+  and
+  \begin{itemize}
+  \item $c_\malloc$ satisfies the specification for malloc and $\iota_{\malloc,0}$ is the region from the specification.
+  \end{itemize}
+  where 
+  \begin{align*}
+    &\dom(\hs_{f2}) = [\mathtt{f2}-\olf,\mathtt{2f}] \\
+    &\dom(\hs_\flag) = [\flag,\flag] \\
+    &\dom(\ms_\link) = [\link,\link+1]\\
+    &\dom(\ms_\stk) = [\start_\stk, \addrend_\stk]\\
+    &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
+    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]} \qquad \text{ for all $n \in \nats$}
+  \end{align*}
+  and
+  \begin{itemize}
+  \item $\ms_{f2}(\mathtt{f2}-\olf) = ((\readonly,\glob),\link,\link+1,\link)$, $\ms_{f2}(\mathtt{f2}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{f2}$ contains the code of $f2$.
+  \item $\ms_\flag = [\flag \mapsto 0]$
+  \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
+  \item $\hs_\adv(\start_\adv) = c_\link$ and $\forall \addr \in [\start_\adv+1,\addrend]\ldotp \ms_\adv(a) \in \ints$
+  \end{itemize}
+  if 
+  \[
+    (\reg\update{\pcreg}{c_{f2}}\update{r_\stk}{c_\stk},m) \step[n] (\halted,m'),
+  \]
+  then
+  \[
+    m'(\flag) = 0
+  \]  
+\end{lemma}
+\begin{lemma}[Correctness lemma for \texttt{f3}]
+  \label{lem:correctness-f3}
+  For all $n \in \nats$
+  let
+  \begin{align*}
+    c_{\var{adv}} & \defeq ((\entry,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
+    c_{f3} & \defeq ((\rwx,\glob),\mathtt{f3}-\olf,\mathtt{3f},\mathtt{f3}) \\
+    c_{\var{stk}} & \defeq ((\rwlx,\local),\start_\stk,\addrend_\stk,\start_\stk-1) \\
+    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
+    c_\link & \defeq ((\readonly,\glob),\link,\link+1,\link) \\
+    \reg & \in \Regs \\
+    m & \defeq \hs_{f3} \uplus 
+        \hs_\flag \uplus                
+        \ms_{\var{link}} \uplus 
+        \hs_\adv \uplus 
+        \ms_{\malloc} \uplus 
+        \ms_{\var{stk}} \uplus
+        \ms_{\var{frame}} 
+  \end{align*}
+  and
+  \begin{itemize}
+  \item $c_\malloc$ satisfies the specification for malloc.
+  \end{itemize}
+  where 
+  \begin{align*}
+    &\dom(\hs_{f3}) = [\mathtt{f3}-\olf,\mathtt{3f}] \\
+    &\dom(\hs_\flag) = [\flag,\flag] \\
+    &\dom(\ms_\link) = [\link,\link+1]\\
+    &\dom(\ms_\stk) = [\start_\stk, \addrend_\stk]\\
+    &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
+    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]}
+  \end{align*}
+  and
+  \begin{itemize}
+  \item $\ms_{f3}(\mathtt{f3}-\olf) = ((\readonly,\glob),\link,\link+1,\link)$, $\ms_{f3}(\mathtt{f3}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{f3}$ contains the code of $f3$.
+  \item $\ms_\flag = [\flag \mapsto 0]$
+  \item $\ms_{\var{link}} = [\var{link} \mapsto c_\malloc, \var{link} + 1 \mapsto c_\adv]$
+  \item $\hs_\adv(\start_\adv) = c_\link$ and all other addresses of $\ms_\adv$ contain instructions.
+  \end{itemize}
+  if 
+  \[
+    (\reg\update{\pcreg}{c_{f3}}\update{r_\stk}{c_\stk},m) \step[n] (\halted,m'),
+  \]
+  then
+  \[
+    m'(\flag) = 0
+  \]  
+\end{lemma}
+
+ 
+ \begin{lemma}[Correctness of $g1$]
+  \label{lem:correctness-g1}
+  For all $n \in \nats$
+  let
+  \begin{align*}
+    c_{\var{adv}} & \defeq ((\rwx,\glob),\start_{\adv},\addrend_{\adv},\start_{\adv}+\olf) \\
+    c_{g1} & \defeq ((\entry,\glob),\mathtt{g1}-\olf,\mathtt{4f},\mathtt{g1}) \\
+    c_\stk & \defeq ((\rwlx,\local),\start_\stk,\addrend_\stk,\start_\stk-1) \\
+    c_\malloc & \defeq ((\entry,\glob),\start_\malloc,\addrend_\malloc,\start_\malloc+\olf) \\
+    c_\link & \defeq ((\readonly,\glob),\link,\link,\link) \\
+    m & \defeq \hs_{g1} \uplus 
+        \ms_\flag \uplus                
+        \ms_\link \uplus 
+        \ms_\adv \uplus 
+        \ms_\malloc \uplus 
+        \ms_\stk \uplus
+        \ms_{\var{frame}} 
+  \end{align*}
+  where 
+  \begin{itemize}
+  \item $c_\malloc$ satisfies the specification for malloc with $\iota_{\malloc,0}$
+  \end{itemize}
+  \begin{align*}
+    &\dom(\hs_{g1}) = [\mathtt{g1}-\olf,\mathtt{4f}] \\
+    &\dom(\hs_\flag) = [\flag,\flag] \\
+    &\dom(\ms_\link) = [\link,\link]\\
+    &\dom(\ms_\stk) = [\start_\stk, \addrend_\stk]\\
+    &\dom(\hs_{\adv}) = [\start_\adv,\addrend_\adv] \\
+    &\heapSat[\hs_{\malloc}]{n}{[0 \mapsto \iota_{\malloc,0}]}
+  \end{align*}
+  and
+  \begin{itemize}
+  \item $\ms_{g1}(\mathtt{g1}-\olf) = ((\readonly,\glob),\link,\link,\link)$, $\ms_{g1}(\mathtt{g1}-\olf+1) = ((\readwrite,\glob),\flag,\flag,\flag)$, the rest of $\hs_{g1}$ contains the code of $g1$ immediately followed by the code of $f4$.
+  \item $\ms_\flag = [\flag \mapsto 0]$
+  \item $\ms_{\var{link}} = [\link \mapsto c_\malloc]$
+  \item $\hs_\adv(\start_\adv) = c_\link$ and all other addresses of $\ms_\adv$ contain instructions.
+  \item $\forall a \in \dom(\ms_\stk) \ldotp \ms_\stk(a) = 0$ %This condition could be weakened to \memSat{\ms_\stk}{[\iota^\pwl(\dom(\ms_\stk))]}
+  \end{itemize}
+  if 
+  \[
+    (\reg_0\update{\pcreg}{c_\adv}\update{r_\stk}{c_\stk}\update{r_1}{c_{g1}},m) \step[n] (\halted,m'),
+  \]
+  then
+  \[
+    m'(\flag) = 0
+  \]  
+\end{lemma}
 
 \end{document}
