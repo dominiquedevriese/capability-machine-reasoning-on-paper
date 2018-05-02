@@ -2522,42 +2522,73 @@ access to it.
 \itoplassug{Add the assumption that the malloc capability in examples
   satisfies specification.}
 
-\subsection{Macros}
-\textbf{Reusable macro instructions} 
-\label{para:macros}
-\itoplassug{Add examples of macros to this section to make it clear what we mean by macros.\\}
-\itoplassug{Move this subsection forward so it is just before the macros are used, i.e. the example section.\\}
-\itoplassug{Reviewer C, ESOP, asks for high-level specifications for the macros in the style of malloc. I am not sure we want to actually include this in the submission, so it is maybe not here we should put our attention. (see review in tex comment)\\}
+\subsection{Reusable macro instructions}
+\label{subsec:macros}
+%\itoplassug{Add examples of macros to this section to make it clear what we mean by macros.\\}
+%\itoplassug{Reviewer C, ESOP, asks for high-level specifications for the macros in the style of malloc. I am not sure we want to actually include this in the submission, so it is maybe not here we should put our attention. (see review in tex comment)\\}
 % Finally, as already mentioned above, the approach relies on `call` and `scall` macro-instructions that are only outlined in the submission, and described by very complicated pseudocode and English prose in the companion technical appendix.  I still miss a fully formal description of 1- what instructions the macros expand to, exactly, and 2- what contract they satisfy (in the style of the contract for malloc in section 2 of the technical appendix).
-We define a number of reusable macros
-capturing the calling convention and other conveniences. All macros that use the
-stack assume a stack pointer in register $r_\stk$. The macro
-\texttt{\footnotesize{fetch $r$ $\var{name}$}} fetches the capability related to
-$\var{name}$ from the linking table and stores it in register $r$.  The macros
-\texttt{\footnotesize{push $r$}} and \texttt{\footnotesize{pop $r$}} add and
-remove elements from the stack. The macro \texttt{\footnotesize{prepstk $r$}} is
-used when a callback is invoked by the adversary and prepares the received stack
-pointer by checking that it has permission $\rwlx$.  The macro
-\texttt{\footnotesize{scall
-    $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}} jumps to the
-capability in register $r$ in the manner described above. That is, it pushes
-local state (the contents of registers $\overline{r_{\var{priv}}}$) and the
-activation record (return code, return pointer, stack pointer) to the stack,
-creates an $\entry$ return pointer, restricts the stack pointer, clears the
-unused part of the stack, clears the necessary registers and jumps to $r$.  Upon
-return, the private state is restored. The macro \texttt{\footnotesize{mclear
-    $r$}} clears all the memory the capability in register $r$ has authority
-over.  The macro \texttt{\footnotesize{rclear $\var{regSet}$}} clears all the
-registers in $\var{regSet}$. The macro \texttt{\footnotesize{reqglob $r$}}
-checks whether the word in register $r$ is a global capability. The macro
+We define a number of reusable macros capturing the calling convention as well
+as other conveniences. The macros that utilise the stack assume that it is
+available in register $r_\stk$. 
+
+The macro \texttt{\footnotesize{scall
+    $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}} captures the
+parts of the calling convention related to actually transferring control to some
+adversarial code. Specifically, it pushes the contents of the private registers,
+$\overline{r_{\var{priv}}}$, to the stack. Then it pushes the restoration code
+to the stack. The restoration code will be executed as the first thing upon
+return, where it restores the stack pointer and the old program pointer. After
+the restoration code is pushed to the stack, a copy of the pc is adjusted to
+point to the first instruction after the control has been transferred and then
+pushed to the stack. From the stack pointer, a protected return pointer is
+created by adjusting it to point to the return code and encapsulating it by
+restricting its permission to enter. Next, the stack pointer is restricted to
+the unused part, and the unused part of the stack is cleared, so it does not
+govern any part of the private stack frame which means that it can safely be
+given away. Finally, the non-argument registers are cleared and we jump to $r$.
+Upon return after the restoration code has been executed, the restoration code
+is popped from the stack and the private words we pushed to the stack before the
+call are popped to the private registers. The implementation of \texttt{scall}
+is presented in \figurename~\ref{fig:scall-impl}, and the restoration code is
+presented in \figurename~\ref{fig:scall-rest-code}. The implementation of
+\texttt{scall} uses some of the macros we present later in this section.
+
+The macro \texttt{\footnotesize{mclear $r$}} clears all the memory the
+capability in register $r$ has authority over. It is used by \texttt{scall} to
+clear the unused part of the stack before control is transferred. It should also
+be used to clear the stack before returning to adversarial code. Similarly, the
+macro \texttt{\footnotesize{rclear $R$}} clears all the registers in the set
+$R$. It is also used by \texttt{scall}, and it should also be used before
+returning to adversarial code.
+
+The macros \texttt{\footnotesize{prepstack $r$}} and \texttt{\footnotesize{reqglob
+    $r$}} are the last macros related to the calling convention. The former,
+\texttt{prepstack} should be used when one receives a stack from an unknown
+sure. The \texttt{prepstack} macro first ensures the stack has permission
+read/write-local/execute, and then it adjusts the stack capability, so it
+follows the convention for the stack\footnote{The stack capability should always
+point to the top most word on the stack. A stack received from an unknown source
+can be treated as empty, so the stack capability should point just outside its
+range of authority.}. The other macro, \texttt{reqglob}, ensures that the
+capability in register $r$ is global. This macro should be used on callbacks
+received from unknown sources to ensure that they cannot be derived from the
+stack pointer.
+
+The remaining macros are not directly related to the calling convention, but
+they help making the examples in \sectionname~\ref{sec:examples} intelligible.
+The macros \texttt{\footnotesize{push $r$}} and \texttt{\footnotesize{pop $r$}}
+add and remove elements from the stack. The macro \texttt{\footnotesize{fetch
+    $r$ $\var{name}$}} fetches the capability related to $\var{name}$ from the
+linking table and stores it in register $r$. The macro
 \texttt{\footnotesize{crtcls $\overline{(x_i,r_i)}$ $r$}} allocates a closure
 where $r$ points to the closure's code and a new environment is allocated (using
 malloc) where the contents of $\overline{r_i}$ is stored. In the code referred
 to by $r$, an implicit fetch happens when an instruction refers to $x_i$.
 
-The technical appendix~\citep{technical_appendix} contains detailed descriptions
-of all the macros.
-\itoplassug{Suggestion: Add the call implementation (and possibly other macros?) in the above?}
+The Appendix contains the implementation of all the macros used in
+\texttt{scall}. The technical appendix~\citep{technical_appendix} contains detailed descriptions
+of all the macros as well as all implementations.
+%\itoplassug{Suggestion: Add the call implementation (and possibly other macros?) in the above?}
 
 \begin{figure}[htb]
   \centering
@@ -2568,7 +2599,8 @@ of all the macros.
   push $r_{\var{priv},n}$
 // push restoration code to the stack
   push $\encode(i_1)$
-  ...
+  push $\encode(i_2)$
+  push $\encode(i_3)$
   push $\encode(i_4)$
 // push old pc to the stack
   move r_t1 pc
@@ -2660,7 +2692,7 @@ of \sectionname~\ref{sec:stack-and-return-pointer} are deployed to ensure these
 properties. Since we are dealing with assembly language, there are many details
 to the formal treatment, and therefore we necessarily omit some details in the
 lemma statements. The examples may look deceivingly short, but it is because
-they use the macro instructions described in \sectionname~\ref{para:macros}.
+they use the macro instructions described in \sectionname~\ref{subsec:macros}.
 The examples would be
 unintelligible without the macros, as each macro expands to multiple basic instructions. The interested reader can find all the
 technical details in the technical appendix~\citep{technical_appendix}.
@@ -2792,7 +2824,7 @@ for \texttt{\footnotesize{f1}} then states:
 \]
 where each of the capabilities have an appropriate range of authority and
 pointer\footnote{These assumptions are kept intentionally vague for brevity.
-  Full statements are in the technical appendix~\citep{technical_appendix}.}.
+  Full statements are in the Appendix.}.
 Furthermore
   \begin{itemize}
   \item $c_\malloc$ satisfies the specification for malloc with
