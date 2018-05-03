@@ -1186,7 +1186,7 @@ where a program has access to a linking table that contains capabilities for
 other programs. We also assume malloc to be part of the trusted computing base
 satisfying a certain specification. Malloc and linking tables are described
 further in the next section.
-\itoplas{The specification of malloc is presented in \sectionname~\ref{sec:malloc-and-macros} as it uses the semantic model we build in Section~\ref{sec:logical-relation}.
+\itoplas{The specification of malloc is presented in \sectionname~\ref{sec:malloc} as it uses the semantic model we build in Section~\ref{sec:logical-relation}.
 For full details on the linking table, we refer to the technical
 appendix~\citep{technical_appendix}.} \itoplas{(Reviewer A, esop suggest explaining the
   linking model)\\}
@@ -2283,41 +2283,41 @@ authority is capability safe as a program counter.
     $\npair[n']{(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\ms)}
     \in \observations(W)$ assuming $n' \leq n$, $\npair[n']{\reg} \in \stdrr(W)$, and
     $\heapSat[\ms]{n'}{W}$. By definition of $\observations$ let $\ms_f$,
-    $\mem'$, and $i \leq n'$ be given and assume $\Phi \step[i]
+    $\mem'$, and $i \leq n'$ be given and for
+    $\Phi = (\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\ms \uplus
+    \ms_f)$ assume $\Phi \step[i]
     (\halted,\mem')$ and show there exists $W' \futurestr W$ that part of
     $\mem'$ satisfies. First observe that $i \neq 0$ as $\Phi$ is a non-halting
     configuration, so $\Phi$ takes at least one step, i.e.\ $\Phi \step
-    \var{conf}' \step[i-1] (\halted,\mem')$.
+    \Phi' \step[i-1] (\halted,\mem')$.
 
-    The rest of the proof roughly consists of two parts (1) argue that
-    $\var{conf}'$ is consistent with the world in the sense that the
-    register-file and memory still respect the world. (2) Argue that the rest of
-    the execution respects the world. The second case, relies on where the
-    $\pcreg$ in $\var{conf}'$ comes from. If the step to $\var{conf}'$ was a
-    jump, then use the fact that the register-file contains safe values in the
-    initial configuration. On the other hand, if the $\pcreg$ was just
-    incremented, then we need to apply the induction hypothesis which is
-    possible as all of the permission based conditions are downwards closed.
-    For instance in the case where the $\pcreg$ is read-execute, i.e.\ $\perm =
-    \exec$, we also assume $\npair{(\start,\addrend)} \in \readCond{}(\gl)(W)$
-    which entails $\npair[n'-1]{(\start,\addrend)} \in \readCond{}(\gl)(W)$ and
-    allows us to use the induction hypothesis.
-    In order to argue (1), we just need to consider the configurations the
-    operational semantics allows us to get to from the initial state. If we
-    consider the memory in $\var{conf}'$, then it either (a) remains unchanged
-    or (b) one address has been updated and in that case, the register-file contains an 
-    appropriate capability for writing. The latter case, (b) corresponds to the first
-    step executing a $\texttt{store}$ instruction, and the former (a) corresponds to
-    any other instruction.
-    In case (a), we can conclude that the memory still respects the world just
-    by downwards closure of memory satisfaction. In the other case, (b), we use
-    an auxiliary lemma called \emph{Conditions for \texttt{store} are
-      sufficient} (see the appendix, Lemma~\ref{lem:conds-store-stuff})
-    that states that given all the assumptions we have done so far, the updated
-    memory still satisfies the world.
-    All the possible changes to the register-file correspond to the effect of
-    some instruction, so for the non-trivial instructions we use a sufficiency
-    lemma.
+    The rest of the proof roughly consists of two parts: (1) Argue that $\Phi'$
+    is consistent with the world in the sense that the register-file and memory
+    still respect the world. (2) Argue that the rest of the execution respects
+    the world. The second case relies on where the $\pcreg$ in $\Phi'$ comes
+    from. If the step to $\Phi'$ was a jump, then use the fact that the
+    register-file contains safe values in $\Phi$. On the other hand, if the
+    $\pcreg$ was just incremented, then we need to apply the induction
+    hypothesis, which is possible as all of the permission based conditions are
+    downwards closed. For instance, in the case where the $\pcreg$ is
+    read-execute, i.e.\ $\perm = \exec$, we also assume
+    $\npair{(\start,\addrend)} \in \readCond{}(\gl)(W)$ which entails
+    $\npair[n'-1]{(\start,\addrend)} \in \readCond{}(\gl)(W)$ and hence allows us to
+    use the induction hypothesis. In order to argue (1), we just need to
+    consider the configurations the operational semantics allows us to get to
+    from the initial state. If we consider the memory in $\Phi'$, then it either
+    (a) remains unchanged or (b) one address has been updated and in that case,
+    the register-file contains an appropriate capability for writing. The latter
+    case (b) corresponds to the first step executing a $\texttt{store}$
+    instruction, and the former (a) corresponds to any other instruction. In
+    case (a), we can conclude that the memory still respects the world just by
+    downwards closure of memory satisfaction. In the other case, (b), we use an
+    auxiliary lemma called \emph{Conditions for \texttt{store} are sufficient}
+    (see the appendix, Lemma~\ref{lem:conds-store-stuff}) that states that given
+    all the assumptions we have so far, the updated memory still satisfies
+    the world. All the possible changes to the register-file correspond to the
+    effect of some instruction, so for each non-trivial instruction we use a
+    lemma appropriate for that instruction.
 
     The complete proof can be found in the technical appendix~\citep{technical_appendix}.
   \end{proof}
@@ -2355,25 +2355,13 @@ examples depend on these properties for correctness.
 \itoplassug{Suggestion: Add a small section about reasoning about programs. Add the ``scall works'' and ``malloc works'' lemmas and describe how they are used. This section could also point out the things one have to argue about that are hidden in similar high-level proofs (e.g., the return pointer valid when we return corresponding to restoring memory invariants of caller.).}
 
 \begin{toplas}
-  \section{Malloc and macros}
-  \label{sec:malloc-and-macros}
-With the semantic model defined, we would like to show its usefulness by proving
-the correctness of a series of examples that rely
-on well-bracketedness and local-state encapsulation and use the calling
-convention to enforce these properties. However, the programs that
-run on our capability are assembly programs and even program examples that would
-be small in a high-level language, they become big and unintelligible at this
-low level. In order to make our program examples intelligible, we introduce a
-series of low-level abstractions in the form of macros.
-
-To make the program examples realistic, they have access to a trusted malloc, so
-they can allocate new memory. Our results are not specific to
-any one implementation of malloc, so rather than providing the implementation,
-we provide a specification that malloc must satisfy.
-
-\subsection{Malloc specification}
-  \itoplassug{Suggestion: add the malloc specification}
-Before we give the malloc specification, we provide some intuition about its requirements.
+  \section{Malloc}
+  \label{sec:malloc}
+In the examples we present in \sectionname~\ref{sec:examples}, we will assume
+the existence of a trusted malloc routine so that it is possible to allocate new
+memory. Our semantic model is not specific to a particular implementation of
+malloc, so rather than providing the implementation, we provide a specification
+that malloc must satisfy. This section can be skipped on first read through.
 
 Malloc is assumed to be part of the trusted computing base, as mentioned in
 \sectionname~\ref{sec:capab-mach-with}. A program with access to malloc should
@@ -2390,17 +2378,17 @@ that the capability intended for invoking malloc only can be used for
 invocation. This does, however, not prevent the implementation of malloc from
 colluding with other code. Specifically, malloc could depend on the state of a
 piece of memory not just under the control of malloc. We also need to make sure
-that malloc actually behave as intended. That is when malloc is invoked with a
+that malloc actually behaves as intended, that is, when malloc is invoked with a
 length argument, then it actually returns a capability for a fresh piece of
-memory of that size. It should be fresh in the sense that malloc hasn't given
-out a capability for any part of that memory before and won't do it in the
+memory of that size. It should be fresh in the sense that malloc has not given
+out a capability for any part of that memory before and will not do it in the
 future. Finally, we also need to make sure that malloc behaves correctly when
 given a nonsensical length argument such as a negative integer or a capability.
 These requirements relate to the behaviour of malloc, so we cannot hope to
 express them syntactically. Instead we will use the semantic model defined in
 Section~\ref{sec:logical-relation} to express this part of the specification.
 
-In order to express the semantic requirements on malloc, the specification will
+For the semantic requirements on malloc, the specification will
 require the existence of some initial region for malloc. Malloc does not
 disappear from the system, so the malloc region must be permanent. This also
 means that the malloc specification should guarantee that use of malloc is safe
@@ -2417,21 +2405,20 @@ determines what memory segments it permits with respect to some world. The state
 interpretation function of malloc should permit the same regions with respect to
 a world with the malloc region as it would with respect to a world that only
 contains the malloc region. In other words, the remaining regions in the world
-do not influence which regions malloc accepts. Malloc should retain this
+should not influence which regions malloc accepts. Malloc should retain this
 property throughout execution, so it must hold true for any private future
 region of the initial malloc region.
 
 The malloc specification will also dictate what malloc should do when invoked.
 Malloc can be invoked with either a valid or an invalid length argument. In the
-case where malloc is invoked with an invalid argument, that is a negative
-integer or a capability, we require malloc to simply fail. This part of the
-specification does not rely on the malloc region as failing is considered
+case where malloc is invoked with an invalid argument, that is, a negative
+integer or a capability, we simply require malloc to fail. This part of the
+specification does not rely on the malloc region, as failing is considered
 safe behaviour. When malloc is invoked with a valid length, then malloc should
 return a fresh memory segment of the correct length.
-\todo[inline]{Everything below this is work in progress..}
 Malloc may have been invoked a number of times before any given invocation, so
-the internal data structures of malloc may be in a different state than it
-started in.
+the internal data structures of malloc may be in a different state than they
+were initially.
 We know that the memory of malloc is in a state consistent with the
 protocol dictated by the initial malloc region in the sense that we can assume
 that malloc is invoked in a configuration where part of it satisfies a private
@@ -2450,8 +2437,8 @@ cannot use the memory it allocates as we have no idea whether it is aliased by
 some untrusted program. Because of this assumption, we also require malloc to
 promise that the non-argument registers of the register-file remain unchanged
 after the call. This allows the caller to keep private capabilities in the
-register file. This is strictly speaking not necessary as we can use our calling
-convention to protect our local state.
+register file (strictly speaking this is not necessary as we can use our calling
+convention to protect our local state).
 
 \begin{definition}[Malloc Specification]
   \label{spec:malloc}
@@ -2499,9 +2486,9 @@ convention to protect our local state.
     \end{array}
   \]
 \end{definition}
-As described previously, the specification of malloc ensure that malloc has no
+As described previously, the specification of malloc ensures that malloc has no
 capabilities pointing \emph{out} of malloc. It does, however, not say anything about
-capabilities that point \emph{in} to malloc. We obviously can obviously not
+capabilities that point \emph{in} to malloc. We obviously can not
 allow this if we want to trust malloc. We have chosen to keep the malloc
 specification simple and let this assumption be in the lemmas that use malloc.
 It is sufficient for these lemmas to require that there are no outside
@@ -2515,12 +2502,10 @@ capability is safe which would make it safe to let even malicious programs have
 access to it.
 \begin{lemma}[Malloc is safe to pass to adversary]
   \label{lem:malloc-in-vr}
-  For $c_\malloc$ that satisfies the specification for malloc with region $\iota_{\malloc,0}$,  if $W(r) \futurestr \iota_{\malloc,0}$, then
+  For all $c_\malloc$ that satisfies the specification for malloc with region $\iota_{\malloc,0}$,  if $W(r) \futurestr \iota_{\malloc,0}$, then
   $\npair{c_\malloc} \in \stdvr(W)$ for all $n$.
 \end{lemma}
 
-\subsection{Reusable macro instructions}
-\label{subsec:macros}
 The focus of this work is not to give a definitive specification and
 implementation of malloc which is why we do give a malloc implementation. We
 are, however, confident that it is possible to make an implementation of malloc
@@ -2538,9 +2523,19 @@ could also double as the data structure that keeps track of free memory.
 %\itoplassug{Add the assumption that the malloc capability in examples
 %  satisfies specification.}
 
+\section{Reusable macro instructions}
+\label{sec:macros}
 %\itoplassug{Add examples of macros to this section to make it clear what we mean by macros.\\}
 %\itoplassug{Reviewer C, ESOP, asks for high-level specifications for the macros in the style of malloc. I am not sure we want to actually include this in the submission, so it is maybe not here we should put our attention. (see review in tex comment)\\}
 % Finally, as already mentioned above, the approach relies on `call` and `scall` macro-instructions that are only outlined in the submission, and described by very complicated pseudocode and English prose in the companion technical appendix.  I still miss a fully formal description of 1- what instructions the macros expand to, exactly, and 2- what contract they satisfy (in the style of the contract for malloc in section 2 of the technical appendix).
+With the semantic model defined, we would like to show its usefulness by proving
+the correctness of a series of examples that rely
+on well-bracketedness and local-state encapsulation and use the calling
+convention to enforce these properties. However, the programs that
+run on our capability are assembly programs and even program examples that would
+be small in a high-level language become big and unintelligible at this
+low level. Thus to make our program examples intelligible, we introduce a
+series of low-level abstractions in the form of macros.
 We define a number of reusable macros capturing the calling convention as well
 as other conveniences. The macros that utilise the stack assume that it is
 available in register $r_\stk$.
@@ -2548,68 +2543,26 @@ available in register $r_\stk$.
   used in the macros, but it seems like a minor technical detail.}
 
 The macro \texttt{\footnotesize{scall
-    $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}} captures the
-parts of the calling convention related to actually transferring control to some
-adversarial code. Specifically, it pushes the contents of the private registers,
-$\overline{r_{\var{priv}}}$, to the stack. Then it pushes the restoration code
-to the stack. The restoration code will be executed as the first thing upon
-return, where it restores the stack pointer and the old program pointer. After
-the restoration code is pushed to the stack, a copy of the pc is adjusted to
-point to the first instruction after the control has been transferred and then
-pushed to the stack. From the stack pointer, a protected return pointer is
-created by adjusting it to point to the return code and encapsulating it by
-restricting its permission to enter. Next, the stack pointer is restricted to
-the unused part, and the unused part of the stack is cleared, so it does not
-govern any part of the private stack frame which means that it can safely be
-given away. Finally, the non-argument registers are cleared and we jump to $r$.
-Upon return after the restoration code has been executed, the restoration code
-is popped from the stack and the private words we pushed to the stack before the
-call are popped to the private registers. The implementation of \texttt{scall}
-is presented in \figurename~\ref{fig:scall-impl}, and the restoration code is
-presented in \figurename~\ref{fig:scall-rest-code}. The implementation of
-\texttt{scall} uses some of the macros we present later in this section.
-
-The macro \texttt{\footnotesize{mclear $r$}} clears all the memory the
-capability in register $r$ has authority over. It is used by \texttt{scall} to
-clear the unused part of the stack before control is transferred. It should also
-be used to clear the stack before returning to adversarial code. Similarly, the
-macro \texttt{\footnotesize{rclear $R$}} clears all the registers in the set
-$R$. It is also used by \texttt{scall}, and it should also be used before
-returning to adversarial code.
-
-The macros \texttt{\footnotesize{prepstack $r$}} and \texttt{\footnotesize{reqglob
-    $r$}} are the last macros related to the calling convention. The former,
-\texttt{prepstack} should be used when one receives a stack from an unknown
-sure. The \texttt{prepstack} macro first ensures the stack has permission
-read/write-local/execute, and then it adjusts the stack capability, so it
-follows the convention for the stack\footnote{The stack capability should always
-point to the top most word on the stack. A stack received from an unknown source
-can be treated as empty, so the stack capability should point just outside its
-range of authority.}. The other macro, \texttt{reqglob}, ensures that the
-capability in register $r$ is global. This macro should be used on callbacks
-received from unknown sources to ensure that they cannot be derived from the
-stack pointer.
-
-The remaining macros are not directly related to the calling convention, but
-they help making the examples in \sectionname~\ref{sec:examples} intelligible.
-The macros \texttt{\footnotesize{push $r$}} and \texttt{\footnotesize{pop $r$}}
-add and remove elements from the stack. The macro \texttt{\footnotesize{fetch
-    $r$ $\var{name}$}} fetches the capability related to $\var{name}$ from the
-linking table and stores it in register $r$. The macro
-\texttt{\footnotesize{malloc $r$ $n$}} invokes malloc with size argument $n$.
-The \texttt{malloc} macro assumes that a capability for malloc resides in the
-linking table and is basically a fetch of the malloc capability followed by a
-setup of a return pointer. Finally, the macro \texttt{\footnotesize{crtcls
-    $\overline{(x_i,r_i)}$ $r$}} allocates a closure where $r$ points to the
-closure's code and a new environment is allocated (using malloc) where the
-contents of $\overline{r_i}$ is stored. In the code referred to by $r$, an
-implicit fetch happens when an instruction refers to $x_i$.
-
-
-The Appendix contains the implementation of all the macros used in
-\texttt{scall}. The technical appendix~\citep{technical_appendix} contains detailed descriptions
-of all the macros as well as all implementations.
-%\itoplassug{Suggestion: Add the call implementation (and possibly other macros?) in the above?}
+    $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)}} captures
+those parts of the calling convention related to actually transferring control
+to some adversarial code. Specifically, it pushes the contents of the private
+registers, $\overline{r_{\var{priv}}}$, to the stack. Then it pushes the
+``restoration'' code to the stack. The restoration code will be executed as the
+first thing upon return, and restores the stack pointer and the old program
+pointer. After the restoration code is pushed to the stack, a copy of the pc is
+pushed to the stack after it has been adjusted to point to the first instruction
+after the jump. From the stack pointer, a protected return pointer is created by
+adjusting it to point to the return code and encapsulating it by restricting its
+permission to Enter. Next, the stack pointer is restricted to the unused part,
+and the unused part of the stack is cleared, so it does not govern any part of
+the private stack frame which means that it can safely be given away. Finally,
+the non-argument registers are cleared and we jump to $r$. Upon return after the
+restoration code has been executed, the restoration code is popped from the
+stack and the private words we pushed to the stack before the call are popped to
+the private registers. The implementation of \texttt{scall} is presented in
+\figurename~\ref{fig:scall-impl}, and the restoration code is presented in
+\figurename~\ref{fig:scall-rest-code}. The implementation of \texttt{scall} uses
+some of the macros we now present.
 
 \begin{figure}[htb]
   \begin{toplas}
@@ -2682,6 +2635,51 @@ after:
   \end{toplas}
 \end{figure}
 
+The macro \texttt{\footnotesize{mclear $r$}} clears all the memory the
+capability in register $r$ has authority over. It is used by \texttt{scall} to
+clear the unused part of the stack before control is transferred. It should also
+be used to clear the stack before returning to adversarial code. Similarly, the
+macro \texttt{\footnotesize{rclear $R$}} clears all the registers in the set
+$R$. It is also used by \texttt{scall}, and it should also be used before
+returning to adversarial code.
+
+The macros \texttt{\footnotesize{prepstack $r$}} and \texttt{\footnotesize{reqglob
+    $r$}} are the last macros related to the calling convention. The former,
+\texttt{prepstack} should be used when one receives a stack from an unknown
+source. The \texttt{prepstack} macro first ensures the stack has permission
+read/write-local/execute, and then it adjusts the stack capability, so it
+follows the convention for the stack\footnote{The stack capability should always
+point to the top most word on the stack. A stack received from an unknown source
+can be treated as empty, so the stack capability should point just outside its
+range of authority.}. The other macro, \texttt{reqglob}, ensures that the
+capability in register $r$ is global. This macro should be used on callbacks
+received from unknown sources to ensure that they cannot be derived from the
+stack pointer.
+
+The remaining macros are not directly related to the calling convention, but
+they help making the examples in \sectionname~\ref{sec:examples} intelligible.
+The macros \texttt{\footnotesize{push $r$}} and \texttt{\footnotesize{pop $r$}}
+add and remove elements from the stack. The macro \texttt{\footnotesize{fetch
+    $r$ $\var{name}$}} fetches the capability related to $\var{name}$ from the
+linking table and stores it in register $r$. The macro
+\texttt{\footnotesize{malloc $r$ $n$}} invokes malloc with size argument $n$.
+The \texttt{malloc} macro assumes that a capability for malloc resides in the
+linking table and is basically a fetch of the malloc capability followed by a
+setup of a return pointer. Finally, the macro \texttt{\footnotesize{crtcls
+    $\overline{(x_i,r_i)}$ $r$}} allocates a closure where $r$ points to the
+closure's code and a new environment is allocated (using malloc) and the
+contents of $\overline{r_i}$ is stored in the environment. In the code referred
+to by $r$, an implicit fetch happens when an instruction refers to $x_i$.
+
+The Appendix contains the implementation of all the macros used in
+\texttt{scall}. The technical appendix~\citep{technical_appendix} contains more
+detailed descriptions of all the macros as well as all implementations.
+%\itoplassug{Suggestion: Add the call implementation (and possibly other macros?) in the above?}
+We stress that the macros correspond to series of instructions as seen in
+\figurename~\ref{fig:scall-impl} and \ref{fig:scall-rest-code}, and that they
+are introduced for intelligibility. The examples of
+\sectionname~\ref{sec:examples}, the program examples are stated using the
+macros, but the proofs work on the expanded macros.
 \end{toplas}
 
 \begin{toplas}
@@ -2718,7 +2716,7 @@ of \sectionname~\ref{sec:stack-and-return-pointer} are deployed to ensure these
 properties. Since we are dealing with assembly language, there are many details
 to the formal treatment, and therefore we necessarily omit some details in the
 lemma statements. The examples may look deceivingly short, but it is because
-they use the macro instructions described in \sectionname~\ref{subsec:macros}.
+they use the macro instructions described in \sectionname~\ref{sec:macros}.
 The examples would be
 unintelligible without the macros, as each macro expands to multiple basic instructions. The interested reader can find all the
 technical details in the technical appendix~\citep{technical_appendix}.
