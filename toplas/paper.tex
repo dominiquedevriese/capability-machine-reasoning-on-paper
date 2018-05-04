@@ -396,6 +396,7 @@
 \newcommand{\step}[1][]{\rightarrow_{#1}}
 
 % Conv defs
+\newcommand{\linksto}[4]{\ensuremath{#1} \text{ links } \ensuremath{#2} \text{ as } \ensuremath{#3} \text{ to } \ensuremath{#4}}
 \newcommand{\lookingat}[3]{\ensuremath{#1} \text{ is looking at } \ensuremath{#2} \text{ followed by } \ensuremath{#3}}
 \newcommand{\pointstostack}[3]{\ensuremath{#1} \text{ points to stack with } \ensuremath{#2} \text{ used and } \ensuremath{#3} \text{ unused}}
 \newcommand{\nonlocal}[1]{\ensuremath{#1} \text{ is non-local}}
@@ -2585,7 +2586,8 @@ some of the macros we now present.
   push r_stk
 // set up protected return pointer
   move r_0 r_stk
-  lea r_0 $\var{ofc_\var{act}}$ // -5 is the offset to the first instruction of the activation code
+  lea r_0 $\var{ofc_\var{rec}}$ // -5 is the offset to the first instruction of
+the recovery code
   restrict r_0 $\encodePermPair((\local,\entry))$
 // restrict stack capability to unused part
   geta r_t1 r_stk
@@ -2612,7 +2614,7 @@ after:
       r_{\var{args},m},r_{\var{priv},1},\dots, r_{\var{priv},n})$. The
       restoration code is given in \figurename~\ref{fig:scall-rest-code}. The
       variable $\var{ofc}$ is the offset to the label after, and
-      $\var{ofc_\var{act}} = -5$ which is the offset to the first instruction of
+      $\var{ofc_\var{rec}} = -5$ which is the offset to the first instruction of
       the activation record. The set $R = \RegName \setminus
       \{\texttt{pc},\texttt{r\_stk},\texttt{r\_0},r,r_{\var{args},1},\dots,r_{\var{args},m}\}$.}
     \label{fig:scall-impl}
@@ -2683,7 +2685,7 @@ macros, but the proofs work on the expanded macros.
 \end{toplas}
 
 \begin{toplas}
-\section{Reasoning about programs}
+\section{Reasoning about programs on a capability machine}
 \label{sec:reasoning}
 \itoplassug{
   \begin{itemize}
@@ -2704,6 +2706,195 @@ macros, but the proofs work on the expanded macros.
   \end{itemize}
 }
 
+% Anti-reduction lemma
+Out capability machine only allows the final memory of an execution to be
+observed, so naturally the correctness lemmas we prove in
+\sectionname~\ref{sec:examples} are statements about the memory in the halted
+configuration. In order to prove something about the final memory, we encode it
+as a region in a world and show that the initial configuration is in the
+$\observations$-relation w.r.t.\ that world. The $\observations$-relation says
+that if the initial configuration halts successfully, then the memory in the
+halting state must still respect a private future world of the initial world. It
+is, however, bothersome and error prone to try to argue about the entire
+execution in one go. Instead we want to reason modularly, in the sense that we
+only want to reason about parts of the execution at a time. To this end, we
+prove an anti-reduction lemma that essentially says that if we can show that
+an initial configuration, $\Phi$, steps to a configuration $\Phi'$ and
+that $\Phi'$ is in the $\observations$-relation, then $\Phi$ is also in the
+observation relation.
+\begin{lemma}[Anti-reduction for $\observations$]
+\label{lem:anti-red-obs}
+  \begin{align*}
+    & \forall n, n',i,\reg, \reg', \ms, \ms', \ms_r, W, W' \ldotp\\
+    & \quad n' \geq n - i \land W' \futurestr W \land \\
+    & \quad (\forall \ms_f \ldotp (\reg,\ms \uplus \ms_r \uplus \ms_f) \step[i] (\reg',\ms' \uplus \ms_r \uplus \ms_f)) \land \\
+    & \quad \npair[n']{(\reg',\ms')} \in \observations(W') \\
+    & \qquad \Rightarrow \npair{(\reg,\ms \uplus \ms_r)} \in \observations(W)
+  \end{align*}
+\end{lemma}
+
+% FTLR
+The anti-reduction works well when we reason about the execution of known code,
+because we can execute it. When we want to reason about unknown code, the
+anti-reduction lemma does not apply because we do not know what instructions are
+being executed. This is where the FTLR (Theorem~\ref{thm:ftlr}) comes into play.
+As a reminder, the FTLR says that if a capability only has access to safe values
+with respect to a world, then it is safe to use it for execution in the same
+world. The unknown code we consider will be assumed to only have access to safe
+values, which typically means that we assume it has access to a linking table
+with a malloc capability and otherwise consists of instructions. This allows us
+to use the FTLR seeing as Malloc is a safe value cf.
+Lemma~\ref{lem:malloc-in-vr} and instructions are really just integers and they
+are always safe values. Here, it is important to remember that the FTLR gives us
+that the capability for the untrusted code is safe w.r.t. some world, so even
+though we described the usual assumption on the unknown code's memory, it is the
+semantic model of the memory, i.e.\ the world, that the FTLR considers. In order
+to argue that a specific configuration is safe, we need to argue that the
+configuration is safe with respect to the world. That is, we need to argue that
+the memory satisfies the world and the register-file is in the
+$\stdrr$-relation. For instance, in the case where the untrusted code assumes
+control first, we will use the FTLR to show that the capability for the unknown
+code can be used for execution. The unknown code will get access to some known,
+trusted code through a capability in the initial register-file. Because the
+capability is in the register-file, we will have to argue that it is safe which
+we do using Lemma~\ref{lem:anti-red-obs}.
+
+% Many details to get right when reasoning about low-level programs.
+There are many details to get right when programming in assembly. These details
+carry over to proofs about assembly programs, so the proofs become cumbersome.
+It is especially annoying, when the same line of reasoning is applied in
+multiple places. For instance, in $\texttt{scall}$ the setup before the jump to
+the call is always the same and the recovery upon return is also always the
+same, and in both cases the reasoning will be the same every time.
+We deal with this part of the reasoning in the following lemma.
+\begin{lemma}[$\mathtt{scall}$ works]
+  \label{lem:scall-works}
+  If
+  \begin{enumerate}
+  \item \label{item:scall:memsat} $\memSat[n]{\ms}{\revokeTemp{W}}$ 
+  \item $\dom(\ms_f) \cap (\dom(\ms_\stk \uplus \ms_{\mathit{unused}} \uplus \ms)) = \emptyset$
+  \item \label{item:scall:stack} $(\reg,\ms) \text{ is looking at }
+    \mathtt{scall}\;r(\overline{r_{\mathit{arg}}},
+    \overline{r_{\mathit{priv}}}) \text{ followed by }
+    c_{\mathit{next}}$\footnote{Defined in the appendix.}
+  \item $\reg \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}$ unused}$
+  \item \label{item:scall:hyp-callee} \emph{Hyp-Callee} If
+    \begin{itemize}
+    \item $\dom(\ms_{\mathit{unused}}) = \dom(\ms_{\mathit{rec}}
+      \uplus \ms_{\mathit{unused}}')$,
+    \item $W' =
+      \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk\uplus\ms_{\mathit{rec}} \uplus \ms_f),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}'))]$,
+    \item $\memSat[n-1]{\ms''}{W'}$
+    \item $\reg' \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}}'$ unused}$
+    \item $\reg'= \reg_0[\pcreg\mapsto\updatePcPerm{\reg(r)},
+      \overline{r_{\mathit{arg}}} \mapsto \reg(\overline{r_{\mathit{arg}}}),r_0
+      \mapsto c_{\mathit{ret}}, r_\stk \mapsto c_\stk, r \mapsto \reg(r)]$ 
+    \item $\npair[n-1]{c_{\mathit{ret}}} \in \stdvr(W')$
+    \item $\npair[n-1]{c_\stk} \in \stdvr(W')$
+    \end{itemize}
+
+    then we have that $\npair[n-1]{(\reg',\ms'')} \in \observations(W')$
+  \item \label{item:scall:hyp-cont} \emph{Hyp-Cont} If
+    \begin{itemize}
+    \item $n' \leq n-2$
+    \item $W'' \futurewk \revokeTemp{W}$
+    \item $\memSat[n']{\ms''}{\revokeTemp{W''}}$ 
+    \item for all $r$, we have that:
+      \begin{equation*}
+        \reg'(r)
+        \begin{cases}
+          = c_{\mathit{next}} &\text{ if } r = \pcreg\\
+          = \reg(r)&\text{ if } r \in \overline{r_{\mathit{priv}}}\\
+          \in \stdvr(\revokeTemp{W''}) &\text{ if $\reg'(r)$ is a global capability and } r \not\in \{\pcreg,\overline{r_{\mathit{priv}}}, r_\stk\}
+        \end{cases}
+      \end{equation*}
+    \item $\reg' \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}''$ unused}$ for some $\ms_{\mathit{unused}}''$
+    \end{itemize}
+
+    then we have that $\npair[n']{(\reg',\ms'' \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{unused}}'')} \in \observations(W'')$
+  \end{enumerate}
+  Then 
+  \begin{itemize}
+    \item $\npair{(\reg,\ms \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{unused}})} \in \observations(W)$
+  \end{itemize}
+
+  % Note: $k_{\mathit{act-rec}}$ is the (standard) size of an activation record (2
+  % words for stack pointer and return pointer and some fixed number of words for
+  % the standard return instructions).
+\end{lemma}
+The essence of the \texttt{scall} lemma is to show \texttt{scall} is executed in
+a reasonable state (\ref{item:scall:memsat}-\ref{item:scall:stack}), it is safe
+to actually transfer control to the callee (\ref{item:scall:hyp-callee}), and that
+the return capability given to the callee is safe (\ref{item:scall:hyp-cont}),
+which corresponds to showing that the remainder of the program is safe to execute.
+
+In the common case \texttt{scall} is used to invoke untrusted code, and we will
+only have very general assumptions about that code such as it has contains a
+capability for a linking table with malloc in it and all other addresses are
+instructions. These values are all safe which allows us to conclude that the
+read condition holds for the untrusted code which allows us to use the
+Theorem~\ref{thm:ftlr} to conclude that it can be safely executed if the memory
+and the register-file are safe. By assumption in Hyp-Callee, the memory is safe,
+so it suffices to show that the register-file contains safe values, which
+amounts to showing that the arguments in the call are safe.
+
+By using Lemma~\ref{lem:scall-works} to reason about \texttt{scall}, the proofs
+become agnostic to the actual implementation of \texttt{scall}. In other words,
+should we change the implementation of \texttt{scall}, then we just need to
+prove that Lemma~\ref{lem:scall-works} holds for the new implementation in order
+to gain that all our results still hold true. 
+
+The \texttt{malloc} instruction is also used often, so we also prove
+Lemma~\ref{lem:malloc-works} to help reason about it. The structure of the
+\texttt{malloc} lemma is close to that of the \texttt{scall} lemma. It also has
+requirements on the configuration just before \texttt{malloc} is executed
+(\ref{item:malloc:looking-at}-\ref{item:malloc:malloc-sat}) as well as
+requirements on the execution afterwards (\ref{item:malloc:hyp-cont}). It does,
+however, not have any requirements on the callee as we can rely on the
+\texttt{malloc} specification to reason about this part once and for all.
+\begin{lemma}[$\mathtt{malloc}$ works]
+  \label{lem:malloc-works}
+  If
+  \begin{enumerate}
+  \item \label{item:malloc:looking-at}\lookingat{(\reg,\ms)}{\mathtt{malloc}\;r\;k}{c_{\var{next}}}
+  \item $k \geq 0$
+  \item \linksto{(\reg,\ms)}{\malloc}{k}{c_\malloc}
+  \item $c_\malloc$ satisfies the $\malloc$ specification with $\iota_{\malloc,0}$
+  \item $W \futurestr [i \mapsto\iota_{\malloc,0}]$
+  \item $\memSat{\ms}{W}$
+  \item $\ms = \ms' \uplus \ms_{\var{footprint}}$
+  \item \label{item:malloc:malloc-sat} $\memSat{\ms_{\var{footprint}}}{[i \mapsto W(i)]}$
+  \item \label{item:malloc:hyp-cont} \emph{Hyp-Cont}
+    If
+    \begin{itemize}
+    \item $n' \leq n-1$
+    \item $\iota_\malloc \futurewk W(i)$
+    \item $\memSat[n']{\ms_{\var{footprint}}' \uplus \ms'}{W[i \mapsto \iota_\malloc]}$
+    \item $\memSat[n']{\ms_{\var{footprint}}'}{[i \mapsto \iota_\malloc]}$
+      \begin{equation*}
+        \reg'(r') = 
+        \begin{cases}
+          c_{\var{next}} & r' = \pcreg \\
+          ((\rwx,\glob),\start,\addrend,\addr) & r' = r \\
+          \reg(r) & r' \not\in \RegName_t \union \{\pcreg, r, r_1\}
+        \end{cases}
+      \end{equation*}
+    \item $\addrend - \start = k - 1$
+    \item $\dom(\ms_{\var{alloc}}) = [\start,\addrend]$
+    \item $\forall \addr \in [\start,\addrend]\ldotp \ms_{\var{alloc}}(\addr) = 0$
+    \end{itemize}
+    Then we have $\npair[n']{(\reg',\ms' \uplus \ms_{\var{footprint}}'  \uplus \ms_{\var{alloc}})} \in \observations(W[\iota_\malloc])$
+  \end{itemize}
+  Then
+  \[
+    \npair{(\reg,\ms)} \in \observations(W)
+  \]
+\end{lemma}
+In the technical appendix~\citep{technical_appendix}, we also define a lemma for
+the macro used to create closures, \texttt{crtcls}. We stress that these lemmas
+are conveniences and are not strictly necessary to reason about programs for the
+capability machine. In principle, one could reason solely in the semantic model
+without the use of these lemmas, but that would lead to a lot of repetition.
 \end{toplas}
 
 \section{Examples}
@@ -3863,5 +4054,41 @@ respectively.
     m'(\flag) = 0
   \]  
 \end{lemma}
+
+\subsection{Reasoning about programs definitions}
+\begin{definition}
+  We say that $(\reg,\ms) \text{ is looking at } [i_0,\cdots,i_n] \text{ followed by } c_{\mathit{next}}$ 
+  iff
+  \begin{itemize}
+  \item $\reg(\pcreg) = ((p,g),b,e,a)$
+  \item $p = \rwx$, $p = \exec$, or $p = \rwlx$
+  \item $a+n\leq e$, $b\leq a\leq e$
+  \item $\ms(a+0,\cdots,a+n) = [i_0,\cdots,i_n]$
+  \item $c_{\mathit{next}} = ((p,g),b,e,a+n+1)$
+  \end{itemize}
+\end{definition}
+
+\begin{definition}
+  We say that ``\linksto{(\reg,\ms)}{\var{key}}{j}{c_\malloc}'' 
+  iff
+  \begin{itemize}
+  \item $\reg(pc) = \stdcap$
+  \item $\ms(\start) = ((\_,\_),\start_\link,\_,\_)$
+  \item $\ms(\start_\link+j) = c$
+  \end{itemize}
+\end{definition}
+
+\begin{definition}
+  We say that $\reg \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}$ unused}$
+  iff
+  \begin{itemize}
+  \item $\reg(r_\stk) =((\rwlx,\local),b_\stk,e_\stk,a_\stk)$
+  \item $\dom(\ms_{\mathit{unused}}) = [a_\stk+1,\cdots,e_\stk]$
+  \item $\dom(\ms_\stk) = [b_\stk,\cdots,a_\stk]$ \lau{Maybe make it clear what happens when $\ms_\stk$ is empty}
+  \item $b_\stk - 1\leq a_\stk$
+  \end{itemize}
+\end{definition}
+
+
 
 \end{document}
