@@ -1126,6 +1126,7 @@ $\Phi$. The instructions $\fail$ and $\halt$ obviously fail and halt respectivel
 simply modifies the register file as requested and updates the $\pcreg$ to the
 next instruction using the meta-function $\stdUpdatePc{}$.
 
+\dominique{Follow order of figure in discussion?}
 The $\load{}{}$ instruction loads the contents of the requested memory location
 into a register, but only if the capability has appropriate authority (i.e.\
 read permission and an appropriate range). $\restricttwo{}{}$ updates a
@@ -1178,6 +1179,7 @@ from being passed across module boundaries. Such a restriction fundamentally
 breaks our calling convention, since we pass around local return pointers and
 stack capabilities. However, CHERI's CCall is not implemented in hardware, but
 in software, precisely to allow experimenting with alternative models like ours.
+\dominique{Update to CHERI's new ccall story.}
 
 % Contrary to more traditional assembly languages, capability machines do not 
 % allow literal addresses to appear as part of instructions. This means that we
@@ -1191,7 +1193,7 @@ further in the next section.
 For full details on the linking table, we refer to the technical
 appendix~\citep{technical_appendix}.} \itoplas{(Reviewer A, esop suggest explaining the
   linking model)\\}
-\itoplassug{Suggestion: We also have the flag table ussed
+\itoplassug{Suggestion: We also have the flag table used
   for assertions, maybe we should add a description of it here.\\}
 % \itoplassug{Reviewer C, popl, would have liked a discussion of the relationship
 %   between this capability machines and old capability machines from the
@@ -1454,13 +1456,11 @@ it. Clear non-argument registers.
   presentation to make it easy to distinguish between the parties involved, we
   present the callee as some adversarial code that we do not trust. In reality,
   the callee could be well-behaved and wish to ensure well-bracketed calls and
-  local-state encapsulation. The calling convention puts no restriction on the
-  callee that the caller itself does not follow, so by following the calling
-  convention, the callee would also get well-bracketedness and local-state
-  encapsulation. Generally, the calling convention ensures the two properties
-  for anyone who employs it, so it scales to the setting where multiple
-  distrusting parties need to invoke each other and each of them can protect
-  themself by using the calling convention.
+  local-state encapsulation as well. The calling convention puts no restriction
+  on the callee that the caller itself does not follow, so by following the
+  calling convention, the callee can also obtain those guarantees. In other
+  words, the calling convention is modular and scales to scenario's with multiple
+  distrusting parties invoking each other.
 \end{toplas}
 
 \section{Logical Relation}
@@ -2224,9 +2224,9 @@ can be updated to point anywhere in their range, so they must be safe as a
 program counter (in the $\stder$-relation) no matter the current address.
 \itoplassug{The range of an executable capability can also be updated, so they must also be safe as program counter no matter what their range of authority is reduced to.}
 In contrast, enter capabilities are opaque and can only be used to jump to the
-address they point to.
-\begin{toplas}
-  As enter capabilities are the only capabilities that have to use the address they point to, it is natural that the $\entryCond{}$ is also the only permission-based condition that depends on the current address of the capability.
+address they point to.%
+\begin{toplas}%
+  This is why the $\entryCond{}$ depends on the current address of the capability, unlike for other types of capabilities.
 \end{toplas}
 They also change permission when jumped to, so we require
 them to be safe as a program counter after the permission is changed to $\exec$.
@@ -2288,37 +2288,34 @@ authority is capability safe as a program counter.
     $\Phi = (\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\ms \uplus
     \ms_f)$ assume $\Phi \step[i]
     (\halted,\mem')$ and show there exists $W' \futurestr W$ that part of
-    $\mem'$ satisfies. First observe that $i \neq 0$ as $\Phi$ is a non-halting
+    $\mem'$ satisfies. First observe that $i \neq 0$ as $\Phi$ is a non-halted
     configuration, so $\Phi$ takes at least one step, i.e.\ $\Phi \step
     \Phi' \step[i-1] (\halted,\mem')$.
 
-    The rest of the proof roughly consists of two parts: (1) Argue that $\Phi'$
-    is consistent with the world in the sense that the register-file and memory
-    still respect the world. (2) Argue that the rest of the execution respects
-    the world. The second case relies on where the $\pcreg$ in $\Phi'$ comes
-    from. If the step to $\Phi'$ was a jump, then use the fact that the
-    register-file contains safe values in $\Phi$. On the other hand, if the
-    $\pcreg$ was just incremented, then we need to apply the induction
-    hypothesis, which is possible as all of the permission based conditions are
-    downwards closed. For instance, in the case where the $\pcreg$ is
-    read-execute, i.e.\ $\perm = \exec$, we also assume
-    $\npair{(\start,\addrend)} \in \readCond{}(\gl)(W)$ which entails
-    $\npair[n'-1]{(\start,\addrend)} \in \readCond{}(\gl)(W)$ and hence allows us to
-    use the induction hypothesis. In order to argue (1), we just need to
-    consider the configurations the operational semantics allows us to get to
-    from the initial state. If we consider the memory in $\Phi'$, then it either
-    (a) remains unchanged or (b) one address has been updated and in that case,
-    the register-file contains an appropriate capability for writing. The latter
-    case (b) corresponds to the first step executing a $\texttt{store}$
-    instruction, and the former (a) corresponds to any other instruction. In
-    case (a), we can conclude that the memory still respects the world just by
-    downwards closure of memory satisfaction. In the other case, (b), we use an
-    auxiliary lemma called \emph{Conditions for \texttt{store} are sufficient}
-    (see the appendix, Lemma~\ref{lem:conds-store-stuff}) that states that given
-    all the assumptions we have so far, the updated memory still satisfies
-    the world. All the possible changes to the register-file correspond to the
-    effect of some instruction, so for each non-trivial instruction we use a
-    lemma appropriate for that instruction.
+    The rest of the proof considers the different ways the step $\Phi \step
+    \Phi'$ could have occurred, depending on the instruction being executed. For
+    each of these cases, we argue (1) that $\Phi'$ is consistent with the world
+    in the sense that the register-file and memory still respect the world and
+    (2) that the rest of the execution respects the world. Depending on where
+    the $\pcreg$ in $\Phi'$ comes from, the second result is proven in one of
+    two ways. If the step to $\Phi'$ was a jump, then the new $\pcreg$ is one of
+    the safe values in $\Phi$'s registers and the value relation can be used to
+    argue that those can be safely jumped to. On the other hand, if the $\pcreg$
+    was just incremented, then we can apply the induction hypothesis.
+
+    In order to argue (1), we consider what configurations the operational
+    semantics allows us to get to from the initial state. If we consider the
+    memory in $\Phi'$, then it either (a) remains unchanged or (b) one address
+    has been updated and in that case, the register-file contains an appropriate
+    capability for writing. The latter occurs when the instruction being
+    executed is a $\texttt{store}$, and otherwise the former. In case (a), we
+    can conclude that the memory still respects the world just by downwards
+    closure of memory satisfaction. In case (b), we use an auxiliary lemma that
+    uses the safety of the write capability used by the $\texttt{store}$
+    instruction to show that the updated memory satisfies the world. To show
+    that the updated register-file is safe, we consider the changes made to it
+    by all instructions in separate lemmas and show that they all preserve
+    safety of the register file.
 
     The complete proof can be found in the technical appendix~\citep{technical_appendix}.
   \end{proof}
@@ -3657,7 +3654,7 @@ language, which clearly implies a general form of control-flow correctness,
 while we define a logical relation that can be used to reason about
 specific programs that rely on well-bracketed control flow.
 
-\lau{Reviewer C, esop, would like a better comparison with \citec{Devriese:2016ObjCap} (but also admits that they did not follow the below discussion).}
+\lau{Reviewer C, esop, would like a better comparison with \citet{Devriese:2016ObjCap} (but also admits that they did not follow the below discussion).}
 Our logical relation is a unary, step-indexed Kripke logical relation with
 recursive worlds
 \citep{pitts_operational_1998,Appel:2001:IMR:504709.504712,Ahmed2004semantics,Birkedal:2011:SKM:1926385.1926401},
