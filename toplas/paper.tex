@@ -2368,11 +2368,15 @@ examples depend on these properties for correctness.
   malloc must satisfy. The specification is a bit technical, but really just
   expresses standard expectations of how malloc should behave and this section
   can safely be skipped on first read.
+  The malloc specification is presented in \figurename~\ref{fig:malloc-spec},
+  and in the following, we will connect the description of the specification by
+  referring to the item described.
 
 We require a global capability for
 invoking malloc (because if the capability were local, then a program with
 access to malloc would have to give up this access when invoking untrusted
-code). The capability is assumed to have enter permission, so that malloc can
+code, \ref{item:malloc-spec:eg}). The capability is assumed to have enter
+permission (\ref{item:malloc-spec:eg}), so that malloc can
 protect its internal state even when the capability is shared with untrusted
 code.
 
@@ -2392,9 +2396,9 @@ current invariants in an executing system, we will use the semantic model
 defined in Section~\ref{sec:logical-relation} to express our specification.
 
 To allow malloc implementations to rely on internal state and invariants for
-that state, we assume an initial region for malloc. The region is assumed to be
+that state, we assume an initial region for malloc (\ref{item:malloc-spec:reg}). The region is assumed to be
 permanent (since safety of the global malloc capability will depend on its
-presence).
+presence, \ref{item:malloc-spec:perm}).
 % DOMI: I don't understand what the following uncommented text means
 % This also means that the malloc specification should guarantee that
 % use of malloc is safe at any point of execution no matter who has invoked it. To
@@ -2409,16 +2413,16 @@ given world. We require that the accepted memory segments only depend on the
 presence of the malloc region itself, i.e.\ that in any world, the same memory
 segments are accepted if we remove all regions except the malloc region. This
 property should continue to hold throughout execution, so it must hold true for
-any private future region of the initial malloc region.
+any private future region of the initial malloc region (\ref{item:malloc-spec:independent}).
 
 The malloc specification then dictates what malloc should do when invoked in a
 memory with its internal state valid according to the malloc region (some future
 evolution of the initial malloc region). Malloc is invoked with a length
 argument. If this argument is invalid, that is, a negative integer or a
-capability, we simply require malloc to fail. This part of the specification
+capability, we simply require malloc to fail (\ref{item:malloc-spec:fail}). This part of the specification
 does not actually rely on the malloc region: for simplicity, we assume malloc
 does not need its internal state to check the argument. When malloc is invoked
-with a valid length, then it should return a fresh memory segment of the correct
+with a valid length (\ref{item:malloc-spec:correct-exec}), then it should return a fresh memory segment of the correct
 length. This segment is required to come from the footprint of malloc, i.e.\ the
 memory owned by the malloc region before the call. After malloc returns, we
 require the malloc region to have evolved (according to the public future world
@@ -2431,50 +2435,58 @@ of the register-file unchanged after the call. This allows the caller to keep
 private capabilities in the register file, without having to protect them by
 storing them in a private stack frame.
 
-\begin{definition}[Malloc Specification]
-  \label{spec:malloc}
-  $c_\malloc$ satisfies the specification for malloc iff the following conditions hold:
-  \begin{itemize}
-  \item $c_\malloc = ((\entry,\glob),\_,\_,\_)$
-  \item There exists a $\iota_{\malloc,0}$ such that
-    \begin{itemize}
-    \item $\iota_{\malloc,0}.v = \perma$
-    \item For all $\iota' \futurestr \iota_{\malloc,0}, W,i$ with $W(i)=\iota'$, we have that
-      \begin{equation*}
-        \iota'.H (\iota'.s) (\xi^{-1}(W)) = \iota'.H (\iota'.s) (\xi^{-1}([i \mapsto W(i)]))
-      \end{equation*}
-    \item  
-        For all $\Phi \in \ExecConfs$, $\ms_{\var{footprint}}, \hsframe \in \HeapSegments$, $i, n, \size \in \nats$, $w_{\var{ret}} \in \Words$, $\iota_\malloc \futurestr \iota_{\malloc,0}$, we have that
-      \[
-      \begin{array}{l}
-        \text{If }
-        \memheap = \ms_{\var{footprint}} \uplus \hsframe \land \heapSat[\ms_{\var{footprint}}]{n}{[i \mapsto \iota_\malloc]} \land \\
-        \quad\memreg(r_1) = \size \land \size \geq 0 \land  \memreg(r_0) = w_{\var{ret}} \land \\
-        \quad \memreg(\pcreg) = \updatePcPerm{c_\malloc} \\ %and this needs to change with ABI.
-        \text{Then, } \\
-        \quad \exists \Phi' \in \ExecConfs \ldotp \exists \ms_{\var{footprint}}', \ms_{\var{alloc}} \in \HeapSegments\ldotp\\
-        \qquad \exists j \in \nats \ldotp j > 0 \land \exists b',e'\in \Addrs \ldotp \exists \iota_\malloc' \in \Regions \ldotp \\
-        \qquad \quad \Phi \step[j] \Phi' \land \\
-        \qquad \quad \memheap[\Phi']=\ms_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land\\
-        \qquad \quad \iota_{\malloc}' \futurewk \iota_\malloc \land \\
-        \qquad \quad \heapSat[\ms_{\var{footprint}}']{n-j}{[i \mapsto \iota_\malloc']} \land \\
-        \qquad \quad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land \\
-        \qquad \quad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{w_{\var{ret}}}}\update{r_1}{((\rwx,\glob),b',e',b')} \land \\
-        \qquad \quad \size - 1 = e'-b'
-      \end{array}
-      \]
-    \item
-      For all $\Phi \in \ExecConfs$,
-      \[  
+\begin{figure}[htb]
+  \centering
+  \begin{definition}[Malloc Specification]
+    \label{spec:malloc}
+    $c_\malloc$ satisfies the specification for malloc iff the following
+    conditions hold:
+    \begin{enumerate}
+    \item \label{item:malloc-spec:eg} $c_\malloc = ((\entry,\glob),\_,\_,\_)$
+    \item \label{item:malloc-spec:reg} There exists a $\iota_{\malloc,0}$ such that
+      \begin{enumerate}
+      \item \label{item:malloc-spec:perm} $\iota_{\malloc,0}.v = \perma$
+      \item \label{item:malloc-spec:independent} For all $\iota' \futurestr \iota_{\malloc,0}, W,i$ with
+        $W(i)=\iota'$, we have that
+        \begin{equation*}
+          \iota'.H (\iota'.s) (\xi^{-1}(W)) = \iota'.H (\iota'.s) (\xi^{-1}([i \mapsto W(i)]))
+        \end{equation*}
+      \item \label{item:malloc-spec:correct-exec} For all $\Phi \in \ExecConfs$, $\ms_{\var{footprint}}, \hsframe \in
+        \HeapSegments$, $i, n, \size \in \nats$, $w_{\var{ret}} \in \Words$,
+        $\iota_\malloc \futurestr \iota_{\malloc,0}$, we have that
+        \[
+          \begin{array}{l}
+            \text{If }
+            \memheap = \ms_{\var{footprint}} \uplus \hsframe \land \heapSat[\ms_{\var{footprint}}]{n}{[i \mapsto \iota_\malloc]} \land \\
+            \quad\memreg(r_1) = \size \land \size \geq 0 \land  \memreg(r_0) = w_{\var{ret}} \land \\
+            \quad \memreg(\pcreg) = \updatePcPerm{c_\malloc} \\ %and this needs to change with ABI.
+            \text{Then, } \\
+            \quad \exists \Phi' \in \ExecConfs \ldotp \exists \ms_{\var{footprint}}', \ms_{\var{alloc}} \in \HeapSegments\ldotp\\
+            \qquad \exists j \in \nats \ldotp j > 0 \land \exists b',e'\in \Addrs \ldotp \exists \iota_\malloc' \in \Regions \ldotp \\
+            \qquad \quad \Phi \step[j] \Phi' \land \\
+            \qquad \quad \memheap[\Phi']=\ms_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land\\
+            \qquad \quad \iota_{\malloc}' \futurewk \iota_\malloc \land \\
+            \qquad \quad \heapSat[\ms_{\var{footprint}}']{n-j}{[i \mapsto \iota_\malloc']} \land \\
+            \qquad \quad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land \\
+            \qquad \quad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{w_{\var{ret}}}}\update{r_1}{((\rwx,\glob),b',e',b')} \land \\
+            \qquad \quad \size - 1 = e'-b'
+          \end{array}
+        \]
+      \item \label{item:malloc-spec:fail} For all $\Phi \in \ExecConfs$,
+        \[
           \begin{array}{l}
             \text{If } (\memreg(r_1) \notin \ints \vee \memreg(r_1) < 0) \land
             \memreg(\pcreg) = \updatePcPerm{c_\malloc} \\
             \text{Then } \exists j \in \nats \ldotp \Phi \step[j] \failed
           \end{array}
-      \]
-\end{itemize}
-\end{itemize}
-\end{definition}
+        \]
+      \end{enumerate}
+    \end{enumerate}
+  \end{definition}
+  
+  \caption{The specification of malloc.}
+  \label{fig:malloc-spec}
+\end{figure}
 As described previously, the specification of malloc ensures that malloc has no
 capabilities pointing \emph{out} of malloc. It does, however, not say anything about
 capabilities that point \emph{in} to malloc. We obviously can not
