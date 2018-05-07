@@ -2365,12 +2365,13 @@ examples depend on these properties for correctness.
 
   Our semantic model is not specific to a particular implementation of malloc,
   so rather than providing the implementation, we provide a specification that
-  malloc must satisfy. The specification is a bit technical, but really just
-  expresses standard expectations of how malloc should behave and this section
-  can safely be skipped on first read.
-  The malloc specification is presented in \figurename~\ref{fig:malloc-spec},
-  and in the following, we will connect the description of the specification by
-  referring to the item described.
+  malloc must satisfy. The specification expresses standard expectations of how
+  malloc should behave, but making it realistic requires using some of the
+  technical machinery from the logical relation. As such, this section is a bit
+  technical and can safely be skipped on first read. The malloc specification is
+  presented in \figurename~\ref{fig:malloc-spec}, and in the following, we will
+  connect the description of the specification by referring to the item
+  described.
 
 We require a global capability for
 invoking malloc (because if the capability were local, then a program with
@@ -2380,20 +2381,20 @@ permission (\ref{item:malloc-spec:eg}), so that malloc can
 protect its internal state even when the capability is shared with untrusted
 code.
 
-In addition to these syntactic requirements, we also specify standard intuitive
-expectations for how malloc behaves. When malloc is invoked with a length
-argument, then it will return a capability for a fresh piece of memory of that
-size. It should be fresh in the sense that malloc has not already given out a
-capability for any part of that memory before and will not do so in the future.
-Finally, we also need to make sure that malloc behaves correctly when given a
-nonsensical length argument such as a negative integer or a capability. However,
+In addition to these syntactic requirements, we also specify standard
+expectations for how malloc behaves. Intuitively, we require that when malloc is
+invoked with a length argument, then it will return a capability for a fresh
+piece of memory of that size. It should be fresh in the sense that malloc has
+not already given out a capability for any part of that memory before and will
+not do so in the future. Also, when invoked with a nonsensical length argument
+such as a negative integer or a capability, malloc should simply fail. However,
 formulating these requirements is harder than one might expect. The problem is
-that we want to allow malloc implementations to rely on internal state and
-invariants on that state and it is reasonable to expect both this internal state
-and the invariants to change over time. To express that malloc should behave
-according to its specifications, but only if its internal state satisfies its
-current invariants in an executing system, we will use the semantic model
-defined in Section~\ref{sec:logical-relation} to express our specification.
+that a realistic implementation of malloc needs to rely on internal state that
+changes after every invocation, and relies on invariants on that state. We can
+only expect that malloc behaves according to its specification, if its internal
+state satisfies the current state of the invariants in an executing system. To
+express this, we will use the semantic model defined in
+Section~\ref{sec:logical-relation}.
 
 To allow malloc implementations to rely on internal state and invariants for
 that state, we assume an initial region for malloc (\ref{item:malloc-spec:reg}). The region is assumed to be
@@ -2417,18 +2418,19 @@ any private future region of the initial malloc region (\ref{item:malloc-spec:in
 
 The malloc specification then dictates what malloc should do when invoked in a
 memory with its internal state valid according to the malloc region (some future
-evolution of the initial malloc region). Malloc is invoked with a length
-argument. If this argument is invalid, that is, a negative integer or a
-capability, we simply require malloc to fail (\ref{item:malloc-spec:fail}). This part of the specification
-does not actually rely on the malloc region: for simplicity, we assume malloc
-does not need its internal state to check the argument. When malloc is invoked
-with a valid length (\ref{item:malloc-spec:correct-exec}), then it should return a fresh memory segment of the correct
-length. This segment is required to come from the footprint of malloc, i.e.\ the
-memory owned by the malloc region before the call. After malloc returns, we
-require the malloc region to have evolved (according to the public future world
-relation) to a new state where the new footprint is disjoint from the allocated
-memory. This implies that future invocations of malloc can never return
-previously-allocated memory. 
+evolution of the initial malloc region). If malloc is invoked with an invalid
+length argument (that is, a negative integer or a capability), then we simply
+require malloc to fail (\ref{item:malloc-spec:fail}). This part of the
+specification does not actually rely on the malloc region: for simplicity, we
+assume malloc does not need its internal state to check the argument. When
+malloc is invoked with a valid length (\ref{item:malloc-spec:correct-exec}),
+then it should return a fresh memory segment of the correct length. This segment
+is required to come from the footprint of malloc, i.e.\ the memory owned by the
+malloc region before the call. After malloc returns, we require the malloc
+region to have evolved (according to the public future world relation) to a new
+state where the new footprint is disjoint from the allocated memory. This
+implies that future invocations of malloc can never return previously-allocated
+memory.
 
 For convenience, we also require that malloc returns the non-argument registers
 of the register-file unchanged after the call. This allows the caller to keep
@@ -2489,7 +2491,7 @@ storing them in a private stack frame.
 \end{figure}
 As described previously, the specification of malloc ensures that malloc has no
 capabilities pointing \emph{out} of malloc. It does, however, not say anything about
-capabilities that point \emph{in} to malloc. We obviously can not
+capabilities that point \emph{in} to malloc. We obviously cannot
 allow this if we want to trust malloc. We have chosen to keep the malloc
 specification simple and let this assumption be in the lemmas that use malloc.
 It is sufficient for these lemmas to require that there are no outside
@@ -2506,20 +2508,20 @@ capability is always safe in a world with the malloc region:
   $\npair{c_\malloc} \in \stdvr(W)$ for all $n$.
 \end{lemma}
 
-The focus of this work is not to give a definitive specification and
-implementation of malloc which is why we do not give a malloc implementation. We
-are, however, confident that it is possible to make an implementation of malloc
-that satisfies the malloc specification in Definition~\ref{spec:malloc}. There
-are in particular two simplifications in our system that makes things easy:
-First, we do not consider deallocation of memory which means that the data
-structure malloc uses to keep track of free memory does not have to handle
-reclaimed memory. Second, the malloc specification does not permit malloc to run
-out of memory and thus refuse allocation. This is possible on our simple
-capability machine because it has an infinite address space. An initial
-capability with an infinite range of authority would of course need to be part
-of malloc, but it could also double as the data structure that keeps track of
-free memory. \itoplassug{If we have references for malloc being difficult, we
-  could add that to the text.}
+The reason we allow trusted code and adversary to invoke malloc is just to make
+our work more realistic, but we are otherwise not interested in its details. As
+such, we do not give a malloc implementation. We are, however, confident that it
+is possible to make an implementation of malloc that satisfies the malloc
+specification in Definition~\ref{spec:malloc}. There are in fact two
+simplifications in our system that makes things easier: First, we do not consider
+deallocation of memory which means that the data structure malloc uses to keep
+track of free memory does not have to handle reclaimed memory. Second, the
+malloc specification does not permit malloc to run out of memory and thus refuse
+allocation. This is possible on our simple capability machine because it has an
+infinite address space. An initial capability with an infinite range of
+authority would of course need to be part of malloc, but it could also double as
+the data structure that keeps track of free memory. % \itoplassug{If we have
+  % references for malloc being difficult, we could add that to the text.}
 %\itoplassug{Add the assumption that the malloc capability in examples
 %  satisfies specification.}
 
@@ -2528,11 +2530,11 @@ free memory. \itoplassug{If we have references for malloc being difficult, we
 %\itoplassug{Add examples of macros to this section to make it clear what we mean by macros.\\}
 %\itoplassug{Reviewer C, ESOP, asks for high-level specifications for the macros in the style of malloc. I am not sure we want to actually include this in the submission, so it is maybe not here we should put our attention. (see review in tex comment)\\}
 % Finally, as already mentioned above, the approach relies on `call` and `scall` macro-instructions that are only outlined in the submission, and described by very complicated pseudocode and English prose in the companion technical appendix.  I still miss a fully formal description of 1- what instructions the macros expand to, exactly, and 2- what contract they satisfy (in the style of the contract for malloc in section 2 of the technical appendix).
-With the semantic model defined, we would like to show its usefulness by proving
+With the calling convention and logical relation defined, we would like to show its usefulness by proving
 the correctness of a series of examples that rely
 on well-bracketedness and local-state encapsulation and use the calling
 convention to enforce these properties. However, the programs that
-run on our capability are assembly programs and even program examples that would
+run on our capability machine are assembly programs and even program examples that would
 be small in a high-level language become big and unintelligible at this
 low level. Thus to make our program examples intelligible, we introduce a
 series of low-level abstractions in the form of macros.
@@ -2549,20 +2551,20 @@ to some adversarial code. Specifically, it pushes the contents of the private
 registers, $\overline{r_{\var{priv}}}$, to the stack. Then it pushes the
 ``restoration'' code to the stack. The restoration code will be executed as the
 first thing upon return, and restores the stack pointer and the old program
-pointer. After the restoration code is pushed to the stack, a copy of the pc is
+counter. After the restoration code is pushed to the stack, a copy of the pc is
 pushed to the stack after it has been adjusted to point to the first instruction
 after the jump. From the stack pointer, a protected return pointer is created by
 adjusting it to point to the return code and encapsulating it by restricting its
-permission to Enter. Next, the stack pointer is restricted to the unused part,
-and the unused part of the stack is cleared, so it does not govern any part of
-the private stack frame which means that it can safely be given away. Finally,
-the non-argument registers are cleared and we jump to $r$. Upon return after the
-restoration code has been executed, the restoration code is popped from the
-stack and the private words we pushed to the stack before the call are popped to
-the private registers. The implementation of \texttt{scall} is presented in
+permission to $\entry$. Next, the stack pointer is restricted to the unused
+part, and the unused part of the stack is cleared (as discussed in
+Section~\ref{sec:stack-and-return-pointer}). Finally, the non-argument registers
+are cleared and we jump to $r$. Upon return after the restoration code has been
+executed, the restoration code is popped from the stack and the private words we
+pushed to the stack before the call are popped to the private registers. The
+implementation of \texttt{scall} is presented in
 \figurename~\ref{fig:scall-impl}, and the restoration code is presented in
 \figurename~\ref{fig:scall-rest-code}. The implementation of \texttt{scall} uses
-some of the macros we now present.
+some of the macros we present next.
 
 \begin{figure}[htb]
   \begin{toplas}
@@ -2650,7 +2652,7 @@ The macros \texttt{\footnotesize{prepstack $r$}} and \texttt{\footnotesize{reqgl
 source. The \texttt{prepstack} macro first ensures the stack has permission
 read/write-local/execute, and then it adjusts the stack capability, so it
 follows the convention for the stack\footnote{The stack capability should always
-point to the top most word on the stack. A stack received from an unknown source
+point to the topmost word on the stack. A stack received from an unknown source
 can be treated as empty, so the stack capability should point just outside its
 range of authority.}. The other macro, \texttt{reqglob}, ensures that the
 capability in register $r$ is global. This macro should be used on callbacks
@@ -2670,7 +2672,8 @@ setup of a return pointer. Finally, the macro \texttt{\footnotesize{crtcls
     $\overline{(x_i,r_i)}$ $r$}} allocates a closure where $r$ points to the
 closure's code and a new environment is allocated (using malloc) and the
 contents of $\overline{r_i}$ is stored in the environment. In the code referred
-to by $r$, an implicit fetch happens when an instruction refers to $x_i$.
+to by $r$, an implicit load from the environment happens when an instruction
+refers to $x_i$.
 
 The Appendix contains the implementation of all the macros used in
 \texttt{scall}. The technical appendix~\citep{technical_appendix} contains more
@@ -2707,21 +2710,21 @@ macros, but the proofs work on the expanded macros.
 \itoplassug{add actual intro to this section.}
 
 % Anti-reduction lemma
-Out capability machine only allows the final memory of an execution to be
+Our capability machine only allows the final memory of an execution to be
 observed, so naturally the correctness lemmas we prove in
 \sectionname~\ref{sec:examples} are statements about the memory in the halted
-configuration. In order to prove something about the final memory, we encode it
-as a region in a world and show that the initial configuration is in the
-$\observations$-relation w.r.t.\ that world. The $\observations$-relation says
-that if the initial configuration halts successfully, then the memory in the
-halting state must still respect a private future world of the initial world. It
-is, however, bothersome and error prone to try to argue about the entire
-execution in one go. Instead we want to reason modularly, in the sense that we
-only want to reason about parts of the execution at a time. To this end, we
-prove an anti-reduction lemma that essentially says that if we can show that
-an initial configuration, $\Phi$, steps to a configuration $\Phi'$ and
-that $\Phi'$ is in the $\observations$-relation, then $\Phi$ is also in the
-observation relation.
+configuration. In order to prove something about some part of the final memory,
+we establish an invariant for it as a region in a world and show that the
+initial configuration is in the $\observations$-relation w.r.t.\ that world. The
+$\observations$-relation says that if the initial configuration halts
+successfully, then the memory in the halting state must still respect a private
+future world of the initial world. It is, however, bothersome and error prone to
+try to argue about the entire execution in one go. Instead we want to reason
+modularly, in the sense that we only want to reason about parts of the execution
+at a time. To this end, we prove an anti-reduction lemma that essentially says
+that if we can show that an initial configuration, $\Phi$, steps to a
+configuration $\Phi'$ and that $\Phi'$ is in the $\observations$-relation, then
+$\Phi$ is also in the observation relation.
 \begin{lemma}[Anti-reduction for $\observations$]
 \label{lem:anti-red-obs}
   \begin{align*}
@@ -2743,8 +2746,8 @@ with respect to a world, then it is safe to use it for execution in the same
 world. The unknown code we consider will be assumed to only have access to safe
 values, which typically means that we assume it has access to a linking table
 with a malloc capability and otherwise consists of instructions. This allows us
-to use the FTLR seeing as Malloc is a safe value cf.
-Lemma~\ref{lem:malloc-in-vr} and instructions are really just integers and they
+to use the FTLR seeing as malloc is a safe value (cf.
+Lemma~\ref{lem:malloc-in-vr}) and instructions are really just integers and they
 are always safe values. Here, it is important to remember that the FTLR gives us
 that the capability for the untrusted code is safe w.r.t. some world, so even
 though we described the usual assumption on the unknown code's memory, it is the
@@ -2822,11 +2825,11 @@ We deal with this part of the reasoning in the following lemma.
   % words for stack pointer and return pointer and some fixed number of words for
   % the standard return instructions).
 \end{lemma}
-The essence of the \texttt{scall} lemma is to show \texttt{scall} is executed in
-a reasonable state (\ref{item:scall:memsat}-\ref{item:scall:stack}), it is safe
-to actually transfer control to the callee (\ref{item:scall:hyp-callee}), and that
-the return capability given to the callee is safe (\ref{item:scall:hyp-cont}),
-which corresponds to showing that the remainder of the program is safe to execute.
+Roughly, the \texttt{scall} lemma states that an invocation of scall is safe if
+\texttt{scall} is executed in a reasonable state
+(\ref{item:scall:memsat}-\ref{item:scall:stack}), the callee is safe to execute
+(\ref{item:scall:hyp-callee}), and returning to the code after the scall is safe
+(\ref{item:scall:hyp-cont}).
 
 In the common case \texttt{scall} is used to invoke untrusted code, and we will
 only have very general assumptions about that code such as it has contains a
