@@ -3418,6 +3418,18 @@ clear whether and how such a primitive could be implemented efficiently in the C
 % https://www.usenix.org/legacy/event/osdi08/tech/full_papers/zeldovich/zeldovich_html/index.html
 % http://users.ece.utexas.edu/~tiwari/pubs/MICRO-08-rangecache.pdf
 
+The need for stack clearing in our calling convention is an instance of a general caveat when using CHERI's local capabilities as a restricted form of capability revocation.
+Consider how our use of local capabilities can be interpreted as temporarily delegating the stack and return capability to callees and then revoking the granted authority after the callee returns.
+From this perspective, local capabilities are a general feature enabling this temporary delegation of authority for the duration of an invocation and this is also how they are described by the authors~\citep{Watson2015Cheri}.
+However, our requirement for stack clearing on boundary crossings is also general.
+Revoking authority that was granted temporarily using local capabilities, requires clearing all memory for which the invokee had write-local authority (or at least erasing all local capabilities from that memory).
+Without micro-architectural support for efficiently clearing large ranges of memory, local capabilities can only be used for revocation in scenario's where the duration of a revocation is unimportant or the adversary only has write-local access to small amounts of memory.
+In future work, we are planning to investigate an alternative notion of \emph{linear} capabilities that offer a limited form of revocation without such this limitation.
+
+Note, by the way, that CheriBSD's use of local capabilities in ccall does not actually involve a form of revocation.
+CheriBSD's model involves a trusted stack manager that gives every compartment access to its own private stack using a local, write-local capability \citep{Watson2015Cheri}.
+The locality of the stack capability allows the trusted stack manager to prevent compartments from leaking their stack pointer in a boundary crossing, but those capabilities are never actually revoked.
+In fact, a compartment can easily store away such local capabilities in its own private stack and recover them there during future invocations.
 
 \emph{Modularity} It is important that our calling convention is modular, i.e.\
 we do not assume that our code is specially privileged w.r.t.\ the adversary,
@@ -3455,17 +3467,17 @@ where this might be realistic.
 We also need to be careful when we receive a capability from an adversary that
 we want to pass on to a different (instance of the) adversary. It turns out that
 the logical relation again tells us when this is safe. Namely, the logical
-relation says that we can only pass on safe arguments. For instance, when we
-receive a stack pointer from an adversary, then we may at some point want to
-pass on part of this stack pointer to, say, a callback. In order to do so, we
-need to make sure the stack pointer is safe which means that, if we have revoked
-temporary invariants, the stack must not directly or indirectly allow access to
-local values that we cannot guarantee safety of. When received from an
-adversary, we have to consider the contents of the stack unsafe, so before we
-pass it on, we have to clear it, or perform a dynamic safety analysis of the
-stack contents and anything it points to. Clearing everything is not always
-desirable and a dynamic safety analysis is hard to get right and potentially
-expensive.
+relation says that we can only pass on arguments that are safe in the world we
+invoke the adversary in. For instance, when we receive a stack pointer from an
+adversary, then we may at some point want to pass on part of this stack pointer
+to, say, a callback. In order to do so, we need to make sure the stack pointer
+is safe which means that, if we have revoked temporary invariants, the stack
+must not directly or indirectly allow access to local values that we cannot
+guarantee safety of. When received from an adversary, we have to consider the
+contents of the stack unsafe, so before we pass it on, we have to clear it, or
+perform a dynamic safety analysis of the stack contents and anything it points
+to. Clearing everything is not always desirable and a dynamic safety analysis is
+hard to get right and potentially expensive.
 
 % Can local capabilities be used for other things?/Local capabilities only for stack?
 %Not unheard of - other machine also have things specific for language features.
