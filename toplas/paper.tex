@@ -1,4 +1,4 @@
-\documentclass[format=acmsmall, review=false, screen=true]{acmart}
+\documentclass[format=acmsmall, review=true, screen=true]{acmart}
 
 %% Some recommended packages.
 \usepackage{booktabs}   %% For formal tables:
@@ -1261,26 +1261,26 @@ regions as requested (no $\rwlx$ or $\rwl$ permissions). For simplicity, we
 assume that memory allocated through malloc cannot be freed.
 
 \textbf{Returning to the adversary} Perhaps the simplest situation is returning
-to the adversary after they invoked our code. In this case, we have received a
+to the adversary after they invoked our code (\figurename~\ref{fig:illu-intro}). In this case, we have received a
 return pointer from them, and we just need to jump to it as usual. An obvious
 security measure to take care of is properly clearing the non-return-value
 registers before we jump (since they may contain data or capabilities that the
-adversary should not get access to). Additionally, we may have used the stack
+adversary should not get access to, \figurename~\ref{fig:illu-priv-data}). Additionally, we may have used the stack
 for various purposes (register spilling, storing local state when invoking other
 functions etc.), so we also need to clear that data before returning to the
-adversary.
+adversary (\figurename~\ref{fig:illu-clear-priv}).
 
 However, if we are returning from a function that has itself invoked adversary
-code, then clearing the used part of the stack is not enough. The \emph{unused}
+code (\figurename~\ref{fig:illu-call-adv}), then clearing the used part of the stack is not enough. The \emph{unused}
 part of the stack may also contain data and capabilities, left there by the
 adversary, including local capabilities since the stack is write-local. As we
 will see later, we rely on the fact that the adversary cannot keep hold of local
 capabilities when they pass control to the trusted code and receive control
 back. In this case, the adversary could use the unused part of the stack to
-store local pointers and load them from there after they get control back. To
+store local pointers and load them from there after they get control back (\figurename~\ref{fig:illu-adv-data}). To
 prevent this, we need to clear (i.e.\ overwrite with zeros) the entire part of
 the stack that the adversary has had access to, not just the parts that we have
-used ourselves. Since we may be talking about a large part of memory, this
+used ourselves (\figurename~\ref{fig:illu-clear-all}). Since we may be talking about a large part of memory, this
 requirement is the most problematic aspect of our calling convention for
 performance, but see \sectionname~\ref{sec:discussion} for how this might be
 mitigated.
@@ -1308,7 +1308,9 @@ mitigated.
       \end{scope}
       \draw node[right=0cm of sp] { sp };
   \end{tikzpicture}
-  \caption{test}
+  \caption{We have been called by an adversary and are ready to return to the
+    adversary.}
+  \label{fig:illu-intro}
   \end{subfigure}
   \begin{subfigure}{0.333\linewidth}
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
@@ -1336,7 +1338,10 @@ mitigated.
       \end{scope}
       \draw node[right=0cm of sp] { sp };
   \end{tikzpicture}
-  \caption{test}
+  \caption{If we do not clear our stack when we return to an adversary, then
+    they can access our private data and capabilities. This could include old
+    stack and program pointers.}
+  \label{fig:illu-priv-data}
   \end{subfigure}
   \begin{subfigure}{0.333\linewidth}
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
@@ -1364,7 +1369,9 @@ mitigated.
       \end{scope}
       \draw node[right=0cm of sp] { sp };
   \end{tikzpicture}
-  \caption{test}
+  \caption{Here we made sure to clear the stack before returning to the
+    adversary. The adversary no longer has access to our private data and capabilities.}
+  \label{fig:illu-clear-priv}
   \end{subfigure}
 
 
@@ -1390,7 +1397,8 @@ mitigated.
       \end{scope}
       \draw node[right=0cm of sp] { sp };
   \end{tikzpicture}
-  \caption{test}
+  \caption{In this case, we have called an adversary as part of our program.}
+  \label{fig:illu-call-adv}
   \end{subfigure}
   \begin{subfigure}{0.333\linewidth}
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
@@ -1418,7 +1426,11 @@ mitigated.
       \end{scope}
       \draw node[right=0cm of sp] { sp };
   \end{tikzpicture}
-  \caption{test}
+  \caption{If we return to the adversary after the situation in
+    \figurename~\ref{fig:illu-call-adv}, the adversary has access to the
+    contents of the stack from the call to the adversary. This could include the
+    return pointer, we gave to the adversary.}
+  \label{fig:illu-adv-data}
   \end{subfigure}
   \begin{subfigure}{0.333\linewidth}
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
@@ -1442,11 +1454,14 @@ mitigated.
       \end{scope}
       \draw node[right=0cm of sp] { sp };
   \end{tikzpicture}
-  \caption{test}
+  \caption{Here we made sure to clear all of the stack, including the part we
+    gave the adversary access to.}
+  \label{fig:illu-clear-all}
   \end{subfigure}
 
 
-  \caption{test}
+  \caption{In this section, we illustrate the stack in different scenarios
+    related to returning to an adversary. }
   \label{fig:ret-adv}
 \end{figure}
 \textbf{Invoking the adversary} A slightly more complex case is invoking the
