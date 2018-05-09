@@ -1304,9 +1304,8 @@ mitigated.
       % Stack pointer
       \begin{scope}
         \clip (4.6,5) rectangle (7.6,11.5);
-        \capbrace[sp]{(4.6,5)}{(4.6,12)}
+        \capbrace{(4.6,5)}{(4.6,12)}{sp}
       \end{scope}
-      \draw node[right=0cm of sp] { sp };
     \end{tikzpicture}
     \caption{}
   \label{fig:illu-intro}
@@ -1333,9 +1332,8 @@ mitigated.
       % Stack pointer
       \begin{scope}
         \clip (4.6,2) rectangle (7.6,11.5);
-        \capbrace[sp]{(4.6,2)}{(4.6,12)}
+        \capbrace{(4.6,2)}{(4.6,12)}{sp}
       \end{scope}
-      \draw node[right=0cm of sp] { sp };
     \end{tikzpicture}
   \caption{}
   \label{fig:illu-priv-data}
@@ -1362,9 +1360,8 @@ mitigated.
       % Stack pointer
       \begin{scope}
         \clip (4.6,2) rectangle (7.6,11.5);
-        \capbrace[sp]{(4.6,2)}{(4.6,12)}
+        \capbrace{(4.6,2)}{(4.6,12)}{sp}
       \end{scope}
-      \draw node[right=0cm of sp] { sp };
     \end{tikzpicture}
   \caption{}
   \label{fig:illu-clear-priv}
@@ -1389,9 +1386,8 @@ mitigated.
       % Stack pointer
       \begin{scope}
         \clip (4.6,5) rectangle (7.6,11.5);
-        \capbrace[sp]{(4.6,5)}{(4.6,13)}
+        \capbrace{(4.6,5)}{(4.6,13)}{sp}
       \end{scope}
-      \draw node[right=0cm of sp] { sp };
     \end{tikzpicture}
   \caption{}
   \label{fig:illu-call-adv}
@@ -1411,16 +1407,14 @@ mitigated.
       \draw[fill=white] (0,6) rectangle (4.5,6.5) node[pos=.5] {\footnotesize 0};
       \draw[fill=white] (0,6.5) rectangle (4.5,7) node[pos=.5] {\footnotesize 0};
 
-
     % Unknown part
       \node[color=red] at (2.25,9) {\huge ?};
 
       % Stack pointer
       \begin{scope}
         \clip (4.6,2) rectangle (7.6,11.5);
-        \capbrace[sp]{(4.6,2)}{(4.6,13)}
+        \capbrace{(4.6,2)}{(4.6,13)}{sp}
       \end{scope}
-      \draw node[right=0cm of sp] { sp };
     \end{tikzpicture}
   \caption{}
   \label{fig:illu-adv-data}
@@ -1443,15 +1437,14 @@ mitigated.
       % Stack pointer
       \begin{scope}
         \clip (4.6,2) rectangle (7.6,11.5);
-        \capbrace[sp]{(4.6,2)}{(4.6,13)}
+        \capbrace{(4.6,2)}{(4.6,13)}{sp}
       \end{scope}
-      \draw node[right=0cm of sp] { sp };
     \end{tikzpicture}
   \caption{}
   \label{fig:illu-clear-all}
   \end{subfigure}
   \caption{Illustration of the situations related to stack clearing when returning to an adversary.
-    The greyed out areas are parts of the stack that are not accessible at the time. }
+    The greyed out areas are parts of the stack that are not accessible at the time.}
   \label{fig:ret-adv}
 \end{figure}
 \textbf{Invoking the adversary} A slightly more complex case is invoking the
@@ -1490,14 +1483,96 @@ there is no way for them to recover either of these local capabilities.
 
 Note that storing stack pointers for use during future invocations would also be
 dangerous in itself, i.e. not just because it can be used to store return
-pointers. Imagine the adversary stores their stack pointer, invokes trusted code
-that uses part of the stack to store private data and then invokes the adversary
+pointers. Imagine the adversary stores their stack pointer (\ref{fig:illu-adv-store-sp}), invokes trusted code
+that uses part of the stack to store private data (\ref{fig:illu-adv-call}) and then invokes the adversary
 again with a stack pointer restricted to exclude the part containing the private
-data. If the adversary had a way of keeping hold of their old stack pointer, it
+data (\ref{fig:illu-adv-called}). If the adversary had a way of keeping hold of their old stack pointer, it
 could access the private data stored there by the trusted code and break
 local-state encapsulation.  
 % \lau{Do we say anything about arguments to the callback? Specifically, it should not be okay to uncritically pass on argument we recieved from an adversary. Can we even to any extend allow local arguments that we pass on from an unknown source?}
 % Domi: this is now discussed in the discussion section, no need to discuss it here?
+
+\begin{figure}[htb]
+  \centering
+  \begin{subfigure}{0.32\linewidth}
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+
+    % attacker ..
+      \actadv{(0,2)}{(4.5,5)}{Adv. stack frame}
+      \draw[fill=white] (0,10) rectangle (4.5,10.5) node[pos=.5,color=red] {\footnotesize sp};
+    % Stack pointer
+      \begin{scope}
+        \clip (4.6,2) rectangle (7.6,11.5);
+        \capbracebot{(4.6,2)}{(4.6,12)}{sp}
+      \end{scope}
+    \end{tikzpicture}
+    \caption{}
+  \label{fig:illu-adv-store-sp}
+  \end{subfigure}
+  \begin{subfigure}{0.333\linewidth}
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+
+    % attacker ..
+      \inactadv{(0,2)}{(4.5,5)}{Adv. stack frame}
+      \draw[fill=white] (0,10) rectangle (4.5,10.5) node[pos=.5,color=red] {\footnotesize sp};
+
+    % Our stack frame
+      \actsf{(0,5)}{(4.5,6.5)}{Our stack frame}
+
+    % Stack pointer
+      \begin{scope}
+        \clip (4.6,2) rectangle (7.6,11.5);
+        \capbracebotred{(4.6,2)}{(4.6,12)}{sp}
+      \end{scope}
+      \begin{scope}
+        \clip (5.6,5) rectangle (9,11.5);
+        \capbrace{(5.6,5)}{(5.6,12)}{sp'}
+      \end{scope}
+
+    \end{tikzpicture}
+  \caption{}
+  \label{fig:illu-adv-call}
+  \end{subfigure}
+  \begin{subfigure}{0.333\linewidth}
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+
+    % attacker ..
+      \inactadv{(0,2)}{(4.5,5)}{Adv. stack frame}
+
+    % Stored stack pointer
+      \draw[fill=white] (0,10) rectangle (4.5,10.5) node[pos=.5,color=red] {\footnotesize sp};
+
+    % Our stack frame
+      \inactsf{(0,5)}{(4.5,6.5)}{Our stack frame}
+
+    % Second attacker
+      \actadv{(0,6.5)}{(4.5,9.5)}{Callee \\ \footnotesize stack frame}
+
+    % Stack pointer
+      \begin{scope}
+        \clip (4.6,2) rectangle (7.6,11.5);
+        \capbracebotred{(4.6,2)}{(4.6,12)}{sp}
+      \end{scope}
+      \begin{scope}
+        \clip (5.6,6.6) rectangle (9,11.5);
+        \capbrace{(5.6,6.5)}{(5.6,12)}{sp'}
+      \end{scope}
+    \end{tikzpicture}
+  \caption{}
+  \label{fig:illu-adv-called}
+  \end{subfigure}
+  \caption{Illustration of the situations related to stack clearing when invoking an adversary.
+    The greyed out areas are parts of the stack that are not accessible at the time.
+  }
+  \label{fig:ret-adv}
+\end{figure}
+
 
 \textbf{Returning from the adversary} So return pointers must be passed as local
 capabilities. But what should their permissions be, what memory should they
