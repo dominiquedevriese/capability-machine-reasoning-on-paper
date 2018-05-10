@@ -3642,27 +3642,32 @@ fully abstract~\citep{abadi_protection_1998}.
 \emph{Performance and the requirement for stack clearing} The additional
 security measures of the calling convention described in
 \sectionname~\ref{sec:stack-and-return-pointer} impose an overhead compared to a
-calling convention without security guarantees. However, most of our security
-measures require only a few atomic checks or register clearings on boundary
-crossings between trusted code and adversary, which should produce an acceptable
-performance overhead. The only exception are the requirements for stack clearing
-that we have in two situations: when returning to the adversary and when
-invoking an adversary callback. As we have explained, we need to clear all of
-the stack that we are not using ourselves, not just the part that we have
-actually used. In other words, on every boundary cross between trusted code and
-adversary code, a potentially large region of memory must be cleared. We believe
-this is actually a common requirement for typical usage scenarios of local
-capabilities and capability machines like CHERI should consider to provide
-special support for this requirement, in the form of a highly-optimized
-instruction for erasing a large block of memory. Nevertheless, from a discussion
-with the designers of the CHERI capability machine, we gather that it is not immediately
-clear whether and how such a primitive could be implemented efficiently in the CHERI context.
-\itoplassug{Maybe refer to some of the papers reviewer A, esop mentions for stack clearing. See comment in tex file. }
-% http://scale.eecs.berkeley.edu/papers/mmp-asplos2002.pdf
-% https://www.usenix.org/legacy/event/osdi08/tech/full_papers/zeldovich/zeldovich_html/index.html
-% http://users.ece.utexas.edu/~tiwari/pubs/MICRO-08-rangecache.pdf
+calling convention without security guarantees. However, most require only a few
+atomic checks or register clearings on boundary crossings between trusted code
+and adversary, which should produce an acceptable performance overhead. The only
+exception are the requirements for stack clearing that we have in two
+situations: when returning to the adversary and when invoking an adversary
+callback. As we have explained, we need to clear all of the stack that we are
+not using ourselves, not just the part that we have actually used. In other
+words, on every boundary cross between trusted code and adversary code, a
+potentially large region of memory must be cleared.
 
-The need for stack clearing in our calling convention is an instance of a general caveat when using CHERI's local capabilities as a restricted form of capability revocation.
+First, contrary to what we explained before, we actually suspect that this overhead can be avoided in one of the two cases: when returning to the adversary.
+In that case, we now think it would suffice to clear only the (much smaller) part of the stack used by the trusted code itself.
+To understand this, it is useful to take another look at the illustrations in Figure~\ref{fig:ret-adv} related to this case.
+If we do not clear the stack upon return (as illustrated in Figure~\ref{fig:illu-clear-all}), then the adversary might have used that stack to store local capabilities they received in a previous invocation (see Figure~\ref{fig:illu-adv-data}).
+In other words, the stack clearing is necessary for revoking those local capabilities: the stack pointer and return pointer for the invocation illustrated in Figure~\ref{fig:illu-adv-data}.
+While this approach is safe, we now suspect that we could do without the revocation in this case.
+The stack pointer which the adversary was given access to in the stack frame depicted in Figure~\ref{fig:illu-call-adv} only carries authority that the adversary has access to in the higher stack frame anyway.
+Similarly, the return pointer is merely an entry pointer pointing into the trusted code's stack frame, and this is also a capability that the adversary we return to could have constructed themselves from their stack pointer.
+
+This improvement of our calling convention is a recent insight and not yet reflected in our examples and our proofs.
+We do believe the proofs could be updated to accomodate for this change, but it would require some non-trivial changes.
+Consider the awkward example proof, for example, we would have to ensure that the world $W_6$, depicted in Figure~\ref{fig:worlds-in-pf-g1} would not just be a private future world of $W_5$, but a public one (in addition to being a public future world of $W_1$).
+This would allow us to do without the stack clearing, but it would entail some changes to the islands we use, and an extra argument that the old adversary's stack and return pointer remain valid after clearing the trusted code's stack frame and relaxing the invariant that used to ensure it could not be modified.
+While this change is a clear improvement, we do not actually believe that it fundamentally changes the efficiency characteristics of the approach: the cost is halved, but remains asymptotically the same.
+
+A second important remark we want to make is that the need for stack clearing in our calling convention is an instance of a general caveat when using CHERI's local capabilities as a restricted form of capability revocation.
 Consider how our use of local capabilities can be interpreted as temporarily delegating the stack and return capability to callees and then revoking the granted authority after the callee returns.
 From this perspective, local capabilities are a general feature enabling this temporary delegation of authority for the duration of an invocation and this is also how they are described by the authors~\citep{Watson2015Cheri}.
 However, our requirement for stack clearing on boundary crossings is also general.
@@ -3674,6 +3679,15 @@ Note, by the way, that CheriBSD's use of local capabilities in ccall does not ac
 CheriBSD's model involves a trusted stack manager that gives every compartment access to its own private stack using a local, write-local capability \citep{Watson2015Cheri}.
 The locality of the stack capability allows the trusted stack manager to prevent compartments from leaking their stack pointer in a boundary crossing, but those capabilities are never actually revoked.
 In fact, a compartment can easily store away such local capabilities in its own private stack and recover them there during future invocations.
+
+Since local capabilities seem intended to provide a restricted form of revocation, perhaps capability machines like CHERI should consider to provide special support for this requirement.
+Ideally, such support would take the form of a highly-optimized instruction for erasing a large block of memory.
+However, from a discussion with the designers of the CHERI capability machine, we gather that it is not immediately clear whether and how such a primitive could be implemented efficiently in the CHERI context.
+\itoplassug{Maybe refer to some of the papers
+  reviewer A, esop mentions for stack clearing. See comment in tex file. }
+% http://scale.eecs.berkeley.edu/papers/mmp-asplos2002.pdf
+% https://www.usenix.org/legacy/event/osdi08/tech/full_papers/zeldovich/zeldovich_html/index.html
+% http://users.ece.utexas.edu/~tiwari/pubs/MICRO-08-rangecache.pdf
 
 \emph{Modularity} It is important that our calling convention is modular, i.e.\
 we do not assume that our code is specially privileged w.r.t.\ the adversary,
