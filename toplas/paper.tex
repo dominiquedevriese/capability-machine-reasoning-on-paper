@@ -4292,6 +4292,41 @@ label \texttt{end} % 9?
 and \texttt{iter}, % 2?
 respectively.
 
+\subsection{Reasoning about programs definitions}
+\begin{definition}
+  We say that $(\reg,\ms) \text{ is looking at } [i_0,\cdots,i_n] \text{ followed by } c_{\mathit{next}}$ 
+  iff
+  \begin{itemize}
+  \item $\reg(\pcreg) = ((p,g),b,e,a)$
+  \item $p = \rwx$, $p = \exec$, or $p = \rwlx$
+  \item $a+n\leq e$, $b\leq a\leq e$
+  \item $\ms(a+0,\cdots,a+n) = [i_0,\cdots,i_n]$
+  \item $c_{\mathit{next}} = ((p,g),b,e,a+n+1)$
+  \end{itemize}
+\end{definition}
+
+\begin{definition}
+  We say that ``\linksto{(\reg,\ms)}{\var{key}}{j}{c_\malloc}'' 
+  iff
+  \begin{itemize}
+  \item $\reg(pc) = \stdcap$
+  \item $\ms(\start) = ((\_,\_),\start_\link,\_,\_)$
+  \item $\ms(\start_\link+j) = c$
+  \end{itemize}
+\end{definition}
+
+\begin{definition}
+  We say that $\reg \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}$ unused}$
+  iff
+  \begin{itemize}
+  \item $\reg(r_\stk) =((\rwlx,\local),b_\stk,e_\stk,a_\stk)$
+  \item $\dom(\ms_{\mathit{unused}}) = [a_\stk+1,\cdots,e_\stk]$
+  \item $\dom(\ms_\stk) = [b_\stk,\cdots,a_\stk]$ \lau{Maybe make it clear what happens when $\ms_\stk$ is empty}
+  \item $b_\stk - 1\leq a_\stk$
+  \end{itemize}
+\end{definition}
+
+
  \subsection{Example correctness lemmas}
 \begin{lemma}[Correctness lemma for \texttt{f1}, copy of Lemma~\ref{lem:correctness-f1}] \forcenewline
   \label{lem:correctness-f1-app}
@@ -4482,40 +4517,56 @@ respectively.
   \]  
 \end{lemma}
 
-\subsection{Reasoning about programs definitions}
-\begin{definition}
-  We say that $(\reg,\ms) \text{ is looking at } [i_0,\cdots,i_n] \text{ followed by } c_{\mathit{next}}$ 
-  iff
-  \begin{itemize}
-  \item $\reg(\pcreg) = ((p,g),b,e,a)$
-  \item $p = \rwx$, $p = \exec$, or $p = \rwlx$
-  \item $a+n\leq e$, $b\leq a\leq e$
-  \item $\ms(a+0,\cdots,a+n) = [i_0,\cdots,i_n]$
-  \item $c_{\mathit{next}} = ((p,g),b,e,a+n+1)$
-  \end{itemize}
-\end{definition}
+
+\subsection{Awkward example}
+\textbf{The region for $x$} The region $\iota_x$, is the region omitted from the proof sketch for the awkward example.
+\figurename~\ref{fig:x-reg} illustrates the transition system of $\iota_x$.
+  \begin{figure}[tb]
+    \centering
+\begin{tikzpicture}[->,shorten >=1pt,auto,node distance=3cm,
+  thick,main node/.style={circle,fill=white,draw,font=\sffamily\large},rect node/.style={rectangle,fill=blue!20,draw,font=\sffamily\large}]
+
+  \node[main node] (n0) {\footnotesize $\texttt{x}=0$};
+  \node (s) [left of=n0,xshift=1.75cm] {  };
+  \node[main node] (n1) [right of=n0]  {\footnotesize $\texttt{x}=1$};
+  \draw (s) edge[>=stealth] (n0);
+  \draw (n0) edge[bend left,>=stealth] (n1);
+  \draw (n1) edge[bend left,dashed,>=stealth] (n0);
+  
+\end{tikzpicture}
+  \caption{Illustration of transition system in $\iota_x$. The dashed line is
+    the private transition.}
+  \label{fig:x-reg}
+\end{figure}
 
 \begin{definition}
-  We say that ``\linksto{(\reg,\ms)}{\var{key}}{j}{c_\malloc}'' 
-  iff
-  \begin{itemize}
-  \item $\reg(pc) = \stdcap$
-  \item $\ms(\start) = ((\_,\_),\start_\link,\_,\_)$
-  \item $\ms(\start_\link+j) = c$
-  \end{itemize}
+  \label{def:iotax-region}
+  \begin{align*}
+    \iota_x   & = (\perm, 0, \phi_\pub, \phi, H_x) \\
+    \phi_\pub & = \{(0,1)\}^* \\
+    \phi      & = (1,0) \union \phi_\pub \\
+    H_x \; s \; \hat{W} & = \{\npair{\ms} \mid \ms(x) = s \land n > 0 \} \union \{\npair[0]{\ms}\}
+  \end{align*}
 \end{definition}
-
-\begin{definition}
-  We say that $\reg \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}$ unused}$
-  iff
-  \begin{itemize}
-  \item $\reg(r_\stk) =((\rwlx,\local),b_\stk,e_\stk,a_\stk)$
-  \item $\dom(\ms_{\mathit{unused}}) = [a_\stk+1,\cdots,e_\stk]$
-  \item $\dom(\ms_\stk) = [b_\stk,\cdots,a_\stk]$ \lau{Maybe make it clear what happens when $\ms_\stk$ is empty}
-  \item $b_\stk - 1\leq a_\stk$
-  \end{itemize}
-\end{definition}
-
+\textbf{Static region} This static region only requires that the memory segment is the given one.
+As it does not require safety, capabilities for this region cannot be gives to adversarial code.
+\begin{align*}
+  \iota^\sta (v,\ms) &= (v,1,=,=,H^\sta\;\ms)\\
+  H^\sta \; \ms \; s \; \hat{W} = & \{\npair{\ms} \mid n > 0 \} \union \{\npair[0]{\ms'} \mid \ms' \in \Mems \}
+\end{align*}
+\textbf{Static safe region} Static region that also requires safety.
+It is safe to give adversarial code read capabilities for this region.
+\begin{align*}
+  \iota^{\sta,u} (v,\ms) &= (v,1,=,=,H^{\sta,u}\;\ms)\\
+  H^{\sta,u} \; \ms \; s \; \hat{W} = & \left\{\npair{\ms'} \middle|
+    \begin{aligned}
+      &\ms' = \ms \land\\
+      &\forall \addr \in \dom(\ms) \ldotp\\
+      & \quad \nonlocal{\ms(\addr)} \land\\
+      & \quad \npair[n-1]{\ms(\addr)} \in \stdvr(\xi(\hat{W}))
+    \end{aligned}
+        \right\} \union \{\npair[0]{\ms'} \mid \ms' \in \Mems \}
+\end{align*}
 
 
 \end{document}
