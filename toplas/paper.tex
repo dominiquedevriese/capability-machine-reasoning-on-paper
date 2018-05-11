@@ -3563,58 +3563,61 @@ lemma.
   All in all, we create a world in which the invariants that the adversary relies on has been restored which makes it safe to invoke the return pointer.
   \end{proof}
 \end{toplas}
-As explained in \sectionname~\ref{sec:stack-and-return-pointer}, the
-macro-instruction \texttt{\footnotesize{reqglob $r_1$}} checks that the callback
-is global, essentially to make sure it is not allocated on the stack where it
-might contain old stack pointers or return pointers. Otherwise, the
-encapsulation of our local stack frame could be broken. In the proof of
-Lemma~\ref{lem:correctness-g1}, this requirement shows up because we invoke the
-callback in a world that is only a private future world of the one where we
-received the callback, precisely because we have invalidated the adversary's
-local state (particularly their old stack and return capabilities). The callback
-is still valid in this private future world, but only because we know that it is
-global.
 
-\itoplassug{Suggestion: Add an actual proof sketch}
-In Lemma~\ref{lem:correctness-g1} the order of control has been
-inverted compared to the previous lemmas. In this lemma, the adversary
-assumes control first with a capability for the closure creator
-\texttt{\footnotesize{g1}}. Consequently, we need to check that all
-arguments are safe to use and that we clean up before returning in the
-end. The inversion of control poses an interesting challenge when it
-comes to reasoning about the adversary's local state during the
-execution of \texttt{\footnotesize{f4}} and the callbacks where the
-adversary should not rely on the local state from before the call of
-\texttt{\footnotesize{f4}}. This is easily done by revoking all the
-temporary regions of the world given at the start of
-\texttt{\footnotesize{f4}}. However, when \texttt{\footnotesize{f4}}
-returns, the adversary is again allowed to rely on its old local state
-so we need to guarantee that the local state is unchanged. This is
-important because the return pointer that \texttt{\footnotesize{f4}}
-receives may be local, and the adversary is allowed
-to allocate the activation record on the stack (just like we do) so
-they can store and recover their old stack pointer after
-\texttt{\footnotesize{f4}} returns.
-
-\begin{toplas}
-In \figurename~\ref{fig:worlds-in-pf-g1}, we illustrate how we accommodate this in
-the proof of Lemma~\ref{lem:correctness-g1} by constructing appropriate worlds
-for all the situations where control is passed to the adversary. The potentially
-local return pointer received by \texttt{\footnotesize{f4}} from the adversary
-is safe in $W_1$, so it can only be used in public future worlds. Let us see how
-$W_6$ is constructed as a public future world of $W_1$, as well as a private
-future world of $W_5$. The worlds $W_2$ and $W_4$ are constructed by revoking
-all temporary regions and adding a $\iota^\pwl$ region for the stack we pass
-away and static temporary regions (a region that accepts exactly one memory) for
-our local stack as well as the adversary's local stack. The given worlds $W_3$
-and $W_5$ are public future worlds in which the adversary chooses to return to
-us. None of these worlds can have masked the temporary regions of $W_1$ with
-permanent regions. $W_6$ is constructed by revoking the temporary regions of
-$W_5$ and reinstating the temporary regions of $W_1$. This makes $W_6$ a public
-future world of $W_1$. It is therefore safe to use the return pointer to return
-to the adversary, since we have restored validity of any local state they might
-have stashed away.
+  The complete proof can be found in the technical appendix~\citep{technical_appendix}.
 \end{toplas}
+% As explained in \sectionname~\ref{sec:stack-and-return-pointer}, the
+% macro-instruction \texttt{\footnotesize{reqglob $r_1$}} checks that the callback
+% is global, essentially to make sure it is not allocated on the stack where it
+% might contain old stack pointers or return pointers. Otherwise, the
+% encapsulation of our local stack frame could be broken. In the proof of
+% Lemma~\ref{lem:correctness-g1}, this requirement shows up because we invoke the
+% callback in a world that is only a private future world of the one where we
+% received the callback, precisely because we have invalidated the adversary's
+% local state (particularly their old stack and return capabilities). The callback
+% is still valid in this private future world, but only because we know that it is
+% global.
+
+% \itoplassug{Suggestion: Add an actual proof sketch}
+% In Lemma~\ref{lem:correctness-g1} the order of control has been
+% inverted compared to the previous lemmas. In this lemma, the adversary
+% assumes control first with a capability for the closure creator
+% \texttt{\footnotesize{g1}}. Consequently, we need to check that all
+% arguments are safe to use and that we clean up before returning in the
+% end. The inversion of control poses an interesting challenge when it
+% comes to reasoning about the adversary's local state during the
+% execution of \texttt{\footnotesize{f4}} and the callbacks where the
+% adversary should not rely on the local state from before the call of
+% \texttt{\footnotesize{f4}}. This is easily done by revoking all the
+% temporary regions of the world given at the start of
+% \texttt{\footnotesize{f4}}. However, when \texttt{\footnotesize{f4}}
+% returns, the adversary is again allowed to rely on its old local state
+% so we need to guarantee that the local state is unchanged. This is
+% important because the return pointer that \texttt{\footnotesize{f4}}
+% receives may be local, and the adversary is allowed
+% to allocate the activation record on the stack (just like we do) so
+% they can store and recover their old stack pointer after
+% \texttt{\footnotesize{f4}} returns.
+
+% \begin{toplas}
+% In \figurename~\ref{fig:worlds-in-pf-g1}, we illustrate how we accommodate this in
+% the proof of Lemma~\ref{lem:correctness-g1} by constructing appropriate worlds
+% for all the situations where control is passed to the adversary. The potentially
+% local return pointer received by \texttt{\footnotesize{f4}} from the adversary
+% is safe in $W_1$, so it can only be used in public future worlds. Let us see how
+% $W_6$ is constructed as a public future world of $W_1$, as well as a private
+% future world of $W_5$. The worlds $W_2$ and $W_4$ are constructed by revoking
+% all temporary regions and adding a $\iota^\pwl$ region for the stack we pass
+% away and static temporary regions (a region that accepts exactly one memory) for
+% our local stack as well as the adversary's local stack. The given worlds $W_3$
+% and $W_5$ are public future worlds in which the adversary chooses to return to
+% us. None of these worlds can have masked the temporary regions of $W_1$ with
+% permanent regions. $W_6$ is constructed by revoking the temporary regions of
+% $W_5$ and reinstating the temporary regions of $W_1$. This makes $W_6$ a public
+% future world of $W_1$. It is therefore safe to use the return pointer to return
+% to the adversary, since we have restored validity of any local state they might
+% have stashed away.
+% \end{toplas}
 
 \begin{figure}[t]
   \centering
