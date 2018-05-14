@@ -2068,14 +2068,14 @@ to transition according to the private part of the transition system.
   In the future world relations, we must remember all region names in order to
   keep them extensional which is why we need to use masks. It does, however, not
   matter what kind of region is used to mask as it is the region name we must
-  retain. This is why we allow $\revoked$ regions to be replaced by other
+  retain. This is why we allow revoked regions to be replaced by other
   regions in the two future world relations. This may seem unnecessary as the
   future world relation allows new regions to be added, but in private future
   worlds, for technical reasons, we need to be able to reinstate old regions
   with the same region names as they had in a past world. Further, we do not
   want public future worlds to be able to prevent reinstation in private future
-  worlds. Private future worlds cannot revoke $\perma$ regions, so we cannot
-  allow public future worlds to us $\perma$ regions as a mask for a revoked
+  worlds. Private future worlds cannot revoke permanent regions, so we cannot
+  allow public future worlds to us permanent regions as a mask for a revoked
   region.
 \end{toplas}
 
@@ -2367,17 +2367,18 @@ temporary) region.  Revoked regions are not taken into account as their memory p
 \end{figure}
 \begin{figure}[htb]
   \begin{align*}
-  H^\nwl_A,  H^\pwl_A :{} & \States \fun (\Wor \monwknefun \UPred{\HeapSegments})\\
   \iota^\pwl_A, \iota^\nwl_A :{} & \Regions \\
   \iota^\pwl_A \defeq{} & (\temp,1,=,=,H^\pwl_A) \\
+  \iota^\nwl_A \defeq{} & (\temp,1,=,=,H^\nwl_A) \\
+  \iota^{\nwl,p}_A \defeq{} & (\perma,1,=,=,H^\nwl_A)\\
+    H^\pwl_A :{} & \States \fun (\Wor \monwknefun \UPred{\HeapSegments})\\
   H^\pwl_A \; s \; \hat{W} \defeq{} & \left\{\npair{\hs} \middle|
     \begin{aligned}
       &\dom(\hs) = A \land \\
       &\forall \addr \in A \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W}))
     \end{aligned}
         \right\} \union \{\npair[0]{\ms} \} \\
-  \iota^\nwl_A \defeq{} & (\temp,1,=,=,H^\nwl_A) \\
-  \iota^{\nwl,p}_A \defeq{} & (\perma,1,=,=,H^\nwl_A)\\
+    H^\nwl_A :{} & \States \fun (\Wor \monstrnefun \UPred{\HeapSegments})\\
   H^\nwl_A \; s \;\hat{W} \defeq{} & \left\{\npair{\hs} \middle|
     \begin{aligned}
       &\dom(\hs) = A \land \\
@@ -2534,8 +2535,8 @@ also preserved in private future worlds:
     \end{itemize}
   \end{lemma}
   In our definition of worlds, nothing prevents a world from having regions that are overlapping.
-  This is an issue for the $\stdvr$-relation as it allows different permission-based requirements to be satisfied by different regions.
-  In practice, it is not an issue as we will always have a memory satisfaction assumption which doubles as a well-formedness as it prevents the regions from overlapping.
+  This might seem like an issue the $\stdvr$-relation as it allows different permission-based requirements to be satisfied by different regions.
+  In practice, it is not an issue as we will always have a memory satisfaction assumption which doubles as a well-formedness condition on the world as it prevents the regions from overlapping.
   The memory satisfaction assumption in Lemma~\ref{lem:wl-local} is there to ensure a well-formed world.
 \end{toplas}
 
@@ -2568,8 +2569,11 @@ authority is capability safe as a program counter.
 \begin{toplas}
   \begin{proof}[Proof sketch]
     Induction over $n$. By definition of $\stder(W)$, show
-    $\npair[n']{(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\ms)}
-    \in \observations(W)$ assuming $n' \leq n$, $\npair[n']{\reg} \in \stdrr(W)$, and
+    \[
+      \npair[n']{(\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\ms)}
+      \in \observations(W)
+    \]
+    assuming $n' \leq n$, $\npair[n']{\reg} \in \stdrr(W)$, and
     $\heapSat[\ms]{n'}{W}$. By definition of $\observations$ let $\ms_f$,
     $\mem'$, and $i \leq n'$ be given and for
     $\Phi = (\reg\update{\pcreg}{((\perm,\gl),\start,\addrend,\addr)},\ms \uplus
@@ -2677,7 +2681,7 @@ not do so in the future. Also, when invoked with a nonsensical length argument
 such as a negative integer or a capability, malloc should simply fail. However,
 formulating these requirements is harder than one might expect. The problem is
 that a realistic implementation of malloc needs to rely on internal state that
-changes after every invocation, and relies on invariants on that state. We can
+changes after every invocation and relies on invariants on that state. We can
 only expect that malloc behaves according to its specification, if its internal
 state satisfies the current state of the invariants in an executing system. To
 express this, we will use the semantic model defined in
@@ -3001,21 +3005,13 @@ these proofs. We present the most important such lemmas in this section, to give
 the reader an idea of how they work.
 
 % Anti-reduction lemma
-Our capability machine only allows the final memory of an execution to be
-observed, so naturally the correctness lemmas we prove in
-\sectionname~\ref{sec:examples} are statements about the memory in the halted
-configuration. In order to prove something about some part of the final memory,
-we establish an invariant for it as a region in a world and show that the
-initial configuration is in the $\observations$-relation w.r.t.\ that world. The
-$\observations$-relation says that if the initial configuration halts
-successfully, then the memory in the halting state must still respect a private
-future world of the initial world. It is, however, bothersome and error prone to
-try to argue about the entire execution in one go. Instead we want to reason
-modularly, in the sense that we only want to reason about parts of the execution
-at a time. To this end, we prove an anti-reduction lemma that essentially says
-that if we can show that an initial configuration, $\Phi$, steps to a
-configuration $\Phi'$ and that $\Phi'$ is in the $\observations$-relation, then
-$\Phi$ is also in the observation relation.
+Our capability machine only allows the final memory of an execution to be observed, so naturally the correctness lemmas we prove in \sectionname~\ref{sec:examples} are statements about the memory in the halted configuration.
+In order to prove something about some part of the final memory, we establish an invariant for it as a region in a world and show that the initial configuration is in the $\observations$-relation w.r.t.\ that world.
+The invariants we are interested in must be permanent regions so that they are not revoked during execution.
+The $\observations$-relation says that if the initial configuration halts successfully, then the memory in the halting state must still respect a private future world of the initial world.
+It is, however, bothersome and error prone to try to argue about the entire execution in one go.
+Instead we want to reason modularly, in the sense that we only want to reason about parts of the execution at a time.
+To this end, we prove an anti-reduction lemma that essentially says that if we can show that an initial configuration, $\Phi$, steps to a configuration $\Phi'$ and that $\Phi'$ is in the $\observations$-relation, then $\Phi$ is also in the observation relation.
 \begin{lemma}[Anti-reduction for $\observations$]
 \label{lem:anti-red-obs}
   \begin{align*}
@@ -3028,7 +3024,7 @@ $\Phi$ is also in the observation relation.
 \end{lemma}
 
 % FTLR
-The anti-reduction works well when we reason about the execution of known code,
+The anti-reduction works when we reason about the execution of known code,
 because we can execute it. When we want to reason about unknown code, the
 anti-reduction lemma does not apply because we do not know what instructions are
 being executed. This is where the FTLR (Theorem~\ref{thm:ftlr}) comes into play.
@@ -3119,7 +3115,7 @@ Roughly, the \texttt{scall} lemma states that an invocation of scall is safe if
 (\ref{item:scall:hyp-callee}), and returning to the code after the scall is safe
 (\ref{item:scall:hyp-cont}).
 
-In the common case \texttt{scall} is used to invoke untrusted code, and we will
+In the common case, \texttt{scall} is used to invoke untrusted code, and we will
 only have very general assumptions about that code, in which case we will use
 the FTLR (Theorem~\ref{thm:ftlr}) to argue
 Assumption~\ref{item:scall:hyp-callee}, using what we know about the values it
@@ -3540,7 +3536,7 @@ lemma.
     \item A malloc region, $\iota_{\malloc,0}$.
     \item A permanent region for the linking table that only accepts $\ms_\link$ and requires everything to be in $\stdvr$.
     \item A stack region, $\iota^{\pwl}_{b_\stk,e_\stk}$.
-    \item A adversary region, $\iota^{\nwl,p}_{b_\adv,e_\stk}$
+    \item An adversary region, $\iota^{\nwl,p}_{b_\adv,e_\stk}$
     \item A permanent static region for the flag and \texttt{g1}, i.e.\ a region that only
       accepts $\ms_\flag$ and $\ms_{g1}$.
     \end{itemize}
@@ -3558,12 +3554,12 @@ lemma.
   The former follows easily from the choice of a $\iota^{pwl}$-region for the stack in $W$.
   In order to argue the latter, we basically have to argue that $c_{g1}$, the closure generator, respects the world $W$.
   This amounts to showing that the closures generated by \texttt{g1} also respect the invariants of $W$.
-  We reason about the local variable $x$ in the closure in the same way \citet{Dreyer:jfp12} does it.
-  We ignore $x$ in the remainder this proof sketch to focus on the parts of the proof related to the setting of the capability machine.
+  We reason about the local variable $x$ in the closure in the same way \citet{Dreyer:jfp12} does.
+  We ignore $x$ in the remainder of this proof sketch to focus on the parts of the proof related to the setting of the capability machine.
 
-  The capability for the closure is a global enter capability that we call $c_{f4}$.
+  The capability for the generated closure is a global enter capability that we call $c_{f4}$.
   The remainder of the proof amounts to showing that it is safe to return $c_{f4}$ to the adversary, i.e.
-  $c_{f4} \in \stdvr(W')$ where $W'$ is $W$ with the regions added after executing \texttt{g1}.
+  $c_{f4} \in \stdvr(W')$ where $W'$ is $W$ with relevant regions added after executing \texttt{g1}.
   The adversary can use $c_{f4}$ whenever, so all we may assume about the configuration that $c_{f4}$ is invoked in is that the register-file $\reg$ and memory $\ms$ satisfies a world $W_1$ that is a private future world of $W'$, i.e.\ $\reg \in \stdrr(W_1)$ and $\memSat[]{\ms}{W_1}$.
   We have to show that the invocation respects $W_1$ which corresponds to showing $(\reg[\pcreg \mapsto \updatePcPerm{c_{f4}}],\ms) \in \observations(W_1)$.
   When $c_{f4}$ is invoked, we know exactly what instructions are executed up until the \texttt{scall}, namely it is ensured that the callback is global and the stack pointer has read/write-local/execute permission, and $x$ is set to 0.
@@ -3592,7 +3588,7 @@ lemma.
   The reasoning about \texttt{scall} is the same as for the first callback invocation.
   The callback capability is still safe because it is global which basically covers the Hyp-Callee case.
   For the Hyp-Cont case, we get a world $W_5 \futurewk W_4$ in which we need to argue that the remainder of the execution is safe.
-  At this point, we can use the anti-reduction lemma a final time to get to the point where we jump to the return pointer.
+  At this point, we can use the anti-reduction lemma one final time to get to the point where we jump to the return pointer.
   
   If we can argue that it is safe to jump to the return pointer that we got initially from the adversary, then the proof is done.
   We have made no checks on the return pointer, so we have no idea whether it is local or global\footnote{We may assume that it is a capability that is executable when jumped to since otherwise the execution fails which is considered safe.}.
@@ -3605,8 +3601,9 @@ lemma.
   This means that we know exactly what changes they made.
   In particular, we did not mask any of the temporary or revoked regions in $W_1$ with a permanent region.
   This means that in $W_6$, we can reinstate every temporary or revoked region of $W_1$.
-  In the private future worlds we constructed, we only took transitions that, relative to $W_1$, are public.
-  The worlds we were given, $W_3$ and $W_5$ may have taken arbitrary public transitions, but this is no problem with respect to the public future world relation.
+  In the private future worlds we constructed, we only took transitions that are
+  public relative to $W_1$.
+  The worlds we were given, $W_3$ and $W_5$, may have taken arbitrary public transitions, but this is no problem with respect to the public future world relation.
   In $W_5$ there were regions to handle the stack.
   These regions obviously need to be revoked as the $W_1$ stack regions replace them.
   The non-stack regions in $W_5$ that are not present in $W_1$ are also added in $W_6$, which the public future world relation permits as it is extensional.
@@ -3701,7 +3698,7 @@ lemma.
 \caption{Illustration of the worlds in the proof of
   Lemma~\ref{lem:correctness-g1}. In the proof, the top row of worlds are
   constructed by us, while the bottom row of worlds are given. $W_6$ is constructed such
-  that $W_6 \futurestr W_5$ \emph{ and } $W_6 \futurewk W_1$.}
+  that $W_6 \futurestr W_5$ and $W_6 \futurewk W_1$.}
   \label{fig:worlds-in-pf-g1}
 \end{figure}
 
@@ -4641,7 +4638,7 @@ respectively.
 
 
 \subsection{Awkward example}
-\textbf{The region for $x$} The region $\iota_x$, is the region omitted from the proof sketch for the awkward example.
+\textbf{The region for variable $x$} The region $\iota_x$, is the region omitted from the proof sketch for the awkward example.
 \figurename~\ref{fig:x-reg} illustrates the transition system of $\iota_x$.
   \begin{figure}[tb]
     \centering
