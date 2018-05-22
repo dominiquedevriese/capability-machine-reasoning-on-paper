@@ -391,10 +391,9 @@ By induction over $n$\footnote{if $n=0$, then we have a contradiction with $\Phi
   \end{enumerate}
 and show
 \[
-\npair{((\rx,\lin),\baddr,\eaddr,\aaddr),
-       ((\rx,\lin),\baddr,\eaddr,\aaddr)} \in \lreg{\trust}(W)
+\npair{(c,c)} \in \lreg{\trust}(W)
 \]
-We write $c=((\rx,\lin),\baddr,\eaddr,\aaddr)$.\\
+For $c=((\rx,\lin),\baddr,\eaddr,\aaddr)$.\\
 
 Let $n' \leq n$ be given and assume
 \begin{enumerate}
@@ -428,7 +427,8 @@ In order to do this, we first, we prove that one of the following holds:
   \item for all $i = 0..\calllen-1$, $\ms_T(\aaddr+i) = \ms_S(\aaddr+i) \in \ints$.
   \item TODO: other useful info
   \end{itemize}
-\item All of the following hold: (includes simple cases: gettype, geta, getb, gete, getp, getl, lt, plus, minus, that can be handled uniformly)
+\item All of the following hold: (includes simple cases: gettype, geta, getb,
+  gete, getp, getl, lt, plus, minus, one case of move that can be handled uniformly)
   \begin{itemize}
   \item $\Phi_S \step \Phi_S'$
   \item $\Phi_T \step \Phi_T'$
@@ -527,10 +527,46 @@ In order to do this, we first, we prove that one of the following holds:
     \end{itemize}
   \end{itemize}
 
-
-\item All of the following hold: (includes memory-manipulation cases: jmp, jnz, xjmp, that can be handled mostly uniformly)
+\item All of the following hold: (includes control-flow manipulation cases: jmp, jnz, xjmp, that can be handled mostly uniformly)
   \begin{itemize}
-  \item 
+  \item $\Phi_S \step \Phi_S'$
+  \item $\Phi_T \step \Phi_T'$
+  \item One of the following holds
+    \begin{itemize}
+    \item(jnz) $\Phi_S' = \updPcAddr{\Phi_S}$ and $\Phi_T' = \updPcAddr{\Phi_T}$
+    \item(jmp,jnz) $\Phi_S' = \Phi_S\updReg{\pcreg,r_1}{\Phi_S(r_1),w_1}$ and $\Phi_T' =
+      \Phi_T\updReg{\pcreg,r_1'}{\Phi_T(r_1),w_1'}$ and 
+      $\isLinear{\Phi_S(r_1)} \Rightarrow w_1 = w_1' = 0$ and
+      $\neg \isLinear{\Phi_S(r_1)} \Rightarrow (w_1 = \Phi_S(r_1) \text{ and }
+      w_1' = \Phi_T(r_1))$
+    \item(xjmp) $\Phi_S(r_1) = \sealed{\sigma,c_1}$ and $\Phi_S(r_2) =
+      \sealed{\sigma,c_2}$ and $\Phi_T(r_1) = \sealed{\sigma,c_1'}$ and
+      $\Phi_T(r_2) = \sealed{\sigma,c_2'}$ and $\Phi_S'(r_1,r_2) =
+      \linCons{c_1},\linCons{c_2}$ and $\Phi_T'(r_1,r_2) =
+      \linCons{c_1'},\linCons{c_2'}$ and\\
+      $c_1' \neq \retptrc(\_)$ and $c_2' \neq \retptrd(\_)$ and
+        $\nonExec{c_\data}$ and $\Phi_T'(\pcreg,\rdata) = c_1',c_2'$ and
+      one of the following hold:
+      \begin{itemize}
+      \item $c_1 \neq \retptrc(\_)$ and $c_2 \neq \retptrd(\_)$ and
+        $\nonExec{c_\data}$ and $\Phi_S'(\pcreg,\rdata) = c_1,c_2$.
+      \item $c_1 = \retptrc(\baddr,\eaddr,\aaddr)$, and $c_2 =
+        \retptrd(\aaddr_\stk,\eaddr_{\stk,\priv})$ and $\Phi(r_\stk) =
+        \stkptr{\rw,\stkb,\eaddr_\stk,\_}$ and $\Phi_S.\stk = \stk_\var{frame}
+        :: (\aaddr,\ms_{\stk,\priv})$ and
+        $\dom(\ms_{\stk,\priv} = [\eaddr_\stk+1,\eaddr_{\stk,\priv}])$ and
+        $\Phi_S'.\ms_\stk = \ms_{\stk,\priv} \uplus \Phi_S.\ms_\stk$ and
+        $\Phi_S'.\stk = \stk$ and
+        \[
+          \begin{split}
+\Phi_S' = \Phi_S&[\pcreg \mapsto ((\rx,\normal),\baddr,\eaddr,\aaddr)]\\
+            &[\rstk \mapsto
+            \stkptr{\rw,\stkb,\eaddr_{\stk,\priv},e_\stk+1}] \\
+            &[\rdata,\rtmp{1},\rtmp{2},r_2 \mapsto 0, 0, 0, 0]
+          \end{split}
+        \]
+      \end{itemize}
+    \end{itemize}
   \end{itemize}
 \end{itemize}
 
