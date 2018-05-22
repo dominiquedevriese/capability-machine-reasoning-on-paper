@@ -1329,8 +1329,8 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
     \var{comp}_3 = (\mscode[3], \msdata[3], \overline{c_{\mathrm{import},3}}, \overline{c_{\mathrm{export},3}}, \sigrets[3], \sigcloss[3])\\
     \mscode[3] = \mscode[1] \uplus \mscode[2] &
     \msdata[3] = \msdata[1] \uplus \msdata[2] \\
-    \overline{c_{\mathrm{import},3}} = (\overline{c_{\mathrm{import},1}} \cup \overline{c_{\mathrm{import},2}}) \setminus \overline{c_{\mathrm{export},3}}&
-    \overline{c_{\mathrm{export},3}} = \overline{c_{\mathrm{export},1}} \cup \overline{c_{\mathrm{export},2}}\\
+    \overline{c_{\mathrm{export},3}} = \overline{c_{\mathrm{export},1}} \cup \overline{c_{\mathrm{export},2}}&
+    \overline{c_{\mathrm{import},3}} = (\overline{c_{\mathrm{import},1}} \cup \overline{c_{\mathrm{import},2}}) \setminus \overline{c_{\mathrm{export},3}}\\
     \sigrets[3] = \sigrets[1] \uplus \sigrets[2] &
     \sigcloss[3] = \sigcloss[1] \uplus \sigcloss[2]
   }{
@@ -1349,6 +1349,14 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
     (\var{comp}_0'',c_{\mathrm{main},c}, c_{\mathrm{main},d}) = (\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d}) \bowtie \var{comp}_0'
   }
 \end{mathpar}
+
+\begin{lemma}[Linking preserves component well-formedness]
+  \label{lem:linking-well-formedness}
+  If $\vdash \var{comp}_1$ and $\vdash \var{comp}_2$, then $\vdash \var{comp}_1 \bowtie \var{comp}_2$.
+\end{lemma}
+\begin{proof}
+  TODO
+\end{proof}
 
 \subsection{Programs, contexts, initial execution configuration}
 \label{sec:programs}
@@ -2155,8 +2163,8 @@ H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
 \left\{
     \begin{array}{l}
 \left. \npair{\arraycolsep=0pt\left(\array{l}\retptrc(\baddr,\eaddr,\aaddr'+\calllen),\\((\rx,\normal),\baddr,\eaddr,\aaddr)\endarray\right)} \middle| \right. \\
-      \\
       \begin{array}{l}
+        \dom(\code) \subseteq \ta \tand\\
         \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
         \aaddr = \aaddr' + \retoffset \tand \\
         \code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\_} \tand \sigma = \sigma_b + \offsigma \in \sigrets \tand\\
@@ -2167,8 +2175,8 @@ H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
 \left\{
     \begin{array}{l}
 \left. \npair{\arraycolsep=0pt\left(\array{l}\retptrd(\baddr,\eaddr),\\((\rw,\linear),\baddr,\eaddr,\baddr-1)\endarray\right)} \middle| \right. \\
-      \\
       \begin{array}{l}
+        \dom(\code) \subseteq \ta \tand\\
         \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]} \ldotp \pwpriv[\xi(\hat{W})](r) \nequal (\stareg[(\ms,\ms),(\ta,\stkb)]{\spa,\square}, \aaddr'+\calllen) \tand \\
         \quad \dom(\ms) = [\baddr,\eaddr] \tand\\
         \quad \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
@@ -2191,7 +2199,7 @@ H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
 
 
 
-\subsection{Fundamental Theorem of Logical Relations}
+\subsection{World specifies component}
 
 \begin{definition}[World specifies component]
   We define that a world $W$ specifies the presence of a component with global constants $\gc$
@@ -2207,11 +2215,13 @@ H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
   \begin{itemize}
   \item $\pwheap(r_i) = \codereg[\mathrm{code}_i,\square]{\sigrets_i,\sigcloss_i,\code_i,\gc}$
   \item $\mscode = \biguplus_i \code_i$
-  \item One of the following holds:
+  \item For all $i$, one of the following holds:
     \begin{itemize}
-    \item $\dom(\mscode) \subseteq \ta$ and $\sigrets = \biguplus_i \sigrets_i$ and $\sigcloss = \biguplus_i \sigcloss_i$.
-    \item $\dom(\mscode) \mathrel{\#} \ta$ and $\sigrets = \emptyset$ and $\sigcloss = \biguplus_i \sigrets_i \uplus \biguplus_i \sigcloss_i$.
+    \item $\dom(\code_i) \subseteq \ta$
+    \item $\dom(\code_i) \mathrel{\#} \ta$
     \end{itemize}
+  \item $\sigrets = \biguplus_i \sigrets_i$
+  \item $\sigcloss = \biguplus_i \sigcloss_i$.
   \end{itemize}
   and there exist $r_1 \cdots r_m \in \dom(\pwheap)$ such that
   \begin{itemize}
@@ -2223,6 +2233,20 @@ H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
 Note that for untrusted components, we require all seals to be in the corresponding code region as closure seals.
 That is because we cannot trust untrusted components to treat their seals correctly (e.g. not hand them out to other components, only sign return capabilities with return seals etc.), so instead, they must be considered as closure seals, which the component is essentially allowed to sign anything with.
 
+\begin{lemma}[World specifies linked component if it specifies each separately]
+  \label{lem:world-specifies-linked}
+  If
+  \begin{itemize}
+  \item $W \vdash_\gc \var{comp}_0$
+  \item $W \vdash_\gc \var{comp}_0'$
+  \end{itemize}
+  Then $W \vdash \var{comp}_{0} \bowtie \var{comp}_{0}'$
+\end{lemma}
+\begin{proof}
+  Follows easily from the definitions.
+\end{proof}
+
+\subsection{Fundamental Theorem of Logical Relations}
 \begin{theorem}[FTLR]
   \label{thm:ftlr}
   For all $n,W,\lin,\baddr,\eaddr,\aaddr$,
