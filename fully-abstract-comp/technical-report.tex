@@ -2246,6 +2246,14 @@ That is because we cannot trust untrusted components to treat their seals correc
   Follows easily from the definitions.
 \end{proof}
 
+\begin{lemma}[World specifies component pure]
+  \label{lem:world-specifies-comp-pure}
+  If $W \vdash_\gc \var{comp}_0$ then $\purePart{W} \vdash \var{comp}_{0}$.
+\end{lemma}
+\begin{proof}
+  Follows easily from the definitions.
+\end{proof}
+
 \subsection{Fundamental Theorem of Logical Relations}
 \begin{theorem}[FTLR]
   \label{thm:ftlr}
@@ -2292,7 +2300,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
      \npair{\var{comp},\var{comp}} \;\mid \;\\
       \var{comp} = (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss) \tand \\
       W \vdash \var{comp} \tand\\
-      \text{For all } W' \future W \ldotp \text{If } \overline{\npair{(c_{\mathrm{import}},c_{\mathrm{import}})}} \in \lrv(\purePart{W'})\\
+      \text{For all } W' \future W \ldotp \text{If } \overline{\npair[n']{(c_{\mathrm{import}},c_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$}\\
       \text{then } \overline{\npair{(c_{\mathrm{export}},c_{\mathrm{export}})}} \in \lrv(\purePart{W'})
   \end{multlined}
     \right\}\\
@@ -2309,14 +2317,49 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 \begin{lemma}[Compatibility lemma for linking]
   If
   \begin{itemize}
-  \item $\npair{(\var{comp}_1,\var{comp}_1)} \in \lrcomp(W_1)$
-  \item $\npair{(\var{comp}_2,\var{comp}_2)} \in \lrcomp(W_2)$
+  \item $\npair{(\var{comp}_1,\var{comp}_1)} \in \lrcomp(W)$
+  \item $\npair{(\var{comp}_2,\var{comp}_2)} \in \lrcomp(W)$
   \end{itemize}
   then
   \begin{itemize}
-  \item $\npair{(\var{comp}_1 \bowtie \var{comp}_2,\var{comp}_1\bowtie\var{comp}_2)} \in \lrcomp(W_1\oplus W_2)$.
+  \item $\npair{(\var{comp}_1 \bowtie \var{comp}_2,\var{comp}_1\bowtie\var{comp}_2)} \in \lrcomp(W)$.
   \end{itemize}
 \end{lemma}
+\begin{proof}
+  First consider the case where one of the two pairs of components have a pair of ``main'' capabilities.
+  By the definition of $\lrcomp$, these capabilities have to be part of that components' export list.
+  It is then easy to see that the other component cannot have ``main'' capabilities (otherwise linking is not defined) and it is sufficient to prove the result for the underlying components (without the ``main'' capabilities).
+  Therefore, we can restrict ourselves to the case where both pairs of components are of the form $\var{comp}_0$, i.e. no ``main'' capabilities.
+
+  By Lemma~\ref{lem:world-specifies-linked}, we have that $W \vdash \var{comp}_1\bowtie \var{comp}_2$.
+
+  By definition of $\bowtie$, we have that the following hold:
+  \begin{align*}
+    \var{comp}_1 = (\mscode[1], \msdata[1], \overline{c_{\mathrm{import},1}}, \overline{c_{\mathrm{export},1}}, \sigrets[1], \sigcloss[1])\\
+    \var{comp}_2 = (\mscode[2], \msdata[2], \overline{c_{\mathrm{import},2}}, \overline{c_{\mathrm{export},2}}, \sigrets[2], \sigcloss[2])\\
+    \var{comp}_3 = (\mscode[3], \msdata[3], \overline{c_{\mathrm{import},3}}, \overline{c_{\mathrm{export},3}}, \sigrets[3], \sigcloss[3])\\
+    \mscode[3] = \mscode[1] \uplus \mscode[2] &
+    \msdata[3] = \msdata[1] \uplus \msdata[2] \\
+    \overline{c_{\mathrm{export},3}} = \overline{c_{\mathrm{export},1}} \cup \overline{c_{\mathrm{export},2}}&
+    \overline{c_{\mathrm{import},3}} = (\overline{c_{\mathrm{import},1}} \cup \overline{c_{\mathrm{import},2}}) \setminus \overline{c_{\mathrm{export},3}}\\
+    \sigrets[3] = \sigrets[1] \uplus \sigrets[2] &
+    \sigcloss[3] = \sigcloss[1] \uplus \sigcloss[2]
+  \end{align*}
+
+  Now take $W' \future W$ and assume that $\overline{\npair[n']{(c_{\mathrm{import},3},c_{\mathrm{import},3})}} \in \lrv(\purePart{W'})$ for all $n' < n$.
+  Then it remains to show that $\overline{\npair{(c_{\mathrm{export},3},c_{\mathrm{export},3})}} \in \lrv(\purePart{W'})$.
+  We do this by complete induction on $n$, so that we can assume that $\overline{\npair[n']{(c_{\mathrm{export},3},c_{\mathrm{export},3})}} \in \lrv(\purePart{W'})$ for all $n' < n$.
+
+  For each $$\npair{(c_{\mathrm{export}},c_{\mathrm{export}})} \in \overline{\npair{(c_{\mathrm{export},3},c_{\mathrm{export},3})}}$$, we have that $\npair{(c_{\mathrm{export}},c_{\mathrm{export}})}$ is either in $\overline{\npair{(c_{\mathrm{export},1},c_{\mathrm{export},1})}}$ or $\overline{\npair{(c_{\mathrm{export},2},c_{\mathrm{export},2})}}$.
+  By unfolding $\npair{(\var{comp}_1,\var{comp}_1)} \in \lrcomp(W)$ and $\npair{(\var{comp}_2,\var{comp}_2)} \in \lrcomp(W)$, it suffices to prove that $$\overline{\npair[n']{(c_{\mathrm{import},1},c_{\mathrm{import},1})}} \in \lrv(\purePart{W'})$$ and $$\overline{\npair[n']{(c_{\mathrm{import},2},c_{\mathrm{import},2})}} \in \lrv(\purePart{W'})$$
+  for all $n' < n$.
+
+  Simple set algebra tells us that 
+  $$\overline{c_{\mathrm{import},1}} \cup \overline{c_{\mathrm{import},2}} \subseteq \overline{c_{\mathrm{export},3}} \cup \overline{c_{\mathrm{import},3}}$$
+  and for all $n' < n$, we know that $$\overline{\npair[n']{(c_{\mathrm{import},3},c_{\mathrm{import},3})}} \in \lrv(\purePart{W'})$$
+  and
+  $$\overline{\npair[n']{(c_{\mathrm{export},3},c_{\mathrm{export},3})}} \in \lrv(\purePart{W'})\text{.}$$
+\end{proof}
 
 \subsection{FTLR for components}
 \label{sec:ftlr-for-comps}
