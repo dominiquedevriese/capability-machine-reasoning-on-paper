@@ -1196,7 +1196,7 @@ The parts that were split off and passed to the adversary are not protected, as 
 A target- or source-level component needs a number of things.
 In the following, we list what it needs followed by a description of how they are made available.
 
-A program needs access to the following:
+A component needs access to the following:
 \begin{description}
 \item[Code] The instructions of a component should of course be available so they can be executed.
 \item[Component seals] Each call/return point of the component, as well as every location where new closures are created, needs a unique seal in order to enforce well-bracketedness.
@@ -2448,6 +2448,9 @@ The untrusted case can be considered as a back-translation correctness result.
 \lau{RESOLVED: A logical relation for executable configurations.}
 \lau{RESOLVED: contextual equivalence should be defined in terms of initial executable configuration.}
 \lau{TODO: Did we agree that memory satisfaction should require $\stkb$ to be a free stack address (or at least not in the heap part)? I think we did.}
+
+\subsection{Reasonable components}
+\label{sec:reas-comp}
 \begin{definition}
   \label{def:points-to-instr}
   A configuration $(\ms,\reg)$ {\sourcecolor or $\Phi = (\ms,\reg,\_,\_)$} is said to point to non-$\scall{}{}{}$ instruction $i$ in $A$ iff
@@ -2565,21 +2568,24 @@ and
 
 % \dominique{19-3-2018: components should contain information about what seals they use and for what (for building return pointers or for building closures). That should facilitate defining reasonable linking (only when seals disjoint), and for defining the condition for full abstraction and the FTLR. Update: this is resolved}
 \begin{definition}
-  A component $\program = (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss)$ with $\dom(\mscode) = A$, is reasonable if for all $n$ and all contexts $\context$ the configuration $\plug{\context}{\program}$ satisfies:
+  A component $\var{comp} = (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss)$ with $\dom(\mscode) = A$, is reasonable if for all $n$ and all contexts $\context$ the configuration $\plug{\context}{\var{comp}}$ satisfies:
   \begin{itemize}
-  \item $\plug{\context}{\program}$ checks $\stkb$ before calls in $A$ for $n$ steps (Definition~\ref{def:check-stack-addr-before-call}).
-  \item $\plug{\context}{\program}$ uses link seals properly in $A$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:use-return-seals-call}).
-  \item $\plug{\context}{\program}$ handle trusted seals properly in $A$ with components parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:handle-trusted-seals-properly}).
-  \item $\plug{\context}{\program}$ does not store link seals and code capabilities in $A$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:never-store-seal-code-cap}).
+  \item $\plug{\context}{\var{comp}}$ checks $\stkb$ before calls in $A$ for $n$ steps (Definition~\ref{def:check-stack-addr-before-call}).
+  \item $\plug{\context}{\var{comp}}$ uses link seals properly in $A$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:use-return-seals-call}).
+  \item $\plug{\context}{\var{comp}}$ handle trusted seals properly in $A$ with components parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:handle-trusted-seals-properly}).
+  \item $\plug{\context}{\var{comp}}$ does not store link seals and code capabilities in $A$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:never-store-seal-code-cap}).
   \end{itemize}
 \end{definition}
 
+\subsection{Full abstraction: precise formulation}
+\label{sec:full-abstr-prec}
+
 \begin{definition}[Source language contextual equivalence]
-  In the source language, we define that $\src{\program_1 \sconeq \program_2}$ iff
+  In the source language, we define that $\src{\var{comp}_1 \sconeq \var{comp}_2}$ iff
   \begin{equation*}
-    \forall \src{\context} \ldotp \src{\plug{\context}{\program_1} \sterm{\ta[,1],\stkb_1}} \Leftrightarrow \src{\plug{\context}{\program_2} \sterm{\ta[,2],\stkb_2}}
+    \forall \src{\context} \ldotp \src{\plug{\context}{\var{comp}_1} \sterm{\ta[,1],\stkb_1}} \Leftrightarrow \src{\plug{\context}{\var{comp}_2} \sterm{\ta[,2],\stkb_2}}
   \end{equation*}
-  with $\src{\ta[,i]} = \src{\dom(\program_i.\mscode)}$
+  with $\src{\ta[,i]} = \src{\dom(\var{comp}_i.\mscode)}$
 \end{definition}
 
 Note that we define source language contextual equivalence with respect to contexts that are not in $\ta$.
@@ -2593,19 +2599,19 @@ That xjmp can even be the one in the implementation of call if the context uses 
 This works perfectly fine, except that the context does not get any well-bracketedness guarantees, but that doesn't matter.
 
 \begin{definition}[Target language contextual equivalence]
-  In the target language, we define that $\trg{\program_1 \tconeq \program_2}$ iff
+  In the target language, we define that $\trg{\var{comp}_1 \tconeq \var{comp}_2}$ iff
   \begin{equation*}
-    \forall \trg{\context} \ldotp \trg{\plug{\context}{\program_1} \term} \Leftrightarrow \trg{\plug{\context}{\program_2} \term}
+    \forall \trg{\context} \ldotp \trg{\plug{\context}{\var{comp}_1} \term} \Leftrightarrow \trg{\plug{\context}{\var{comp}_2} \term}
   \end{equation*}
 \end{definition}
 
 \begin{theorem}
   \label{thm:full-abstraction}
-  For reasonable components $\program_1$ and $\program_2$, we have
+  For reasonable components $\var{comp}_1$ and $\var{comp}_2$, we have
   \begin{gather*}
-    \src{\program_1} \sconeq \src{\program_2}\\
+    \src{\var{comp}_1} \sconeq \src{\var{comp}_2}\\
     \Updownarrow\\
-    \comp{\src{\program_1}} \tconeq \comp{\src{\program_2}}
+    \comp{\src{\var{comp}_1}} \tconeq \comp{\src{\var{comp}_2}}
   \end{gather*}
 \end{theorem}
 \begin{proof}
