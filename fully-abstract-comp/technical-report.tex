@@ -1286,7 +1286,7 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
     [\baddr,\eaddr] \subseteq A_{\mathrm{code}} & 
     \sigma \in \sigcloss
   }{
-    A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \sealed{\sigma,((\perm,\rx),\baddr,\eaddr,\aaddr)}
+    A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \sealed{\sigma,((\rx,\normal),\baddr,\eaddr,\aaddr)}
   }
   \and
   \inference{
@@ -2367,12 +2367,40 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 \subsection{FTLR for components}
 \label{sec:ftlr-for-comps}
 
-\begin{lemma}[FTLR for component code-values]
+\begin{lemma}[Code region for untrusted components stronger than standard safe memory region]
+  \label{lem:codereg-untrusted-stdreg}
   If
   \begin{itemize}
-  \item $W(r_{\mathrm{code}}) = \codereg{\sigrets,\sigcloss,\mscode,\gc}$
+  \item $\dom(\mscode) \mathrel{\#} \ta$
+  \end{itemize}
+  then $\codereg{\sigrets,\sigcloss,\mscode,\gc} \nsubeq \stdreg{R(r),\gc}{\pur}$ 
+\end{lemma}
+\begin{proof}
+  TODO
+\end{proof}
+
+\begin{lemma}[Code memory for untrusted components safely readable]
+  \label{lem:code-memory-untrusted-readable}
+  If
+  \begin{itemize}
+  \item $\dom(\mscode) \mathrel{\#} \ta$
+  \item $\pwheap(r_{\mathrm{code}}) = \codereg{\sigrets,\sigcloss,\mscode,\gc}$
+  \item $A \subseteq \dom(\mscode)$,
+  \end{itemize}
+  we have that $\npair{A} \in \readCond{\normal,W}$.
+\end{lemma}
+\begin{proof}
+  Follows by defintion of $\readCond$ from Lemma~\ref{lem:codereg-untrusted-stdreg}.
+\end{proof}
+
+\begin{lemma}[FTLR for component code capabilities]
+  \label{lem:ftlr-component-code-ptrs}
+  If
+  \begin{itemize}
+  \item $\pwheap(r_{\mathrm{code}}) = \codereg{\sigrets,\sigcloss,\mscode,\gc}$
   \item ($\trust = \untrusted$ and $\dom(\mscode \mathrel{\#} \ta)$) or ($\trust = \trusted$ and $\dom(\mscode) \subseteq \ta$)
-  \item $w = ((\perm,\rx),\baddr,\eaddr,\aaddr)$
+  \item $w = ((\rx,\normal),\baddr,\eaddr,\aaddr)$
+  \item $[\baddr,\eaddr]\subseteq \dom(\mscode)$
   \end{itemize}
 
   then $\npair{(w,w)} \in \lrvg{\trust}(W)$.
@@ -2381,9 +2409,19 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   We distinguish two cases:
   \begin{itemize}
   \item $\trust = \untrusted$ and $\dom(\mscode \mathrel{\#} \ta)$:
-    TODO
+    By definition of $\lrv(W)$, it suffices to show that:
+    $\npair{[b,e]}\in\readCond{\normal,W}$, 
+    $\npair{[b,e]}\in\xReadCond{\normal,W}$ and 
+    $\npair{[b,e]}\in\execCond{\normal,W}$.
+
+    The first requirement follows from Lemma~\ref{lem:code-memory-untrusted-readable}.
+    The second follows from the definition of $\xReadCond$, together with the assumption that $\pwheap(r_{\mathrm{code}}) = \codereg{\sigrets,\sigcloss,\mscode,\gc}$.
+    The third TODO \dominique{TODO: assume induction hypo of FTLR?}
   \item $\trust = \trusted$ and $\dom(\mscode) \subseteq \ta$:
-    TODO
+    By definition of $\lrvg{\trusted}(W)$, it suffices to show that
+    $\npair{[b,e]}\in\xReadCond{\normal,W}$.
+
+    This follows immediately from the definition of $\xReadCond$, together with the assumption that $\pwheap(r_{\mathrm{code}}) = \codereg{\sigrets,\sigcloss,\mscode,\gc}$.
   \end{itemize}
 \end{proof}
 
@@ -2398,7 +2436,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \item $\npair{A_{\mathrm{non-linear}}} \in \writeCond{\normal,W}$
   \item $\npair{A_{\mathrm{own}}} \in \readCond{\linear,W}$
   \item $\npair{A_{\mathrm{own}}} \in \writeCond{\linear,W}$
-  \item $W(r_{\mathrm{code}}) = \codereg{\sigrets,\sigcloss,\mscode,\gc}$
+  \item $\pwheap(r_{\mathrm{code}}) = \codereg{\sigrets,\sigcloss,\mscode,\gc}$
   \item $\dom(\mscode \mathrel{\#} \ta)$ or $\dom(\mscode) \subseteq \ta$
   \item $\npair[n']{(c_{\mathrm{import}},c_{\mathrm{import}})} \in \lrv(W)$ for all $n' < n$
   \item $w \not\in \overline{c_{\mathrm{import}}}$
@@ -2415,9 +2453,32 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \begin{itemize}
   \item $w = z$: result follows trivially
   \item $w = c$, $c \in \overline{c_{\mathrm{import}}}$: contradicts assumption.
-  \item $w = \sealed{\sigma,((\perm,\rx),\baddr,\eaddr,\aaddr)}$, $[\baddr,\eaddr]\subseteq A_{\mathrm{code}}$, $\sigma \in \sigcloss$:
+  \item $w = \sealed{\sigma,\vsc}$, $\vsc = ((\rx,\normal),\baddr,\eaddr,\aaddr)$, $[\baddr,\eaddr]\subseteq \dom(\mscode)$, $\sigma \in \sigcloss$:
     
-    TODO
+    By definition of $\lrv$ and by choosing island $r = r_{\mathrm{code}}$, it suffices to prove that
+    \begin{itemize}
+    \item $\npair[n']{(\vsc,\vsc)} \in H_\sigma \; \sigma \; \xi^{-1}(W)$ for all $n' < n$:
+
+     By definition of $\codereg{\sigrets,\sigcloss,\mscode,\gc}$ and $H^\mathrm{code,\square}_\sigma$ and because we know that $\sigma\in\sigcloss$, it suffices to prove that one of the following holds: 
+     \begin{itemize}
+     \item $(\dom(\code) \mathrel{\#} \ta$ and $\npair[n']{(\vsc,\vsc)} \in \lrv \; \xi(\xi^{-1}(W))$
+     \item $(\dom(\code) \subseteq \ta$ and $\npair[n']{(\vsc,\vsc)} \in \lrvtrusted \; \xi(\xi^{-1}(W))$
+     \end{itemize}
+     Take $\trust = \untrusted$ iff $\dom(\mscode \mathrel{\#} \ta)$ and $\trust = \trusted$ iff $\dom(\mscode) \subseteq \ta$.
+     Since $\xi(\xi^{-1}(W)) = W$ and because we know by assumption that $\dom(\mscode \mathrel{\#} \ta)$ or $\dom(\mscode) \subseteq \ta$, it suffices to prove that $\npair[n']{(\vsc,\vsc)} \in \lrvg{\trust}(W)$.
+
+     This last fact follows from Lemma~\ref{lem:ftlr-component-code-ptrs} that $\npair{(\vsc,\vsc)} \in \lrvg{\trust}(W)$, using Lemma~\ref{lem:downwards-closed}.
+
+   \item $(\isLinear{\vsc} \text{ iff } \isLinear{\vsc})$: trivially fine
+      
+   \item 
+     For all $W' \future \purePart{W}$, $W_o$, $n' < n$, $\npair[n']{(\vsc_S',\vsc'_T)} \in H_\sigma \; \sigma \; \xi^{-1}(W_o)$, we have that
+     \begin{equation*}
+       \npair[n']{(\vsc,\src{\vsc_S'},\vsc,\vsc_T')} \in \lrexj(W'\oplus W_o))
+     \end{equation*}
+     \dominique{TODO:I expect this should be able to reuse a result that we also need for the regular FTLR?}
+   \end{itemize}
+   TODO
   \item $w = ((\perm,\lin),\baddr,\eaddr,\aaddr)$,
     $\permbnf \sqsubseteq \rw$,
     $\lin = \linear \Rightarrow \emptyset \subset [\baddr,\eaddr] \subseteq A_{\mathrm{own}}$ and
@@ -2426,7 +2487,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
     
   \item $w = \sealed{\sigma,\vsc}$ and
     \begin{equation*}
-      A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \vsc
+      \dom(\mscode),A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \vsc
     \end{equation*}
     and $\sigma \in \sigcloss$:
 
@@ -2442,7 +2503,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
      \end{itemize}
      Since $\xi(\xi^{-1}(W)) = W$ and $\lrv \; W \subseteq \lrvtrusted \; W$ and because we know by assumption that $\dom(\mscode \mathrel{\#} \ta)$ or $\dom(\mscode) \subseteq \ta$, it suffices to prove that $\npair[n']{(\vsc,\vsc)} \in \lrv (W)$ in both cases.
 
-     This follows by induction and Lemma~\ref{lem:non-expansive} (if $\vsc \not\in \overline{c_{\mathrm{import}}}$) or by assumption (if $\vsc \in \overline{c_{\mathrm{import}}}$), we know that $\npair[n']{(\vsc,\vsc)} \in \lrv(W)$.
+     This follows by induction and Lemma~\ref{lem:downwards-closed} (if $\vsc \not\in \overline{c_{\mathrm{import}}}$) or by assumption (if $\vsc \in \overline{c_{\mathrm{import}}}$).
 
    \item $(\isLinear{\vsc} \text{ iff } \isLinear{\vsc})$: trivially fine
       
