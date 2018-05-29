@@ -175,7 +175,7 @@ Source language:
 \item Variable length instructions that match the length of the compiled instructions
   \begin{itemize}
 %  \item Opaque capabilities do not hide the length of a program (especially an issue if we ever hope to have error recovery).
-  \item This is needed for correctness. See subsection~\ref{subsec:capability-opacity} for an example it helps prevent.
+  \item This is needed for correctness. %See subsection~\ref{subsec:capability-opacity} for an example it helps prevent.
   \item It is only used for the call instruction.
   \end{itemize}
 % Lau: 18-12-2017: I do not think this is true anymore?
@@ -1948,7 +1948,7 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
         \perm \neq \rwx \wedge \\
         % \perm = \rwx &\Rightarrow& \array[t]{l}\npair{(\{\rwx,\rx\},\baddr,\eaddr)} \in \execCond{\lin,W} \wedge \\
         %                            \npair{(\baddr,\eaddr)} \in \xReadCond{\lin,W} \endarray\\
-        \perm = \rx &\Rightarrow& \array[t]{l}\npair{(\{\rx\},\baddr,\eaddr)} \in \execCond{\lin,W} \wedge\\
+        \perm = \rx &\Rightarrow& \array[t]{l}\npair{[\baddr,\eaddr]} \in \execCond{\lin,W} \wedge\\
                                   \npair{[\baddr,\eaddr]} \in \xReadCond{\lin,W}\endarray
       \end{array}
     \end{array}
@@ -2088,17 +2088,17 @@ where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-region
 Note: this new version of execCond uses the expression relation for regular jumps since it expresses the validity of jumping to an address pointed to by an executable capability. 
 \begin{align*}
   \execCond{\lin,W} &=
-  \left\{ \npair{(\baddr,\eaddr)} \middle|
+  \left\{ \npair{A} \middle|
     \begin{array}{l}
-      \forall n' < n, W' \future \purePart{W}, \aaddr \in [\baddr',\eaddr'] \subseteq [\baddr,\eaddr] \ldotp\\
+      \forall n' < n, W' \future \purePart{W}, \aaddr \in [\baddr',\eaddr'] \subseteq A \ldotp\\
       \quad \npair[n']{\stpair[.]{((\rx,\lin),\baddr',\eaddr',\aaddr)}{((\rx,\lin),\baddr',\eaddr',\aaddr)}} \in \lre(W')
     \end{array}
     \right\}\\
-  &\cup\left\{ \npair{(\baddr,\eaddr)} \middle|
+  &\cup\left\{ \npair{A} \middle|
     \begin{array}{l}
       \lin = \linear \wedge\\
-      \exists W_a : [\baddr,\eaddr] \fun \World \wedge W = \oplus_{a\in[\baddr,\eaddr]} W_a(a)\wedge\\
-      \forall n' < n, \aaddr\in[\baddr',\eaddr'] \subseteq [\baddr,\eaddr], W' \future \oplus_{a\in[\baddr',\eaddr']} W_a(a), \ldotp\\
+      \exists W_a : A \fun \World \wedge W = \oplus_{a\in[\baddr,\eaddr]} W_a(a)\wedge\\
+      \forall n' < n, \aaddr\in[\baddr',\eaddr'] \subseteq A, W' \future \oplus_{a\in[\baddr',\eaddr']} W_a(a), \ldotp\\
       \quad \npair[n']{\stpair[.]{((\rx,\lin),\baddr',\eaddr',\aaddr)}{((\rx,\lin),\baddr',\eaddr',\aaddr)}} \in \lre(W')
     \end{array}
     \right\}
@@ -2403,22 +2403,49 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   Follows by defintion of $\readCond$ from Lemma~\ref{lem:codereg-untrusted-stdreg}.
 \end{proof}
 
-\begin{lemma}[readCond shrinkable]
-  \label{lem:readCond-shrinkable}
-  If $\npair{A} \in \readCond{\lin,W}$  and $A' \subseteq A$, then
-  $\npair{A'} \in \readCond{\lin,W}$.
+\begin{lemma}[non-linear words are pure]
+  \label{lem:non-linear-pure}
+  \begin{itemize}
+  \item If $\npair{A} \in \readCond{\normal,W}$, then $\npair{A} \in \readCond{}(\normal, \purePart{W} )$.
+  \item If $\npair{A} \in \writeCond{\normal,W}$, then $\npair{A} \in \writeCond{}(\normal,\purePart{W})$
+  \item If $\npair{A} \in \execCond{\normal,W}$, then $\npair{A} \in \execCond{}(\normal,\purePart{W})$
+  \item If $\npair{(w_1,w_2)} \in \lrv(H_\sigma,W)$ and ($\nonLinear{w_1}$ or
+    $\nonLinear{w_2}$), then
+    $\npair{(w_1,w_2)} \in \lrv(H_\sigma,\purePart{W})$.
+  \end{itemize}
 \end{lemma}
 \begin{proof}
-  Follows easily from the definition.
+  Follows easily by inspecting the definitions of $\lrv$, $\readCond[]{}$, $\addressable{}$, $\writeCond[]{}$, $\execCond[]{}$ and $\xReadCond[]{}$ and using Lemma~\ref{lem:purePart-idempotent}.
 \end{proof}
 
-\begin{lemma}[readXCond shrinkable]
-  \label{lem:readXCond-shrinkable}
-  If $\npair{A} \in \xReadCond{\lin,W}$  and $A' \subseteq A$, then
-  $\npair{A'} \in \xReadCond{\lin,W}$.
+\begin{lemma}[permission-based conditions splittable]
+  \label{lem:conds-splittable}
+  If $A = [\baddr_1,\eaddr_1] \uplus [\baddr_2,\eaddr_2]$, then
+  \begin{itemize}
+  \item If $\npair{A} \in \readCond{\lin,W}$, then there exists $W_1, W_2$ such that $W = W_1\oplus W_2$ such that $\npair{[\baddr_1,\eaddr_1]} \in \readCond{\lin,W_1}$ and $\npair{[\baddr_2,\eaddr_2]} \in \readCond{\lin,W_2}$.
+  \item If $\npair{A} \in \writeCond{\lin,W}$, then there exists $W_1, W_2$ such that $W = W_1\oplus W_2$ such that $\npair{[\baddr_1,\eaddr_1]} \in \writeCond{\lin,W_1}$ and $\npair{[\baddr_2,\eaddr_2]} \in \writeCond{\lin,W_2}$.
+  \item If $\npair{A} \in \execCond{\lin,W}$, then there exists $W_1, W_2$ such that $W = W_1\oplus W_2$ such that $\npair{[\baddr_1,\eaddr_1]} \in \execCond{\lin,W_1}$ and $\npair{[\baddr_2,\eaddr_2]} \in \execCond{\lin,W_2}$.
+  \end{itemize}
 \end{lemma}
 \begin{proof}
-  Follows easily from the definition.
+  TODO
+\end{proof}
+
+\begin{lemma}[permission-based conditions shrinkable]
+  \label{lem:conds-shrinkable}
+  \begin{itemize}
+  \item If $\npair{A} \in \readCond{\lin,W}$  and $A' \subseteq A$, then
+    $\npair{A'} \in \readCond{\lin,W}$.
+  \item If $\npair{A} \in \writeCond{\lin,W}$  and $A' \subseteq A$, then
+    $\npair{A'} \in \readCond{\lin,W}$.
+  \item If $\npair{A} \in \xReadCond{\lin,W}$  and $A' \subseteq A$, then
+    $\npair{A'} \in \xReadCond{\lin,W}$.
+  \item If $\npair{A} \in \execCond{\lin,W}$  and $A' \subseteq A$, then
+    $\npair{A'} \in \execCond{\lin,W}$.
+  \end{itemize}
+\end{lemma}
+\begin{proof}
+  Follows easily from the definition. TODO: check after update
 \end{proof}
 
 \begin{lemma}[FTLR for component code capabilities]
@@ -2446,7 +2473,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
     \item $\npair{[b,e]}\in\execCond{\normal,W}$:
       take $n' < n$, $W' \future \purePart{W}$, $\aaddr' \in [\baddr',\eaddr'] \subseteq [\baddr,\eaddr]$ and $w' = ((\rx,\normal),\baddr',\eaddr',\aaddr')$.
       Then we need to show that $\npair[n']{(w',w')} \in \lre(W')$.
-      This now follows immediately from the (regular) FTLR (Theorem~\ref{thm:ftlr}), using the two above points, Lemma~\ref{lem:downwards-closed} and Lemmas~\ref{lem:readCond-shrinkable} and~\ref{lem:readXCond-shrinkable}.
+      This now follows immediately from the (regular) FTLR (Theorem~\ref{thm:ftlr}), using the two above points, Lemma~\ref{lem:downwards-closed} and Lemma~\ref{lem:conds-shrinkable}.
     \end{itemize}
 
   \item $\trust = \trusted$ and $\dom(\mscode) \subseteq \ta$:
