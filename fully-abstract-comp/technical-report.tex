@@ -1140,49 +1140,49 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
 \lau{25-10-2017: I have forgotten why we save $e_\stk$ on the stack and whether this is still necessary (it at least prevent the empty case, but I do not recall if it is necessary for other reasons).}
 \lau{20-12-2017: At some point, I added an offset annotation $o$ to all calls. I believe this removes the need for a function that annotate seals. It will still have to be checked that all calls in a program uses different offsets, but I suspect this can be done as some assumption in what we want to prove.}
 \lau{20-12-2017: Until this day, we had a $\sealAss{}$ function: This instruction assumes that the current address of the stack pointer, $\aaddr_\stk$, points to the first free address of the stack. We assume a seal assignment function $\sealAss{}$ that given an address assigns a seal.\lau{25-09-2017: This will need some more explanation - namely, there should be some relationship between the available seals and this function (I also need to think more about the specifics of this).}}
-\begin{align*}
-  \sem{\scall{\offpc,\offsigma}{\src{r_1}}{\src{r_2}}}(\Phi) = & 
-                                               \begin{cases}
-                                                 \Phi'
-                                                 \arraycolsep=0pt
-                                                 \begin{array}[t]{rl}
-                                                   &\updReg{r_1}{w_1} \\
-                                                        &\updReg{r_2}{w_2} \\
-                                                        &\updReg{\pcreg}{c_1}\\
-                                                        &\updReg{\rdata}{c_2}\\
-                                                        &\updReg{\rstk}{c_\stk}\\
-                                                        &\updReg{\rretc}{\sealed{\sigma_?,c_\opc}}\\
-                                                        &\updReg{\rretd}{\sealed{\sigma_?,c_\var{priv\_data}}}\\
-                                                        &\updReg{\rtmp{1}}{0}
-                                                 \end{array}
-                                                 & 
-                                                 \arraycolsep=0pt
-                                                 \begin{array}[t]{l}
-                                                   \Phi(r_1) = \sealed{\sigma_1,c_1} \tand \\
-                                                   \Phi(r_2) = \sealed{\sigma_2,c_2} \tand \\
-                                                   \sigma_1 = \sigma_2 \tand \\
-                                                   \nonExec{c_2} \tand\\
-                                                   \Phi = (\mem,\reg,\stk,\ms_\stk) \tand\\
-                                                   \Phi(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk} \tand \\
-                                                   \baddr_\stk < \aaddr_\stk \leq \eaddr_\stk \tand \\
-                                                   \ms_{\stk,\priv} = \ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42} \tand\\
-                                                   \ms_{\stk,\var{rest}} = \ms_\stk - \ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]} \tand \\
-                                                   c_\stk = \stkptr{\rw,\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1} \tand \\
-                                                   c_\var{priv\_data} = \retptrd(\aaddr_\stk,\eaddr_\stk) \tand \\
-                                                   \Phi(\pcreg) = ((\_,\_),\baddr,\eaddr,\aaddr) \tand \\
-                                                   \opc = \aaddr + \calllen \tand \\
-                                                   c_\opc = \retptrc(\baddr,\eaddr,\aaddr+\calllen) \tand \\
-                                                   \stk' = (\opc,\ms_{\stk,\priv}) :: \stk \tand\\
-                                                   \Phi' = (\mem,\reg,\stk',\ms_{\stk,\var{rest}})\tand\\
-                                                   \mem(a+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\aaddr}\tand\\
-                                                   \sigma_? = \sigma_\aaddr + \offsigma \tand\\
-                                                   \sigma_\baddr \leq \sigma_? \leq \sigma_\eaddr \tand\\
-                                                   w_1 = \linCons{\Phi(r_1)} \tand \\
-                                                   w_2 = \linCons{\Phi(r_2)}
-                                                 \end{array}\\
-                                                 \failed & \totherwise
-                                               \end{cases}
-\end{align*}
+
+\begin{multline*}
+  \sem{\scall{\offpc,\offsigma}{\src{r_1}}{\src{r_2}}}(\Phi) = \\
+  \begin{cases}
+    \mathit{xjumpResult}\left(c_1,c_2, 
+     \arraycolsep=0pt
+    \array[]{rl}
+      \Phi'&\updReg{r_1}{w_1} \\
+      &\updReg{r_2}{w_2} \\
+
+      &\updReg{\rstk}{c_\stk}\\
+      &\updReg{\rretc}{\sealed{\sigma_?,c_\opc}}\\
+      &\updReg{\rretd}{\sealed{\sigma_?,c_\var{priv\_data}}}\\
+      &\updReg{\rtmp{1}}{0}
+      \endarray
+     \right)
+    & \arraycolsep=0pt
+    \begin{array}[t]{l}
+      \Phi(r_1) = \sealed{\sigma_1,c_1} \tand \\
+      \Phi(r_2) = \sealed{\sigma_2,c_2} \tand \\
+      \sigma_1 = \sigma_2 \tand \\
+      \nonExec{c_2} \tand\\
+      \Phi = (\mem,\reg,\stk,\ms_\stk) \tand\\
+      \Phi(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk} \tand \\
+      \baddr_\stk < \aaddr_\stk \leq \eaddr_\stk \tand \\
+      \ms_{\stk,\priv} = \ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42} \tand\\
+      \ms_{\stk,\var{rest}} = \ms_\stk - \ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]} \tand \\
+      c_\stk = \stkptr{\rw,\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1} \tand \\
+      c_\var{priv\_data} = \retptrd(\aaddr_\stk,\eaddr_\stk) \tand \\
+      \Phi(\pcreg) = ((\_,\_),\baddr,\eaddr,\aaddr) \tand \\
+      \opc = \aaddr + \calllen \tand \\
+      c_\opc = \retptrc(\baddr,\eaddr,\aaddr+\calllen) \tand \\
+      \stk' = (\opc,\ms_{\stk,\priv}) :: \stk \tand\\
+      \Phi' = (\mem,\reg,\stk',\ms_{\stk,\var{rest}})\tand\\
+      \mem(a+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\aaddr}\tand\\
+      \sigma_? = \sigma_\aaddr + \offsigma \tand\\
+      \sigma_\baddr \leq \sigma_? \leq \sigma_\eaddr \tand\\
+      w_1 = \linCons{\Phi(r_1)} \tand \\
+      w_2 = \linCons{\Phi(r_2)}
+    \end{array}\\
+    \failed & \totherwise
+  \end{cases}
+\end{multline*}
 \lau{20-12-2017: After looking this over, I have a couple of questions (for myself and everyone else): In the condition for call, we assume $\Phi(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk}$. There is, however, no check in the implementation of call that ensures this. That says, we are going to have an assumption that the stack pointer base address has been checked before all calls (i.e., that it is $\stkb$) which would indeed mean that it is a stack pointer (assuming that the address $\stkb$ is a stack address to begin with). Why did we not want to check the stack end address here? And if we do not check it as part of the call implementation, do we then want to match the call implementation better?}
 \dominique{13-3-2018: re the above note: the above should be mitigated by Definition~\ref{def:check-stack-addr-before-call}. Adding a check is in principle not necessary, since the check would only protect trusted code from itself, rather than the adversary.}
 \dominique{13-3-2018: where does $o$ come from above in the calculation of $\sigma_?$?}
@@ -2098,7 +2098,7 @@ Note: this new version of execCond uses the expression relation for regular jump
     \begin{array}{l}
       \lin = \linear \wedge\\
       \exists W_a : A \fun \World \wedge W = \oplus_{a\in[\baddr,\eaddr]} W_a(a)\wedge\\
-      \forall n' < n, \aaddr\in[\baddr',\eaddr'] \subseteq A, W' \future \oplus_{a\in[\baddr',\eaddr']} W_a(a), \ldotp\\
+      \forall n' < n, \aaddr\in[\baddr',\eaddr'] \subseteq A, W' \future \oplus_{a\in[\baddr',\eaddr']} W_a(a) \ldotp\\
       \quad \npair[n']{\stpair[.]{((\rx,\lin),\baddr',\eaddr',\aaddr)}{((\rx,\lin),\baddr',\eaddr',\aaddr)}} \in \lre(W')
     \end{array}
     \right\}
@@ -2405,6 +2405,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 
 \begin{lemma}[non-linear words are pure]
   \label{lem:non-linear-pure}
+
   \begin{itemize}
   \item If $\npair{A} \in \readCond{\normal,W}$, then $\npair{A} \in \readCond{}(\normal, \purePart{W} )$.
   \item If $\npair{A} \in \writeCond{\normal,W}$, then $\npair{A} \in \writeCond{}(\normal,\purePart{W})$
@@ -2418,6 +2419,25 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   Follows easily by inspecting the definitions of $\lrv$, $\readCond[]{}$, $\addressable{}$, $\writeCond[]{}$, $\execCond[]{}$ and $\xReadCond[]{}$ and using Lemma~\ref{lem:purePart-idempotent}.
 \end{proof}
 
+\begin{lemma}[permission-based conditions shrinkable]
+  \label{lem:conds-shrinkable}
+  \begin{itemize}
+  \item If $\npair{A} \in \readCond{\lin,W}$  and $\emptyset \neq A' \subseteq A$, then
+    $\npair{A'} \in \readCond{\lin,W}$.
+  \item If $\npair{A} \in \writeCond{\lin,W}$  and $\emptyset \neq A' \subseteq A$, then
+    $\npair{A'} \in \writeCond{\lin,W}$.
+  \item If $\npair{A} \in \xReadCond{\lin,W}$  and $\emptyset \neq A' \subseteq A$, then
+    $\npair{A'} \in \xReadCond{\lin,W}$.
+  \item If $\npair{A} \in \execCond{\lin,W}$  and $\emptyset \neq A' \subseteq A$, then
+    $\npair{A'} \in \execCond{\lin,W}$.
+  \end{itemize}
+\end{lemma}
+\begin{proof}
+  Follows easily from the definitions.
+  In the case for $\execCond$ where $\lin = \linear$, we have a partition of the world into $W = \oplus_{a \in A} W_a(a)$ that we need to convert into a partition $W = \oplus_{a \in A'} W_a'(a)$.
+  It suffices construct new $W_a'$ by taking $W_a$ but adding $\oplus_{a\in(A\setminus A')}$ to an $W_a(a)$ for an arbitrary $a \in A'$ to make this work.
+\end{proof}
+
 \begin{lemma}[permission-based conditions splittable]
   \label{lem:conds-splittable}
   If $A = [\baddr_1,\eaddr_1] \uplus [\baddr_2,\eaddr_2]$, then
@@ -2428,24 +2448,16 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \end{itemize}
 \end{lemma}
 \begin{proof}
-  TODO
-\end{proof}
+  If $\lin = \normal$, then Lemma~\ref{lem:non-linear-pure} tells us that it suffices to consider pure worlds $W = \purePart{W}$ and Lemma~\ref{lem:purePart-duplicable} tells us that then $W = W \oplus W$.
+  The results then follow from the previous Lemma~\ref{lem:conds-shrinkable}.
+  
+  As such, we can limit ourselves to the case where $\lin = \linear$.
 
-\begin{lemma}[permission-based conditions shrinkable]
-  \label{lem:conds-shrinkable}
-  \begin{itemize}
-  \item If $\npair{A} \in \readCond{\lin,W}$  and $A' \subseteq A$, then
-    $\npair{A'} \in \readCond{\lin,W}$.
-  \item If $\npair{A} \in \writeCond{\lin,W}$  and $A' \subseteq A$, then
-    $\npair{A'} \in \readCond{\lin,W}$.
-  \item If $\npair{A} \in \xReadCond{\lin,W}$  and $A' \subseteq A$, then
-    $\npair{A'} \in \xReadCond{\lin,W}$.
-  \item If $\npair{A} \in \execCond{\lin,W}$  and $A' \subseteq A$, then
-    $\npair{A'} \in \execCond{\lin,W}$.
-  \end{itemize}
-\end{lemma}
-\begin{proof}
-  Follows easily from the definition. TODO: check after update
+  The read- and write-conditions then require separate islands for each individual address in $A$ and we can distribute ownership of those islands according to whether those addresses are in $[\baddr_1,\eaddr_1]$ or $[\baddr_2,\eaddr_2]$, i.e. make the island $\pwheap(r)$ with $R(r) = \{a\}$ $\spatialo$ in $W_1$ and $\spatial$ in $W_2$ if $a \in [\baddr_1,\eaddr_1]$ and vice versa.
+  It is then easy to check that our results hold.
+
+  For the execute condition, we get a partition of the world into $W = \oplus_{a \in A} W_a(a)$ and we can define $W_1 \isdef \oplus_{a\in[\baddr_1,\eaddr_1]} W_a(a)$ and likewise for $W_2$.
+  The results then follow easily from the definitions.
 \end{proof}
 
 \begin{lemma}[FTLR for component code capabilities]
