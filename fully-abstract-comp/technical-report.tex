@@ -2119,7 +2119,7 @@ where $H^{\mathrm{std},\square}_A$ is defined as follows:
   H_A^{\mathrm{std},\square} \; \gc \; \hat{W} \defeq \left\{ \npair{\ms_S,\ms_T} \middle|
     \begin{array}{l}
       \dom(\ms_S) = \dom(\ms_T) = A \wedge \\
-      \exists S : A \fun \World \ldotp \xi(W) = \oplus_{\aaddr \in A} S(\aaddr) \wedge\\
+      \exists S : A \fun \World \ldotp \xi(\hat{W}) = \oplus_{\aaddr \in A} S(\aaddr) \wedge\\
       \quad \forall \aaddr \in A, n' < n \ldotp \npair[n']{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
     \end{array}
   \right\}
@@ -2376,16 +2376,68 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 \subsection{FTLR for components}
 \label{sec:ftlr-for-comps}
 
+\begin{lemma}[Untrusted code regions' seals specify value safety]
+  \label{lem:untrusted-codereg-sealed-vals-safe}
+  If
+  \begin{itemize}
+  \item $\dom(\code) \mathrel{\#} \ta$
+  \item $\sigma \in \sigcloss$
+  \end{itemize}
+  Then
+  \begin{equation*}
+    H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; (\ta,\stkb) \; \sigma \nequal \lrv
+  \end{equation*}
+\end{lemma}
+\begin{proof}
+  Follows easily by definition.
+\end{proof}
+
 \begin{lemma}[Code region for untrusted components stronger than standard safe memory region]
   \label{lem:codereg-untrusted-stdreg}
   If
   \begin{itemize}
-  \item $\dom(\mscode) \mathrel{\#} \ta$
+  \item $\emptyset\neq\dom(\mscode) \mathrel{\#} \ta$
   \end{itemize}
-  then $\codereg{\sigrets,\sigcloss,\mscode,\gc} \nsubeq \stdreg{R(r),\gc}{\pur}$ 
+  then $\codereg{\sigrets,\sigcloss,\mscode,\gc} \nsubeq \stdreg{\dom(\mscode),\gc}{\pur}$ 
 \end{lemma}
 \begin{proof}
-  TODO
+  Take $\hat{W}$, then we need to prove that
+  \begin{equation*}
+    H^\mathrm{code}\ ;\sigrets\;\sigcloss\;\mscode\;\gc \; \hat{W} \nsubeq H_{\dom(\mscode)}^{\mathrm{std},\square}\;\hat{W}
+  \end{equation*}
+  So take $\npair{\ms_S,\ms_T} \in H^\mathrm{code}\ ;\sigrets\;\sigcloss\;\mscode\;\gc \; \hat{W}$, then we know that
+  \begin{itemize}
+  \item $\ms_S = \ms_T = \mscode$ 
+  \item $\dom(\mscode) =[\aaddr,\baddr]$
+  \item $\dom(\mscode) \subseteq \ta \vee (\dom(\mscode)\mathrel{\#} \ta \wedge \sigrets = \emptyset)$, but we know that $\emptyset \neq\dom(\mscode) \mathrel{\#} \ta$, so we get that $\sigrets = \emptyset$.
+  \item $\sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode$
+  \end{itemize}
+
+  By definition of $H_{\dom(\mscode)}^{\mathrm{std},\square}\;\hat{W}$, we need to prove that
+  \begin{itemize}
+  \item $\dom(\mscode) = \dom(\mscode) = \dom(\mscode)$
+  \item there exists a $S : \dom(\mscode) \fun \World$ with $\xi(\hat{W}) = \oplus_{\aaddr\in\dom(\mscode)} S(\aaddr)$ and for all $\aaddr \in \dom(\mscode)$, $n'<n$, we have that $\npair[n']{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))$
+  \end{itemize}
+
+  We take $S$ to map every address to $\purePart{\hat{W}}$, except for a single one that we map to $\hat{W}$.
+  Take $\aaddr\in\dom(\mscode)$, $n'<n$.
+  By Lemmas~\ref{lem:purePart-duplicable}, \ref{lem:oplus-future} and \ref{lem:monotonicity}, it now suffices to prove that $\npair[n']{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(\purePart{\hat{W}})$.
+
+  From $\sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode$ and the fact that $\sigrets = \emptyset$, we know that for any $\aaddr\in\dom(\mscode)$, we have that $\emptyset,\emptyset,\sigcloss \vdash_{\mathrm{comp-code}} \mscode,\aaddr$.
+  By definition, this last judgement implies that one of the following cases holds:
+  \begin{itemize}
+  \item $\mscode(a) \in\ints$ and an omitted extra fact.  It follows trivially that $\npair[n']{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(\purePart{\hat{W}})$.
+  \item 
+    $\mscode(a) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr}$ and $[\sigma_\baddr,\sigma_\eaddr] \subseteq \sigcloss$.
+
+    By definition of $\lrv$, it suffices to show that $\exists r \in
+    \dom(\pwheap)$ such that $\pwheap(r) = (\pure,\_,H_\sigma)$ and $H_\sigma \;
+    \sigma' \nequal \lrv$.
+
+    \dominique{TODO: we need to know that our code region is in $\hat{W}$?}
+
+    Then we can use Lemma~\ref{lem:untrusted-codereg-sealed-vals-safe}.
+  \end{itemize}
 \end{proof}
 
 \begin{lemma}[Code memory for untrusted components safely readable]
