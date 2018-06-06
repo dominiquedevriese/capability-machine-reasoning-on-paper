@@ -1314,7 +1314,7 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
     A_\linear = \biguplus_{a \in \dom(\msdata)} A_{\mathrm{own}}(a) \\
     \forall a \in \dom(\msdata)\ldotp \dom(\mscode),A_{\mathrm{own}}(a),A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \msdata(a)\\
     \overline{\dom(\mscode), \emptyset, A_{\mathrm{non-linear}}, \overline{c_{\mathrm{import}}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-value}} c_{\mathrm{export}}}\\
-    \overline{c_{\mathrm{export}}} \mathrel{\#} \overline{c_{\mathrm{import}}}
+    \overline{c_{\mathrm{export}}} \mathrel{\#} \overline{c_{\mathrm{import}}} & (\dom(\mscode) \subseteq \ta) \vee (\dom(\mscode) \mathrel{\#} \ta)
   }{
     \vdash (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss,A_\linear)
   }
@@ -1342,7 +1342,7 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
     \sigrets[3] = \sigrets[1] \uplus \sigrets[2] &
     \sigcloss[3] = \sigcloss[1] \uplus \sigcloss[2] &
     A_{\linear,3} = A_{\linear,1} \uplus A_{\linear,2}\\
-    \dom(\mscode[3]) \mathrel{\#} \dom(\msdata[3]) & \sigrets[3] \mathrel{\#} \sigcloss[3]\\
+    \dom(\mscode[3]) \mathrel{\#} \dom(\msdata[3]) & \sigrets[3] \mathrel{\#} \sigcloss[3]
   } {
     \var{comp}_3 = \var{comp}_1 \bowtie \var{comp}_2
   }
@@ -1360,14 +1360,15 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
   }
 \end{mathpar}
 
-\begin{lemma}[Linking preserves component well-formedness]
-  \label{lem:linking-well-formedness}
-  If $\vdash \var{comp}_1$ and $\vdash \var{comp}_2$, then $\vdash \var{comp}_1 \bowtie \var{comp}_2$.
-\end{lemma}
-\begin{proof}
-  Follows by induction on the component validity judgement and definition-chasing.
-  The most interesting point is related to imports that are resolved from the other component during linking, but we know that those exports satisfy the $\mathrm{comp-value}$ judgement.
-\end{proof}
+% update: linking no longer preserves well-formedness because we require is entirely trusted or not trusted at all.
+% \begin{lemma}[Linking preserves component well-formedness]
+%   \label{lem:linking-well-formedness}
+%   If $\vdash \var{comp}_1$ and $\vdash \var{comp}_2$, then $\vdash \var{comp}_1 \bowtie \var{comp}_2$.
+% \end{lemma}
+% \begin{proof}
+%   Follows by induction on the component validity judgement and definition-chasing.
+%   The most interesting point is related to imports that are resolved from the other component during linking, but we know that those exports satisfy the $\mathrm{comp-value}$ judgement.
+% \end{proof}
 
 \subsection{Programs, contexts, initial execution configuration}
 \label{sec:programs}
@@ -1551,10 +1552,56 @@ $\oplus$ on regions is defined as follows
 and for all other cases $\oplus$ is undefined. Specifically, $\oplus$ is not defined when both sides are a $\spatialo$-region. It is further not defined if the two sides do not agree on region type or heap or sealed value relations.
 
 \begin{lemma}
+  \label{lem:oplus-assoc-comm}
   $\oplus$ is associative and commutative.
 \end{lemma}
 \begin{proof}
   Follows easily from the definitions.
+\end{proof}
+
+We also define a second disjoint union operator of worlds:
+\[
+  W_1 \uplus W_2 = W
+  \text{ iff }
+  \begin{array}[t]{l}
+    \dom(\pwheap) = \dom(\pwheap[W_1]) \uplus \dom(\pwheap[W_2]) \tand \\
+    \dom(\pwfree) = \dom(\pwfree[W_1]) \uplus \dom(\pwfree[W_2]) \tand \\
+    \dom(\pwpriv) = \dom(\pwpriv[W_1]) \uplus \dom(\pwpriv[W_2]) \\
+  \end{array}
+\]
+The two operators $\uplus$ and $\oplus$ are quite different.
+The difference is most clear in the treatment of pure regions: $\uplus$ allows both worlds to have the same pure region, while $\oplus$ forbids this.
+To understand this different treatment ($W_1 \uplus W_2$ and $W_1 \oplus W_2$), you should understand that the two are intended for different usages of worlds.
+The $W_1 \oplus W_2$ operator treats the worlds as specifications of authority: taking the disjoint union of worlds specifying non-exclusive ownership of a block of memory is allowed and produces a new world that also specifies non-exclusive ownership of world. 
+The $W_1 \uplus W_2$  operator treats worlds as specifications of memory contents: taking the disjoint union of worlds specifying the presence of the same memory range is not allowed.
+The latter operator is used in the logical relation for components which specifies (among other things) that the world should specify the presence of the component's data memory.
+Linking two components then produces a new component with both components' data memory.
+The linked component is then valid in a world that has the combined memory presence specifications, not the combined authority.
+In other words, $\oplus$ specifies disjoint authority distribution, while $\uplus$ specifies disjoint memory allocation.
+
+Note also that this picture is further complicated by our usage of non-authority-carrying $\spatial$ regions.
+They are really only there in a world $W$ as a shadow copy of a $\spatialo$ region in another world $W'$ that $W$ will be combined with.
+The shadow copy is used for specifying when a memory satisfies a world: the memory should contain all memory ranges that anyone has authority over, not just the ones whose authority belongs to the memory itself.
+For example, if a register contains a linear pointer to a range of memory, then the register file will be valid in a world where the corresponding region is $\spatialo$, while the memory will be valid in a world with the corresponding region only $\spatial$.
+However, for the memory to satisfy the world, the block of memory needs to be there, i.e. the memory should contain blocks of memory satisfying every region that is $\spatialo$, $\pure$, but also just $\spatial$ (because it may be $\spatialo$ in, for example, the register file's world).
+
+\begin{lemma}
+  \label{lem:uplus-assoc-comm}
+  $\uplus$ is associative and commutative.
+\end{lemma}
+\begin{proof}
+  Follows easily from the definitions.
+\end{proof}
+
+\begin{lemma}[Odd distributivity of $\oplus$ and $\uplus$]
+  \label{lem:oplus-distr-uplus}
+  \begin{equation*}
+    (W_1\oplus W_2) \uplus (W_3 \oplus W_4) = (W_1 \uplus W_3) \oplus (W_2 \uplus W_4)
+  \end{equation*}
+  Also, the left expression is defined iff the right expression is.
+\end{lemma}
+\begin{proof}
+  Follows by definition-chasing.
 \end{proof}
 
 \subsection{Future world}
@@ -1686,6 +1733,16 @@ Also: the future region relation allows $\spatial$ regions to become $\spatialo$
   Follows easily from the definitions.
 \end{proof}
 
+\begin{lemma}[Adding additional memory is the future]
+  \label{lem:uplus-future}
+  For all $W_1,W_2$, we have that:
+  $W_1 \uplus W_2 \future W_1$
+\end{lemma}
+\begin{proof}
+  Follows easily from the definitions.
+\end{proof}
+
+
 
 \begin{lemma}[Purity is a thing of the past]
   \label{lem:world-fut-purePart}
@@ -1803,6 +1860,30 @@ Memory satisfaction for new worlds:
 %   This suggests nothing should be required about opc here?
 %   To be confirmed in the proof of the fundamental theorem.
 % }
+
+\begin{lemma}[Combined independent heap memory satisfies disjoint world]
+  \label{sec:combined-memory-disjoint-world}
+  If $\memSatHeap{\overline{\sigma_1},ms_{S,1},\ms_{T,1}}{W_1}$ and $\memSatHeap{\overline{\sigma_2},ms_{S,2},\ms_{T,2}}{W_2}$, then $\memSatHeap{\overline{\sigma_1}\uplus\overline{\sigma_2},ms_{S,1}\uplus \ms_{S,2},\ms_{T,1}\uplus \ms_{T,2}}{W_1 \uplus W_2}$.
+\end{lemma}
+\begin{proof}
+  Unfolding the definitions, it's easy to construct the memory and seal partitions $R_{\ms,3}$ and $R_{\var{seal},3}$ from the corresponding partitions of the separate memories.
+  Constructing $R_{W,3}$ from $R_{W,1}$ and $R_{w,2}$ is a bit harder, but we can use Lemmas~\ref{lem:oplus-distr-uplus},~\ref{lem:purePart-duplicable},~\ref{lem:uplus-assoc-comm} and~\ref{lem:oplus-assoc-comm} to manipulate the world equalities as follows:
+  \begin{align*}
+    W_1 \uplus W_2 &= (\purePart{W_1} \oplus W_1) \uplus (W_2 \oplus \purePart{W_2})\\
+                   &= (\purePart{W_1} \uplus W_2) \oplus (W_1 \uplus \purePart{W_2})\\
+                   &= (\purePart{W_1} \uplus \bigoplus_r R_{W,2}(r)) \oplus ((\bigoplus_r R_{W,1}(r)) \uplus \purePart{W_2})\\
+                   &= \bigoplus_r (\purePart{W_1} \uplus R_{W,2}(r)) \oplus \bigoplus_r (R_{W,1}(r) \uplus \purePart{W_2})
+  \end{align*}
+  We can then define
+  \begin{equation*}
+    R_{W,3}(r) =
+    \begin{cases}
+      \purePart(W_1) \uplus R_{W,2}(r) &\text{when } r \in \dom(R_{W,2})\\
+      \purePart(W_2) \uplus R_{W,1}(r) &\text{when } r \in \dom(R_{W,1})
+    \end{cases}
+  \end{equation*}
+  Lemma~\ref{lem:uplus-future} and the monotonicity of the regions' memory predicates then yield the required results.
+\end{proof}
 
 \subsection{Relation}
 % \lau{19-10-2017: Rest of source configuration needs to come from somewhere in $\lre$.}
@@ -2344,12 +2425,12 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 \begin{lemma}[Compatibility lemma for linking]
   If
   \begin{itemize}
-  \item $\npair{(\var{comp}_1,\var{comp}_1)} \in \lrcomp(W)$
-  \item $\npair{(\var{comp}_2,\var{comp}_2)} \in \lrcomp(W)$
+  \item $\npair{(\var{comp}_1,\var{comp}_1)} \in \lrcomp(W_1)$
+  \item $\npair{(\var{comp}_2,\var{comp}_2)} \in \lrcomp(W_2)$
   \end{itemize}
   then
   \begin{itemize}
-  \item $\npair{(\var{comp}_1 \bowtie \var{comp}_2,\var{comp}_1\bowtie\var{comp}_2)} \in \lrcomp(W)$.
+  \item $\npair{(\var{comp}_1 \bowtie \var{comp}_2,\var{comp}_1\bowtie\var{comp}_2)} \in \lrcomp(W_1 \uplus W_2)$.
   \end{itemize}
 \end{lemma}
 \begin{proof}
