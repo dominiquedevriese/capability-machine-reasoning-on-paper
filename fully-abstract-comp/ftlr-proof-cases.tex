@@ -418,8 +418,8 @@ In order to do this, we first, we prove that one of the following holds:
     \item $\callCond{\Phi_S,r_1,r_2,\aaddr}$
     \item $\baddr \leq \aaddr \tand \aaddr + \calllen-1 \leq \eaddr$
     \item $\exec{\Phi_S(\pcreg)}$
-    \item for all $i = 0..\calllen-1$, $\ms_T(\aaddr+i) = \ms_S(\aaddr+i) \in
-      \ints$.
+    \item for all $i = 0..\calllen-1$, $\ms_T(\aaddr+i) = \ms_S(\aaddr+i) \in \ints$.
+    \item $[\baddr,\eaddr] \subseteq \ta$
     \item $\Phi_S \step[\gc] \Phi_S' \neq \failed$
     \item $\Phi_T \step \Phi_T' \neq \failed$
     \item $\Phi_T' = \updPc{\Phi_T\updReg{\rtmp{1}}{z}}$
@@ -431,25 +431,28 @@ In order to do this, we first, we prove that one of the following holds:
     \item $\baddr_\stk < \aaddr_\stk \leq \eaddr_\stk$
     \item $\Phi_S(\pcreg) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$
     \item $w_1 = \linCons{c_1}$ and $w_2 = \linCons{c_2}$
-    \item
-      \[
+    \item \[
         \begin{split}
-          \Phi_S'.\reg = \Phi_S.\reg
-          &[\pcreg \mapsto c_1] \\
-          &[\rdata \mapsto c_2] \\
-          &[\rstk \mapsto \stkptr{\rw,\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1}] \\
-          &[\rretc \mapsto \sealed{\sigma',\retptrc{\baddr,\eaddr,\aaddr+\calllen}}]\\
-          &[\rretd \mapsto \sealed{\sigma',\retptrd{\aaddr_\stk,\eaddr_\stk}}] \\
+          \Phi_S''.\reg = \Phi_S.reg      &[\rstk \mapsto \stkptr{\rw,\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1}] \\
+          &[\rretc \mapsto \sealed{\sigma',\retptrc(\baddr,\eaddr,\aaddr+\calllen)}]\\
+          &[\rretd \mapsto \sealed{\sigma',\retptrd(\aaddr_\stk,\eaddr_\stk)}] \\
           &[r_1,r_2 \mapsto w_1,w_2] \\
           &[\rtmp{1} \mapsto 0]
         \end{split}
       \]
-    \item $\Phi_S'.\mem = \Phi_S.\mem$
-    \item $\Phi_S'.\stk = ((\aaddr+\calllen),\ms_\stk |_{\aaddr_\stk,\eaddr_\stk}\update{\aaddr_\stk}{42}) :: \Phi_S.\stk$
-    \item $\Phi_S'.\ms_\stk = \Phi_S.\ms_\stk = \ms_\stk - \ms_\stk|_{\aaddr_\stk,\eaddr_\stk}$
+    \item $\Phi_S''.\mem = \Phi_S.\mem$
+    \item $\ms_{\stk\_\priv,S} = \Phi_S.\ms_\stk |_{\aaddr_\stk,\eaddr_\stk}\update{\aaddr_\stk}{42}$
+    \item $\Phi_S''.\stk = ((\aaddr+\calllen),\ms_{\stk\_\priv,S}) :: \Phi_S.\stk$
+    \item $\Phi_S''.\ms_\stk = \Phi_S.\ms_\stk -
+      \Phi_S.\ms_\stk|_{\aaddr_\stk,\eaddr_\stk}$
+    \item $\baddr \leq \aaddr+\offpc \leq \eaddr$
+      \lau{TODO: Need to have an explicit $\offpc$.}
     \item $\mem(\aaddr+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\aaddr}$
     \item $\sigma' = \sigma_\aaddr + \offsigma$
     \item $\sigma_\aaddr \leq \sigma' \leq \sigma_\eaddr$
+      
+    \item $\Phi_S' =\var{xjumpResult}\left(c_1,c_2, \Phi_S' \right)$
+
     \end{itemize}
   \item All of the following hold: (includes cap-manipulation cases: move, cca,
     restrict, seta2b, cseal, split, splice, that can be handled mostly
@@ -651,8 +654,113 @@ This allows us to conclude
   \npair[n'-1]{(\Phi_S',\Phi_T')} \in \lro
 \]
 as desired.
+\\\\
+In case \ref{case:ftlr:call}, we first need to let the target execution catch
+up. That is $\Phi_T' \nstep[15]{} \Phi_T''$ for 
+\[
+\Phi_T'' = \Phi_T
+\begin{array}[t]{l}
+  \update{\mem.\aaddr_\stk}{42} \\
+  \updReg{\rstk}{((\rw,\linear),\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1)} \\
+  \updReg{\rretd}{\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1)}} \\
+  \updReg{\rretc}{\sealed{\sigma',((\perm,\lin),\baddr,\eaddr,\aaddr+\var{off\_return})}} \\
+  \updReg{\rtmp{1}}{0}\\
+  \updReg{r_1,r_2}{\linCons{\Phi_T(r_1)},\linCons{\Phi_T(r_2)}}\\
+  \updReg{\pcreg}{c_1'}\\
+  \updReg{\rdata}{c_2'}
+\end{array}
+\]
+where $\Phi_T(r_i) = \sealed{\sigma,c_i'} \text{ for $i\in\{1,2\}$}$ and $\var{off\_return} = 15$ which is the offset to the return code.
+Now using Lemma~\ref{lem:lro-anti-red-gen} again, it suffices to show
+\[
+  \npair[n'-1]{(\Phi_S',\Phi_T'')} \in \lro
+\]
+By assumption, we have $\npair[n']{(\reg_S(r_i),\reg_T(r_i))} \in \lrr(W_{R,i})$ for some $W_{R,i}$ with $i \in \{1,2\}$.
+We know the capabilities in $r_1$ and $r_2$ are sealed capabilities, and by
+Lemma~\ref{lem:unique-h-sigma} and the definition of $\lrv$ we get
+$\npair[n'-1]{\stpair[.]{c_2}{c_2'}} \in H_\sigma \; \sigma \; \xi^{-1}(W_{R,2})$
+and w.l.o.g.\
 
+\begin{equation}
+\forall W' \future W_{R,1}, W_o, n' < n, \npair[n']{(c_2,c_2')} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \npair[n']{c_1,c_2,c_1',c_2'} \in \lrexj(W'\oplus W_o)\label{eq:ftlr:call:sealed-code-assump}
+\end{equation}
+Now construct $W_{R,1}'$ as follows:
 
+By Lemma~\ref{lem:nsub-and-nsup-std} and the safety assumption on the register-file, there exists $S \supseteq [\baddr_\stk, \eaddr_\stk]$ such that for some $R : S \fun \powerset{\nats}$ we have $\biguplus_{r \in S} R(r) \supseteq [\baddr_\stk,\eaddr_\stk]$ and for all $r$ in $S$ $\pwfree[W_{R,1}](r) \nsim \stdreg{R(r),\gc}{\pur}$ and $|R(r)| = 1$ and $\pwfree[W_{R,1}](r) \text{ is address-stratified}$.
+Now define
+\[
+  W_{R,1}' = W_{R,1}[\free.R^{-1}([\aaddr_\stk,\eaddr_\stk]) \mapsto \revoked][\priv.r_\var{priv\_stk} \mapsto \stareg[(\ms_{\stk\_\priv,S},\Phi_T''.\mem|_{[\aaddr_\stk,\eaddr_\stk]}),\gc]{\spa,\square}]
+\] 
+For a fresh $r_\var{priv\_stk}$.
+We know $W_{R,1}' \future W_{R,1}$ as the revoked regions must have been $\spatial$ in $W_{R,q}$ (as they are owned by the part of the world assigned to the stack-register in the register-file relation).
+The static region for the private stack is an extension.
+
+Pick this world as $W'$ in Eq~\ref{eq:ftlr:call:sealed-code-assump}
+. Let $W_{R,2}'$ be the same world but
+with the ownership of $W_{R,2}$ and pick it for $W_o$.
+Now use monotonicity of $H_\sigma$ with the above facts to get
+\[
+  \npair[n']{c_1,c_2,c_1',c_2'} \in \lrexj(W_{R,1}'\oplus W_{R,2}')
+\]
+Now pick register files and memories such that they form $\Phi_S''$ (defined in
+the assumptions) and $\Phi_T''$ and for $W_R'$ and $W_M'$ (we define them below) show
+\begin{enumerate}[label=\roman*.]
+\item \label{case:ftlr:scall:world} $W_{R,1}'\oplus W_{R,2}' \oplus W_R' \oplus W_M'$
+\item \label{case:ftlr:scall:reg} $\npair[n'-1]{(\Phi_S''.\reg,\Phi_T''.\reg)} \in \lrr(\{\rdata\})(W_R')$
+\item \label{case:ftlr:scall:mem} $\memSat[n'-1]{\Phi_S''.\mem,\Phi_S''.\stk,\Phi_S''.\ms_\stk,\Phi_T''.\mem}{W_M'}$
+\end{enumerate}
+to get
+\[
+ \npair[n'-1]{(\Phi_S',\Phi_T'')} \in \lro
+\]
+as desired. It remains to show \ref{case:ftlr:scall:world}-\ref{case:ftlr:scall:mem}.
+
+Case \ref{case:ftlr:scall:world}: Pick $W_R'$ and $W_M'$ to have the regions of $W_{R,1}'$, but where $W_R'$ owns $r_\var{priv\_stk}$ and otherwise has the ownership of $W_R$ and $W$ with the exception of the regions owned by $W_{R,1}'$ and $W_{R,2}'$.
+$W_M'$ has the ownership of $W_M$.
+Case \ref{case:ftlr:scall:world} follows from assumption $W \oplus W_R \oplus W_M$.
+The only changes to the worlds is that some ownership has been shifted from $W_R$ to $W_{R,1}$ and $W_{R,2}$ and the ownership for $W$ now belongs to $W_R'$.
+In other words, no ownership has been duplicated.
+
+Case \ref{case:ftlr:scall:reg}, using assumption $\npair[n'-1]{(\reg_S\update{r}{z},\reg_T\update{r}{z})} \in \lrr(W_R)$, we get a way to split the ownership of $W_R$.
+We take this as the starting point, but with the following changes: regions $r_1$ and $r_2$ maps to worlds with no ownership.
+region $\rstk$ maps to a world with the same ownership, but of course without the now revoked regions.
+Region $\rretd$ maps to a world that owns private $r_\var{priv\_stk}$ region.
+Finally, $\rretc$ maps to a world with the ownership of $W$.
+
+we split the world in the same way for the registers that remain unchanged, the
+result follows from Lemma \ref{lem:downwards-closed} and \ref{lem:monotonicity}.
+This leaves the following cases:
+\begin{description}
+\item[Case $\rstk$:] \lau{TODO}
+\item[Case $\rtmp{1}$:] \lau{TODO}
+\item[Case $r_1$,$r_2$:] \lau{TODO}
+\item[Case $\rretd$:] We have to show
+  \[
+    \npair[n'-1]{(\sealed{\sigma',\retptrc(\aaddr_\stk,\eaddr_\stk)},\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk)})} \in \lrv(W_{R,\rretd}')
+  \]
+  where $W_{R,\rretd}'$ is the part of $W_R'$ with ownership over $r_\var{priv\_stk}$.
+  From assumption $W \vdash_{(\ta,\stkb)} (\mscode,\_,\_,\_,\sigrets,\sigcloss)$\footnote{This must be the other possible assumption contains $[\baddr,\eaddr] \# \ta$ which leads to a contradition with $[\baddr,\eaddr] \subseteq \ta$}, we know there is a code-region for the
+  
+\item[Case $\rretc$:] \lau{TODO}
+\end{description}
+
+\begin{lemma}
+  If $W \vdash_{(\ta,\stkb)} (\mscode,\_,\_,\_,\sigrets,\sigcloss,\_)$ and
+  $[\baddr,\eaddr] \subseteq \dom(\mscode)$ and
+  $\exists \aaddr \ldotp \mscode(\aaddr) = \sigma$ and
+  $\sigma \in \sigrets$ and
+  $\memSat{\dots}{W}$, then
+  \[
+    \begin{array}{l}
+      \exists \mscode' r \in \dom(\pwheap) \ldotp \\
+      \quad \pwheap(r) = \codereg{\sigrets',\sigcloss',\mscode',(\ta,\stkb)} \text{ and } \\
+      \quad [\baddr,\eaddr] \subseteq \dom(\mscode') \text{ and } \\
+      \quad \sigma \in \sigrets' \subseteq \sigrets \text{ and } \\
+      \quad \sigclos \subseteq \sigclos'
+    \end{array}
+  \]
+\end{lemma}
+ 
 \end{proof}
 
 %%% Local Variables:
