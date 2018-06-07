@@ -439,7 +439,7 @@ In order to do this, we first, we prove that one of the following holds:
         \end{split}
       \]
     \item $\Phi_S''.\mem = \Phi_S.\mem$
-    \item $\ms_{\stk\_\priv,S} = \Phi_S.\ms_\stk |_{\aaddr_\stk,\eaddr_\stk}\update{\aaddr_\stk}{42}$
+    \item $\ms_{\stk\_\priv,S} = \Phi_S.\ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42}$
     \item $\Phi_S''.\stk = ((\aaddr+\calllen),\ms_{\stk\_\priv,S}) :: \Phi_S.\stk$
     \item $\Phi_S''.\ms_\stk = \Phi_S.\ms_\stk -
       \Phi_S.\ms_\stk|_{\aaddr_\stk,\eaddr_\stk}$
@@ -687,7 +687,7 @@ Now construct $W_{R,1}'$ as follows:
 By Lemma~\ref{lem:nsub-and-nsup-std} and the safety assumption on the register-file, there exists $S \supseteq [\baddr_\stk, \eaddr_\stk]$ such that for some $R : S \fun \powerset{\nats}$ we have $\biguplus_{r \in S} R(r) \supseteq [\baddr_\stk,\eaddr_\stk]$ and for all $r$ in $S$ $\pwfree[W_{R,1}](r).H \nequal \stdreg{R(r),\gc}{\pur}.H$ and $|R(r)| = 1$ and $\pwfree[W_{R,1}](r) \text{ is address-stratified}$.
 Now define
 \[
-  W_{R,1}' = W_{R,1}[\free.R^{-1}([\aaddr_\stk,\eaddr_\stk]) \mapsto \revoked][\priv.r_\var{priv\_stk} \mapsto \stareg[(\ms_{\stk\_\priv,S},\Phi_T''.\mem|_{[\aaddr_\stk,\eaddr_\stk]}),\gc]{\spa,\square}]
+  W_{R,1}' = W_{R,1}[\free.R^{-1}([\aaddr_\stk,\eaddr_\stk]) \mapsto \revoked][\priv.r_\var{priv\_stk} \mapsto (\stareg[(\ms_{\stk\_\priv,S},\Phi_T''.\mem|_{[\aaddr_\stk,\eaddr_\stk]}),\gc]{\spa,\square},\aaddr+\calllen)]
 \] 
 For a fresh $r_\var{priv\_stk}$.
 We know $W_{R,1}' \future W_{R,1}$ as the revoked regions must have been $\spatial$ in $W_{R,q}$ (as they are owned by the part of the world assigned to the stack-register in the register-file relation).
@@ -734,16 +734,53 @@ This leaves the following cases:
 \item[Case $r_1$,$r_2$:] \lau{TODO}
 \item[Case $\rretd$:] We have to show 
   \[
-    \npair[n'-1]{(\sealed{\sigma',\retptrc(\aaddr_\stk,\eaddr_\stk)},\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk)})} \in \lrv(W_{R,\rretd}')
+    \npair[n'-1]{(\sealed{\sigma',\retptrd(\aaddr_\stk,\eaddr_\stk)},\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1)})} \in \lrv(W_{R,\rretd}')
   \]
   where $W_{R,\rretd}'$ is the part of $W_R'$ with ownership over $r_\var{priv\_stk}$.
-  From the assumption $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$ we get a
-  set of regions $R \subseteq \addressable{\normal, \pwheap}$ 
-and
-  $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W}$, 
+  From the assumption $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$ we get $R \subseteq \addressable{\normal, \pwheap}$ and $\exists M : S \fun \powerset{\MemSeg}$ such that $\biguplus_{r\in S} \dom(M(r)) \supseteq [\baddr,\eaddr]$ and $\forall r \in S \ldotp \pwheap(r) \nequal \codereg{\_,\_,M(r),\gc}$.
+  Further by $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W}$, we know that for one
+  $r \in S$ there is a $\mscode' \subseteq \mscode$\footnote{Follows from
+    $H^\var{code}$ requiring $\dom(\mscode') \subseteq \ta$ and $\dom(\mscode) =
+    \ta$ and finally that $\mscode$ is part of $\ms_S$.} such that
+  \begin{equation}
+    \npair[n']{(\mscode',\mscode')} \in H^{\var{code}} \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\_)\label{eq:ftlr:rretd:Hcode}
+  \end{equation}
+ where $\sigma' \in \sigrets'$ and $\dom(\mscode') \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode')$.
+  That is $\mscode'$ contains the call we are considering.
+  \lau{TODO: Make the above more precise and possibly put into a lemma.}
+  Use the $r$ in question as the witness. We now have to show:
+  \begin{enumerate}[label=\alph*)]
+  \item for $n'' < n'-1$ we have
+    \[\npair[n'']{\left(\array{l}\retptrd(\aaddr_\stk,\eaddr_\stk),\\((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1)\endarray\right)}
+      \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode'
+      \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_{R,\rretd}')
+    \]
+    First $\dom(\mscode') \subseteq \ta$ follows from \ref{eq:ftlr:rretd:Hcode} and the assumption $[\baddr,\eaddr] \ subseteq \ta$.
+    Now pick $r_\var{priv\_stk}$ as the witness.
+    We immediately get $\dom(\ms_{\stk\_\priv,S}) = \dom(\Phi_T''.\mem|_{[\aaddr_\stk,\eaddr_\stk]}) = [\aaddr_\stk,\eaddr_\stk]$.
+    Next, $\decInstr(\mscode'(\aaddr,\aaddr+\calllen-1)) = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}}$ follows from $\callCond{\Phi_S,r_1,r_2,\aaddr}$.
+    Finally, $\ms_\code(\aaddr+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr}$ with $\sigma' = \sigma_\baddr + \offpc \in \sigrets'$ which follows from $\sigrets',\sigcloss' \vdash_{\mathrm{comp-code}} \mscode'$ and the fact that the call is there.
+  \item $\isLinear{\sealed{\sigma',\retptrd(\aaddr_\stk,\eaddr_\stk)}}$ iff
+    $\isLinear{\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk)}}$\\
+    Trivial as both are linear.    
+  \item
+    \[
+      \begin{array}{l}
+        \forall W'' \future \purePart{W_{R,\rretd}'}, W_o, n'' < n'-1,\\
+        \quad\npair[n'']{(\vsc_S',\vsc_T')}
+        \in  H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode'
+        \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_o) \ldotp \\
+        \qquad\npair[n']{\retptrd(\aaddr_\stk,\eaddr_\stk),\vsc_S',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1),\vsc_T'} \in
+        \lrexj(W'\oplus W_o))
+      \end{array}
+    \]
+    Trivial as both configuration fails.
+  \end{enumerate}
   
 \item[Case $\rretc$:] \lau{TODO}
 \end{description}
+
+Case: \ref{case:ftlr:scall:mem}, \lau{TODO}
 
 \begin{lemma}
 
@@ -761,6 +798,8 @@ and
   \]
 \end{lemma}
  
+
+
 \end{proof}
 
 %%% Local Variables:
