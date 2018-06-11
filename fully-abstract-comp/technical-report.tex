@@ -1757,6 +1757,14 @@ Also: the future region relation allows $\spatial$ regions to become $\spatialo$
   The second statement follows from the first, together with Lemma~\ref{lem:purePart-duplicable}.
 \end{proof}
 
+\begin{lemma}[purePart respects $\oplus$]
+  \label{lem:purePart-oplus}
+ For all $W_1,W_2$, we have that $\purePart{W_1\oplus W_2} = \purePart{W_1} \oplus \purePart{W_2}$.
+\end{lemma}
+\begin{proof}
+  Follows from the definition of $\purePart{}$ and $\oplus$.
+\end{proof}
+
 \begin{lemma}[purePart is monotone]
   \label{lem:purePart-mono}
  For all $W'\future W$, we have that $\purePart{W'} \future \purePart{W}$.
@@ -1945,11 +1953,11 @@ Memory satisfaction for new worlds:
 Two expression relations: one for sealed code-data pairs being jumped to and one for capabilities being jumped to in the regular way.
 The argument for having one relation relate pairs of pairs of capabilities and the other relate pairs of capabilities is that that is how xjump and regular jumps work: xjump takes pairs while regular jumps take single capabilities.
 \begin{align*}
-  \lrexjg{\trust}(W) &= \left\{ \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} \middle| 
+  \lrexj(W) &= \left\{ \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} \middle| 
     \begin{array}{l}
       \forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk} \ldotp\\
       \quad \forall W_\lrrs , W_\lrm \ldotp \\
-      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrrg{\trust}(\{\rdata\}) (W_\lrrs ) \wedge\\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrrg{\untrusted}(\{\rdata\}) (W_\lrrs ) \wedge\\
       \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \wedge \\
       \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)}\wedge\\
       \qquad\Phi_T = (\ms_T,\reg_T) \wedge\\
@@ -3035,10 +3043,9 @@ The untrusted case can be considered as a back-translation correctness result.
     \begin{array}{l}
       \gc = (\ta,\stkb) \tand\\
       \exists W_M,W_R,W_\pcreg \ldotp W = W_M \oplus W_R \oplus W_\pcreg \tand\\
-      \reg_S(\pcreg) = ((\rx,\lin),\baddr,\eaddr,\aaddr) \tand (\trust = \trusted \text{ iff } \aaddr \in \ta) \tand \\
-      \npair{( \reg_S(\pcreg),\reg_T(\pcreg) )} \in \lrvg{\trust}(W_\pcreg) \tand \\
+      \npair{( (\reg_S(\pcreg),\reg_S(\rdata)), (\reg_T(\pcreg),\reg_T(\rdata)) )} \in \lrexj(W_\pcreg) \tand \\
       \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W_M} \tand\\
-      \npair{\stpair{\reg}{\reg}} \in \lrrg{\trust}(W_R)
+      \npair{\stpair{\reg}{\reg}} \in \lrrg{\trust}(\{\rdata\})(W_R)
     \end{array}
             \right\}
 \]
@@ -3046,13 +3053,13 @@ The untrusted case can be considered as a back-translation correctness result.
 \begin{lemma}[Compatibility lemma for initial execution configuration construction]
   If
   \begin{itemize}
-  \item $\npair{\stpair{\var{comp}}{\var{comp}}} \in \lrcomp(W)$
+  \item $\npair{(\var{comp},\var{comp})} \in \lrcomp(W)$
+  \item $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$
   \item $\var{comp} \rightsquigarrow \Phi$,
-  \item TODO: no stack regions yet?
   \end{itemize}
   then $\exists W' \future W$ such that
   \begin{itemize}
-  \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec(W')$
+  \item $\npair{(\Phi,\Phi)}\in\lrec(W')$
   \end{itemize}
 \end{lemma}
 \begin{proof}
@@ -3068,9 +3075,10 @@ The untrusted case can be considered as a back-translation correctness result.
   \item $\mem = \mscode \uplus \msdata \trg{\;\uplus\; \ms_\stk}$
   \item $[\baddr_\stk,\eaddr_\stk] = \dom(\ms_\stk ) \mathrel{\#} (\dom(\mscode) \cup \dom(\msdata))$
   \item $\overline{c_{\mathrm{import}}} = \emptyset$
+  \item $\Phi = (\mem, \reg\src{, \emptyset, \ms_\stk})$
   \end{itemize}
 
-  From $\npair{\stpair{\var{comp}}{\var{comp}}} \in \lrcomp(W)$, we know that
+  From $\npair{(\var{comp},\var{comp})} \in \lrcomp(W)$, we know that
   $\{c_{\mathrm{main},c}, c_{\mathrm{main},d}\}\subseteq \overline{c_{\mathrm{export}}}$ and 
   $\npair{(\var{comp}_0,\var{comp}_0)} \in \lrcomp(W)$ with $\var{comp}_0 = (\mscode, \msdata, \overline{c_{\mathrm{import}}}, \overline{c_{\mathrm{export}}}, \sigrets, \sigcloss,A_\linear)$.
   From this, it follows that for all  $W' \future W$, if
@@ -3079,34 +3087,59 @@ The untrusted case can be considered as a back-translation correctness result.
   \end{equation*}
   then
   \begin{equation*}
+    \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata, \mscode\uplus\msdata)} \in \lrheap(\pwheap)(W')
+  \end{equation*}
+  and
+  \begin{equation*}
     \overline{\npair{(c_{\mathrm{export}},c_{\mathrm{export}})}} \in \lrv(\purePart{W'})
   \end{equation*}
-  Since $\overline{c_{\mathrm{import}}} = \emptyset$, the former holds vacuously and the latter follows for every $W' \future W$.
+  Since $\overline{c_{\mathrm{import}}} = \emptyset$, the former holds vacuously and the latter two results follow for every $W' \future W$.
   
-  Now take $\overline{r_a} \not\in\dom(\pwfree)$ and 
+  Now take $\overline{r_a}$ for $a \in [\baddr_\stk,\eaddr_\stk]$ arbitrary and 
   \begin{align*}
-    W' &= W\overline{\update{\mathrm{free}(r_a)}{\stdreg{\{a\},\gc}{\pur}}}_{a \in [\baddr_\stk,\eaddr_\stk]}\\
-   W_\pcreg &= \purePart{W'}\\
-    W_R &= \purePart{W}\overline{\update{\mathrm{free}(r_a)}{\stdreg{\{a\},\gc}{\spatialo}}}_{a \in [\baddr_\stk,\eaddr_\stk]}\\
-    W_M &= W\overline{\update{\mathrm{free}(r_a)}{\stdreg{\{a\},\gc}{\spatial}}}_{a \in [\baddr_\stk,\eaddr_\stk]}
+    \pwheap[W_\stk] &= \emptyset\\
+    \pwpriv[W_\stk] &= \emptyset\\
+    \dom(\pwfree[W_\stk]) &= \{r_a \mid a \in [\baddr_\stk,\eaddr_\stk]\}\\
+    \pwfree[W_\stk](r_a) &= \stdreg{\{a\},\gc}{\spatialo}\\
+    W' &= W \uplus W_\stk\\
+    W_\pcreg &= \purePart{W'}\\
+    W_R &= \purePart{W} \uplus W_\stk\\
+    W_M &= W \uplus \purePart{W_\stk}
   \end{align*}
-  Then $W' = W_M \oplus W_R \oplus W_\pcreg$ and by definition of $\lrec$, it suffices to prove that 
+  Take $\trust = \trusted$ iff $a \in \ta$. 
+  Then $W' = W_M \oplus W_R \oplus W_\pcreg$ (by Lemmas~\ref{lem:purePart-duplicable},~\ref{lem:oplus-distr-uplus},~\ref{lem:oplus-assoc-comm} and~\ref{lem:uplus-assoc-comm}), $W_M \future W$ (by Lemma~\ref{lem:uplus-future}) and $W_\pcreg \future \purePart{W}$ (by Lemma~\ref{lem:uplus-future} and~\ref{lem:purePart-oplus}).
+
+  By definition of $\lrec$, it suffices to prove that 
   \begin{itemize}
-  \item $\reg_S(\pcreg) = ((\rx,\lin),\baddr,\eaddr,\aaddr)$:
-    TODO
-  \item $(\trust = \trusted \text{ iff } \aaddr \in \ta)$:
-    TODO
-  \item $\npair{( \reg_S(\pcreg),\reg_T(\pcreg) )} \in \lrvg{\trust}(W_\pcreg)$:
+  \item 
+    $\npair{( (\reg_S(\pcreg),\reg_S(\rdata)), (\reg_T(\pcreg),\reg_T(\rdata)) )} \in \lrexj(W_\pcreg)$:
     TODO
   \item $\memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W_M}$:
-    TODO
+    Since $W_M \future W$, we have seen above that 
+    \begin{equation*}
+      \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata, \mscode\uplus\msdata)} \in \lrheap(\pwheap[W_M])(W_M)
+    \end{equation*}
+    It suffices to prove that also
+    \begin{itemize}
+    \item $\memSatStack{\emptyset,\emptyset}{\purePart{W_M}}}$
+    \item $\memSatFStack{\ms_\stk,\ms_\stk}{\purePart{W_M}}$
+    \end{itemize}
+    The former follows vacuously.
+    The latter follows by taking $R_\ms(r_a) = (\ms_\stk|_{\{a\}},\ms_\stk|_{\{a\}})$, $R_W(r_a) = \purePart{W_M}$ for $a \in [\baddr_\stk,\eaddr_\stk]$ by Lemma~\ref{lem:purePart-duplicable} and~\ref{lem:purePart-idempotent} if we can show that:
+    \begin{equation*}
+      \npair{(\ms_\stk|_{\{a\}},\ms_\stk|_{\{a\}})} \in \stdreg{\{a\},\gc}{\spatialo}.H~ \xi^{-1}(\purePart{W_M})
+    \end{equation*}
+    By definition, it suffices to show that for all $n' < n$, we have that:
+    \begin{equation*}
+      \npair{(\ms_\stk(a),\ms_\stk(a)) \in \lrv(\purePart{W_M})}
+    \end{equation*}
+    But $\ms_\stk(a) = 0$, so this follows easily by definition.
   \item $\npair{\stpair{\reg}{\reg}} \in \lrrg{\trust}(W_R)$:
     TODO
   \end{itemize}
-
 \end{proof}
 
-\begin{lemma}[Adequacy of logical relation]
+\begin{lemma}[Adequacy of execution configuration LR]
   If
   \begin{itemize}
   \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\preceq](W)$
