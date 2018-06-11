@@ -1404,10 +1404,14 @@ A context for a given component is any other component that can be linked with i
 \begin{definition}[Initial execution configuration]
   \begin{mathpar}
     \inference{
-      \reg(\pcreg) = c_{\mathrm{main},c} & 
-      \reg(\rdata) = c_{\mathrm{main},d} \\
-      \src{\reg(\rstk) = \stkptr{\rx,\baddr_\stk,\eaddr_\stk,\eaddr_\stk}} & 
-      \trg{\reg(\rstk) = ((\rx,\linear),\baddr_\stk,\eaddr_\stk,\eaddr_\stk)} \\
+      c_{\mathrm{main},c} = \sealed{\sigma_1, c_{\mathrm{main},c}'} &
+      c_{\mathrm{main},d} = \sealed{\sigma_2, c_{\mathrm{main},d}'} &
+      \sigma_1 = \sigma_2\\
+      \nonExec{c_{\mathrm{main},d}'}&
+      \reg(\pcreg) = c_{\mathrm{main},c}' & 
+      \reg(\rdata) = c_{\mathrm{main},d}' \\
+      \src{\reg(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\eaddr_\stk}} & 
+      \trg{\reg(\rstk) = ((\rw,\linear),\baddr_\stk,\eaddr_\stk,\eaddr_\stk)} \\
       \reg(\RegName \setminus \{\pcreg,\rdata,\rstk\}) = 0\\
       \range{\ms_\stk} = \{0\}&
       \mem = \mscode \uplus \msdata \trg{\;\uplus\; \ms_\stk} \\
@@ -3045,7 +3049,7 @@ The untrusted case can be considered as a back-translation correctness result.
       \exists W_M,W_R,W_\pcreg \ldotp W = W_M \oplus W_R \oplus W_\pcreg \tand\\
       \npair{( (\reg_S(\pcreg),\reg_S(\rdata)), (\reg_T(\pcreg),\reg_T(\rdata)) )} \in \lrexj(W_\pcreg) \tand \\
       \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W_M} \tand\\
-      \npair{\stpair{\reg}{\reg}} \in \lrrg{\trust}(\{\rdata\})(W_R)
+      \npair{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\})(W_R)
     \end{array}
             \right\}
 \]
@@ -3057,19 +3061,23 @@ The untrusted case can be considered as a back-translation correctness result.
   \item $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$
   \item $\var{comp} \rightsquigarrow \Phi$,
   \end{itemize}
-  then $\exists W' \future W$ such that
+  then $\exists W' \future W$ such that for all $n' < n$
   \begin{itemize}
-  \item $\npair{(\Phi,\Phi)}\in\lrec(W')$
+  \item $\npair[n']{(\Phi,\Phi)}\in\lrec(W')$
   \end{itemize}
 \end{lemma}
 \begin{proof}
   Take $\var{comp} = ((\mscode, \msdata, \overline{c_{\mathrm{import}}}, \overline{c_{\mathrm{export}}}, \sigrets, \sigcloss,A_\linear),  c_{\mathrm{main},c}, c_{\mathrm{main},d})$.
   Then we know from $\var{comp} \rightsquigarrow \Phi$ that
   \begin{itemize}
-  \item $\reg(\pcreg) = c_{\mathrm{main},c}$
-  \item $\reg(\rdata) = c_{\mathrm{main},d}$ 
-  \item $\src{\reg(\rstk) = \stkptr{\rx,\baddr_\stk,\eaddr_\stk,\eaddr_\stk}}$ 
-  \item $\trg{\reg(\rstk) = ((\rx,\linear),\baddr_\stk,\eaddr_\stk,\eaddr_\stk)}$ 
+  \item $c_{\mathrm{main},c} = \sealed{\sigma_1, c_{\mathrm{main},c}'}$ 
+  \item $c_{\mathrm{main},d} = \sealed{\sigma_2, c_{\mathrm{main},d}'}$
+  \item $\sigma_1 = \sigma_2$
+  \item $\reg(\pcreg) = c_{\mathrm{main},c}'$
+  \item $\reg(\rdata) = c_{\mathrm{main},d}'$ 
+  \item $\nonExec{c_{\mathrm{main},d}'}$
+  \item $\src{\reg(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\eaddr_\stk}}$ 
+  \item $\trg{\reg(\rstk) = ((\rw,\linear),\baddr_\stk,\eaddr_\stk,\eaddr_\stk)}$ 
   \item $\reg(\RegName \setminus \{\pcreg,\rdata,\rstk\}) = 0$
   \item $\range{\ms_\stk} = \{0\}$
   \item $\mem = \mscode \uplus \msdata \trg{\;\uplus\; \ms_\stk}$
@@ -3106,36 +3114,80 @@ The untrusted case can be considered as a back-translation correctness result.
     W_R &= \purePart{W} \uplus W_\stk\\
     W_M &= W \uplus \purePart{W_\stk}
   \end{align*}
-  Take $\trust = \trusted$ iff $a \in \ta$. 
   Then $W' = W_M \oplus W_R \oplus W_\pcreg$ (by Lemmas~\ref{lem:purePart-duplicable},~\ref{lem:oplus-distr-uplus},~\ref{lem:oplus-assoc-comm} and~\ref{lem:uplus-assoc-comm}), $W_M \future W$ (by Lemma~\ref{lem:uplus-future}) and $W_\pcreg \future \purePart{W}$ (by Lemma~\ref{lem:uplus-future} and~\ref{lem:purePart-oplus}).
 
   By definition of $\lrec$, it suffices to prove that 
   \begin{itemize}
   \item 
-    $\npair{( (\reg_S(\pcreg),\reg_S(\rdata)), (\reg_T(\pcreg),\reg_T(\rdata)) )} \in \lrexj(W_\pcreg)$:
-    TODO
+    $\npair[n']{( (\reg(\pcreg),\reg(\rdata)), (\reg(\pcreg),\reg(\rdata)) )} \in \lrexj(W_\pcreg)$:
+    Since $W' \future W$, we know from above that:
+    \begin{equation*}
+      \overline{\npair{(c_{\mathrm{export}},c_{\mathrm{export}})}} \in \lrv(\purePart{W'})
+    \end{equation*}
+    and we have defined $W_\pc = \purePart{W'}$ and we know that $\{c_{\mathrm{main},c}, c_{\mathrm{main},d}\}\subseteq
+    \overline{c_{\mathrm{export}}}$.
+    It follows that 
+    \begin{align*}
+      \npair{(c_{\mathrm{main},c},c_{\mathrm{main},c})} &\in \lrv(W_\pc)\\
+      \npair{(c_{\mathrm{main},d},c_{\mathrm{main},d})} &\in \lrv(W_\pc)
+    \end{align*}
+
+    We also know that $c_{\mathrm{main},c} = \sealed{\sigma, c_{\mathrm{main},c}'}$, $c_{\mathrm{main},d} = \sealed{\sigma, c_{\mathrm{main},d}'}$, $\sigma=\sigma_1 = \sigma_2$, so by definition of $\lrv$, we know that there exist $r_1,r_2 \in \dom(\pwheap[W_\pc])$ such that $\pwheap[W_\pc](r_1) = (\pure,\_,H_{\sigma,1})$, $\pwheap[W_\pc](r_2) = (\pure,\_,H_{\sigma,2})$ and
+    \begin{align*}
+      \npair[n']{(c_{\mathrm{main},d}',c_{\mathrm{main},d}')} &\in H_{\sigma,1}~ \sigma~ \xi^{-1}(W_\pc) \text{ for all } n' < n\\
+      \npair[n']{(c_{\mathrm{main},d}',c_{\mathrm{main},d}')} &\in H_{\sigma,2}~ \sigma~ \xi^{-1}(W_\pc) \text{ for all } n' < n
+    \end{align*}
+    By definition of $W_\stk$, we know that it contains no regions that define $H_\sigma$.
+    Therefore, using the definition of $W'$, we can deduce that $r_1,r_2 \in \dom(\pwheap)$.
+    From the fact that 
+    \begin{equation*}
+      \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata, \mscode\uplus\msdata)} \in \lrheap(\pwheap)(W')
+    \end{equation*}
+    it then follows that $\sigma$ can only be defined in $H_\sigma$ for only one region, so that $r_1 = r_2 = r$ and $H_{\sigma,1} = H_{\sigma,2} = H_\sigma$.
+
+    Since $W_\pc = \purePart{W'}$, we have (in both the linear and non-linear case), that for $n' < n$, $\npair[n']{( (c_{\mathrm{main},c},c_{\mathrm{main},d}), (c_{\mathrm{main},c},c_{\mathrm{main},d}) )} \in \lrexj(W_\pcreg)$.
+    Since $\reg(\pcreg) = c_{\mathrm{main},c}'$ and $\reg(\rdata) = c_{\mathrm{main},d}'$, this is what we set out to prove.
+
   \item $\memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W_M}$:
     Since $W_M \future W$, we have seen above that 
     \begin{equation*}
       \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata, \mscode\uplus\msdata)} \in \lrheap(\pwheap[W_M])(W_M)
     \end{equation*}
+    and hence by Lemma~\ref{lem:downwards-closed}:
+    \begin{equation*}
+      \npair[n']{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata, \mscode\uplus\msdata)} \in \lrheap(\pwheap[W_M])(W_M)
+    \end{equation*}
     It suffices to prove that also
     \begin{itemize}
-    \item $\memSatStack{\emptyset,\emptyset}{\purePart{W_M}}}$
-    \item $\memSatFStack{\ms_\stk,\ms_\stk}{\purePart{W_M}}$
+    \item $\memSatStack[n']{\emptyset,\emptyset}{\purePart{W_M}}}$
+    \item $\memSatFStack[n']{\ms_\stk,\ms_\stk}{\purePart{W_M}}$
     \end{itemize}
     The former follows vacuously.
     The latter follows by taking $R_\ms(r_a) = (\ms_\stk|_{\{a\}},\ms_\stk|_{\{a\}})$, $R_W(r_a) = \purePart{W_M}$ for $a \in [\baddr_\stk,\eaddr_\stk]$ by Lemma~\ref{lem:purePart-duplicable} and~\ref{lem:purePart-idempotent} if we can show that:
     \begin{equation*}
-      \npair{(\ms_\stk|_{\{a\}},\ms_\stk|_{\{a\}})} \in \stdreg{\{a\},\gc}{\spatialo}.H~ \xi^{-1}(\purePart{W_M})
+      \npair[n']{(\ms_\stk|_{\{a\}},\ms_\stk|_{\{a\}})} \in \stdreg{\{a\},\gc}{\spatialo}.H~ \xi^{-1}(\purePart{W_M})
     \end{equation*}
-    By definition, it suffices to show that for all $n' < n$, we have that:
+    By definition, it suffices to show that for all $n'' < n'$, we have that:
     \begin{equation*}
-      \npair{(\ms_\stk(a),\ms_\stk(a)) \in \lrv(\purePart{W_M})}
+      \npair[n'']{(\ms_\stk(a),\ms_\stk(a)) \in \lrv(\purePart{W_M})}
     \end{equation*}
     But $\ms_\stk(a) = 0$, so this follows easily by definition.
-  \item $\npair{\stpair{\reg}{\reg}} \in \lrrg{\trust}(W_R)$:
-    TODO
+
+  \item $\npair[n']{(\reg,\reg)} \in \lrr(\{\rdata\})(W_R)$:
+    
+    We have that $\reg(\RegName \setminus \{\pcreg,\rdata,\rstk\}) = 0$, so by definition, it suffices to prove that
+    \begin{equation*}
+      \npair[n']{(\reg(r_\stk),\reg(r_\stk))} \in \lrv(W_R)
+    \end{equation*}
+
+    Since $\src{\reg(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\eaddr_\stk}}$ and $\trg{\reg(\rstk) = ((\rw,\linear),\baddr_\stk,\eaddr_\stk,\eaddr_\stk)}$, it suffices to prove (by definition) that
+    \begin{align*}
+      \npair[n']{[b_\stk,e_\stk]} &\in \stackReadCond{W_R}\\
+      \npair[n']{[b_\stk,e_\stk]} &\in \stackWriteCond{W_R}
+    \end{align*}
+    For both, we can take $S = \dom(\pwfree[W_\stk]) = \{r_a \mid a \in [\baddr_\stk,\eaddr_\stk]\}$, $R(r_\addr) = \{\addr\}$, and then it suffices to prove that for all $r_\addr$, $\pwfree[W_R](r_\addr).H \nsubeq \stdreg{\{\addr\},\gc}{\spatialo}$ resp. $\pwfree[W_R](r_\addr).H \nsupeq \stdreg{\{\addr\},\gc}{\spatialo}$.
+    Both follow easily since 
+    $\pwfree[W_R](r_a) = \pwfree[W_\stk](r_a) = \stdreg{\{a\},\gc}{\spatialo}$.
   \end{itemize}
 \end{proof}
 
