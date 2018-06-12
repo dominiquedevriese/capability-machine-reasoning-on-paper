@@ -2472,6 +2472,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 \end{align*}
 
 \begin{lemma}[Compatibility lemma for linking]
+  \label{lem:compat-linking}
   If
   \begin{itemize}
   \item $\npair{(\var{comp}_1,\var{comp}_1)} \in \lrcomp(W_1)$
@@ -3060,6 +3061,10 @@ The untrusted case can be considered as a back-translation correctness result.
       \gc = (\ta,\stkb) \tand\\
       \exists W_M,W_R,W_\pcreg \ldotp W = W_M \oplus W_R \oplus W_\pcreg \tand\\
       \npair{( (\reg_S(\pcreg),\reg_S(\rdata)), (\reg_T(\pcreg),\reg_T(\rdata)) )} \in \lrexj(W_\pcreg) \tand \\
+      \reg_S(\pcreg) \neq \retptrc(\_) \wedge 
+      \reg_S(\rdata) \neq \retptrd(\_) \wedge 
+      \nonExec{\reg_S(\rdata)} \wedge
+      \nonExec{\reg_T(\rdata)}\\
       \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W_M} \tand\\
       \npair{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\})(W_R)
     \end{array}
@@ -3067,6 +3072,7 @@ The untrusted case can be considered as a back-translation correctness result.
 \]
 
 \begin{lemma}[Compatibility lemma for initial execution configuration construction]
+  \label{lem:compat-initial-ec}
   If
   \begin{itemize}
   \item $\npair{(\var{comp},\var{comp})} \in \lrcomp(W)$
@@ -3160,6 +3166,11 @@ The untrusted case can be considered as a back-translation correctness result.
     Since $W_\pc = \purePart{W'}$, we have (in both the linear and non-linear case), that for $n' < n$, $\npair[n']{( (c_{\mathrm{main},c},c_{\mathrm{main},d}), (c_{\mathrm{main},c},c_{\mathrm{main},d}) )} \in \lrexj(W_\pcreg)$.
     Since $\reg(\pcreg) = c_{\mathrm{main},c}'$ and $\reg(\rdata) = c_{\mathrm{main},d}'$, this is what we set out to prove.
 
+
+  \item $\reg_S(\pcreg) \neq \retptrc(\_)$, $\reg_S(\rdata) \neq \retptrd(\_)$, $\nonExec{\reg_S(\rdata)}$ and $\nonExec{\reg_T(\rdata)}$:
+    This follows from the facts that $\reg(\pcreg) = c_{\mathrm{main},c}'$, $\reg(\rdata) = c_{\mathrm{main},d}'$, 
+    $\nonExec{c_{\mathrm{main},d}'}$, $\{c_{\mathrm{main},c}, c_{\mathrm{main},d}\}\subseteq \overline{c_{\mathrm{export}}}$ and the fact that $\overline{c_{\mathrm{export}}}$ are also valid 
+
   \item $\memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W_M}$:
     Since $W_M \future W$, we have seen above that 
     \begin{equation*}
@@ -3220,11 +3231,51 @@ The untrusted case can be considered as a back-translation correctness result.
   \end{itemize}
   then $\Phi_S\sterm{\gc}$.
 \end{lemma}
+\begin{proof}
+  First, assume that 
+  \begin{itemize}
+  \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\preceq](W)$
+  \item $i \leq n$
+  \item $\Phi_S \sterm[i]{\gc}$
+  \end{itemize}
+
+  Assume w.l.o.g. that $\Phi_S = (\ms_S,\reg_S,\stk,\ms_\stk)$, $\Phi_T = (\ms_T,\reg_T)$ and $\gc = (\ta,\stkb)$.
+  Then it follows from $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\preceq](W)$ that there exist $W_M,W_R,W_\pcreg$ such that
+  \begin{itemize}
+  \item $W = W_M \oplus W_R \oplus W_\pcreg$
+  \item $\npair{( (\reg_S(\pcreg),\reg_S(\rdata)), (\reg_T(\pcreg),\reg_T(\rdata)) )} \in \lrexj[\preceq,\gc](W_\pcreg)$
+  \item $\reg_S(\pcreg) \neq \retptrc(\_)$, $\reg_S(\rdata) \neq \retptrd(\_)$, $\nonExec{\reg_S(\rdata)}$ and $\nonExec{\reg_T(\rdata)}$:
+  \item $\memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W_M}$
+  \item $\npair{\stpair{\reg}{\reg}} \in \lrr[\preceq,\gc](\{\rdata\})(W_R)$
+  \end{itemize}
+
+  We can then instantiate the conditions from $\lrexj$ with the other conditions from this list to obtain $\Phi_S',\Phi_T'$ such that
+  \begin{itemize}
+  \item $\Phi_S' = \xjumpResult{\reg_S(\pcreg)}{\reg_S(\rdata)}{\Phi_S}$ 
+  \item $\Phi_T' = \xjumpResult{\reg_T(\pcreg)}{\reg_T(\rdata)}{\Phi_T}$
+  \item $\npair{\left(\Phi_S', \Phi_T' \right)}\in \lrol$
+  \end{itemize}
+
+  Using the facts that $\reg_S(\pcreg) \neq \retptrc(\_)$, $\reg_S(\rdata) \neq \retptrd(\_)$ and $\nonExec{\reg_S(\rdata)}$, we know (by definition of $\xjumpResult{\_}{\_}{\_}$) that  
+  \begin{itemize}
+  \item $\Phi_S' = \xjumpResult{\reg_S(\pcreg)}{\reg_S(\rdata)}{\Phi_S} = \Phi_S\updReg{\pcreg}{\reg_S(\pcreg)}\updReg{\rdata}{\reg_S(\rdata)} = \Phi_S$ 
+  \item $\Phi_T' = \xjumpResult{\reg_T(\pcreg)}{\reg_T(\rdata)}{\Phi_T} = \Phi_T\updReg{\pcreg}{\reg_T(\pcreg)}\updReg{\rdata}{\reg_T(\rdata)} = \Phi_T$ 
+  \end{itemize}
+
+  From $\npair{\left(\Phi_S, \Phi_T \right)}\in \lrol$, it follows immediately that if $\Phi_S \sterm[i]{\ta,\stkb}$ with $i \le n$, then $\Phi_T \term$ as required.
+
+  The proof in the other direction is directly analogous.
+\end{proof}
 
 \begin{lemma}[Compatibility lemma for context plugging]
   If $\npair{\stpair{C}{C}}\in\lrcomp(W_1)$ and $\npair{\stpair{P}{P}} \in \lrcomp(W_2)$, then
-  $\npair{(\plug{C_S}{P_S},\plug{C_T}{P_T})} \in \lrec(W_1 \oplus W_2)$.
+  $\npair{(\plug{C_S}{P_S},\plug{C_T}{P_T})} \in \lrec(W_1 \uplus W_2)$.
 \end{lemma}
+\begin{proof}
+  By definition, we have that $C_S \bowtie P_S \rightsquigarrow C_S[P_S]$ and $C_T \bowtie P_T \rightsquigarrow C_T[P_T]$.
+
+  The result follows directly from Lemmas~\ref{lem:compat-linking} and~\ref{lem:compat-initial-ec}.
+\end{proof}
 
 \section{Full Abstraction}
 \label{sec:full-abstraction}
@@ -3358,11 +3409,11 @@ and
 
 % \dominique{19-3-2018: components should contain information about what seals they use and for what (for building return pointers or for building closures). That should facilitate defining reasonable linking (only when seals disjoint), and for defining the condition for full abstraction and the FTLR. Update: this is resolved}
 \begin{definition}
-  A component $\var{comp})$ with $\dom(\var{comp}.\mscode) = A$, is reasonable if for all $n$ and all contexts $\context$ the configuration $\plug{\context}{\var{comp}}$ satisfies:
+  A component $\var{comp}$ with $\dom(\var{comp}.\mscode) = A$, is reasonable if for all $n$ and all contexts $\context$ the configuration $\plug{\context}{\var{comp}}$ satisfies:
   \begin{itemize}
   \item $\plug{\context}{\var{comp}}$ checks $\stkb$ before calls in $A$ for $n$ steps (Definition~\ref{def:check-stack-addr-before-call}).
   \item $\plug{\context}{\var{comp}}$ uses link seals properly in $A$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:use-return-seals-call}).
-  \item $\plug{\context}{\var{comp}}$ handle trusted seals properly in $A$ with components parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:handle-trusted-seals-properly}).
+  \item $\plug{\context}{\var{comp}}$ handles trusted seals properly in $A$ with components parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:handle-trusted-seals-properly}).
   \item $\plug{\context}{\var{comp}}$ does not store link seals and code capabilities in $A$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:never-store-seal-code-cap}).
   \end{itemize}
 \end{definition}
