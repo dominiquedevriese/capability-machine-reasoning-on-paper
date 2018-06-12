@@ -742,9 +742,47 @@ we split the world in the same way for the registers that remain unchanged, the
 result follows from Lemma \ref{lem:downwards-closed} and \ref{lem:monotonicity}.
 This leaves the following cases:
 \begin{description}
-\item[Case $\rstk$:] \lau{TODO}
-\item[Case $\rtmp{1}$:] \lau{TODO}
-\item[Case $r_1$,$r_2$:] \lau{TODO}
+\item[Case $\rstk$:] Show:
+  \[
+    \npair[n'-1]{(\stkptr{\rw,\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1},((\rw,\linear),\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1))} \in \lrv(W_{R,\rstk}')
+  \]
+  We know by Assumption~\ref{item:reg-ass}, we know
+  \[
+    \npair[n']{(\stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk},((\rw, \linear), \baddr_\stk ,\eaddr_\stk, \aaddr_\stk)} \in \lrrg{\trust}(W_{R,\stk})
+  \]
+  which by the $\stackReadCond{}$ gives $S \subseteq
+  \addressable{\linear,\pwfree}$ and $R : S \fun \powerset{\nats}$.
+  We need to pick an $S'$ to argue
+  \[
+    \npair[n'-1]{[\baddr_\stk,\aaddr_\stk-1]} \in \stackReadCond{W_{R,\rstk}'}
+  \]
+  To this end pick $S' = R^{-1}(\left(\bigcup_{r\in S} R(r) \right) \setminus [\aaddr_\stk,\eaddr_\stk])$ and $R'$ to be $R$ limited to $S'$.
+  As we exclude all the revoked regions and the ownership otherwise remains the
+  same in $W_{R,\rstk}'$ as in $W_{R,\rstk}$, the regions in $S'$ are exactly the same in the new world as they were in $W_{R,\rstk}$.
+  So what we need to show follows immediately from
+  \[
+    \npair[n']([\baddr_\stk,\eaddr_\stk]) \in \stackReadCond{W_{R,\rstk}}
+  \]
+  and by Lemma~\ref{lem:downwards-closed}.
+
+  We show
+  \[
+    \npair[n'-1]{[\baddr_\stk,\aaddr_\stk-1]} \in \stackWriteCond{W_{R,\rstk}'}
+  \]
+  in the same way.
+
+\item[Case $\rtmp{1}$:] Show:
+  \[
+    \npair[n'-1]{(0,0)} \in \lrv(W_{R,\rtmp{1}}')
+  \]
+  Follows immediately from the definition.
+
+\item[Case $r_1$,$r_2$:] The two cases are symmetric, so we just show the $r_1$ case:
+  \[
+    \npair[n'-1]{(\linCons{c_1},\linCons{\Phi_T(r_1)})} \in \lrv(W_{R,r_1}')
+  \]
+  Follows from the related register files assumption and Lemma~\ref{lem:lincons-lrv}.
+
 \item[Case $\rretd$:] We have to show 
   \[
     \npair[n'-1]{(\sealed{\sigma',\retptrd(\aaddr_\stk,\eaddr_\stk)},\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1)})} \in \lrv(W_{R,\rretd}')
@@ -982,6 +1020,60 @@ Case: \ref{case:ftlr:scall:mem}, \lau{TODO}
 \end{lemma}
 \begin{proof}
   \lau{TODO}
+\end{proof}
+
+\begin{lemma}
+  \label{lem:lrv-relates-linearity}
+  For all $W$, $n$, $w_1$, $w_2$ if
+  \begin{itemize}
+  \item $\npair{(w_1,w_2)} \in \lrvg{\trust}(W)$
+  \end{itemize}
+  then
+  \[
+    \isLinear{w_1} \text{ iff } \isLinear{w_2}
+  \]
+\end{lemma}
+\begin{proof}
+  (Trivial) We consider the possible cases for $w_1$ and $w_2$
+  \begin{itemize}
+  \item Case $w_1,w_2 \in \ints$: By definition of $\isLinear{}$.
+  \item Case $w_1 = \sealed{\sigma,\vsc_1}$ and $w_2 = \sealed{\sigma,\vsc_2}$:
+    From the assumption $\npair[n]{(w_1,w_2)} \in \lrv(W)$ we get the desired result.
+  \item Case $w_1 = \seal{\_,\_,\_}$ and $w_2 = \seal{\_,\_,\_}$: By definition of $\isLinear{}$.
+  \item Case $w_1 = \stkptr{\_,\_,\_,\_}$ and $w_2 = ((\_,\linear),\_,\_,\_)$: By definition of $\isLinear{}$, stack pointers are linear.
+  \item Case $w_1 = ((\_,\lin),\_,\_,\_)$ and $w_2 = ((\_,\lin),\_,\_,\_)$: By definition of $\isLinear{}$.
+  \end{itemize}
+  If $\trust = \trusted$, then there are two more cases to consider, but like the above cases, they are trivial.
+\end{proof}
+
+\begin{lemma}
+  \label{lem:lincons-lrv}
+  For all $W' \future W$, $n$, $w_1$, $w_2$
+   if
+    \begin{itemize}
+    \item $\isLinear{w_1}$ or $\isLinear{w_2}$
+    \end{itemize} or
+    \begin{itemize}
+    \item $\npair{(w_1,w_2)} \in \lrv(W)$
+    \item $\nonLinear{w_1}$ or $\nonLinear{w_2}$
+    \end{itemize}
+    then
+    \[
+      \npair{(\linCons{w_1},\linCons{w_2})} \in \lrv(\purePart{W'})
+    \]
+\end{lemma}
+\begin{proof}
+  For the first set of assumptions, we can conclude
+  $\isLinear{w_1}$ and $\isLinear{w_2}$ by Lemma~\ref{lem:lrv-relates-linearity} which means that we need to argue
+  \[
+    \npair{(0,0)} \in \lrv(\purePart{W'})
+  \]
+  which is trivially true.
+
+  For the second set of assumptions, we can conclude $\nonLinear{w_1}$ and
+  $\nonLinear{w_2}$ by Lemma~\ref{lem:lrv-relates-linearity} which means that we
+  need to show $\npair{(w_1,w_2)} \in \lrv(\purePart{W'})$ which is true by
+  assumption and Lemma~\ref{lem:monotonicity} and \ref{lem:non-linear-pure}.
 \end{proof}
 %%% Local Variables:
 %%% TeX-master: "technical-report"
