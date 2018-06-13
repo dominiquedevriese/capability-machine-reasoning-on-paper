@@ -374,7 +374,7 @@ By induction over $n$\footnote{if $n=0$, then we have a contradiction with $\Phi
   \item \begin{itemize}
     \item $[\baddr,\eaddr] \subseteq \dom(\mscode) = \ta$
     \item $\trust = \trusted$
-    \item For all $\npair{\stpair{\reg}{\reg}} \in \lrrtrusted(W)$ and $\memSat{\src{\ms_S},\src{\ms_\stk},\src{\stk},\ms_T}{W}$ and $\ms_f$, we have $\src{\Phi} = (\src{\ms_S} \uplus \ms_f, \src{reg_S}, \src{\stk}, \src{\ms_\stk})$ and 
+    \item For all $\npair{\stpair{\reg}{\reg}} \in \lrrtrusted(W)$ and $\memSat{\src{\ms_S},\src{\ms_\stk},\src{\stk},\ms_T}{W}$ and $\ms_f$, we have $\src{\Phi} = (\src{\ms_S} \uplus \ms_f, \src{reg_S}\updReg{\pcreg}{c}, \src{\stk}, \src{\ms_\stk})$ and 
       \begin{itemize}           
       \item $\src{\Phi}$ checks $\stkb$ before calls in $\ta$ (Definition~\ref{def:check-stack-addr-before-call}).
       \item $\src{\Phi}$ uses link seals properly in $\ta$ with component parameters $\sigrets$ and $\sigcloss$ (Definition~\ref{def:use-return-seals-call}).
@@ -428,6 +428,7 @@ In order to do this, we first, we prove that one of the following holds:
   \item \label{case:ftlr:call} All of the following hold:
     \begin{itemize}
     \item $\callCond{\Phi_S,r_1,r_2,\aaddr}$
+    \item $r_1 \neq \rtmp{1}$ and $r_2 \neq \rtmp{1}$
     \item $\baddr \leq \aaddr \tand \aaddr + \calllen-1 \leq \eaddr$
     \item $\exec{\Phi_S(\pcreg)}$
     \item for all $i = 0..\calllen-1$, $\ms_T(\aaddr+i) = \ms_S(\aaddr+i) \in \ints$.
@@ -439,7 +440,7 @@ In order to do this, we first, we prove that one of the following holds:
     \item $\Phi_S(r_1) = \sealed{\sigma,c_1}$
     \item $\Phi_S(r_2) = \sealed{\sigma,c_2}$
     \item $\nonExec{c_2}$
-    \item $\Phi_S(\stk) = \stkptr{\rw, \baddr_\stk, \eaddr_\stk, \aaddr_\stk}$
+    \item $\Phi_S(\rstk) = \stkptr{\rw, \baddr_\stk, \eaddr_\stk, \aaddr_\stk}$
     \item $\baddr_\stk < \aaddr_\stk \leq \eaddr_\stk$
     \item $\Phi_S(\pcreg) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$
     \item $w_1 = \linCons{c_1}$ and $w_2 = \linCons{c_2}$
@@ -667,8 +668,13 @@ This allows us to conclude
 \]
 as desired.
 \\\\
-In case \ref{case:ftlr:call}, we first need to let the target execution catch
-up. That is $\Phi_T' \nstep[15]{} \Phi_T''$ for 
+\lau{TODO: look through this case and find the place where the ''no seal cross boundary thing'' should have been used.}
+In case \ref{case:ftlr:call}, we may assume $r_1 \neq r_2$\footnote{If the register contains a data capability, then the execution fails in the step after the jump.
+  If it is an executable capability, then the xjump fails as it does not permit executable capabilities for the data part.}
+and $r_i \neq \pcreg$ for $i \in \{1,2\}$\footnote{The pc is executable which causes the xjump to fail.}.
+as this will cause the execution to fail.
+We need to let the target execution catch up.
+That is $\Phi_T' \nstep[15]{} \Phi_T''$ for
 \[
 \Phi_T'' = \Phi_T
 \begin{array}[t]{l}
@@ -733,8 +739,9 @@ Case \ref{case:ftlr:scall:world} follows from assumption $W \oplus W_R \oplus W_
 The only changes to the worlds is that some ownership has been shifted from $W_R$ to $W_{R,1}$ and $W_{R,2}$ and the ownership for $W$ now belongs to $W_R'$.
 In other words, no ownership has been duplicated.
 
-Case \ref{case:ftlr:scall:reg}, using assumption $\npair[n'-1]{(\reg_S\update{r}{z},\reg_T\update{r}{z})} \in \lrr(W_R)$, we get a way to split the ownership of $W_R$.
-We take this as the starting point, but with the following changes: regions $r_1$ and $r_2$ maps to worlds with no ownership.
+Case \ref{case:ftlr:scall:reg}: We need to split the ownership of $W_R'$.
+From assumption $\npair[n'-1]{(\reg_S\update{r}{z},\reg_T\update{r}{z})} \in \lrr(W_R)$, we get a way to split the ownership of $W_R$.
+We take this as the starting point, but with the following changes: regions $r_1$ and $r_2$ maps to worlds with no ownership (i.e.\ $\purePart{W_{R,1}'}$).
 region $\rstk$ maps to a world with the same ownership, but of course without the now revoked regions.
 Region $\rretd$ maps to a world that owns private $r_\var{priv\_stk}$ region.
 Finally, $\rretc$ maps to a world with the ownership of $W$.
@@ -743,9 +750,47 @@ we split the world in the same way for the registers that remain unchanged, the
 result follows from Lemma \ref{lem:downwards-closed} and \ref{lem:monotonicity}.
 This leaves the following cases:
 \begin{description}
-\item[Case $\rstk$:] \lau{TODO}
-\item[Case $\rtmp{1}$:] \lau{TODO}
-\item[Case $r_1$,$r_2$:] \lau{TODO}
+\item[Case $\rstk$:] Show:
+  \[
+    \npair[n'-1]{(\stkptr{\rw,\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1},((\rw,\linear),\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1))} \in \lrv(W_{R,\rstk}')
+  \]
+  We know by Assumption~\ref{item:reg-ass}, we know
+  \[
+    \npair[n']{(\stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk},((\rw, \linear), \baddr_\stk ,\eaddr_\stk, \aaddr_\stk)} \in \lrrg{\trust}(W_{R,\stk})
+  \]
+  which by the $\stackReadCond{}$ gives $S \subseteq
+  \addressable{\linear,\pwfree}$ and $R : S \fun \powerset{\nats}$.
+  We need to pick an $S'$ to argue
+  \[
+    \npair[n'-1]{[\baddr_\stk,\aaddr_\stk-1]} \in \stackReadCond{W_{R,\rstk}'}
+  \]
+  To this end pick $S' = R^{-1}(\left(\bigcup_{r\in S} R(r) \right) \setminus [\aaddr_\stk,\eaddr_\stk])$ and $R'$ to be $R$ limited to $S'$.
+  As we exclude all the revoked regions and the ownership otherwise remains the
+  same in $W_{R,\rstk}'$ as in $W_{R,\rstk}$, the regions in $S'$ are exactly the same in the new world as they were in $W_{R,\rstk}$.
+  So what we need to show follows immediately from
+  \[
+    \npair[n']([\baddr_\stk,\eaddr_\stk]) \in \stackReadCond{W_{R,\rstk}}
+  \]
+  and by Lemma~\ref{lem:downwards-closed}.
+
+  We show
+  \[
+    \npair[n'-1]{[\baddr_\stk,\aaddr_\stk-1]} \in \stackWriteCond{W_{R,\rstk}'}
+  \]
+  in the same way.
+
+\item[Case $\rtmp{1}$:] Show:
+  \[
+    \npair[n'-1]{(0,0)} \in \lrv(W_{R,\rtmp{1}}')
+  \]
+  Follows immediately from the definition.
+
+\item[Case $r_1$,$r_2$:] The two cases are symmetric, so we just show the $r_1$ case:
+  \[
+    \npair[n'-1]{(\linCons{c_1},\linCons{\Phi_T(r_1)})} \in \lrv(W_{R,r_1}')
+  \]
+  Follows from the related register files assumption and Lemma~\ref{lem:lincons-lrv}.
+
 \item[Case $\rretd$:] We have to show 
   \[
     \npair[n'-1]{(\sealed{\sigma',\retptrd(\aaddr_\stk,\eaddr_\stk)},\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1)})} \in \lrv(W_{R,\rretd}')
@@ -948,7 +993,8 @@ This leaves the following cases:
       \[
         \npair[n''']{(\Phi^{(4)}_S,\Phi^{(5)}_T)} \in \lro
       \]
-      Here we need to use the induction hypothesis.
+      Here we need to use the induction hypothesis. \lau{TODO: the reasonability
+      requirements of the FTLR seems to be an issue here.}
     \end{itemize}
 
   \end{itemize}
@@ -983,6 +1029,60 @@ Case: \ref{case:ftlr:scall:mem}, \lau{TODO}
 \end{lemma}
 \begin{proof}
   \lau{TODO}
+\end{proof}
+
+\begin{lemma}
+  \label{lem:lrv-relates-linearity}
+  For all $W$, $n$, $w_1$, $w_2$ if
+  \begin{itemize}
+  \item $\npair{(w_1,w_2)} \in \lrvg{\trust}(W)$
+  \end{itemize}
+  then
+  \[
+    \isLinear{w_1} \text{ iff } \isLinear{w_2}
+  \]
+\end{lemma}
+\begin{proof}
+  (Trivial) We consider the possible cases for $w_1$ and $w_2$
+  \begin{itemize}
+  \item Case $w_1,w_2 \in \ints$: By definition of $\isLinear{}$.
+  \item Case $w_1 = \sealed{\sigma,\vsc_1}$ and $w_2 = \sealed{\sigma,\vsc_2}$:
+    From the assumption $\npair[n]{(w_1,w_2)} \in \lrv(W)$ we get the desired result.
+  \item Case $w_1 = \seal{\_,\_,\_}$ and $w_2 = \seal{\_,\_,\_}$: By definition of $\isLinear{}$.
+  \item Case $w_1 = \stkptr{\_,\_,\_,\_}$ and $w_2 = ((\_,\linear),\_,\_,\_)$: By definition of $\isLinear{}$, stack pointers are linear.
+  \item Case $w_1 = ((\_,\lin),\_,\_,\_)$ and $w_2 = ((\_,\lin),\_,\_,\_)$: By definition of $\isLinear{}$.
+  \end{itemize}
+  If $\trust = \trusted$, then there are two more cases to consider, but like the above cases, they are trivial.
+\end{proof}
+
+\begin{lemma}
+  \label{lem:lincons-lrv}
+  For all $W' \future W$, $n$, $w_1$, $w_2$
+   if
+    \begin{itemize}
+    \item $\isLinear{w_1}$ or $\isLinear{w_2}$
+    \end{itemize} or
+    \begin{itemize}
+    \item $\npair{(w_1,w_2)} \in \lrv(W)$
+    \item $\nonLinear{w_1}$ or $\nonLinear{w_2}$
+    \end{itemize}
+    then
+    \[
+      \npair{(\linCons{w_1},\linCons{w_2})} \in \lrv(\purePart{W'})
+    \]
+\end{lemma}
+\begin{proof}
+  For the first set of assumptions, we can conclude
+  $\isLinear{w_1}$ and $\isLinear{w_2}$ by Lemma~\ref{lem:lrv-relates-linearity} which means that we need to argue
+  \[
+    \npair{(0,0)} \in \lrv(\purePart{W'})
+  \]
+  which is trivially true.
+
+  For the second set of assumptions, we can conclude $\nonLinear{w_1}$ and
+  $\nonLinear{w_2}$ by Lemma~\ref{lem:lrv-relates-linearity} which means that we
+  need to show $\npair{(w_1,w_2)} \in \lrv(\purePart{W'})$ which is true by
+  assumption and Lemma~\ref{lem:monotonicity} and \ref{lem:non-linear-pure}.
 \end{proof}
 %%% Local Variables:
 %%% TeX-master: "technical-report"
