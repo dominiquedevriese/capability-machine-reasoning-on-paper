@@ -2410,6 +2410,74 @@ and
 %   Follows easily from the definitions.
 % \end{proof}
 
+\subsection{Alternative formulation of reasonability?}
+\label{sec:reasonability}
+
+\dominique{The below is an experimental reformulation of the reasonability requirement for the FTLR and full abstraction formulation.  All remarks welcome..
+  The main change is that it now says that after a call, the post-return code is also expected to behave reasonably under reasonable assumptions. 
+}
+\dominique{TODO: better name than ``reasonable'' for all of this.}
+Take a block of code memory $\mscode$, a set of trusted addresses $\ta$ and sets of return pointer and closure seals $\sigrets$ and $\sigcloss$.
+We define that a word $w$ is reasonable if the following implications hold.
+\begin{itemize}
+\item If $w = \seal{\sigma_\baddr,\sigma_\eaddr,\_}$, then $[\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\sigrets \cup \sigcloss)$
+\item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ then $[\baddr,\eaddr] \# \ta$
+\item If $w = \sealed{\sigma,\vsc}$ and $\sigma \not\in (\sigrets\cup \sigcloss)$ then $\vsc$ is reasonable.
+\end{itemize}
+
+We say that an executable capability $c = ((\perm,\normal),\baddr,\eaddr,\aaddr)$ and data capability $c_{\mathrm{data}}$ behaves reasonably with stack assumption $\ms_\stk'$ up to $n$ steps if the following implication holds:
+
+For any $\Phi$ such that
+  \begin{itemize}
+  \item $\Phi.\reg(\pcreg) = c$
+  \item $\Phi.\reg(\rdata) = c_{\mathrm{data}}$
+  \item $\Phi.\reg(r)$ is reasonable for all $r \not\in \{\pcreg,\rdata\}$
+  \item $\Phi.\mem(a)$ is reasonable for all $a$
+  \item $\Phi.\ms_\stk$ is reasonable for all $a$
+  \item $\Phi.\ms_\stk|_{\dom(\ms_\stk')} = \ms_\stk'$
+  \item $\Phi.\mem$, $\Phi.\ms_\stk$ and $\Phi.\stk$ are all disjoint
+  \end{itemize}
+  We have the following implications:
+  \begin{itemize}
+  \item[Guarantee stack base address before call] If
+    \begin{itemize}
+    \item $\Phi \nstep[i]{\ta,\stkb} \Phi'$
+    \item $\Phi'$ points to $\src{\scall{\offpc,\offsigma}{r_1}{r_2}}$ in $\ta$ for some $\src{r_1}$ and $\src{r_2}$
+    \end{itemize}
+    Then all of the following hold:
+    \begin{itemize}
+    \item $\src{\Phi'}(\src{r_\stk}) = \src{\stkptr{\_,\stkb,\eaddr_\stk,\aaddr_\stk}}$
+    \item $r_1' \neq \rtmp{1}$
+    \item $\Phi'(\pcreg) + \calllen$ and $\Phi'(\rstk)$ behave reasonably with stack assumption $\Phi.\ms_\stk|_{[\eaddr_\stk,\aaddr_\stk]}$ up to $n-i$ steps
+    \end{itemize}
+  \item[Use return seals only for calls] If
+    \begin{itemize}
+    \item $\Phi \nstep[i]{\ta,\stkb} \Phi'$
+    \item $\src{\Phi'}$ points to $\src{\tcseal{r_1}{r_2}}$ in $\ta$ and $\Phi'(r_1) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$
+    \end{itemize}
+    Then one of the following holds:
+    \begin{itemize}
+    \item $\src{\Phi'}$ is inside $\src{\scall{\offpc,\offsigma}{r_1'}{r_2'}}$ and $\sigma \in \sigrets$ 
+    \item $\sigma \in \sigcloss$.
+    \end{itemize}
+  \item[Don't store private stuff...] If
+    \begin{itemize}
+    \item $\Phi \nstep[i]{\ta,\stkb} \Phi'$
+    \item $\src{\Phi'}$ points to $\src{\tstore{r_1}{r_2}}$ in $\ta$, then 
+    \end{itemize}
+    Then $\Phi.\reg(r_2)$ is reasonable
+  \item[Don't leak private stuff...] If
+    \begin{itemize}
+    \item $\Phi \nstep[i]{\ta,\stkb} \Phi' \step \Phi''$
+    \item $\src{\Phi'}$ is in $\ta$
+    \item $\src{\Phi''}$ is not in $\ta$
+    \end{itemize}
+    Then $\Phi.\reg(r)$ is reasonable for all $r$ (including $\pcreg$)
+  \end{itemize}
+
+We say that a component $(\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss,A_\linear)$ is reasonable if the following hold:
+For all $\sealed{\sigma,\vsc},\sealed{\sigma,\vsc'} \in \overline{c_{\mathrm{export}}}$, with $\exec{\vsc}$ and $\nonExec{\vsc'}$, we have that $\vsc$ and $\vsc'$ behave reasonably with stack assumption $\emptyset$ up to any number of steps $n$.
+
 \subsection{Fundamental Theorem of Logical Relations}
 \begin{theorem}[FTLR]
   \label{thm:ftlr}
