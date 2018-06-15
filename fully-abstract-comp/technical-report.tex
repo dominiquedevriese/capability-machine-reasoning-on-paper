@@ -2428,21 +2428,13 @@ We define that a word $w$ is reasonable up to $n$ steps in memory $\ms$ if the f
 \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\perm \in \readAllowed{}$ and $n > 0$, then $\ms(\aaddr)$ is reasonable up to $n - 1$ steps for all $\aaddr \in ([\baddr,\eaddr] \setminus \ta)$
 \end{itemize}
 
-We say that an executable capability $c = ((\perm,\normal),\baddr,\eaddr,\aaddr)$ behaves reasonably up to $n$ steps if the following implication holds:
-
-For any $\Phi$ such that
-  \begin{itemize}
-  \item $\Phi.\reg(\pcreg) = c$
-  \item $\Phi.\reg(r)$ is reasonable up to $n$ steps in memory $\Phi.\mem$ for all $r \not\in \{\pcreg\}$
-  \item $\Phi.\ms_\stk$ is reasonable up to $n-1$ steps in memory $\Phi.\mem$ for all $a$
-  \item $\Phi.\mem$, $\Phi.\ms_\stk$ and $\Phi.\stk$ are all disjoint
-  \end{itemize}
-  We have the following implications:
+We say that an execution configuration $\Phi$ is reasonable up to $n$ steps if:
   \begin{itemize}
   \item \emph{Guarantee stack base address before call} If
     \begin{itemize}
     \item $\Phi \nstep[i]{\ta,\stkb} \Phi'$
     \item $\Phi'$ points to $\src{\scall{\offpc,\offsigma}{r_1}{r_2}}$ in $\ta$ for some $\src{r_1}$ and $\src{r_2}$
+    \item $i \le n$
     \end{itemize}
     Then all of the following hold:
     \begin{itemize}
@@ -2454,6 +2446,7 @@ For any $\Phi$ such that
     \begin{itemize}
     \item $\Phi \nstep[i]{\ta,\stkb} \Phi'$
     \item $\src{\Phi'}$ points to $\src{\tcseal{r_1}{r_2}}$ in $\ta$ and $\Phi'(r_1) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$
+    \item $i \le n$
     \end{itemize}
     Then one of the following holds:
     \begin{itemize}
@@ -2464,6 +2457,7 @@ For any $\Phi$ such that
     \begin{itemize}
     \item $\Phi \nstep[i]{\ta,\stkb} \Phi'$
     \item $\src{\Phi'}$ points to $\src{\tstore{r_1}{r_2}}$ in $\ta$, then 
+    \item $i \le n$
     \end{itemize}
     Then $\Phi.\reg(r_2)$ is reasonable in memory $\Phi'.\mem$ up to $n$ steps
   \item \emph{Don't leak private stuff...} If
@@ -2471,12 +2465,38 @@ For any $\Phi$ such that
     \item $\Phi \nstep[i]{\ta,\stkb} \Phi' \step \Phi''$
     \item $\src{\Phi'}$ is in $\ta$
     \item $\src{\Phi''}$ is not in $\ta$
+    \item $i \le n$
     \end{itemize}
     Then $\Phi.\reg(r)$ is reasonable in memory $\Phi'.\mem$ up to $n$ steps for all $r$ (including $\pcreg$)
   \end{itemize}
 
+  \begin{lemma}
+    \label{lem:ec-reasonable-antired}
+    If
+    \begin{itemize}
+    \item $\Phi$ is reasonable up to $n$ steps
+    \item $\Phi \nstep[i]{\gc} \Phi'$
+    \end{itemize}
+    Then
+    \begin{itemize}
+    \item $\Phi'$ is reasonable up to $n-i$ steps
+    \end{itemize}
+  \end{lemma}
+  \begin{proof}
+    Follows easily by definition.
+  \end{proof}
+
+We say that an executable capability $c = ((\perm,\normal),\baddr,\eaddr,\aaddr)$ behaves reasonably up to $n$ steps if for any $\Phi$ such that
+  \begin{itemize}
+  \item $\Phi.\reg(\pcreg) = c$
+  \item $\Phi.\reg(r)$ is reasonable up to $n$ steps in memory $\Phi.\mem$ for all $r \not\in \{\pcreg\}$
+  \item $\Phi.\ms_\stk$ is reasonable up to $n-1$ steps in memory $\Phi.\mem$ for all $a$
+  \item $\Phi.\mem$, $\Phi.\ms_\stk$ and $\Phi.\stk$ are all disjoint
+  \end{itemize}
+  We have that $\Phi$ is reasonable.
+
 We say that a component $(\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss,A_\linear)$ is reasonable if the following hold:
-For all $\sealed{\sigma,\vsc},\sealed{\sigma,\vsc'} \in \overline{c_{\mathrm{export}}}$, with $\exec{\vsc}$ and $\nonExec{\vsc'}$, we have that $\vsc$ and $\vsc'$ behave reasonably with stack assumption $\emptyset$ up to any number of steps $n$.
+For all $\sealed{\sigma,\vsc} \in \overline{c_{\mathrm{export}}}$, with $\exec{\vsc}$, we have that $\vsc$ behaves reasonably up to any number of steps $n$.
 \lau{This need to change with the proposed simplification of the reasonability update.}
 
 \begin{lemma}
@@ -2596,13 +2616,7 @@ For all $\sealed{\sigma,\vsc},\sealed{\sigma,\vsc'} \in \overline{c_{\mathrm{exp
   \item \begin{itemize}
     \item $[\baddr,\eaddr] \subseteq \dom(\mscode) = \ta$
     \item $\trust = \trusted$
-    \item For all $\npair{\stpair{\reg}{\reg}} \in \lrrtrusted(W)$ and $\memSat{\src{\ms_S},\src{\ms_\stk},\src{\stk},\ms_T}{W}$ and $\ms_f$, we have $\src{\Phi} = (\src{\ms_S} \uplus \ms_f, \src{reg_S}\updReg{\pcreg}{((\rx,\lin),\baddr,\eaddr,\aaddr)}, \src{\stk}, \src{\ms_\stk})$ and 
-      \begin{itemize}
-      \item $\src{\Phi}$ checks $\stkb$ before calls in $\ta$ for $n$ steps (Definition~\ref{def:check-stack-addr-before-call}).
-      \item $\src{\Phi}$ uses link seals properly in $\ta$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:use-return-seals-call}).
-      \item $\src{\Phi}$ handle trusted seals properly in $\ta$ with components parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:handle-trusted-seals-properly}).
-      \item $\src{\Phi}$ does not store link seals and code capabilities in $\ta$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:never-store-seal-code-cap}).
-      \end{itemize}
+    \item $({((\rx,\normal),\baddr,\eaddr,\aaddr)}$ behaves reasonably up to $n$ steps.
     \end{itemize}
   \item
     \begin{itemize}

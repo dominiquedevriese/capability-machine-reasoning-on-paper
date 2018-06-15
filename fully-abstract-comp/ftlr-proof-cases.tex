@@ -362,56 +362,35 @@ then
 \end{proof}
 
 \subsection{FTLR proof}
-By induction over $n$\footnote{if $n=0$, then we have a contradiction with $\Phi_S\term[i]$ and $\Phi_T\term[i]$ when we get to $\lro$.}.
-\begin{proof}
-  Assume
-  \begin{itemize}
-  \item $\trust = \trusted \vee \npair{[\baddr,\eaddr]} \in \readCond{\lin,W}$
-  \item $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$
-  \end{itemize}
-  and one of the following sets of requirements holds:
-  \begin{enumerate}[label={\roman*)}]
-  \item \begin{itemize}
-    \item $[\baddr,\eaddr] \subseteq \dom(\mscode) = \ta$
-    \item $\trust = \trusted$
-    \item For all $\npair{\stpair{\reg}{\reg}} \in \lrrtrusted(W)$ and $\memSat{\src{\ms_S},\src{\ms_\stk},\src{\stk},\ms_T}{W}$ and $\ms_f$, we have $\src{\Phi} = (\src{\ms_S} \uplus \ms_f, \src{reg_S}\updReg{\pcreg}{c}, \src{\stk}, \src{\ms_\stk})$ and 
-      \begin{itemize}           
-      \item $\src{\Phi}$ checks $\stkb$ before calls in $\ta$ (Definition~\ref{def:check-stack-addr-before-call}).
-      \item $\src{\Phi}$ uses link seals properly in $\ta$ with component parameters $\sigrets$ and $\sigcloss$ (Definition~\ref{def:use-return-seals-call}).
-      \item $\src{\Phi}$ handle trusted seals properly in $\ta$ with components parameters $\sigrets$ and $\sigcloss$ (Definition~\ref{def:handle-trusted-seals-properly}).
-      \item $\src{\Phi}$ does not store link seals and code capabilities in $\ta$ with component parameters $\sigrets$ and $\sigcloss$ (Definition~\ref{def:never-store-seal-code-cap}).
-      \end{itemize}
-    \end{itemize}
-  \item
-    \begin{itemize}
-    \item $[\baddr,\eaddr] \mathrel{\#} \ta$
-    \item $\trust = \untrusted$
-    \end{itemize}
-  \end{enumerate}
-and show
-\[
-\npair{(c,c)} \in \lreg{\trust}(W)
-\]
-For $c=((\rx,\lin),\baddr,\eaddr,\aaddr)$.\\
 
-Let $n' \leq n$ be given and assume
-\begin{enumerate}
-\item $\npair[n']{\stpair{\reg}{\reg}} \in \lrrg{\trust}(W_R)$ \label{item:reg-ass}
-\item $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$\label{item:mem-ass}
-\item $W \oplus W_R \oplus W_M$ is well-defined\label{item:worlds-def}
-\end{enumerate}
-Further let
-\begin{itemize}
-\item $\Phi_S = (\ms_S,\reg_S\update{\pcreg}{c},\stk,\ms_\stk)$
-\item $\Phi_T = (\ms_T,\reg_T\update{\pcreg}{c})$
-\end{itemize}
-and show
-\[
-  \npair[n']{(\Phi_S,\Phi_T)} \in \lro
-\]
-In order to do this, we first, we prove that one of the following holds:
-\lau{TODO: add $\neq$ failed to the cases that are not failed.}
-\begin{enumproof}
+\begin{lemma}
+  \label{lem:ftlr-internal-lemma}
+  If
+  \begin{itemize}
+  \item One of the following sets of requirements holds:
+    \begin{itemize}
+    \item $\trust = \trusted$, $\Phi_S$ is reasonable up to $n$ steps and $[\baddr,\eaddr] \subseteq \dom(\mscode) = \ta$
+    \item $\trust = \untrusted$ and $\npair{[\baddr,\eaddr]} \in \readCond{\lin,W_\pcreg}$
+    \end{itemize}
+  \item $\Phi_S(\pcreg) = \Phi_T(\pcreg) = ((\rx,\lin),\baddr,\eaddr,\_)$
+  \item $\npair{[\baddr,\eaddr]} \in \xReadCond{W_\pcreg}$
+  \item $\npair{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)$
+  \item $\memSat{\Phi_S.\mem,\Phi_S.\ms_\stk,\Phi_S.\stk,\Phi_T.\mem}{W_M}$
+  \item Theorem~\ref{thm:ftlr} holds for all $n' < n$.
+  \end{itemize}
+  Then
+  \[
+    \npair{(\Phi_S,\Phi_T)} \in \lro
+  \]
+\end{lemma}
+\begin{proof}
+  TODO: update...
+
+  By general induction on $n$, i.e. we can assume that the property already holds for $n' < n$.
+
+  In order to do this, we first, we prove that one of the following holds:
+  \lau{TODO: add $\neq$ failed to the cases that are not failed.}
+  \begin{enumproof}
   \item \label{case:ftlr:failed} $\Phi_S \step[\gc] \failed$ and $\Phi_T
     \step[i] \failed$ for some $i$.
   \item \label{case:ftlr:halted} $\Phi_S \step[\gc] \halted$ and $\Phi_T \step\halted$
@@ -636,380 +615,455 @@ In order to do this, we first, we prove that one of the following holds:
       \end{enumproof}
     \end{itemize}
   \end{enumproof}
-\lau{TODO: Argue that the above is indeed the case.}
+  \lau{TODO: Argue that the above is indeed the case.}
 
-By the above observation, we know that $\Phi_S \step[\gc] \Phi_S'$ and $\Phi_T \step
-\Phi_T'$ for some $\Phi_S'$ and $\Phi_T'$. According to
-Lemma~\ref{lem:lro-anti-red-gen}, it suffices to show:
-\[
-  \npair[n'-1]{(\Phi_S',\Phi_T')} \in \lro
-\]
-Consider each of the possible cases:
-
-In case \ref{case:ftlr:failed}, both executions go to failed. In this case, we
-either assume that the target configuration terminates or that the source
-configuration terminates, but in either case it leads to a contradiction with
-the failing configuration.
-\\\\
-In case \ref{case:ftlr:halted}, both source and target configuration halts in 0
-steps, so both directions of $\lro$ are trivially satisfied.
-\\\\
-In case \ref{case:ftlr:get-and-arith-op}, we use the induction hypothesis to get
-\[
-  \npair[n'-1]{(((\perm,\lin),\baddr,\eaddr,\aaddr+1),((\perm,\lin),\baddr,\eaddr,\aaddr+1))} \in \lre(W)
-\]
-This is possible by using the initial assumptions along with Lemma \ref{lem:downwards-closed}.
-By Lemma~\ref{lem:downwards-closed}, we know $\memSat[n'-1]{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$.
-By Lemma~\ref{lem:downwards-closed} and the fact that integers are always safe,
-we know $\npair[n'-1]{(\reg_S\update{r}{z},\reg_T\update{r}{z})} \in \lrr(W_R)$.
-This allows us to conclude
-\[
-  \npair[n'-1]{(\Phi_S',\Phi_T')} \in \lro
-\]
-as desired.
-\\\\
-\lau{TODO: look through this case and find the place where the ''no seal cross boundary thing'' should have been used.}
-In case \ref{case:ftlr:call}, we may assume $r_1 \neq r_2$\footnote{If the register contains a data capability, then the execution fails in the step after the jump.
-  If it is an executable capability, then the xjump fails as it does not permit executable capabilities for the data part.}
-and $r_i \neq \pcreg$ for $i \in \{1,2\}$\footnote{The pc is executable which causes the xjump to fail.}.
-as this will cause the execution to fail.
-We need to let the target execution catch up.
-That is $\Phi_T' \nstep[15]{} \Phi_T''$ for
-\[
-\Phi_T'' = \Phi_T
-\begin{array}[t]{l}
-  \update{\mem.\aaddr_\stk}{42} \\
-  \updReg{\rstk}{((\rw,\linear),\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1)} \\
-  \updReg{\rretd}{\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1)}} \\
-  \updReg{\rretc}{\sealed{\sigma',((\perm,\lin),\baddr,\eaddr,\aaddr+\retoffset)}} \\
-  \updReg{\rtmp{1}}{0}\\
-  \updReg{r_1,r_2}{\linCons{\Phi_T(r_1)},\linCons{\Phi_T(r_2)}}\\
-  \updReg{\pcreg}{c_1'}\\
-  \updReg{\rdata}{c_2'}
-\end{array}
-\]
-where $\Phi_T(r_i) = \sealed{\sigma,c_i'} \text{ for $i\in\{1,2\}$}$ and $\retoffset = 15$ which is the offset to the return code.
-Now using Lemma~\ref{lem:lro-anti-red-gen} again, it suffices to show
-\[
-  \npair[n'-1]{(\Phi_S',\Phi_T'')} \in \lro
-\]
-By assumption, we have $\npair[n']{(\reg_S(r_i),\reg_T(r_i))} \in \lrr(W_{R,i})$ for some $W_{R,i}$ with $i \in \{1,2\}$.
-We know the capabilities in $r_1$ and $r_2$ are sealed capabilities, and by
-Lemma~\ref{lem:unique-h-sigma} and the definition of $\lrv$ we get
-$\npair[n'-1]{\stpair[.]{c_2}{c_2'}} \in H_\sigma \; \sigma \; \xi^{-1}(W_{R,2})$
-and w.l.o.g.\
-
-\begin{equation}
-\forall W' \future W_{R,1}, W_o, n' < n, \npair[n']{(c_2,c_2')} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \npair[n']{c_1,c_2,c_1',c_2'} \in \lrexj(W'\oplus W_o)\label{eq:ftlr:call:sealed-code-assump}
-\end{equation}
-Now construct $W_{R,1}'$ as follows:
-
-By Lemma~\ref{lem:nsub-and-nsup-std} and the safety assumption on the register-file, there exists $S \supseteq [\baddr_\stk, \eaddr_\stk]$ such that for some $R : S \fun \powerset{\nats}$ we have $\biguplus_{r \in S} R(r) \supseteq [\baddr_\stk,\eaddr_\stk]$ and for all $r$ in $S$ $\pwfree[W_{R,1}](r).H \nequal \stdreg{R(r),\gc}{\pur}.H$ and $|R(r)| = 1$ and $\pwfree[W_{R,1}](r) \text{ is address-stratified}$.
-Now define
-\[
-  W_{R,1}' = W_{R,1}[\free.R^{-1}([\aaddr_\stk,\eaddr_\stk]) \mapsto \revoked][\priv.r_\var{priv\_stk} \mapsto (\stareg[(\ms_{\stk\_\priv,S},\Phi_T''.\mem|_{[\aaddr_\stk,\eaddr_\stk]}),\gc]{\spa,\square},\aaddr+\calllen)]
-\] 
-For a fresh $r_\var{priv\_stk}$.
-We know $W_{R,1}' \future W_{R,1}$ as the revoked regions must have been $\spatial$ in $W_{R,q}$ (as they are owned by the part of the world assigned to the stack-register in the register-file relation).
-The static region for the private stack is an extension.
-
-Pick this world as $W'$ in Eq~\ref{eq:ftlr:call:sealed-code-assump}
-. Let $W_{R,2}'$ be the same world but
-with the ownership of $W_{R,2}$ and pick it for $W_o$.
-Now use monotonicity of $H_\sigma$ with the above facts to get
-\[
-  \npair[n']{c_1,c_2,c_1',c_2'} \in \lrexj(W_{R,1}'\oplus W_{R,2}')
-\]
-Now pick register files and memories such that they form $\Phi_S''$ (defined in
-the assumptions) and $\Phi_T''$ and for $W_R'$ and $W_M'$ (we define them below) show
-\begin{enumerate}[label=\roman*.]
-\item \label{case:ftlr:scall:world} $W_{R,1}'\oplus W_{R,2}' \oplus W_R' \oplus W_M'$
-\item \label{case:ftlr:scall:reg} $\npair[n'-1]{(\Phi_S''.\reg,\Phi_T''.\reg)} \in \lrr(\{\rdata\})(W_R')$
-\item \label{case:ftlr:scall:mem} $\memSat[n'-1]{\Phi_S''.\mem,\Phi_S''.\stk,\Phi_S''.\ms_\stk,\Phi_T''.\mem}{W_M'}$
-\end{enumerate}
-to get
-\[
- \npair[n'-1]{(\Phi_S',\Phi_T'')} \in \lro
-\]
-as desired. It remains to show \ref{case:ftlr:scall:world}-\ref{case:ftlr:scall:mem}.
-
-Case \ref{case:ftlr:scall:world}: Pick $W_R'$ and $W_M'$ to have the regions of $W_{R,1}'$, but where $W_R'$ owns $r_\var{priv\_stk}$ and otherwise has the ownership of $W_R$ and $W$ with the exception of the regions owned by $W_{R,1}'$ and $W_{R,2}'$.
-$W_M'$ has the ownership of $W_M$.
-Case \ref{case:ftlr:scall:world} follows from assumption $W \oplus W_R \oplus W_M$.
-The only changes to the worlds is that some ownership has been shifted from $W_R$ to $W_{R,1}$ and $W_{R,2}$ and the ownership for $W$ now belongs to $W_R'$.
-In other words, no ownership has been duplicated.
-
-Case \ref{case:ftlr:scall:reg}: We need to split the ownership of $W_R'$.
-From assumption $\npair[n'-1]{(\reg_S\update{r}{z},\reg_T\update{r}{z})} \in \lrr(W_R)$, we get a way to split the ownership of $W_R$.
-We take this as the starting point, but with the following changes: regions $r_1$ and $r_2$ maps to worlds with no ownership (i.e.\ $\purePart{W_{R,1}'}$).
-region $\rstk$ maps to a world with the same ownership, but of course without the now revoked regions.
-Region $\rretd$ maps to a world that owns private $r_\var{priv\_stk}$ region.
-Finally, $\rretc$ maps to a world with the ownership of $W$.
-
-we split the world in the same way for the registers that remain unchanged, the
-result follows from Lemma \ref{lem:downwards-closed} and \ref{lem:monotonicity}.
-This leaves the following cases:
-\begin{description}
-\item[Case $\rstk$:] Show:
+  By the above observation, we know that $\Phi_S \step[\gc] \Phi_S'$ and $\Phi_T \step
+  \Phi_T'$ for some $\Phi_S'$ and $\Phi_T'$. According to
+  Lemma~\ref{lem:lro-anti-red-gen}, it suffices to show:
   \[
-    \npair[n'-1]{(\stkptr{\rw,\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1},((\rw,\linear),\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1))} \in \lrv(W_{R,\rstk}')
+    \npair[n'-1]{(\Phi_S',\Phi_T')} \in \lro
   \]
-  We know by Assumption~\ref{item:reg-ass}, we know
-  \[
-    \npair[n']{(\stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk},((\rw, \linear), \baddr_\stk ,\eaddr_\stk, \aaddr_\stk)} \in \lrrg{\trust}(W_{R,\stk})
-  \]
-  which by the $\stackReadCond{}$ gives $S \subseteq
-  \addressable{\linear,\pwfree}$ and $R : S \fun \powerset{\nats}$.
-  We need to pick an $S'$ to argue
-  \[
-    \npair[n'-1]{[\baddr_\stk,\aaddr_\stk-1]} \in \stackReadCond{W_{R,\rstk}'}
-  \]
-  To this end pick $S' = R^{-1}(\left(\bigcup_{r\in S} R(r) \right) \setminus [\aaddr_\stk,\eaddr_\stk])$ and $R'$ to be $R$ limited to $S'$.
-  As we exclude all the revoked regions and the ownership otherwise remains the
-  same in $W_{R,\rstk}'$ as in $W_{R,\rstk}$, the regions in $S'$ are exactly the same in the new world as they were in $W_{R,\rstk}$.
-  So what we need to show follows immediately from
-  \[
-    \npair[n']([\baddr_\stk,\eaddr_\stk]) \in \stackReadCond{W_{R,\rstk}}
-  \]
-  and by Lemma~\ref{lem:downwards-closed}.
+  Consider each of the possible cases:
 
-  We show
+  In case \ref{case:ftlr:failed}, both executions go to failed. In this case, we
+  either assume that the target configuration terminates or that the source
+  configuration terminates, but in either case it leads to a contradiction with
+  the failing configuration.
+  \\\\
+  In case \ref{case:ftlr:halted}, both source and target configuration halts in 0
+  steps, so both directions of $\lro$ are trivially satisfied.
+  \\\\
+  In case \ref{case:ftlr:get-and-arith-op}, we use the induction hypothesis to conclude
   \[
-    \npair[n'-1]{[\baddr_\stk,\aaddr_\stk-1]} \in \stackWriteCond{W_{R,\rstk}'}
+    \npair[n'-1]{(\Phi_S',\Phi_T')} \in \lro
   \]
-  in the same way.
-
-\item[Case $\rtmp{1}$:] Show:
-  \[
-    \npair[n'-1]{(0,0)} \in \lrv(W_{R,\rtmp{1}}')
-  \]
-  Follows immediately from the definition.
-
-\item[Case $r_1$,$r_2$:] The two cases are symmetric, so we just show the $r_1$ case:
-  \[
-    \npair[n'-1]{(\linCons{c_1},\linCons{\Phi_T(r_1)})} \in \lrv(W_{R,r_1}')
-  \]
-  Follows from the related register files assumption and Lemma~\ref{lem:lincons-lrv}.
-
-\item[Case $\rretd$:] We have to show 
-  \[
-    \npair[n'-1]{(\sealed{\sigma',\retptrd(\aaddr_\stk,\eaddr_\stk)},\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1)})} \in \lrv(W_{R,\rretd}')
-  \]
-  where $W_{R,\rretd}'$ is the part of $W_R'$ with ownership over $r_\var{priv\_stk}$.
-  From the assumption $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$ we get $R \subseteq \addressable{\normal, \pwheap}$ and $\exists M : S \fun \powerset{\MemSeg}$ such that $\biguplus_{r\in S} \dom(M(r)) \supseteq [\baddr,\eaddr]$ and $\forall r \in S \ldotp \pwheap(r) \nequal \codereg{\sigrets',\_,M(r),\gc}$.
-  Further by $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W}$, we know that for one
-  $r \in S$ there is a $\mscode' \subseteq \mscode$\footnote{Follows from
-    $H^\var{code}$ requiring $\dom(\mscode') \subseteq \ta$ and $\dom(\mscode) =
-    \ta$ and finally that $\mscode$ is part of $\ms_S$.} such that
-  \begin{equation}
-    \npair[n']{(\mscode',\mscode')} \in H^{\var{code}} \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\_)\label{eq:ftlr:rretd:Hcode}
-  \end{equation}
-  where $\sigma' \in \sigrets'$ and $\dom(\mscode') \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode')$.
-  That is $\mscode'$ contains the call we are considering.
-  \lau{TODO: Make the above more precise and possibly put into a lemma (also needed in the next case).}
-  Use the $r$ in question as the witness.
-  The $\xReadCond{}$ gives us $\pwheap(r) \nequal \codereg{\_,\_,\mscode',\gc}$.
-  As it is a pure region, it is also present in the future world we consider.
-  We now have to show:
-  \begin{enumerate}[label=\alph*)]
-  \item for $n'' < n'-1$ we have
-    \[\npair[n'']{\left(\array{l}\retptrd(\aaddr_\stk,\eaddr_\stk),\\((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1)\endarray\right)}
-      \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode'
-      \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_{R,\rretd}')
-    \]
-    First $\dom(\mscode') \subseteq \ta$ follows from \ref{eq:ftlr:rretd:Hcode} and the assumption $[\baddr,\eaddr] \ subseteq \ta$.
-    Now pick $r_\var{priv\_stk}$ as the witness.
-    We immediately get $\dom(\ms_{\stk\_\priv,S}) = \dom(\Phi_T''.\mem|_{[\aaddr_\stk,\eaddr_\stk]}) = [\aaddr_\stk,\eaddr_\stk]$.
-    Next, $\decInstr(\mscode'(\aaddr,\aaddr+\calllen-1)) = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}}$ follows from $\callCond{\Phi_S,r_1,r_2,\aaddr}$.
-    Finally, $\ms_\code(\aaddr+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr}$ with $\sigma' = \sigma_\baddr + \offpc \in \sigrets'$ which follows from $\sigrets',\sigcloss' \vdash_{\mathrm{comp-code}} \mscode'$ and the fact that the call is there.
-  \item $\isLinear{\sealed{\sigma',\retptrd(\aaddr_\stk,\eaddr_\stk)}}$ iff
-    $\isLinear{\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk)}}$\\
-    Trivial as both are linear.    
-  \item
-    \[
-      \begin{array}{l}
-        \forall W'' \future \purePart{W_{R,\rretd}'}, W_o, n'' < n'-1,\\
-        \quad\npair[n'']{(\vsc_S',\vsc_T')}
-        \in  H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode'
-        \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_o) \ldotp \\
-        \qquad\npair[n']{\retptrd(\aaddr_\stk,\eaddr_\stk),\vsc_S',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1),\vsc_T'} \in
-        \lrexj(W'\oplus W_o))
-      \end{array}
-    \]
-    Trivial as both configuration fails.
-  \end{enumerate}
-  
-\item[Case $\rretc$:]
-  We have to show 
-  \[
-    \npair[n'-1]{\left(\array{l}\sealed{\sigma',\retptrc(\baddr,\eaddr,\aaddr +
-        \calllen)},\\\sealed{\sigma',((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)}\endarray\right)} \in \lrv(W_{R,\rretc}')
-  \]
-  where $W_{R,\rretc}'$ has the ownership of $W$.
-  Just as in the previous case, we know that for some region $r$ there exists $\mscode' \subseteq \mscode$ such that: $\pwheap(r) \nequal \codereg{\sigrets',\_,\mscode',\gc}$ where $\sigma' \in \sigrets'$ and $\dom(\mscode') \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode')$.
-  It follows easily from the definition of $H_\sigma^\var{code}$ that
-  \begin{equation}
-    \label{eq:code-caps-in-h-sigma}
-    \npair[n'']{\left(\array{l}\retptrc(\baddr,\eaddr,\aaddr + \calllen),\\((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)\endarray\right)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_{R,\rretc}')
-  \end{equation}
-  for $n'' < n'-1$.
-  Both capabilities are non-linear, so $\isLinear{\retptrc(\baddr,\eaddr,\aaddr + \calllen)}$ iff $\isLinear{((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)}$ is indeed the case.
-  Finally we need to show:
-  \[
-    \begin{array}{l}
-      \forall W'' \future \purePart{W_{R,\rretc}'}, W_o, n'' < n'-1,\\
-      \quad  \npair[n'']{(\vsc_S',\vsc'_T)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_o) \ldotp \\
-      \qquad \npair[n'']{\retptrc(\baddr,\eaddr,\aaddr + \calllen),\vsc_S',((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset),\vsc_T'} \in \lrexj(W''\oplus W_o))
-    \end{array}
-  \]
-  To this end let $W'' \future \purePart{W_{R,\rretc}'}$ and $W_o$ be given s.t.
-  $W'' \future \purePart{W_{R,\rretc}'} \oplus W_o$ is defined. Further, let
-  $\npair[n'']{(\vsc_S',\vsc'_T)} \in H^\mathrm{code,\square}_\sigma \;
-  \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\stkb) \; \sigma' \;
-  \xi^{-1}(W_o)$ be given and show 
-  \[
-    \npair[n'']{\retptrc(\baddr,\eaddr,\aaddr + \calllen),\vsc_S',((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset),\vsc_T'} \in \lrexj(W''\oplus W_o))
-  \]
-  Now let $n''' \leq n''$ be given along with $\reg[3]_S$, $\reg[3]_T$, $\ms^{(3)}_S$, $\ms^{(3)}_T$,$\ms^{(3)}_\stk$, $\stk^{(3)}$, $W_R''$, and $W_M''$ such that
+  from the following facts:
   \begin{itemize}
-  \item $W'' \oplus W_o \oplus W_R'' \oplus W_M''$ is defined
-  \item $\memSat[n''']{\ms^{(3)}_S,\ms^{(3)}_\stk, \stk^{(3)}, \ms^{(3)}_T}{W_M''}$
-  \item $\npair[n''']{(\reg[3]_S,\reg[3]_T)} \in \lrr(W_R'')$
-  \end{itemize}
-  
-  Based on $H_\sigma^\var{code}$, there are three possible values for $\vsc_S'$ and $\vsc_T'$.
-  In the first case, $\vsc_S'$ is a $\retptrc$ and $\vsc_T'$ is a capability with permission $\rx$.
-  In this case, $\xjumpResult{}{}{}$ will give to failed configurations which is trivially in the observation relation.
-  In the next case, it is required that $\sigma' \in \sigcloss'$, but this cannot be the case as \lau{TODO I think this case should follow from $H^\var{code}$ and the comp-code judgement, but it does not.
-    Specifically, the comp-code judgement (for now) does not require $\sigrets'$ and $\sigcloss'$ to be disjointed.}
-
-  This leaves us with one final case, namely $\vsc_S'= \retptrd(\baddr_\stk',\eaddr_\stk')$ and $\vsc_T'=((\rw,\linear),\baddr_\stk',\eaddr_\stk',\baddr_\stk'-1)$.
-  Further we know
-  \[
-    \begin{array}{l}
-    \exists r \in \addressable{\linear,\pwpriv[W_o]} \ldotp \pwpriv[W_o](r).H \nequal (\stareg[(\ms_{\priv,S}^{(3)},\ms_{\priv,T}^{(3)}),(\ta,\stkb)]{\spao,\square}, \aaddr'+\calllen) \tand \\
-    \quad \dom(\ms_S) = \dom(\ms_T) = [\baddr_\stk',\eaddr_\stk'] \tand\\
-    \quad \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
-    \quad \code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand \sigma = \sigma_b + \offsigma \in \sigrets 
-    \end{array}
-  \]
-  Call this region $r'$.
-  By the above, the fact that the code capability pair is in $H_\sigma^\var{code}$ (\ref{eq:code-caps-in-h-sigma}) and Lemma~\ref{lem:unique-ret-seals}, we get $\aaddr' = \aaddr$.
-  This means that $W_M''$ and $W_R''$ has this region. 
-
-  We know that the two register-files are related which in particular means that
-  the values in register $\rstk$ are related. Now consider the following cases:
-  \lau{TODO: Perhaps make a lemma that says if source fail and target step to
-    fail, then the two configurations are in $\lro$.}
-  \begin{itemize}
-  \item $\Phi_S(\rstk) \neq \stkptr{\_,\_,\_,\_}$\\
-    In this case due to $\reg[3]_S$ being related to $\reg[3]_T$, there are three cases we need to consider.
-    In all cases, the source configuration will fail because the value in the stack register is not a stack capability.
-    If we can argue that the target configuration also will fail, then the two are in the observation relation.
-    First, if $\reg[3]_T = \sealed{\sigma_\var{ret\_\stk},\vsc_T''}$, then the return code will fail when the base address (a sealed capability has no base address, so the instruction returns $-1$) is compared to $\stkb$.
-    Second, if $\reg[3]_T = \seal{\_,\_,\_}$, then the target execution fails when it attempts to splice this seal with $\vsc_T'$.
-    Finally, $\reg[3]_T = ((\perm_\var{ret\_\stk},\lin_\var{ret\_\stk}),\baddr_\var{ret\_\stk},\eaddr_\var{ret\_\stk},\_)$ and $\npair[n''']{[\baddr_\var{ret\_\stk},\eaddr_\var{ret\_\stk}]} \in \readCond{\lin_\var{ret\_\stk},W_{R,\rstk}''}$ is satisfied.
-    This means that it is satisfied by some heap region, but by the memory satisfaction assumption $\stkb$ must be in the free stack part of the world.
-    This means that the execution will fail that $\stkb$ check.
-  \item $\Phi_S(\rstk) = \stkptr{\perm_\var{ret\_\stk},\baddr_\var{ret\_\stk},\_,\_}$ and $\baddr_\var{ret\_\stk} \neq \stkb$\\
-    Here the source side will fail the xjmp as the base address is not $\stkb$.
-    Similarly on the target side, the return code will fail the $\stkb$ check.
-  \item $\Phi_S(\rstk) = \stkptr{\_,\baddr_\var{ret\_\stk},\eaddr_\var{ret\_\stk},\_}$ and $\baddr_\var{ret\_\stk} = \stkb$ and either $\eaddr_\var{ret\_\stk} +1 \neq \baddr_\stk' $ or $\perm_\var{ret\_\stk} \neq \rw$ or
-    $\baddr_\var{ret\_\stk} > \eaddr_\var{ret\_\stk}$.\\
-    In this case, the source configuration will fail as one of the conditions in $\var{xjumpResult}$ will not be met.
-    On the target side, the splice will fail as either the two capabilities being spliced don't line up, the permissions don't match, or the range of authority is empty, respectively.
-  \item $\Phi_S(\rstk) = \stkptr{\perm_\var{ret\_\stk},\baddr_\var{ret\_\stk},\eaddr_\var{ret\_\stk},\_}$ and $\baddr_\var{ret\_\stk} = \stkb$ and $\eaddr_\var{ret\_\stk} +1 = \baddr_\stk' $ and $\perm_\var{ret\_\stk} = \rw$ and $\baddr_\var{ret\_\stk} \leq \eaddr_\var{ret\_\stk}$.
-    \\
-    We would like to show that $\ms_{\priv,S}^{(3)}$ is the top most stack frame and that $r'$ governs it.
-    By the memory satisfaction assumption and the presence of $r'$ in $W_M''$ we know that $\stk^{(3)}$ is non-empty.
-    By the memory satisfaction on the private stack, the following must be the case:
-    \[
-      \begin{array}{l}
-        \stk^{(3)} = (\opc_0,\ms_0), \dots (\opc_m,\ms_m) \wedge \\
-        \forall i \in \{0,\dots,m\} \ldotp (\dom(\ms_i) \neq \emptyset \wedge\\
-        \quad \forall i < j \ldotp \forall a \in \dom(\ms_i) \ldotp \forall a' \in \dom(\ms_j) \ldotp \stkb < a < a')\\
-      \end{array}
-    \]
-    Assume for contradiction $\ms_{\priv,S}^{(3)}$ is not the top frame. In that
-    case $\dom(\ms_0) \neq \emptyset$ and $\forall a \in \dom(\ms_0) \ldotp
-    \ldotp \stkb < a < b_\stk$ at the same time, we know
-    \[
-      \npair[n'']{(\stkptr{\rw,\stkb,\eaddr_\var{ret\_\stk},\_},((\rw,\linear),\stkb,\eaddr_\var{ret\_\stk},\_))}
-      \in \lrv(W_{R,\rstk}'')
-    \]
-    which means that the free stack part of the world contains a region that at least governs $[\stkb,\eaddr_\var{ret\_\stk}]$.
-    Combine this with $\eaddr_\var{ret\_\stk} +1 = \baddr_\stk' $, we can conclude that no such address can exist in $\ms_0$, so it must be empty, but this cannot be the case either.
-    Therefore, the top stack frame must contain $\ms_{\priv,S}^{(3)}$.
-    Further, due to the disjointedness required by memory satisfaction, it must be $r'$ that governs this stack frame.
-    This also means that we have $\opc_0 =  \aaddr+\calllen$.
-    With this, we have all the requirements for $\var{xjumpResult}$ satisfied on
-    both sides which allows us to pick the necessary configurations:
-    \begin{multline*}
-      \Phi^{(4)}_S=\xjumpResult{r_1}{r_2}{(\ms_S^{(3)},\reg[3]_S,(\ms_{\priv,S}^{(3)},\aaddr+\calllen)
-        :: \stk^{(3)}_\var{rest},\ms_\stk^{(3)})} =\\
-      (\ms_S^{(3)},\reg[3]_S
-      \arraycolsep=0pt
-      \begin{array}[t]{l}
-        \updReg{\pcreg}{((\rx,\normal),\baddr,\eaddr,\aaddr+\calllen)} \\
-        \updReg{\rdata}{0} \\
-        \updReg{\rstk}{\stkptr{\rw,\stkb,e_\stk',\eaddr_\var{ret\_stk}+1}} \\
-        \updReg{\rtmp{1}}{0} \\
-        \updReg{\rtmp{2}}{0}
-      \end{array}
-      ,\stk^{(3)}_\var{rest},\ms_{\priv,S}^{(3)} \uplus \ms_\stk^{(3)})
-    \end{multline*}
-    and
-    \begin{multline*}
-      \Phi^{(4)}_T=\xjumpResult{r_1}{r_2}{(\ms_T^{(3)},\reg[3]_T)} =\\
-      (\ms_T^{(3)},\reg[3]_S
-      \arraycolsep=0pt
-      \begin{array}[t]{l}
-        \updReg{\pcreg}{((\rx,\normal),\baddr,\eaddr,\aaddr+\retoffset)} \\
-        \updReg{\rdata}{((\rw,\linear),\stkb,\eaddr_\var{ret\_stk})}
-      \end{array})
-    \end{multline*}
-    It now remains to show
-    \[
-      \npair[n''']{(\Phi^{(4)}_S,\Phi^{(4)}_T)} \in \lro
-    \]
-    Use Lemma~\ref{lem:lro-anti-red-gen} by which it suffices to show the
-    following two things:
+  \item One of the following sets of requirements holds:
     \begin{itemize}
+    \item $\trust = \trusted$, $\Phi_S$ is reasonable up to $n$ steps and $[\baddr,\eaddr] \subseteq \dom(\mscode) = \ta$
+    \item $\trust = \untrusted$ and $\npair{[\baddr,\eaddr]} \in \readCond{\lin,W_\pcreg}$
+    \end{itemize}:
+    Follows from the corresponding assumption of this lemma and the fact that $\Phi_S \nstep[1] \Phi_S'$ with Lemma~\ref{lem:ec-reasonable-antired}.
+    \dominique{not actually true: reasonability definitions need to be made downward closed using quantification over smaller $n'$?}
+  \item $\trust = \trusted \vee \npair[n'-1]{[\baddr,\eaddr]} \in \readCond{\lin,W_\pcreg}$:
+    Follows from the corresponding assumption of this lemma using Lemma~\ref{lem:downwards-closed}.
+  \item $\Phi_S(\pcreg) = \Phi_T(\pcreg) = ((\rx,\lin),\baddr,\eaddr,\_)$:
+    Follows from the definition of $\updPcAddr{}$ and the assumptions of this case.
+  \item $\npair[n'-1]{[\baddr,\eaddr]} \in \xReadCond{W_\pcreg}$:
+    Follows from the corresponding assumption of this lemma using Lemma~\ref{lem:downwards-closed}.
+  \item $\npair[n' - 1]{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)$:
+    Follows from the corresponding assumption of this lemma using Lemma~\ref{lem:downwards-closed} and the fact that integers are always in $\lrvg{\trust}$ by definition.
+  \item $\memSat[n'-1]{\Phi_S.\mem,\Phi_S.\ms_\stk,\Phi_S.\stk,\Phi_T.\mem}{W_M}$:
+    Follows from the corresponding assumption of this lemma using Lemma~\ref{lem:downwards-closed}.
+  \item Theorem~\ref{thm:ftlr} holds for all $n'' < n'-1$:
+    follows from the corresponding assumption of this lemma, since $n' - 1 < n$.
+  \end{itemize}
+  \\\\
+  \lau{TODO: look through this case and find the place where the ''no seal cross boundary thing'' should have been used.}
+  In case \ref{case:ftlr:call}, we may assume $r_1 \neq r_2$\footnote{If the register contains a data capability, then the execution fails in the step after the jump.
+    If it is an executable capability, then the xjump fails as it does not permit executable capabilities for the data part.}
+  and $r_i \neq \pcreg$ for $i \in \{1,2\}$\footnote{The pc is executable which causes the xjump to fail.}.
+  as this will cause the execution to fail.
+  We need to let the target execution catch up.
+  That is $\Phi_T' \nstep[15]{} \Phi_T''$ for
+  \[
+    \Phi_T'' = \Phi_T
+    \begin{array}[t]{l}
+      \update{\mem.\aaddr_\stk}{42} \\
+      \updReg{\rstk}{((\rw,\linear),\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1)} \\
+      \updReg{\rretd}{\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1)}} \\
+      \updReg{\rretc}{\sealed{\sigma',((\perm,\lin),\baddr,\eaddr,\aaddr+\retoffset)}} \\
+      \updReg{\rtmp{1}}{0}\\
+      \updReg{r_1,r_2}{\linCons{\Phi_T(r_1)},\linCons{\Phi_T(r_2)}}\\
+      \updReg{\pcreg}{c_1'}\\
+      \updReg{\rdata}{c_2'}
+    \end{array}
+  \]
+  where $\Phi_T(r_i) = \sealed{\sigma,c_i'} \text{ for $i\in\{1,2\}$}$ and $\retoffset = 15$ which is the offset to the return code.
+  Now using Lemma~\ref{lem:lro-anti-red-gen} again, it suffices to show
+  \[
+    \npair[n'-1]{(\Phi_S',\Phi_T'')} \in \lro
+  \]
+  By assumption, we have $\npair[n']{(\reg_S(r_i),\reg_T(r_i))} \in \lrr(W_{R,i})$ for some $W_{R,i}$ with $i \in \{1,2\}$.
+  We know the capabilities in $r_1$ and $r_2$ are sealed capabilities, and by
+  Lemma~\ref{lem:unique-h-sigma} and the definition of $\lrv$ we get
+  $\npair[n'-1]{\stpair[.]{c_2}{c_2'}} \in H_\sigma \; \sigma \; \xi^{-1}(W_{R,2})$
+  and w.l.o.g.\
+
+  \begin{equation}
+    \forall W' \future W_{R,1}, W_o, n' < n, \npair[n']{(c_2,c_2')} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \npair[n']{c_1,c_2,c_1',c_2'} \in \lrexj(W'\oplus W_o)\label{eq:ftlr:call:sealed-code-assump}
+  \end{equation}
+  Now construct $W_{R,1}'$ as follows:
+
+  By Lemma~\ref{lem:nsub-and-nsup-std} and the safety assumption on the register-file, there exists $S \supseteq [\baddr_\stk, \eaddr_\stk]$ such that for some $R : S \fun \powerset{\nats}$ we have $\biguplus_{r \in S} R(r) \supseteq [\baddr_\stk,\eaddr_\stk]$ and for all $r$ in $S$ $\pwfree[W_{R,1}](r).H \nequal \stdreg{R(r),\gc}{\pur}.H$ and $|R(r)| = 1$ and $\pwfree[W_{R,1}](r) \text{ is address-stratified}$.
+  Now define
+  \[
+    W_{R,1}' = W_{R,1}[\free.R^{-1}([\aaddr_\stk,\eaddr_\stk]) \mapsto \revoked][\priv.r_\var{priv\_stk} \mapsto (\stareg[(\ms_{\stk\_\priv,S},\Phi_T''.\mem|_{[\aaddr_\stk,\eaddr_\stk]}),\gc]{\spa,\square},\aaddr+\calllen)]
+  \]
+  For a fresh $r_\var{priv\_stk}$.
+  We know $W_{R,1}' \future W_{R,1}$ as the revoked regions must have been $\spatial$ in $W_{R,q}$ (as they are owned by the part of the world assigned to the stack-register in the register-file relation).
+  The static region for the private stack is an extension.
+
+  Pick this world as $W'$ in Eq~\ref{eq:ftlr:call:sealed-code-assump}
+  . Let $W_{R,2}'$ be the same world but
+  with the ownership of $W_{R,2}$ and pick it for $W_o$.
+  Now use monotonicity of $H_\sigma$ with the above facts to get
+  \[
+    \npair[n']{c_1,c_2,c_1',c_2'} \in \lrexj(W_{R,1}'\oplus W_{R,2}')
+  \]
+  Now pick register files and memories such that they form $\Phi_S''$ (defined in
+  the assumptions) and $\Phi_T''$ and for $W_R'$ and $W_M'$ (we define them below) show
+  \begin{enumerate}[label=\roman*.]
+  \item \label{case:ftlr:scall:world} $W_{R,1}'\oplus W_{R,2}' \oplus W_R' \oplus W_M'$
+  \item \label{case:ftlr:scall:reg} $\npair[n'-1]{(\Phi_S''.\reg,\Phi_T''.\reg)} \in \lrr(\{\rdata\})(W_R')$
+  \item \label{case:ftlr:scall:mem} $\memSat[n'-1]{\Phi_S''.\mem,\Phi_S''.\stk,\Phi_S''.\ms_\stk,\Phi_T''.\mem}{W_M'}$
+  \end{enumerate}
+  to get
+  \[
+    \npair[n'-1]{(\Phi_S',\Phi_T'')} \in \lro
+  \]
+  as desired. It remains to show \ref{case:ftlr:scall:world}-\ref{case:ftlr:scall:mem}.
+
+  Case \ref{case:ftlr:scall:world}: Pick $W_R'$ and $W_M'$ to have the regions of $W_{R,1}'$, but where $W_R'$ owns $r_\var{priv\_stk}$ and otherwise has the ownership of $W_R$ and $W$ with the exception of the regions owned by $W_{R,1}'$ and $W_{R,2}'$.
+  $W_M'$ has the ownership of $W_M$.
+  Case \ref{case:ftlr:scall:world} follows from assumption $W \oplus W_R \oplus W_M$.
+  The only changes to the worlds is that some ownership has been shifted from $W_R$ to $W_{R,1}$ and $W_{R,2}$ and the ownership for $W$ now belongs to $W_R'$.
+  In other words, no ownership has been duplicated.
+
+  Case \ref{case:ftlr:scall:reg}: We need to split the ownership of $W_R'$.
+  From assumption $\npair[n'-1]{(\reg_S\update{r}{z},\reg_T\update{r}{z})} \in \lrr(W_R)$, we get a way to split the ownership of $W_R$.
+  We take this as the starting point, but with the following changes: regions $r_1$ and $r_2$ maps to worlds with no ownership (i.e.\ $\purePart{W_{R,1}'}$).
+  region $\rstk$ maps to a world with the same ownership, but of course without the now revoked regions.
+  Region $\rretd$ maps to a world that owns private $r_\var{priv\_stk}$ region.
+  Finally, $\rretc$ maps to a world with the ownership of $W$.
+
+  we split the world in the same way for the registers that remain unchanged, the
+  result follows from Lemma \ref{lem:downwards-closed} and \ref{lem:monotonicity}.
+  This leaves the following cases:
+  \begin{description}
+  \item[Case $\rstk$:] Show:
+    \[
+      \npair[n'-1]{(\stkptr{\rw,\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1},((\rw,\linear),\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1))} \in \lrv(W_{R,\rstk}')
+    \]
+    We know by Assumption~\ref{item:reg-ass}, we know
+    \[
+      \npair[n']{(\stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk},((\rw, \linear), \baddr_\stk ,\eaddr_\stk, \aaddr_\stk)} \in \lrrg{\trust}(W_{R,\stk})
+    \]
+    which by the $\stackReadCond{}$ gives $S \subseteq
+    \addressable{\linear,\pwfree}$ and $R : S \fun \powerset{\nats}$.
+    We need to pick an $S'$ to argue
+    \[
+      \npair[n'-1]{[\baddr_\stk,\aaddr_\stk-1]} \in \stackReadCond{W_{R,\rstk}'}
+    \]
+    To this end pick $S' = R^{-1}(\left(\bigcup_{r\in S} R(r) \right) \setminus [\aaddr_\stk,\eaddr_\stk])$ and $R'$ to be $R$ limited to $S'$.
+    As we exclude all the revoked regions and the ownership otherwise remains the
+    same in $W_{R,\rstk}'$ as in $W_{R,\rstk}$, the regions in $S'$ are exactly the same in the new world as they were in $W_{R,\rstk}$.
+    So what we need to show follows immediately from
+    \[
+      \npair[n']([\baddr_\stk,\eaddr_\stk]) \in \stackReadCond{W_{R,\rstk}}
+    \]
+    and by Lemma~\ref{lem:downwards-closed}.
+
+    We show
+    \[
+      \npair[n'-1]{[\baddr_\stk,\aaddr_\stk-1]} \in \stackWriteCond{W_{R,\rstk}'}
+    \]
+    in the same way.
+
+  \item[Case $\rtmp{1}$:] Show:
+    \[
+      \npair[n'-1]{(0,0)} \in \lrv(W_{R,\rtmp{1}}')
+    \]
+    Follows immediately from the definition.
+
+  \item[Case $r_1$,$r_2$:] The two cases are symmetric, so we just show the $r_1$ case:
+    \[
+      \npair[n'-1]{(\linCons{c_1},\linCons{\Phi_T(r_1)})} \in \lrv(W_{R,r_1}')
+    \]
+    Follows from the related register files assumption and Lemma~\ref{lem:lincons-lrv}.
+
+  \item[Case $\rretd$:] We have to show
+    \[
+      \npair[n'-1]{(\sealed{\sigma',\retptrd(\aaddr_\stk,\eaddr_\stk)},\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1)})} \in \lrv(W_{R,\rretd}')
+    \]
+    where $W_{R,\rretd}'$ is the part of $W_R'$ with ownership over $r_\var{priv\_stk}$.
+    From the assumption $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$ we get $R \subseteq \addressable{\normal, \pwheap}$ and $\exists M : S \fun \powerset{\MemSeg}$ such that $\biguplus_{r\in S} \dom(M(r)) \supseteq [\baddr,\eaddr]$ and $\forall r \in S \ldotp \pwheap(r) \nequal \codereg{\sigrets',\_,M(r),\gc}$.
+    Further by $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W}$, we know that for one
+    $r \in S$ there is a $\mscode' \subseteq \mscode$\footnote{Follows from
+      $H^\var{code}$ requiring $\dom(\mscode') \subseteq \ta$ and $\dom(\mscode) =
+      \ta$ and finally that $\mscode$ is part of $\ms_S$.} such that
+    \begin{equation}
+      \npair[n']{(\mscode',\mscode')} \in H^{\var{code}} \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\_)\label{eq:ftlr:rretd:Hcode}
+    \end{equation}
+    where $\sigma' \in \sigrets'$ and $\dom(\mscode') \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode')$.
+    That is $\mscode'$ contains the call we are considering.
+    \lau{TODO: Make the above more precise and possibly put into a lemma (also needed in the next case).}
+    Use the $r$ in question as the witness.
+    The $\xReadCond{}$ gives us $\pwheap(r) \nequal \codereg{\_,\_,\mscode',\gc}$.
+    As it is a pure region, it is also present in the future world we consider.
+    We now have to show:
+    \begin{enumerate}[label=\alph*)]
+    \item for $n'' < n'-1$ we have
+      \[\npair[n'']{\left(\array{l}\retptrd(\aaddr_\stk,\eaddr_\stk),\\((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1)\endarray\right)}
+        \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode'
+        \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_{R,\rretd}')
+      \]
+      First $\dom(\mscode') \subseteq \ta$ follows from \ref{eq:ftlr:rretd:Hcode} and the assumption $[\baddr,\eaddr] \ subseteq \ta$.
+      Now pick $r_\var{priv\_stk}$ as the witness.
+      We immediately get $\dom(\ms_{\stk\_\priv,S}) = \dom(\Phi_T''.\mem|_{[\aaddr_\stk,\eaddr_\stk]}) = [\aaddr_\stk,\eaddr_\stk]$.
+      Next, $\decInstr(\mscode'(\aaddr,\aaddr+\calllen-1)) = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}}$ follows from $\callCond{\Phi_S,r_1,r_2,\aaddr}$.
+      Finally, $\ms_\code(\aaddr+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr}$ with $\sigma' = \sigma_\baddr + \offpc \in \sigrets'$ which follows from $\sigrets',\sigcloss' \vdash_{\mathrm{comp-code}} \mscode'$ and the fact that the call is there.
+    \item $\isLinear{\sealed{\sigma',\retptrd(\aaddr_\stk,\eaddr_\stk)}}$ iff
+      $\isLinear{\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk)}}$\\
+      Trivial as both are linear.
     \item
       \[
-        \Phi^{(4)}_T \step[l] \Phi^{(5)}_T = (\ms_T^{(3)},\reg[3]_S
+        \begin{array}{l}
+          \forall W'' \future \purePart{W_{R,\rretd}'}, W_o, n'' < n'-1,\\
+          \quad\npair[n'']{(\vsc_S',\vsc_T')}
+          \in  H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode'
+          \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_o) \ldotp \\
+          \qquad\npair[n']{\retptrd(\aaddr_\stk,\eaddr_\stk),\vsc_S',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1),\vsc_T'} \in
+          \lrexj(W'\oplus W_o))
+        \end{array}
+      \]
+      Trivial as both configuration fails.
+    \end{enumerate}
+
+  \item[Case $\rretc$:]
+    We have to show
+    \[
+      \npair[n'-1]{\left(\array{l}\sealed{\sigma',\retptrc(\baddr,\eaddr,\aaddr +
+            \calllen)},\\\sealed{\sigma',((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)}\endarray\right)} \in \lrv(W_{R,\rretc}')
+    \]
+    where $W_{R,\rretc}'$ has the ownership of $W$.
+    Just as in the previous case, we know that for some region $r$ there exists $\mscode' \subseteq \mscode$ such that: $\pwheap(r) \nequal \codereg{\sigrets',\_,\mscode',\gc}$ where $\sigma' \in \sigrets'$ and $\dom(\mscode') \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode')$.
+    It follows easily from the definition of $H_\sigma^\var{code}$ that
+    \begin{equation}
+      \label{eq:code-caps-in-h-sigma}
+      \npair[n'']{\left(\array{l}\retptrc(\baddr,\eaddr,\aaddr + \calllen),\\((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)\endarray\right)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_{R,\rretc}')
+    \end{equation}
+    for $n'' < n'-1$.
+    Both capabilities are non-linear, so $\isLinear{\retptrc(\baddr,\eaddr,\aaddr + \calllen)}$ iff $\isLinear{((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)}$ is indeed the case.
+    Finally we need to show:
+    \[
+      \begin{array}{l}
+        \forall W'' \future \purePart{W_{R,\rretc}'}, W_o, n'' < n'-1,\\
+        \quad  \npair[n'']{(\vsc_S',\vsc'_T)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_o) \ldotp \\
+        \qquad \npair[n'']{\retptrc(\baddr,\eaddr,\aaddr + \calllen),\vsc_S',((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset),\vsc_T'} \in \lrexj(W''\oplus W_o))
+      \end{array}
+    \]
+    To this end let $W'' \future \purePart{W_{R,\rretc}'}$ and $W_o$ be given s.t.
+    $W'' \future \purePart{W_{R,\rretc}'} \oplus W_o$ is defined. Further, let
+    $\npair[n'']{(\vsc_S',\vsc'_T)} \in H^\mathrm{code,\square}_\sigma \;
+    \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\stkb) \; \sigma' \;
+    \xi^{-1}(W_o)$ be given and show
+    \[
+      \npair[n'']{\retptrc(\baddr,\eaddr,\aaddr + \calllen),\vsc_S',((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset),\vsc_T'} \in \lrexj(W''\oplus W_o))
+    \]
+    Now let $n''' \leq n''$ be given along with $\reg[3]_S$, $\reg[3]_T$, $\ms^{(3)}_S$, $\ms^{(3)}_T$,$\ms^{(3)}_\stk$, $\stk^{(3)}$, $W_R''$, and $W_M''$ such that
+    \begin{itemize}
+    \item $W'' \oplus W_o \oplus W_R'' \oplus W_M''$ is defined
+    \item $\memSat[n''']{\ms^{(3)}_S,\ms^{(3)}_\stk, \stk^{(3)}, \ms^{(3)}_T}{W_M''}$
+    \item $\npair[n''']{(\reg[3]_S,\reg[3]_T)} \in \lrr(W_R'')$
+    \end{itemize}
+
+    Based on $H_\sigma^\var{code}$, there are three possible values for $\vsc_S'$ and $\vsc_T'$.
+    In the first case, $\vsc_S'$ is a $\retptrc$ and $\vsc_T'$ is a capability with permission $\rx$.
+    In this case, $\xjumpResult{}{}{}$ will give to failed configurations which is trivially in the observation relation.
+    In the next case, it is required that $\sigma' \in \sigcloss'$, but this cannot be the case as \lau{TODO I think this case should follow from $H^\var{code}$ and the comp-code judgement, but it does not.
+      Specifically, the comp-code judgement (for now) does not require $\sigrets'$ and $\sigcloss'$ to be disjointed.}
+
+    This leaves us with one final case, namely $\vsc_S'= \retptrd(\baddr_\stk',\eaddr_\stk')$ and $\vsc_T'=((\rw,\linear),\baddr_\stk',\eaddr_\stk',\baddr_\stk'-1)$.
+    Further we know
+    \[
+      \begin{array}{l}
+        \exists r \in \addressable{\linear,\pwpriv[W_o]} \ldotp \pwpriv[W_o](r).H \nequal (\stareg[(\ms_{\priv,S}^{(3)},\ms_{\priv,T}^{(3)}),(\ta,\stkb)]{\spao,\square}, \aaddr'+\calllen) \tand \\
+        \quad \dom(\ms_S) = \dom(\ms_T) = [\baddr_\stk',\eaddr_\stk'] \tand\\
+        \quad \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
+        \quad \code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand \sigma = \sigma_b + \offsigma \in \sigrets
+      \end{array}
+    \]
+    Call this region $r'$.
+    By the above, the fact that the code capability pair is in $H_\sigma^\var{code}$ (\ref{eq:code-caps-in-h-sigma}) and Lemma~\ref{lem:unique-ret-seals}, we get $\aaddr' = \aaddr$.
+    This means that $W_M''$ and $W_R''$ has this region.
+
+    We know that the two register-files are related which in particular means that
+    the values in register $\rstk$ are related. Now consider the following cases:
+    \lau{TODO: Perhaps make a lemma that says if source fail and target step to
+      fail, then the two configurations are in $\lro$.}
+    \begin{itemize}
+    \item $\Phi_S(\rstk) \neq \stkptr{\_,\_,\_,\_}$\\
+      In this case due to $\reg[3]_S$ being related to $\reg[3]_T$, there are three cases we need to consider.
+      In all cases, the source configuration will fail because the value in the stack register is not a stack capability.
+      If we can argue that the target configuration also will fail, then the two are in the observation relation.
+      First, if $\reg[3]_T = \sealed{\sigma_\var{ret\_\stk},\vsc_T''}$, then the return code will fail when the base address (a sealed capability has no base address, so the instruction returns $-1$) is compared to $\stkb$.
+      Second, if $\reg[3]_T = \seal{\_,\_,\_}$, then the target execution fails when it attempts to splice this seal with $\vsc_T'$.
+      Finally, $\reg[3]_T = ((\perm_\var{ret\_\stk},\lin_\var{ret\_\stk}),\baddr_\var{ret\_\stk},\eaddr_\var{ret\_\stk},\_)$ and $\npair[n''']{[\baddr_\var{ret\_\stk},\eaddr_\var{ret\_\stk}]} \in \readCond{\lin_\var{ret\_\stk},W_{R,\rstk}''}$ is satisfied.
+      This means that it is satisfied by some heap region, but by the memory satisfaction assumption $\stkb$ must be in the free stack part of the world.
+      This means that the execution will fail that $\stkb$ check.
+    \item $\Phi_S(\rstk) = \stkptr{\perm_\var{ret\_\stk},\baddr_\var{ret\_\stk},\_,\_}$ and $\baddr_\var{ret\_\stk} \neq \stkb$\\
+      Here the source side will fail the xjmp as the base address is not $\stkb$.
+      Similarly on the target side, the return code will fail the $\stkb$ check.
+    \item $\Phi_S(\rstk) = \stkptr{\_,\baddr_\var{ret\_\stk},\eaddr_\var{ret\_\stk},\_}$ and $\baddr_\var{ret\_\stk} = \stkb$ and either $\eaddr_\var{ret\_\stk} +1 \neq \baddr_\stk' $ or $\perm_\var{ret\_\stk} \neq \rw$ or
+      $\baddr_\var{ret\_\stk} > \eaddr_\var{ret\_\stk}$.\\
+      In this case, the source configuration will fail as one of the conditions in $\var{xjumpResult}$ will not be met.
+      On the target side, the splice will fail as either the two capabilities being spliced don't line up, the permissions don't match, or the range of authority is empty, respectively.
+    \item $\Phi_S(\rstk) = \stkptr{\perm_\var{ret\_\stk},\baddr_\var{ret\_\stk},\eaddr_\var{ret\_\stk},\_}$ and $\baddr_\var{ret\_\stk} = \stkb$ and $\eaddr_\var{ret\_\stk} +1 = \baddr_\stk' $ and $\perm_\var{ret\_\stk} = \rw$ and $\baddr_\var{ret\_\stk} \leq \eaddr_\var{ret\_\stk}$.
+      \\
+      We would like to show that $\ms_{\priv,S}^{(3)}$ is the top most stack frame and that $r'$ governs it.
+      By the memory satisfaction assumption and the presence of $r'$ in $W_M''$ we know that $\stk^{(3)}$ is non-empty.
+      By the memory satisfaction on the private stack, the following must be the case:
+      \[
+        \begin{array}{l}
+          \stk^{(3)} = (\opc_0,\ms_0), \dots (\opc_m,\ms_m) \wedge \\
+          \forall i \in \{0,\dots,m\} \ldotp (\dom(\ms_i) \neq \emptyset \wedge\\
+          \quad \forall i < j \ldotp \forall a \in \dom(\ms_i) \ldotp \forall a' \in \dom(\ms_j) \ldotp \stkb < a < a')\\
+        \end{array}
+      \]
+      Assume for contradiction $\ms_{\priv,S}^{(3)}$ is not the top frame. In that
+      case $\dom(\ms_0) \neq \emptyset$ and $\forall a \in \dom(\ms_0) \ldotp
+      \ldotp \stkb < a < b_\stk$ at the same time, we know
+      \[
+        \npair[n'']{(\stkptr{\rw,\stkb,\eaddr_\var{ret\_\stk},\_},((\rw,\linear),\stkb,\eaddr_\var{ret\_\stk},\_))}
+        \in \lrv(W_{R,\rstk}'')
+      \]
+      which means that the free stack part of the world contains a region that at least governs $[\stkb,\eaddr_\var{ret\_\stk}]$.
+      Combine this with $\eaddr_\var{ret\_\stk} +1 = \baddr_\stk' $, we can conclude that no such address can exist in $\ms_0$, so it must be empty, but this cannot be the case either.
+      Therefore, the top stack frame must contain $\ms_{\priv,S}^{(3)}$.
+      Further, due to the disjointedness required by memory satisfaction, it must be $r'$ that governs this stack frame.
+      This also means that we have $\opc_0 =  \aaddr+\calllen$.
+      With this, we have all the requirements for $\var{xjumpResult}$ satisfied on
+      both sides which allows us to pick the necessary configurations:
+      \begin{multline*}
+        \Phi^{(4)}_S=\xjumpResult{r_1}{r_2}{(\ms_S^{(3)},\reg[3]_S,(\ms_{\priv,S}^{(3)},\aaddr+\calllen)
+          :: \stk^{(3)}_\var{rest},\ms_\stk^{(3)})} =\\
+        (\ms_S^{(3)},\reg[3]_S
         \arraycolsep=0pt
         \begin{array}[t]{l}
           \updReg{\pcreg}{((\rx,\normal),\baddr,\eaddr,\aaddr+\calllen)} \\
           \updReg{\rdata}{0} \\
-          \updReg{\rstk}{((\rw,\linear),\stkb,e_\stk',\eaddr_\var{ret\_stk}+1)} \\
+          \updReg{\rstk}{\stkptr{\rw,\stkb,e_\stk',\eaddr_\var{ret\_stk}+1}} \\
           \updReg{\rtmp{1}}{0} \\
           \updReg{\rtmp{2}}{0}
+        \end{array}
+        ,\stk^{(3)}_\var{rest},\ms_{\priv,S}^{(3)} \uplus \ms_\stk^{(3)})
+      \end{multline*}
+      and
+      \begin{multline*}
+        \Phi^{(4)}_T=\xjumpResult{r_1}{r_2}{(\ms_T^{(3)},\reg[3]_T)} =\\
+        (\ms_T^{(3)},\reg[3]_S
+        \arraycolsep=0pt
+        \begin{array}[t]{l}
+          \updReg{\pcreg}{((\rx,\normal),\baddr,\eaddr,\aaddr+\retoffset)} \\
+          \updReg{\rdata}{((\rw,\linear),\stkb,\eaddr_\var{ret\_stk})}
         \end{array})
-      \]
-      for some number of steps $l$. This follows immediately from the
-      operational semantics.
-    \item
+      \end{multline*}
+      It now remains to show
       \[
-        \npair[n''']{(\Phi^{(4)}_S,\Phi^{(5)}_T)} \in \lro
+        \npair[n''']{(\Phi^{(4)}_S,\Phi^{(4)}_T)} \in \lro
       \]
-      Here we need to use the induction hypothesis. \lau{TODO: the reasonability
-      requirements of the FTLR seems to be an issue here.}
+      Use Lemma~\ref{lem:lro-anti-red-gen} by which it suffices to show the
+      following two things:
+      \begin{itemize}
+      \item
+        \[
+          \Phi^{(4)}_T \step[l] \Phi^{(5)}_T = (\ms_T^{(3)},\reg[3]_S
+          \arraycolsep=0pt
+          \begin{array}[t]{l}
+            \updReg{\pcreg}{((\rx,\normal),\baddr,\eaddr,\aaddr+\calllen)} \\
+            \updReg{\rdata}{0} \\
+            \updReg{\rstk}{((\rw,\linear),\stkb,e_\stk',\eaddr_\var{ret\_stk}+1)} \\
+            \updReg{\rtmp{1}}{0} \\
+            \updReg{\rtmp{2}}{0}
+          \end{array})
+        \]
+        for some number of steps $l$. This follows immediately from the
+        operational semantics.
+      \item
+        \[
+          \npair[n''']{(\Phi^{(4)}_S,\Phi^{(5)}_T)} \in \lro
+        \]
+        Here we need to use our assumption that Theorem~\ref{thm:ftlr} holds for all $n' < n$.
+        TODO: continue
+        \lau{TODO: the reasonability requirements of the FTLR seems to be an issue here.}
+        \dominique{should now be fine?}
+      \end{itemize}
+
     \end{itemize}
 
+
+
+
+
+
+
+  \end{description}
+  This concludes case \ref{case:ftlr:scall:reg}
+
+  Case: \ref{case:ftlr:scall:mem}, \lau{TODO}
+\end{proof}
+
+\begin{proof}[Proof of Theorem~\ref{thm:ftlr}]
+  By general induction over $n$\footnote{if $n=0$, then we have a contradiction with $\Phi_S\term[i]$ and $\Phi_T\term[i]$ when we get to $\lro$.}.
+  Assume
+  \begin{itemize}
+  \item $\trust = \trusted \vee \npair{[\baddr,\eaddr]} \in \readCond{\lin,W}$
+  \item $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$
   \end{itemize}
+  and one of the following sets of requirements holds:
+  \begin{enumerate}[label={\roman*)}]
+  \item \begin{itemize}
+    \item $[\baddr,\eaddr] \subseteq \dom(\mscode) = \ta$
+    \item $\trust = \trusted$
+    \item $({((\rx,\normal),\baddr,\eaddr,\aaddr)}$ behaves reasonably up to $n$ steps.
+    \end{itemize}
+  \item
+    \begin{itemize}
+    \item $[\baddr,\eaddr] \mathrel{\#} \ta$
+    \item $\trust = \untrusted$
+    \end{itemize}
+  \end{enumerate}
+and show
+\[
+\npair{(c,c)} \in \lreg{\trust}(W)
+\]
+For $c=((\rx,\lin),\baddr,\eaddr,\aaddr)$.\\
 
+Let $n' \leq n$ be given and assume
+\begin{enumerate}
+\item $\npair[n']{\stpair{\reg}{\reg}} \in \lrrg{\trust}(W_R)$ \label{item:reg-ass}
+\item $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$\label{item:mem-ass}
+\item $W \oplus W_R \oplus W_M$ is well-defined\label{item:worlds-def}
+\end{enumerate}
+Further let
+\begin{itemize}
+\item $\Phi_S = (\ms_S,\reg_S\update{\pcreg}{c},\stk,\ms_\stk)$
+\item $\Phi_T = (\ms_T,\reg_T\update{\pcreg}{c})$
+\end{itemize}
+and show
+\[
+  \npair[n']{(\Phi_S,\Phi_T)} \in \lro
+\]
 
-
-
-  
-  
-
-\end{description}
-This concludes case \ref{case:ftlr:scall:reg}
-
-Case: \ref{case:ftlr:scall:mem}, \lau{TODO}
-
+By Lemma~\ref{lem:ftlr-internal-lemma}, it suffices to show that:
+\begin{itemize}
+\item $\Phi_S$ is reasonable up to $n'$ steps:
+  TODO
+\item $\trust = \trusted \vee \npair[n']{[\baddr,\eaddr]} \in \readCond{\lin,W_\pcreg}$:
+  TODO
+\item $\Phi_S(\pcreg) = \Phi_T(\pcreg) = ((\rx,\lin),\baddr,\eaddr,\aaddr)$:
+  TODO
+\item $\npair[n']{[\baddr,\eaddr]} \in \xReadCond{W_\pcreg}$:
+  TODO
+\item $\npair[n']{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrrg{\tst}(W_R)$:
+  TODO
+\item $\memSat[n']{\Phi_S.\mem,\Phi_S.\ms_\stk,\Phi_S.\stk,\Phi_T.\mem}{W_M}$:
+  TODO
+\item Theorem~\ref{thm:ftlr} holds for all $n'' < n'$:
+  Follows from our induction hypothesis since $n' \le n$.
+\end{itemize}
 \end{proof}
 
 \begin{lemma}[Unique return seals]
