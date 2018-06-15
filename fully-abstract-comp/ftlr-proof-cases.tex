@@ -436,7 +436,7 @@ then
     \item $\ms_{\stk\_\priv,S} = \Phi_S.\ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42}$
     \item $\Phi_S''.\stk = ((\aaddr+\calllen),\ms_{\stk\_\priv,S}) :: \Phi_S.\stk$
     \item $\Phi_S''.\ms_\stk = \Phi_S.\ms_\stk -
-      \Phi_S.\ms_\stk|_{\aaddr_\stk,\eaddr_\stk}$
+      \Phi_S.\ms_\stk|_{[\aaddr_\stk,\eaddr_\stk]}$
     \item $\baddr \leq \aaddr+\offpc \leq \eaddr$
       \lau{TODO: Need to have an explicit $\offpc$.}
     \item $\mem(\aaddr+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\aaddr}$
@@ -990,14 +990,57 @@ then
         \lau{TODO: the reasonability requirements of the FTLR seems to be an issue here.}
         \dominique{should now be fine?}
       \end{itemize}
-
     \end{itemize}
 
 
+\end{description}
+This concludes case \ref{case:ftlr:scall:reg}
 
+Case: \ref{case:ftlr:scall:mem}, we need to show
 
-
-
+\begin{equation}
+  \memSat[n'-1]{\Phi_S''.\mem,\Phi_S''.\stk,\Phi_S''.\ms_\stk,\Phi_T''.\mem}{W_M'}\label{eq:ftlr:call:memsat-case}
+\end{equation}
+We have the following memory satisfaction on the initial memory:
+\begin{equation}
+  \memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}\label{eq:ftlr-call-og-mem-sat}
+\end{equation}
+By definition of memory satisfaction, this gives us:
+\begin{itemize}
+\item $\stk = (\opc_1,\ms_1) :: \dots :: (\opc_m,\ms_m)$
+\item $\ms_1 \# \dots \# \ms_m \# \ms_S \# \ms_\stk$
+\item $W = W_{\var{stack}} \oplus W_{\var{free\_stack}} \oplus W_{\var{heap}}$
+\item $\ms_\var{T,stack}, \ms_\var{T,free\_stack}, \ms_\var{T,heap}, \ms_{T,f}, \ms_{S,f}, \ms_S',\overline{\sigma}$ such that
+  \begin{itemize}
+  \item $\ms_S = \ms_{f,S} \uplus \ms_S'$
+  \item $\ms_T = \ms_\var{T,stack} \uplus \ms_\var{T,free\_stack} \uplus \ms_\var{T,heap} \uplus \ms_{T,f}$
+  \item $\memSatStack{\stk,\ms_\var{T,stack}}{W_{\var{stack}}}$
+  \item $\memSatFStack{\ms_\stk,\ms_\var{T,free\_stack}}{W_{\var{free\_stack}}}$
+  \item $\npair{(\overline{\sigma},\ms_S',\ms_\var{T,heap})} \in \lrheap(\pwheap)(W_{\var{heap}})$
+  \end{itemize}
+\end{itemize}
+We need to consider the memories of $\Phi_S''$ and $\Phi_T''$.
+The memories of the initial configurations have only changed little:
+\[
+  \Phi_T''.\mem = \Phi_T''.\mem\update{\aaddr_\stk}{42}
+\]
+and 
+\[
+\Phi_S''.\ms_\stk = \Phi_S.\ms_\stk - \Phi_S.\ms_\stk|_{[\aaddr_\stk,\eaddr_\stk]}
+\]
+and
+\[
+  \Phi_S''.\stk = ((\aaddr+\calllen),\ms_{\stk\_\priv,S}) :: \Phi_S.\stk
+\]
+with $\ms_{\stk\_\priv,S} = \Phi_S.\ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42}$.
+We need to show the memory satisfaction in \ref{eq:ftlr:call:memsat-case}. Say
+$(\opc_0,\ms_0) = ((\aaddr+\calllen),\ms_{\stk\_\priv,S})$. In this case we have
+to argue 
+\[
+  \ms_{\stk\_\priv,S} \# \ms_1 \# \dots \# \ms_m \# \ms_S \# \Phi_S.\ms_\stk - \Phi_S.\ms_\stk|_{[\aaddr_\stk,\eaddr_\stk]}
+\]
+which follows from Assumption~\ref{eq:ftlr:call:memsat-case} and the fact that the memory we remove from $\Phi_S.\ms_\stk$ is exactly what we add to the private stack.
+\lau{This is a bit more involved than I make it to be here, but the fact that we also have a safety assumption on the register-file with the stack pointer means that all of the memory removed from the free stack is actually there.}
 
   \end{description}
   This concludes case \ref{case:ftlr:scall:reg}
