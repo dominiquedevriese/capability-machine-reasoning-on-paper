@@ -2099,21 +2099,24 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
 \]
 
 \[
-  \lrvtrusted[\square,(\ta,\stkb)](W) =
+  \lrvtrusted[\square,(\ta,\stkb,\gsigrets,\gsigcloss)](W) =
   \begin{array}[t]{l}
     \lrv(W)\cup \\
 %
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma,\sigma_\baddr,\sigma_\eaddr}},\\ \seal{\sigma,\sigma_\baddr,\sigma_\eaddr} \endarray \right)} 
     \; \middle| \;
     \begin{array}{l}
-      \exists r \in \dom(\pwheap) \ldotp \pwheap(r) \nequal \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)} \wedge\\
-      \hfill\dom(\code) \subseteq \ta \wedge [\sigma_\baddr,\sigma_\eaddr] \subseteq (\sigrets\cup\sigcloss)
+      \exists r \in \dom(\pwheap) \ldotp \\
+      \quad \pwheap(r) \nequal \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)} \wedge\\
+      \quad \dom(\code) \subseteq \ta \wedge [\sigma_\baddr,\sigma_\eaddr] \subseteq (\sigrets\cup\sigcloss) \wedge\\
+      \quad \sigrets \subseteq \gsigrets \wedge \sigcloss \subseteq \gsigcloss
     \end{array}
     \right\} \cup \\
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{((\perm,\normal),\baddr,\eaddr,\aaddr)},\\ ((\perm,\normal),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\; 
     \begin{array}{l}
       \perm \sqsubseteq \rx \wedge \\
-      \npair{[\baddr,\eaddr]} \in \xReadCond[\square,(\ta,\stkb)]{W}
+      \gc = (\ta,\stkb,\gsigrets,\gsigcloss)  \wedge \\
+      \npair{[\baddr,\eaddr]} \in \xReadCond[\square,\gc]{W} 
     \end{array}
     \right\}
   \end{array}
@@ -2294,10 +2297,10 @@ H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
 \]
 
 \begin{equation*}
-  H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; (\ta,\_) \; \hat{W} = \left\{\npair{(\code,\code)} \middle|
+  H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; (\ta,\_,\gsigrets,\gsigcloss) \; \hat{W} = \left\{\npair{(\code,\code)} \middle|
     \begin{array}{l}
     \dom(\code) = [\aaddr,\baddr] \wedge \\
-      (\dom(\code) \subseteq \ta \wedge \trust = \trusted) \vee \\
+      (\dom(\code) \subseteq \ta \wedge \sigrets \subseteq \gsigrets \trust = \trusted) \vee \\
       \quad (\dom(\code)\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted) \wedge \\
       \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \code \wedge\\
       \forall a \in \dom(\code), n' < n \ldotp\\
@@ -2316,6 +2319,7 @@ H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
     \begin{array}{l}
 \left. \npair{\arraycolsep=0pt\left(\array{l}\retptrc(\baddr,\eaddr,\aaddr'+\calllen),\\((\rx,\normal),\baddr,\eaddr,\aaddr)\endarray\right)} \middle| \right. \\
       \begin{array}{l}
+        \sigrets \subseteq \gsigrets \tand \\
         \dom(\code) \subseteq \ta \tand\\
         \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
         \aaddr = \aaddr' + \retoffset \tand \\
@@ -2328,6 +2332,7 @@ H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
     \begin{array}{l}
 \left. \npair{\arraycolsep=0pt\left(\array{l}\retptrd(\baddr,\eaddr),\\((\rw,\linear),\baddr,\eaddr,\baddr-1)\endarray\right)} \middle| \right. \\
       \begin{array}{l}
+        \sigrets \subseteq \gsigrets \tand \\
         \dom(\code) \subseteq \ta \tand\\
         \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]} \ldotp \pwpriv[\xi(\hat{W})](r).H \nequal (\stareg[(\ms_S,\ms_T),(\ta,\stkb)]{\spao,\square}, \aaddr'+\calllen) \tand \\
         \quad \dom(\ms_S) = \dom(\ms_T) = [\baddr,\eaddr] \tand\\
@@ -2349,7 +2354,7 @@ and
       \begin{array}{l}
         \sigma \in \sigcloss \tand\\
         (\dom(\code) \mathrel{\#} \ta \tand \npair{(\vsc,\vsc')} \in \lrv \; \xi(\hat{W})) \tor\\
-        (\dom(\code) \subseteq \ta \tand \npair{(\vsc,\vsc')} \in \lrvtrusted \; \xi(\hat{W}))
+        (\dom(\code) \subseteq \ta \tand \sigcloss \subseteq \gsigcloss \npair{(\vsc,\vsc')} \in \lrvtrusted \; \xi(\hat{W}))
       \end{array}
     \end{array}
   \right\}\\
@@ -2423,13 +2428,13 @@ and
   The main change is that it now says that after a call, the post-return code is also expected to behave reasonably under reasonable assumptions. 
 }
 \dominique{TODO: better name than ``reasonable'' for all of this.}
-Take a block of code memory $\mscode$, a set of trusted addresses $\ta$ and sets of return pointer and closure seals $\sigrets$ and $\sigcloss$.
+Take a block of code memory $\mscode$, a set of trusted addresses $\ta$ and sets of return pointer and closure seals $\gsigrets$ and $\sigcloss$.
 We define that a word $w$ is reasonable up to $n$ steps in memory $\ms$ if $n=0$
 or the following implications hold.
 \begin{itemize}
-\item If $w = \seal{\sigma_\baddr,\sigma_\eaddr,\_}$, then $[\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\sigrets \cup \sigcloss)$
-\item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\perm \neq 0$ and $\sigrets \neq \emptyset$, then $[\baddr,\eaddr] \# \dom(\mscode)$
-\item If $w = \sealed{\sigma,\vsc}$ and $\sigma \not\in (\sigrets\cup \sigcloss)$ then $\vsc$ is reasonable up to $n - 1$ steps.
+\item If $w = \seal{\sigma_\baddr,\sigma_\eaddr,\_}$, then $[\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\gsigrets \cup \gsigcloss)$
+\item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\perm \neq 0$ and $\gsigrets \neq \emptyset$, then $[\baddr,\eaddr] \# \dom(\mscode)$
+\item If $w = \sealed{\sigma,\vsc}$ and $\sigma \not\in (\gsigrets\cup \gsigcloss)$ then $\vsc$ is reasonable up to $n - 1$ steps.
 \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\perm \in \readAllowed{}$ and $n > 0$, then $\ms(\aaddr)$ is reasonable up to $n - 1$ steps for all $\aaddr \in ([\baddr,\eaddr] \setminus \ta)$
 \end{itemize}
 
@@ -2455,8 +2460,8 @@ We say that an execution configuration $\Phi$ is reasonable up to $n$ steps if:
     \end{itemize}
     Then one of the following holds:
     \begin{itemize}
-    \item $\src{\Phi'}$ is inside $\src{\scall{\offpc,\offsigma}{r_1'}{r_2'}}$ and $\sigma \in \sigrets$ 
-    \item $\sigma \in \sigcloss$.
+    \item $\src{\Phi'}$ is inside $\src{\scall{\offpc,\offsigma}{r_1'}{r_2'}}$ and $\sigma \in \gsigrets$ 
+    \item $\sigma \in \gsigcloss$.
     \end{itemize}
   \item \emph{Don't store private stuff...} If
     \begin{itemize}
