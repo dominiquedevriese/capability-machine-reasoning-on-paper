@@ -2511,7 +2511,7 @@ For all $\sealed{\sigma,\vsc} \in \overline{c_{\mathrm{export}}}$, with $\exec{\
 
 \begin{lemma}
   \label{lem:codereg-Hsigma-not-lrv}
-  If $\dom(\code) \subseteq \ta$, $n > 0$ and $\sigma \in (\sigrets \uplus \sigcloss)$, then $\codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)}.H_\sigma \sigma \not\nequal \lrv$.
+  If $\dom(\code) \subseteq \ta$, $n > 0$ and $\sigma \in (\sigrets \uplus \sigcloss)$ and $\sigrets \subseteq \gsigrets$ and $\sigcloss \subseteq \gsigcloss$, then $\codereg{\sigrets,\sigcloss,\code,(\ta,\stkb,\gsigrets,\gsigcloss)}.H_\sigma \sigma \not\nequal \lrv$.
 \end{lemma}
 \begin{proof}
   TODO
@@ -2567,22 +2567,25 @@ For all $\sealed{\sigma,\vsc} \in \overline{c_{\mathrm{export}}}$, with $\exec{\
 \begin{lemma}
   If
   \begin{itemize}
+  \item $\gc = (\ta,\stkb,\gsigrets,\gsigcloss)$
   \item $\npair{(w,\_)} \in \lrv(W_w)$
   \item $\memSat{\ms_S,\stk,\ms_\stk,\_}{W_M}$
   \item $W_w \oplus W_M$ is defined
-  \item $\pwheap[W_w](r_\code) \nequal \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)}$
+  \item $\pwheap[W_w](r_\code) \nequal \codereg{\sigrets,\sigcloss,\code,\gc}$
   \item $\dom(\code) \subseteq \ta$
-  \item $n > 0$
+  \item $\sigrets \subseteq \gsigrets$ and $\sigcloss \subseteq \gsigcloss$
   \end{itemize}
-  then, with respect to $\code,\ta,\sigrets,\sigcloss$,
+  then, with respect to $\code,\ta,\gsigrets,\gsigcloss$,
   $w$ is reasonable up to $n$ steps in memory $\Phi.\mem$.
 \end{lemma}
 \begin{proof}
-  We need to prove four implications:
+  Induction over $n$.
+  For $n=0$ all words are reasonable.
+  For $n>0$, we need to prove four implications:
   \begin{itemize}
-  \item If $w = \seal{\sigma_\baddr,\sigma_\eaddr,\_}$, then $[\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\sigrets \cup \sigcloss)$:
+  \item If $w = \seal{\sigma_\baddr,\sigma_\eaddr,\_}$, then $[\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\gsigrets \cup \gsigcloss)$:
 
-    Take $\sigma \in [\sigma_b,\sigma_e]$, we need to prove that $\sigma \not\in (\sigrets \cup \sigcloss)$.
+    Take $\sigma \in [\sigma_b,\sigma_e]$, we need to prove that $\sigma \not\in (\gsigrets \cup \gsigcloss)$.
     Assume that $\sigma \in (\sigrets \cup \sigcloss)$ and we will prove a contradiction.
 
     From $\npair{(w,\_)} \in \lrv(W_w)$, we get a $r \in \dom(\pwheap[W_w])$ such that $\pwheap[W_w](r) = (\pure,\_,H_\sigma)$ and $H_\sigma~\sigma \nequal \lrv$.
@@ -2604,7 +2607,7 @@ For all $\sealed{\sigma,\vsc} \in \overline{c_{\mathrm{export}}}$, with $\exec{\
     
     This contradicts Lemma~\ref{lem:codereg-not-read-write}.
 
-  \item If $w = \sealed{\sigma,\vsc}$ and $\sigma \not\in (\sigrets\cup \sigcloss)$ then $\vsc$ is reasonable: By $\npair{(w,\_)} \in \lrv(W_w)$, we get some region $r \in \dom(\pwheap)$ and a set of return seals, a set of closure seals and a code memory: $\sigrets',\sigcloss',\mscode'$ such that $\pwheap(r) = (\pure,\_,H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; \gc)$ and $\npair[n']{(\sealed{\sigma,\vsc},\_)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; \gc \; \sigma \; \xi^{-1}(W) \text{ for all $n' < n$}$.
+  \item If $w = \sealed{\sigma,\vsc}$ and $\sigma \not\in (\gsigrets\cup \gsigcloss)$ then $\vsc$ is reasonable for $n-1$ steps: By $\npair{(w,\_)} \in \lrv(W_w)$, we get some region $r \in \dom(\pwheap)$ and a set of return seals, a set of closure seals and a code memory: $\sigrets',\sigcloss',\mscode'$ such that $\pwheap(r) = (\pure,\_,H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; \gc)$ and $\npair[n']{(\sealed{\sigma,\vsc},\_)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; \gc \; \sigma \; \xi^{-1}(W) \text{ for all $n' < n$}$, so in particular for $n-1$.
 
     It also follows that $\sigrets \uplus \sigcloss \# \sigrets' \uplus \sigcloss'$.
 
@@ -2612,21 +2615,39 @@ For all $\sealed{\sigma,\vsc} \in \overline{c_{\mathrm{export}}}$, with $\exec{\
     The two first cases $\vsc = \retptrd(\_,\_)$ and $\vsc = \retptrc(\_,\_,\_)$ are easily discharged as the reasonability definition puts no requirements on return pointers.
     For the final case, $\sigma \in \sigcloss$ and either
     \begin{itemize}
-    \item $\dom(\code') \mathrel{\#} \ta \tand \npair[n']{(\vsc,\vsc')} \in \lrv \;
-      \xi(\hat{W})$; or
-    \item $\dom(\code') \subseteq \ta \tand \npair[n']{(\vsc,\vsc')} \in \lrvtrusted \; \xi(\hat{W})$
+    \item $\dom(\code') \mathrel{\#} \ta \tand \npair[n-1]{(\vsc,\_)} \in \lrv (W)$; or
+    \item $\dom(\code') \subseteq \ta \tand \sigcloss' \subseteq \gsigcloss \npair{(\vsc,\_)} \in \lrvtrusted(W)$
     \end{itemize}
-    \lau{At this point, it seems like should have done the proof by induction,
-      but this would not be possible with the $n>0$ assumption (at least not if
-      we want to use the IH). In the latter case, it is probably difficult to
-      show that the something is in the trusted value-relation. If we assume
-      $\ta = \dom(\code)$, then this may be discharged by contradiction (we may
-      somewhere need to assume that $\ta \neq \emptyset$).}
-    TODO
-
+    and in either case $\sigma \in \sigcloss'$
+    In the first case, the result follows from the induction hypothesis.
+    In the second case, we have a contradiction with $\sigma \not\in (\gsigrets\cup \gsigcloss)$.
   \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\perm \in \readAllowed{}$ and $n > 0$, then $\ms(\aaddr)$ is reasonable up to $n - 1$ steps for all $\aaddr \in ([\baddr,\eaddr] \setminus \ta)$:
-    TODO
 
+    From $\npair{(w,\_)} \in \lrv(W_w)$, we get $\npair[n]{[b,e]} \in \readCond{\perm,\lin}$.
+
+    From $\npair[n]{[b,e]} \in \readCond{\perm,\lin}$ we get $S\subseteq
+    \addressable{\lin,W}$ and $R : S \fun \powerset{\nats}$ such that
+    \begin{itemize}
+    \item $\biguplus_{r\in S} R(r) \supseteq [b,e]$
+    \item $(\lin = \linear \Rightarrow \forall r\ldotp |R(r)|  = 1)$
+    \item $\forall r \in S \ldotp \pwheap(r).H \nsubeq \stdreg{R(r),\gc}{\pur}.H$
+    \end{itemize}
+    given $a \in [b,e]$ we know by the above that there exists $r$ such that $a
+    \in R(r)$.
+
+    By $\memSat{\ms_S,\stk,\ms_\stk,\_}{W_M}$, we get $R_\ms : \dom(\activeReg{\pwheap}) \fun \MemSeg \times \MemSeg$ such that $\ms_T = \biguplus_{r \in \dom(\activeReg{\pwheap})} \pi_2(R_\ms(r))$ and $\ms_S = \biguplus_{r \in \dom(\activeReg{\pwheap})} \pi_1(R_\ms(r))$.
+    
+    Further, we get $R_W : \dom(\activeReg{\pwheap}) \fun \World$ such that $W' = \oplus_{r \in \dom(\activeReg{\pwheap})} R_W(r)$ and $\forall r \in \dom(\activeReg{\pwheap}) \ldotp \npair{R_\ms(r)} \in \pwheap(r).H \; \xi^{-1}(R_W(r))$.
+    For $W_M = W' \oplus W''$ for some $W''$.
+
+    In particular, we have $\npair{R_\ms(r)} \in \pwheap(r).H \; \xi^{-1}(R_W(r))$.
+    
+    We know $\pwheap(r).H \nsubeq \stdreg{R(r),\gc}{\pur}.H$, so $\npair[n']{R_\ms(r)} \in \stdreg{R(r),\gc}{\pur}.H \; \xi^{-1}(R_W(r))$ for $n' < n$.
+    This means that for $n'' < n'$, we have $\npair[n'']{\pi_1(R_\ms(r))(a)} \in \lrv(R_W'(a))$ where $R_W' : [b,e] \fun \World$ such that $\biguplus_{a \in \dom(\pi_1(R_\ms(r)))} R_W'(a) = R_W(r)$.
+
+    \lau{At this point we would like to use the IH, but we do not have $R_W'(a) \uplus W_M$ defined as $R_W'(a)$ is a split of $W_M$.}
+
+    TODO
   \end{itemize}
 \end{proof}
 
@@ -2638,9 +2659,9 @@ For all $\sealed{\sigma,\vsc} \in \overline{c_{\mathrm{export}}}$, with $\exec{\
   \item $W_w \oplus W_M$ is defined
   \item $\pwheap[W_w](r) \nequal \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)}$
   \item $\dom(\code) \subseteq \ta$
-  \item $n > 0$
+  \item $\sigrets \subseteq \gsigrets$ and $\sigcloss \subseteq \gsigcloss$
   \end{itemize}
-  then, with respect to $\code,\ta,\sigrets,\sigcloss$,
+  then, with respect to $\code,\ta,\gsigrets,\gsigcloss$,
   \begin{itemize}
   \item $\Phi.\reg(r)$ is reasonable up to $n$ steps in memory $\Phi.\mem$ for all $r \not\in \{\pcreg\}$
   \item $\Phi.\ms_\stk$ is reasonable up to $n-1$ steps in memory $\Phi.\mem$ for all $a$
@@ -2659,7 +2680,7 @@ For all $\sealed{\sigma,\vsc} \in \overline{c_{\mathrm{export}}}$, with $\exec{\
   \item $\Phi.\ms_\stk$ is reasonable up to $n-1$ steps in memory $\Phi.\mem$ for all $a$
     TODO
   \item $\Phi.\mem$, $\Phi.\ms_\stk$ and $\Phi.\stk$ are all disjoint
-    TODO
+    This follows from $\memSat{\ms_S,\stk,\ms_\stk,\_}{W_M}$.
   \end{itemize}
 \end{proof}
 
