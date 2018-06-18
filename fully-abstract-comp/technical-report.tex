@@ -2065,8 +2065,9 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma,\sigma_\baddr,\sigma_\eaddr}},\\ \seal{\sigma,\sigma_\baddr,\sigma_\eaddr} \endarray \right)} 
     \; \middle| \;
     \begin{array}{l}
+      [\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\gsigrets \cup \gsigcloss) \tand\\
       \forall \sigma' \in [\sigma_\baddr,\sigma_\eaddr] \ldotp \exists r \in \dom(\pwheap) \ldotp \\
-      \quad \pwheap(r) = (\pure,\_,H_\sigma) \tand H_\sigma \; \sigma' \nequal \lrv
+      \quad \pwheap(r) = (\pure,\_,H_\sigma) \tand H_\sigma \; \sigma' \nequal (\lrv \circ \xi)
     \end{array}
     \right\} \cup \\
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\stkptr{\perm,\baddr,\eaddr,\aaddr}},\\ ((\perm,\linear),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\;
@@ -2510,11 +2511,35 @@ For all $\sealed{\sigma,\vsc} \in \overline{c_{\mathrm{export}}}$, with $\exec{\
 \lau{This need to change with the proposed simplification of the reasonability update.}
 
 \begin{lemma}
-  \label{lem:codereg-Hsigma-not-lrv}
-  If $\dom(\code) \subseteq \ta$, $n > 0$ and $\sigma \in (\sigrets \uplus \sigcloss)$, then $\codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)}.H_\sigma \sigma \not\nequal \lrv$.
+  \label{lem:lrvtrusted-not-nequal-lrvuntrusted}
+  If $n > 0$
+  then
+  $\lrv \not\nequal \lrvg{\trusted}$
 \end{lemma}
 \begin{proof}
-  TODO
+  Take $\sigma \in (\gsigrets\cup \gsigcloss)$, $w = \seal{\sigma,\sigma,\sigma}$, $W$ such that $W(r) = \codereg{\sigrets,\sigcloss,\code,\gc}$, $\sigrets \subseteq \gsigrets$, $\sigcloss\subseteq \gsigcloss$, $\dom(\code) \subseteq \ta$ and $W$ empty otherwise.
+  Then we have that $\npair[0]{(w,w)}\in \lrvg{\trusted}(W)$ but not $\npair[0]{(w,w)}\in\lrv(W)$.
+\end{proof}
+
+\begin{lemma}
+  \label{lem:codereg-Hsigma-not-lrv}
+  If $\dom(\code) \subseteq \ta$, $\sigrets \subseteq \gsigrets$, $\sigcloss \subseteq \gsigcloss$, $n > 0$ and $\sigma \in (\sigrets \uplus \sigcloss)$, then $\codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)}.H_\sigma~ \sigma \not\nequal (\lrv \circ \xi)$.
+\end{lemma}
+\begin{proof}
+  Consider the following two cases:
+  \begin{itemize}
+  \item $\sigma \in \sigrets$:
+
+    In this case, we have that $\npair[0]{\left(\retptrd(\baddr,\eaddr),((\rw,\linear),\baddr,\eaddr,\baddr-1)\right)}$ is not in $\lrv(\xi(\hat{W}))$, but we can show that it is in $\codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)}.H_\sigma~ \sigma~\hat{W}$ by taking a $\hat{W}$ such that the following hold:
+    \begin{itemize}
+    \item $\sigrets \subseteq \gsigrets$: assumption.
+    \item $\dom(\code) \subseteq \ta$: assumption.
+    \item $\exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]}$ such that $\pwpriv[\xi(\hat{W})](r).H \nequal (\stareg[(\ms_S,\ms_T),(\ta,\stkb)]{\spao,\square}, \aaddr'+\calllen)$, $\dom(\ms_S) = \dom(\ms_T) = [\baddr,\eaddr]$, $\decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}}$, $\code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand \sigma = \sigma_b + \offsigma \in \sigrets$.
+      It is not difficult to construct a $\hat{W}$ with a suitable $\spatialo$ region to satisfy these conditions. 
+    \end{itemize}
+
+  \item $\sigma \in \sigcloss$: This follows easily from the definition of $\codereg{}$ and Lemma~\ref{lem:lrvtrusted-not-nequal-lrvuntrusted}.
+  \end{itemize}
 \end{proof}
 
 \begin{lemma}
@@ -2558,10 +2583,18 @@ For all $\sealed{\sigma,\vsc} \in \overline{c_{\mathrm{export}}}$, with $\exec{\
   If $\pwheap(r_\code) \nequal \codereg{\sigrets,\sigcloss,\code,\gc}$ and
   $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W}$, then there exists $W''$
   and $W'$ such that $W = W' \oplus W''$ and
-  $\npair{(\code,\code)} \in H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; \gc \; \xi^{-1}(W')$
+  $\npair[n']{(\code,\code)} \in H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; \gc \; \xi^{-1}(W')$ for all $n' < n$
 \end{lemma}
 \begin{proof}
-  TODO
+  By definition of $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W}$, we get that $W = W_{\var{stack}} \oplus W_{\var{free\_stack}} \oplus W_{\var{heap}}$ and
+  $\npair{(\overline{\sigma},\ms_S',\ms_\var{T,heap})} \in
+  \lrheap(\pwheap)(W_{\var{heap}})$ for some $\ms_S' \subseteq \ms_S$ and $\ms_{T,\var{heap}}\subseteq \ms_T$.
+
+  By definition of $\npair{(\overline{\sigma},\ms_S',\ms_\var{T,heap})} \in
+  \lrheap(\pwheap)(W_{\var{heap}})$, we get an 
+  $R_\ms : \dom(\activeReg{\pwheap}) \fun \MemSeg \times \MemSeg$ and $\exists R_W : \dom(\activeReg{\pwheap}) \fun \World$ such that $W' = \oplus_{r \in \dom(\activeReg{\pwheap})} R_W(r)$ and $\npair{R_\ms(r_{\var{code}})} \in  \pwheap(r_{\var{code}}).H \; \xi^{-1}(R_W(r_{\var{code}}))$.
+
+  Since $\pwheap(r_\code) \nequal \codereg{\sigrets,\sigcloss,\code,\gc}$, this implies that also $\npair[n']{R_\ms(r_{\var{code}})} \in  \codereg{\sigrets,\sigcloss,\code,\gc}.H~ \xi^{-1}(R_W(r_{\var{code}}))$, i.e. $\npair[n']{R_\ms(r_{\var{code}})} \in  H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; \gc~ \xi^{-1}(R_W(r_{\var{code}}))$ as required.
 \end{proof}
 
 \begin{lemma}
