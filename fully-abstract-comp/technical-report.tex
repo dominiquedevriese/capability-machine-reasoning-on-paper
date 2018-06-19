@@ -2662,12 +2662,11 @@ For all $\sealed{\sigma,\vsc} \in \overline{c_{\mathrm{export}}}$, with $\exec{\
     and in either case $\sigma \in \sigcloss'$
     In the first case, the result follows from the induction hypothesis.
     In the second case, we have a contradiction with $\sigma \not\in (\gsigrets\cup \gsigcloss)$.
-  \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\perm \in \readAllowed{}$ and $n > 0$, then $\ms(\aaddr)$ is reasonable up to $n - 1$ steps for all $\aaddr \in ([\baddr,\eaddr] \setminus \ta)$:
+  \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\perm \in \readAllowed{}$ and $n > 0$, then $\ms_S(\aaddr)$ is reasonable up to $n - 1$ steps for all $\aaddr \in ([\baddr,\eaddr] \setminus \ta)$:
 
     From $\npair{(w,\_)} \in \lrv(W_w)$, we get $\npair[n]{[b,e]} \in \readCond{\perm,\lin}$.
 
-    From $\npair[n]{[b,e]} \in \readCond{\perm,\lin}$ we get $S\subseteq
-    \addressable{\lin,W}$ and $R : S \fun \powerset{\nats}$ such that
+    From $\npair[n]{[b,e]} \in \readCond{\perm,\lin}$ we get $S\subseteq \addressable{\lin,\pwheap}$ and $R : S \fun \powerset{\nats}$ such that
     \begin{itemize}
     \item $\biguplus_{r\in S} R(r) \supseteq [b,e]$
     \item $(\lin = \linear \Rightarrow \forall r\ldotp |R(r)|  = 1)$
@@ -2676,24 +2675,85 @@ For all $\sealed{\sigma,\vsc} \in \overline{c_{\mathrm{export}}}$, with $\exec{\
     given $a \in [b,e]$ we know by the above that there exists $r$ such that $a
     \in R(r)$.
 
-    By $\memSat{\ms_S,\stk,\ms_\stk,\_}{W_M}$, we get $R_\ms : \dom(\activeReg{\pwheap}) \fun \MemSeg \times \MemSeg$ such that $\ms_T = \biguplus_{r \in \dom(\activeReg{\pwheap})} \pi_2(R_\ms(r))$ and $\ms_S = \biguplus_{r \in \dom(\activeReg{\pwheap})} \pi_1(R_\ms(r))$.
+    By $\memSat{\ms_S,\stk,\ms_\stk,\_}{W_M}$, we get $R_\ms : \dom(\activeReg{\pwheap}) \fun \MemSeg \times \MemSeg$ such that $\ms_S = \biguplus_{r \in \dom(\activeReg{\pwheap})} \pi_1(R_\ms(r))$.
     
     Further, we get $R_W : \dom(\activeReg{\pwheap}) \fun \World$ such that $W' = \oplus_{r \in \dom(\activeReg{\pwheap})} R_W(r)$ and $\forall r \in \dom(\activeReg{\pwheap}) \ldotp \npair{R_\ms(r)} \in \pwheap(r).H \; \xi^{-1}(R_W(r))$.
     For $W_M = W' \oplus W''$ for some $W''$.
 
     In particular, we have $\npair{R_\ms(r)} \in \pwheap(r).H \; \xi^{-1}(R_W(r))$.
     
-    We know $\pwheap(r).H \nsubeq \stdreg{R(r),\gc}{\pur}.H$, so $\npair[n']{R_\ms(r)} \in \stdreg{R(r),\gc}{\pur}.H \; \xi^{-1}(R_W(r))$ for $n' < n$.
-    This means that for $n'' < n'$, we have $\npair[n'']{\pi_1(R_\ms(r))(a)} \in \lrv(R_W'(a))$ where $R_W' : [b,e] \fun \World$ such that $\biguplus_{a \in \dom(\pi_1(R_\ms(r)))} R_W'(a) = R_W(r)$.
+    We know $\pwheap(r).H \nsubeq \stdreg{R(r),\gc}{\pur}.H$, so $\npair[n']{R_\ms(r)} \in \stdreg{R(r),\gc}{\pur}.H(\xi^{-1}(R_W(r)))$ for $n' < n$.
+    This gives us $\npair[n']{(\pi_1(R_\ms(r))(a),\_)} \in \lrv(R_W'(a))$ where $R_W' : [b,e] \fun \World$ such that $\biguplus_{a \in \dom(\pi_1(R_\ms(r)))} R_W'(a) = R_W(r)$.
 
-    \lau{At this point we would like to use the IH, but we do not have $R_W'(a) \uplus W_M$ defined because $R_W'(a)$ is a split of $W_M$ (in the case where the capability is $\linear$, in the other case we are fine.).}
+    At this point we apply the induction hypothesis which is possible as we have
+    the following:
+    \begin{itemize}
+    \item $\npair[n-1]{(\pi_1(R_\ms(r))(a),\_)} \in \lrv(R_W'(a))$
 
-    TODO
+      We get this by the above.
+    \item $\memSat[n-1]{\ms_S,\stk,\ms_\stk,\_}{W_M}$
+
+      This follows by assumption and Lemma~\ref{lem:downwards-closed}
+    \item $\purePart{R_W'(a)} \oplus \purePart{W_M}$
+
+      Which follows by definition of $\purePart{}$ and the fact that $R_W'(a)$ is $W_M$ with part of its ownership, but $\purePart{}$ strips away the ownership making the two compatible.
+    \item $\pwheap[W_w](r_\code) \nequal[n-1] \codereg{\sigrets,\sigcloss,\code,\gc}$
+
+      By property of $n$-equality.
+    \item $\dom(\code) \subseteq \ta$ and $\sigrets \subseteq \gsigrets$ and $\sigcloss \subseteq \gsigcloss$ and $\gc = (\ta,\stkb,\gsigrets,\gsigcloss)$
+      
+      Follows by assumption.
+    \end{itemize}
+    which gives us that, with respect to $\code,\ta,\gsigrets,\gsigcloss$, $\pi_1(R_\ms(r))(a)$ is reasonable up to $n-1$ steps in memory $\ms_S$ and free stack $\ms_\stk$.
+    Which is what we wanted as $\pi_1(R_\ms(r))(a) = \ms_S(a)$.
 
   \item If $w = \stkptr{\perm,\baddr,\eaddr,\_}$ and $\perm \in \readAllowed{}$ and $n > 0$, then $\ms_\stk(\aaddr)$ is reasonable up to $n - 1$ steps for all $\aaddr \in [\baddr,\eaddr]$:
 
-    TODO
+    This case is proven in the same way the previous case was.
+    The main difference is that the free part of the world is used instead of the heap part:
 
+    From $\npair{(w,\_)} \in \lrv(W_w)$ and $\perm \in \readAllowed{}$, we get $\npair{[b,e]} \in \stackReadCond{\perm}$.
+
+    From $\npair{[b,e]} \in \stackReadCond{\perm}$ we get $S\subseteq
+    \addressable{\linear,\pwfree}$ and $R : S \fun \powerset{\nats}$ such that
+    \begin{itemize}
+    \item $\biguplus_{r\in S} R(r) \supseteq [b,e]$
+    \item $\forall r\ldotp |R(r)|  = 1$
+    \item $\forall r \in S \ldotp \pwheap(r).H \nsubeq \stdreg{R(r),\gc}{\pur}.H$
+    \end{itemize}
+    given $a \in [b,e]$ we know by the above that there exists $r$ such that $a \in R(r)$.
+
+    By $\memSat{\ms_S,\stk,\ms_\stk,\_}{W_M}$, we get $R_\ms : \dom(\activeReg{\pwfree}) \fun \MemSeg \times \MemSeg$ such that $\ms_\stk = \biguplus_{r \in \dom(\activeReg{\pwfree})} \pi_1(R_\ms(r))$.
+    
+    Further, we get $R_W : \dom(\activeReg{\pwfree}) \fun \World$ such that $W' = \oplus_{r \in \dom(\activeReg{\pwfree})} R_W(r)$ and $\forall r \in \dom(\activeReg{\pwfree}) \ldotp \npair{R_\ms(r)} \in \pwfree(r).H \; \xi^{-1}(R_W(r))$.
+    For $W_M = W' \oplus W''$ for some $W''$.
+
+    In particular, we have $\npair{R_\ms(r)} \in \pwfree(r).H \; \xi^{-1}(R_W(r))$.
+    
+    We know $\pwfree(r).H \nsubeq \stdreg{R(r),\gc}{\pur}.H$, so $\npair[n']{R_\ms(r)} \in \stdreg{R(r),\gc}{\pur}.H(\xi^{-1}(R_W(r)))$ for $n' < n$.
+    This gives us $\npair[n']{(\pi_1(R_\ms(r))(a),\_)} \in \lrv(R_W'(a))$ where $R_W' : [b,e] \fun \World$ such that $\biguplus_{a \in \dom(\pi_1(R_\ms(r)))} R_W'(a) = R_W(r)$.
+
+    At this point we apply the induction hypothesis which is possible as we have
+    the following:
+    \begin{itemize}
+    \item $\npair[n-1]{(\pi_1(R_\ms(r))(a),\_)} \in \lrv(R_W'(a))$
+
+      We get this by the above.
+    \item $\memSat[n-1]{\ms_S,\stk,\ms_\stk,\_}{W_M}$
+
+      This follows by assumption and Lemma~\ref{lem:downwards-closed}
+    \item $\purePart{R_W'(a)} \oplus \purePart{W_M}$
+
+      Which follows by definition of $\purePart{}$ and the fact that $R_W'(a)$ is $W_M$ with part of its ownership, but $\purePart{}$ strips away the ownership making the two compatible.
+    \item $\pwheap[W_w](r_\code) \nequal[n-1] \codereg{\sigrets,\sigcloss,\code,\gc}$
+
+      By property of $n$-equality.
+    \item $\dom(\code) \subseteq \ta$ and $\sigrets \subseteq \gsigrets$ and $\sigcloss \subseteq \gsigcloss$ and $\gc = (\ta,\stkb,\gsigrets,\gsigcloss)$
+      
+      Follows by assumption.
+    \end{itemize}
+    which gives us that, with respect to $\code,\ta,\gsigrets,\gsigcloss$, $\pi_1(R_\ms(r))(a)$ is reasonable up to $n-1$ steps in memory $\ms_S$ and free stack $\ms_\stk$.
+    Which is what we wanted as $\pi_1(R_\ms(r))(a) = \ms_\stk(a)$.
   \end{itemize}
 \end{proof}
 
