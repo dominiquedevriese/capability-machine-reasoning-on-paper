@@ -2025,9 +2025,11 @@ The argument for having one relation relate pairs of pairs of capabilities and t
 \[
   \lrp(W) = \left\{ \npair{(\lin,\baddr,\eaddr)} \middle|
     \begin{array}{l}
-      \exists r \in \addressable{l,W} \ldotp\\
-      \quad \forall \npair{\stpair{\ms}{\ms}} \in S(i)(r).H \; \xi^{-1}(W)  \ldotp \\
-      \qquad \dom(\src{\ms_S}) \supseteq [\baddr,\eaddr] \wedge \dom(\ms_T) \supseteq [\baddr,\eaddr]
+      \exists S \subseteq \addressable{l,W} \ldotp\\
+      \exists P : S \rightarrow \powerset{\Addr} \ldotp\\
+      \quad \uplus_{r \in S} P(r) \supseteq [\baddr,\eaddr] \\
+      \quad \forall r \in S, W'\ldotp \npair{\stpair{\ms}{\ms}} \in \pwheap(r).H \; W'  \ldotp \\
+      \qquad \dom(\src{\ms_S}) = P(r) \wedge \dom(\ms_T) = P(r)
     \end{array}
   \right\}
 \]
@@ -2793,7 +2795,7 @@ or the following implications hold.
   \end{itemize}
 \end{proof}
 
-\begin{lemma}
+\begin{lemma}[Untrusted register files are reasonable]
   If
   \begin{itemize}
   \item $\gc = (\ta,\stkb,\gsigrets,\gsigcloss)$
@@ -2827,6 +2829,67 @@ or the following implications hold.
   \end{itemize}
 \end{proof}
 
+\begin{lemma}[Reasonable things don't need to be trusted]
+  \label{lem:trusted-and-reasonable-is-untrusted}
+  If
+  \begin{itemize}
+  % \item $\gc = (\ta,\stkb,\gsigrets,\gsigcloss)$
+  \item $\npair{(w,\_)} \in \lrvg{\trusted}(W_w)$
+  % \item $\memSat{\ms_S,\stk,\ms_\stk,\_}{W_M}$
+  % \item $\purePart{W_w} \oplus \purePart{W_M}$ is defined
+  % \item $\pwheap[W_w](r_\code) \nequal \codereg{\sigrets,\sigcloss,\code,\gc}$
+  % \item $\dom(\code) \subseteq \ta$
+  % \item $\sigrets \subseteq \gsigrets$ and $\sigcloss \subseteq \gsigcloss$
+  \item $w$ is reasonable up to $n$ steps in memory $\ms_S$ and free stack $\ms_\stk$, with respect to $\code,\ta,\gsigrets,\gsigcloss$.
+  \item $\gsigrets \neq \emptyset$
+  \item $n > 0$
+  \item Theorem~\ref{thm:ftlr} holds up to $n$ steps.
+    \dominique{mention this assumption explicitly to avoid cyclic reasoning in the FTLR proof.}
+  \end{itemize}
+  Then
+  \begin{itemize}
+  \item $\npair{(w,\_)} \in \lrv(W_w)$
+  \end{itemize}
+\end{lemma}
+\begin{proof}
+  Assume that $\npair{(w,w_T)} \in \lrvg{\trusted}(W_w)$
+
+  By definition of $\lrvg{\trusted}$, it is clear that also $\npair{(w,w_T)} \in \lrv(W_w)$, except in the following two cases:
+  \begin{itemize}
+  \item
+    \begin{itemize}
+    \item $w = \src{\seal{\sigma,\sigma_\baddr,\sigma_\eaddr}}$
+    \item $w_T = \seal{\sigma,\sigma_\baddr,\sigma_\eaddr}$ 
+    \item $r \in \dom(\pwheap)$
+    \item $\pwheap(r) \nequal \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)}$
+    \item $\dom(\code) \subseteq \ta$ 
+    \item $[\sigma_\baddr,\sigma_\eaddr] \subseteq (\sigrets\cup\sigcloss)$ 
+    \item $\sigrets \subseteq \gsigrets$
+    \item $\sigcloss \subseteq \gsigcloss$
+    \end{itemize}
+
+    By definition of reasonability, we get immediately that $[\sigma_b,\sigma_e]\mathrel{\#} (\gsigrets\cup \gsigcloss)$, contradicting the last three facts above.
+  \item 
+    \begin{itemize}
+    \item $w = \src{((\perm,\normal),\baddr,\eaddr,\aaddr)}$, 
+    \item $w_T =
+      ((\perm,\normal),\baddr,\eaddr,\aaddr)$
+    \item $\perm \sqsubseteq \rx$
+    \item $\gc = (\ta,\stkb,\gsigrets,\gsigcloss)$
+    \item $\npair{[\baddr,\eaddr]} \in \xReadCond[\square,\gc]{W}$
+    \end{itemize}
+
+    If $\perm = \noperm$, then $\npair{(w,w_T)} \in \lrv(W_w)$ follows if we can prove that $\npair{(\normal,b,e)} \in \lrp(W)$.
+    This follows easily by definition of $\lrp$, $\xReadCond{}$ and $\codereg{}$.
+    
+    If $\perm \neq \noperm$, then by definition of reasonability, we get immediately that $[b,e] \mathrel{\#} \ta$.
+
+    By definition of $\lrv$, it suffices to show that $\npair{[b,e]} \in \readCond{\normal,W}$ and $\npair{[b,e]} \in \execCond{\normal,W}$.
+    The former follows directly from Lemma~\ref{lem:xReadCond-outside-ta-implies-readCond}.
+    The latter follows by Theorem~\ref{thm:ftlr}, Lemma~\ref{lem:conds-shrinkable} and definition of $\execCond{}$.
+  \end{itemize}
+\end{proof}
+
 \subsection{Fundamental Theorem of Logical Relations}
 \begin{theorem}[FTLR]
   \label{thm:ftlr}
@@ -2834,6 +2897,7 @@ or the following implications hold.
   If
   \begin{itemize}
   \item $\trust = \trusted \vee \npair{[\baddr,\eaddr]} \in \readCond{\lin,W}$
+    \dominique{This requirement is actually not needed because of Lemma~\ref{lem:xReadCond-outside-ta-implies-readCond}}
   \item $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$
   \end{itemize}
   and one of the following sets of requirements holds:
@@ -3027,6 +3091,19 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 \end{lemma}
 \begin{proof}
   Follows by defintion of $\readCond{}$ from Lemma~\ref{lem:codereg-untrusted-stdreg}.
+\end{proof}
+
+\begin{lemma}[Code memory for untrusted components safely readable]
+  \label{lem:xReadCond-outside-ta-implies-readCond}
+  If
+  \begin{itemize}
+  \item $A \mathrel{\#} \ta$
+  \item $\npair{A} \in \xReadCond{W}$
+  \end{itemize}
+  we have that $\npair{A} \in \readCond{\normal,W}$.
+\end{lemma}
+\begin{proof}
+  Follows by defintion of $\readCond{}$ and $\xReadCond{}$ from Lemma~\ref{lem:codereg-untrusted-stdreg}.
 \end{proof}
 
 \begin{lemma}[Code region sealing invariant for untrusted components implies untrusted safety]
