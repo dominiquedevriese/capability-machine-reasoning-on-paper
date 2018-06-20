@@ -2444,55 +2444,73 @@ Take a set of trusted addresses $\ta$ and sets of return pointer and closure sea
 We define that a word $w$ is reasonable up to $n$ steps in memory $\ms$ and
 free stack $\ms_\stk$ if $n=0$
 or the following implications hold.
-\begin{itemize}
-\item If $w = \seal{\sigma_\baddr,\sigma_\eaddr,\_}$, then $[\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\gsigrets \cup \gsigcloss)$
-\item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\perm \neq 0$ and $\gsigrets \neq \emptyset$, then $[\baddr,\eaddr] \# \dom(\ta)$
-\item If $w = \sealed{\sigma,\vsc}$ and $\sigma \not\in (\gsigrets\cup \gsigcloss)$ then $\vsc$ is reasonable up to $n - 1$ steps.
-\item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\perm \in \readAllowed{}$ and $n > 0$, then $\ms(\aaddr)$ is reasonable up to $n - 1$ steps for all $\aaddr \in ([\baddr,\eaddr] \setminus \ta)$
-\item If $w = \stkptr{\perm,\baddr,\eaddr,\_}$ and $\perm \in \readAllowed{}$ and $n > 0$, then $\ms_\stk(\aaddr)$ is reasonable up to $n - 1$ steps for all $\aaddr \in [\baddr,\eaddr]$
-\end{itemize}
+\begin{definition}[Reasonable word]
+  \label{def:reasonable-word}
+  \begin{itemize}
+  \item If $w = \seal{\sigma_\baddr,\sigma_\eaddr,\_}$, then
+    $[\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\gsigrets \cup \gsigcloss)$
+  \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\perm \neq 0$ and $\gsigrets
+    \neq \emptyset$, then $[\baddr,\eaddr] \# \dom(\ta)$
+  \item If $w = \sealed{\sigma,\vsc}$ and $\sigma \not\in (\gsigrets\cup
+    \gsigcloss)$ then $\vsc$ is reasonable up to $n - 1$ steps.
+  \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\perm \in \readAllowed{}$
+    and $n > 0$, then $\ms(\aaddr)$ is reasonable up to $n - 1$ steps for all
+    $\aaddr \in ([\baddr,\eaddr] \setminus \ta)$
+  \item If $w = \stkptr{\perm,\baddr,\eaddr,\_}$ and $\perm \in \readAllowed{}$
+    and $n > 0$, then $\ms_\stk(\aaddr)$ is reasonable up to $n - 1$ steps for
+    all $\aaddr \in [\baddr,\eaddr]$
+  \end{itemize}
+\end{definition}
 
-We say that an execution configuration $\Phi$ is reasonable up to $n$ steps if:
+\begin{definition}[Reasonable configuration]
+  \label{def:reasonable-conf}
+  We say that an execution configuration $\Phi$ is reasonable up to $n$ steps
+  iff for all $n' \le n$:
   \begin{itemize}
   \item \emph{Guarantee stack base address before call} If
     \begin{itemize}
     \item $\Phi \nstep[i]{\ta,\stkb} \Phi'$
-    \item $\Phi'$ points to $\src{\scall{\offpc,\offsigma}{r_1}{r_2}}$ in $\ta$ for some $\src{r_1}$ and $\src{r_2}$
-    \item $0 < i \le n$
+    \item $\Phi'$ points to $\src{\scall{\offpc,\offsigma}{r_1}{r_2}}$ in $\ta$
+      for some $\src{r_1}$ and $\src{r_2}$
+    \item $0 < i \le n'$
     \end{itemize}
     Then all of the following hold:
     \begin{itemize}
-    \item $\src{\Phi'}(\src{r_\stk}) = \src{\stkptr{\_,\stkb,\eaddr_\stk,\aaddr_\stk}}$
+    \item $\src{\Phi'}(\src{r_\stk}) =
+      \src{\stkptr{\_,\stkb,\eaddr_\stk,\aaddr_\stk}}$
     \item $r_1 \neq \rtmp{1}$
-    \item $\Phi'(\pcreg) + \calllen$ and $\Phi'(\rstk)$ behaves reasonably up to $n-i$ steps
+    \item $\Phi'(\pcreg) + \calllen$ and $\Phi'(\rstk)$ behaves reasonably up to
+      $n'-i$ steps
     \end{itemize}
   \item \emph{Use return seals only for calls} If
     \begin{itemize}
     \item $\Phi \nstep[i]{\ta,\stkb} \Phi'$
     \item $\src{\Phi'}$ points to $\src{\tcseal{r_1}{r_2}}$ in $\ta$ and $\Phi'(r_1) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$
-    \item $0 < i \le n$
     \end{itemize}
     Then one of the following holds:
     \begin{itemize}
-    \item $\src{\Phi'}$ is inside $\src{\scall{\offpc,\offsigma}{r_1'}{r_2'}}$ and $\sigma \in \gsigrets$ 
+    \item $\src{\Phi'}$ is inside $\src{\scall{\offpc,\offsigma}{r_1'}{r_2'}}$
+      and $\sigma \in \gsigrets$
     \item $\sigma \in \gsigcloss$.
     \end{itemize}
   \item \emph{Don't store private stuff...} If
     \begin{itemize}
     \item $\Phi \nstep[i]{\ta,\stkb} \Phi'$
-    \item $\src{\Phi'}$ points to $\src{\tstore{r_1}{r_2}}$ in $\ta$, then 
-    \item $0 < i \le n$
+    \item $\src{\Phi'}$ points to $\src{\tstore{r_1}{r_2}}$ in $\ta$, then
+    \item $0 < i \le n'$
     \end{itemize}
-    Then $\Phi.\reg(r_2)$ is reasonable in memory $\Phi'.\mem$ up to $n$ steps
+    Then $\Phi.\reg(r_2)$ is reasonable in memory $\Phi'.\mem$ up to $n'-i$ steps
   \item \emph{Don't leak private stuff...} If
     \begin{itemize}
     \item $\Phi \nstep[i]{\ta,\stkb} \Phi' \step \Phi''$
     \item $\src{\Phi'}$ is in $\ta$
     \item $\src{\Phi''}$ is not in $\ta$
-    \item $0 < i \le n$
+    \item $0 < i \le n'$
     \end{itemize}
-    Then $\Phi.\reg(r)$ is reasonable in memory $\Phi'.\mem$ up to $n$ steps for all $r$ (including $\pcreg$)
-  \end{itemize}
+    Then $\Phi.\reg(r)$ is reasonable in memory $\Phi'.\mem$ up to $n'-i$ steps for
+    all $r$ (including $\pcreg$)
+  \end{itemize}  
+\end{definition}
 
   \begin{lemma}
     \label{lem:ec-reasonable-antired}
@@ -2510,17 +2528,46 @@ We say that an execution configuration $\Phi$ is reasonable up to $n$ steps if:
     Follows easily by definition.
   \end{proof}
 
-We say that an executable capability $c = ((\perm,\normal),\baddr,\eaddr,\aaddr)$ behaves reasonably up to $n$ steps if for any $\Phi$ such that
-  \begin{itemize}
-  \item $\Phi.\reg(\pcreg) = c$
-  \item $\Phi.\reg(r)$ is reasonable up to $n$ steps in memory $\Phi.\mem$ and free stack $\Phi.\ms_\stk$for all $r \not\in \{\pcreg\}$
-  \item $\Phi.\mem$, $\Phi.\ms_\stk$ and $\Phi.\stk$ are all disjoint
-  \end{itemize}
-  We have that $\Phi$ is reasonable.
+  \begin{lemma}
+    \label{lem:ec-reasonable-downwards-closed}
+    For all $n' \le n$ if
+    \begin{itemize}
+    \item $\Phi$ is reasonable up to $n$ steps
+    \end{itemize}
+    Then
+    \begin{itemize}
+    \item $\Phi$ is reasonable up to $n'$ steps
+    \end{itemize}
+  \end{lemma}
+  \begin{proof}
+    Follows from the definition.
+  \end{proof}
 
-We say that a component $(\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss,A_\linear)$ is reasonable if the following hold:
-For all $\sealed{\sigma,\vsc} \in \overline{c_{\mathrm{export}}}$, with $\exec{\vsc}$, we have that $\vsc$ behaves reasonably up to any number of steps $n$.
-\lau{This need to change with the proposed simplification of the reasonability update.}
+  \begin{definition}[Reasonable pc]
+    \label{def:reasonable-pc}
+    We say that an executable capability $c =
+    ((\perm,\normal),\baddr,\eaddr,\aaddr)$ behaves reasonably up to $n$ steps
+    if for any $\Phi$ such that
+    \begin{itemize}
+    \item $\Phi.\reg(\pcreg) = c$
+    \item $\Phi.\reg(r)$ is reasonable up to $n$ steps in memory $\Phi.\mem$ and
+      free stack $\Phi.\ms_\stk$for all $r \not\in \{\pcreg\}$
+    \item $\Phi.\mem$, $\Phi.\ms_\stk$ and $\Phi.\stk$ are all disjoint
+    \end{itemize}
+    We have that $\Phi$ is reasonable.
+  \end{definition}
+
+  \begin{definition}[Reasonable component]
+    \label{def:reasonable-component}
+    We say that a component
+    $(\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss,A_\linear)$
+    is reasonable if the following hold: For all $\sealed{\sigma,\vsc} \in
+    \overline{c_{\mathrm{export}}}$, with $\exec{\vsc}$, we have that $\vsc$
+    behaves reasonably up to any number of steps $n$.
+    \lau{Is this reasonable as a word? In that case, it should  mention the
+      memory and free stack.}
+  \end{definition}
+
 
 \begin{lemma}
   \label{lem:lrvtrusted-not-nequal-lrvuntrusted}
