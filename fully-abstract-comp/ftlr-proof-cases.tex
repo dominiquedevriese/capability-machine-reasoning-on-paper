@@ -395,7 +395,8 @@ then
   \]
 \end{lemma}
 \begin{proof}
-  TODO: update...
+  In the following we will use the following: $\reg_S = \Phi_S.\reg$, $\reg_T = \Phi_T.\reg$, $\ms_S = \Phi_S.\mem$, $\ms_\stk = \Phi_S.\ms_\stk$, and $\stk = \Phi_S.\stk$.
+  
   By general induction on $n$, i.e. we can assume that the lemma already holds for $n' < n$.
 
   In order to prove this, we first, we prove that one of the following holds:
@@ -670,7 +671,9 @@ then
     follows from the corresponding assumption of this lemma, since $n' - 1 < n$.
   \end{itemize}
 
-  \lau{TODO: look through this case and find the place where the ''no seal cross boundary thing'' should have been used.}
+  \lau{TODO: look through this case and find the place where the ''no seal cross
+    boundary thing'' should have been used. (I have done this, and it does not
+    seem necessary (?))}
   In case \ref{case:ftlr:call}, we may assume $r_1 \neq r_2$\footnote{If the register contains a data capability, then the execution fails in the step after the jump.
     If it is an executable capability, then the xjump fails as it does not permit executable capabilities for the data part.}
   and $r_i \neq \pcreg$ for $i \in \{1,2\}$\footnote{The pc is executable which causes the xjump to fail.}.
@@ -695,10 +698,10 @@ then
   \[
     \npair[n'-1]{(\Phi_S',\Phi_T'')} \in \lro
   \]
-  By assumption, we have $\npair[n']{(\reg_S(r_i),\reg_T(r_i))} \in \lrr(W_{R,i})$ for some $W_{R,i}$ with $i \in \{1,2\}$.
+  By assumption, we have $\npair[n']{(\reg_S(r_i),\reg_T(r_i))} \in \lrrg{\trust}(W_{R,i})$ for some $W_{R,i}$ with $i \in \{1,2\}$.
   We know the capabilities in $r_1$ and $r_2$ are sealed capabilities, and by
-  Lemma~\ref{lem:unique-h-sigma} and the definition of $\lrv$ we get
-  $\npair[n'-1]{\stpair[.]{c_2}{c_2'}} \in H_\sigma \; \sigma \; \xi^{-1}(W_{R,2})$
+  Lemma~\ref{lem:unique-h-sigma} and the definition of $\lrvg{\trust}$ we get
+  $\npair[n'-1]{(c_2,c_2')} \in H_\sigma \; \sigma \; \xi^{-1}(W_{R,2})$
   and w.l.o.g.\
 
   \begin{equation}
@@ -713,7 +716,7 @@ then
   \]
   For a fresh $r_\var{priv\_stk}$.
   We know $W_{R,1}' \future W_{R,1}$ as the revoked regions must have been $\spatial$ in $W_{R,q}$ (as they are owned by the part of the world assigned to the stack-register in the register-file relation).
-  The static region for the private stack is an extension.
+  The static region for the private stack is an extension of the old world.
 
   Pick this world as $W'$ in Eq~\ref{eq:ftlr:call:sealed-code-assump}
   . Let $W_{R,2}'$ be the same world but
@@ -733,7 +736,32 @@ then
   \[
     \npair[n'-1]{(\Phi_S',\Phi_T'')} \in \lro
   \]
-  as desired. It remains to show \ref{case:ftlr:scall:world}-\ref{case:ftlr:scall:mem}.
+  as desired.
+  It remains to show \ref{case:ftlr:scall:world}-\ref{case:ftlr:scall:mem}, but first we note that we can deduce the following: From the assumption $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$ we get $R \subseteq \addressable{\normal, \pwheap}$ and $\exists M : S \fun \powerset{\MemSeg}$ such that $\biguplus_{r\in S} \dom(M(r)) \supseteq [\baddr,\eaddr]$ and $\forall r \in S \ldotp \pwheap(r) \nequal \codereg{\sigrets',\_,M(r),\gc}$.
+  Further by $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W}$, we know that for one $r \in S$ there is a $\mscode' \subseteq \mscode$, call this $r$ for $r_{\mscode'}$,\footnote{Follows from $H^\var{code}$ requiring $\dom(\mscode') \subseteq \ta$ and $\dom(\mscode) = \ta$ and finally that $\mscode$ is part of $\ms_S$.}
+  such that
+  \begin{equation}
+    \npair{(\mscode',\mscode')} \in H^{\var{code}} \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\_,\gsigrets,\gsigcloss)\label{eq:ftlr:rretd:Hcode}
+  \end{equation}
+  where $\sigma' \in \sigrets'$ and $\dom(\mscode') \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode')$.
+  That is $\mscode'$ contains the call we are considering.
+  This also entails
+  \begin{equation}
+    \label{eq:ftlr:code-comp-jud}
+    \sigrets',\sigcloss' \vdash_\var{code\_comp} \mscode'
+  \end{equation}
+from \ref{eq:ftlr:rretd:Hcode} we also get
+\begin{itemize}
+\item $\dom(\mscode') \subseteq \ta$
+
+  Otherwise we would have $\dom(\mscode') \# \ta$ which would contradict $\dom(\mscode') \subseteq \dom(\mscode) \subseteq\ta$
+
+\item $\sigrets' \subseteq \gsigrets$
+
+  Follows from the above.
+\end{itemize}
+  \lau{TODO: Make the above more precise and possibly put into a lemma (also needed in the next case).}
+
 
   Case \ref{case:ftlr:scall:world}: Pick $W_R'$ and $W_M'$ to have the regions of $W_{R,1}'$, but where $W_R'$ owns $r_\var{priv\_stk}$ and otherwise has the ownership of $W_R$ and $W$ with the exception of the regions owned by $W_{R,1}'$ and $W_{R,2}'$.
   $W_M'$ has the ownership of $W_M$.
@@ -742,7 +770,7 @@ then
   In other words, no ownership has been duplicated.
 
   Case \ref{case:ftlr:scall:reg}: We need to split the ownership of $W_R'$.
-  From assumption $\npair[n'-1]{(\reg_S\update{r}{z},\reg_T\update{r}{z})} \in \lrr(W_R)$, we get a way to split the ownership of $W_R$.
+  From assumption $\npair[n]{(\Phi_S.reg,\Phi_T.\reg)} \in \lrr(W_R)$, we get a way to split the ownership of $W_R$.
   We take this as the starting point, but with the following changes: regions $r_1$ and $r_2$ maps to worlds with no ownership (i.e.\ $\purePart{W_{R,1}'}$).
   region $\rstk$ maps to a world with the same ownership, but of course without the now revoked regions.
   Region $\rretd$ maps to a world that owns private $r_\var{priv\_stk}$ region.
@@ -756,12 +784,11 @@ then
     \[
       \npair[n'-1]{(\stkptr{\rw,\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1},((\rw,\linear),\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1))} \in \lrv(W_{R,\rstk}')
     \]
-    We know by Assumption~\ref{item:reg-ass}, we know
+    We know by Assumption $\npair[n]{(\Phi_S.reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)$, we know
     \[
-      \npair[n']{(\stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk},((\rw, \linear), \baddr_\stk ,\eaddr_\stk, \aaddr_\stk)} \in \lrrg{\trust}(W_{R,\stk})
+      \npair[n']{(\stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk},((\rw, \linear), \baddr_\stk ,\eaddr_\stk, \aaddr_\stk)} \in \lrvg{\trust}(W_{R,\stk})
     \]
-    which by the $\stackReadCond{}$ gives $S \subseteq
-    \addressable{\linear,\pwfree}$ and $R : S \fun \powerset{\nats}$.
+    which by the $\mathit{stackReadCondition}$ gives $S \subseteq \addressable{\linear,\pwfree}$ and $R : S \fun \powerset{\nats}$.
     We need to pick an $S'$ to argue
     \[
       \npair[n'-1]{[\baddr_\stk,\aaddr_\stk-1]} \in \stackReadCond{W_{R,\rstk}'}
@@ -771,7 +798,7 @@ then
     same in $W_{R,\rstk}'$ as in $W_{R,\rstk}$, the regions in $S'$ are exactly the same in the new world as they were in $W_{R,\rstk}$.
     So what we need to show follows immediately from
     \[
-      \npair[n']([\baddr_\stk,\eaddr_\stk]) \in \stackReadCond{W_{R,\rstk}}
+      \npair[n']{[\baddr_\stk,\eaddr_\stk]} \in \stackReadCond{W_{R,\rstk}}
     \]
     and by Lemma~\ref{lem:downwards-closed}.
 
@@ -791,25 +818,15 @@ then
     \[
       \npair[n'-1]{(\linCons{c_1},\linCons{\Phi_T(r_1)})} \in \lrv(W_{R,r_1}')
     \]
-    Follows from the related register files assumption and Lemma~\ref{lem:lincons-lrv}.
+    Follows from the related register files assumption and Lemma~\ref{lem:lincons-lrv} and the fact that for sealed capabilities if they are in $\lrvg{\trusted}$, then they are in the $\lrv$ part.
 
   \item[Case $\rretd$:] We have to show
     \[
       \npair[n'-1]{(\sealed{\sigma',\retptrd(\aaddr_\stk,\eaddr_\stk)},\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk-1)})} \in \lrv(W_{R,\rretd}')
     \]
     where $W_{R,\rretd}'$ is the part of $W_R'$ with ownership over $r_\var{priv\_stk}$.
-    From the assumption $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$ we get $R \subseteq \addressable{\normal, \pwheap}$ and $\exists M : S \fun \powerset{\MemSeg}$ such that $\biguplus_{r\in S} \dom(M(r)) \supseteq [\baddr,\eaddr]$ and $\forall r \in S \ldotp \pwheap(r) \nequal \codereg{\sigrets',\_,M(r),\gc}$.
-    Further by $\memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W}$, we know that for one
-    $r \in S$ there is a $\mscode' \subseteq \mscode$\footnote{Follows from
-      $H^\var{code}$ requiring $\dom(\mscode') \subseteq \ta$ and $\dom(\mscode) =
-      \ta$ and finally that $\mscode$ is part of $\ms_S$.} such that
-    \begin{equation}
-      \npair[n']{(\mscode',\mscode')} \in H^{\var{code}} \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\_)\label{eq:ftlr:rretd:Hcode}
-    \end{equation}
-    where $\sigma' \in \sigrets'$ and $\dom(\mscode') \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode')$.
-    That is $\mscode'$ contains the call we are considering.
-    \lau{TODO: Make the above more precise and possibly put into a lemma (also needed in the next case).}
-    Use the $r$ in question as the witness.
+
+    Use the $r=r_{\mscode'}$ as the witness.
     The $\xReadCond{}$ gives us $\pwheap(r) \nequal \codereg{\_,\_,\mscode',\gc}$.
     As it is a pure region, it is also present in the future world we consider.
     We now have to show:
@@ -819,14 +836,14 @@ then
         \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode'
         \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_{R,\rretd}')
       \]
-      First $\dom(\mscode') \subseteq \ta$ follows from \ref{eq:ftlr:rretd:Hcode} and the assumption $[\baddr,\eaddr] \ subseteq \ta$.
+      First, we already know $\dom(\mscode') \subseteq \ta$ and $\sigrets' \subseteq \gsigrets$.
       Now pick $r_\var{priv\_stk}$ as the witness.
       We immediately get $\dom(\ms_{\stk\_\priv,S}) = \dom(\Phi_T''.\mem|_{[\aaddr_\stk,\eaddr_\stk]}) = [\aaddr_\stk,\eaddr_\stk]$.
-      Next, $\decInstr(\mscode'(\aaddr,\aaddr+\calllen-1)) = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}}$ follows from $\callCond{\Phi_S,r_1,r_2,\aaddr}$.
+      Next, $\decInstr{\mscode'(\aaddr,\aaddr+\calllen-1)} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}}$ follows from $\callCond{\Phi_S,r_1,r_2,\aaddr}$.
       Finally, $\ms_\code(\aaddr+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr}$ with $\sigma' = \sigma_\baddr + \offpc \in \sigrets'$ which follows from $\sigrets',\sigcloss' \vdash_{\mathrm{comp-code}} \mscode'$ and the fact that the call is there.
     \item $\isLinear{\sealed{\sigma',\retptrd(\aaddr_\stk,\eaddr_\stk)}}$ iff
       $\isLinear{\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk)}}$\\
-      Trivial as both are linear.
+      Trivial, both are linear.
     \item
       \[
         \begin{array}{l}
@@ -838,7 +855,7 @@ then
           \lrexj(W'\oplus W_o))
         \end{array}
       \]
-      Trivial as both configuration fails.
+      Trivial as both configurations fails.
     \end{enumerate}
 
   \item[Case $\rretc$:]
@@ -848,14 +865,18 @@ then
             \calllen)},\\\sealed{\sigma',((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)}\endarray\right)} \in \lrv(W_{R,\rretc}')
     \]
     where $W_{R,\rretc}'$ has the ownership of $W$.
-    Just as in the previous case, we know that for some region $r$ there exists $\mscode' \subseteq \mscode$ such that: $\pwheap(r) \nequal \codereg{\sigrets',\_,\mscode',\gc}$ where $\sigma' \in \sigrets'$ and $\dom(\mscode') \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode')$.
+    Just as in the previous case, we know that for some region $r$ there exists $\mscode' \subseteq \mscode$ such that: $\pwheap(r) \nequal \codereg{\sigrets',\_,\mscode',\gc}$ where $\sigma' \in \sigrets'$ and $\dom(\mscode') \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode')$ and $\sigrets' \subseteq \gsigrets$.
     It follows easily from the definition of $H_\sigma^\var{code}$ that
     \begin{equation}
       \label{eq:code-caps-in-h-sigma}
       \npair[n'']{\left(\array{l}\retptrc(\baddr,\eaddr,\aaddr + \calllen),\\((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)\endarray\right)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_{R,\rretc}')
     \end{equation}
     for $n'' < n'-1$.
-    Both capabilities are non-linear, so $\isLinear{\retptrc(\baddr,\eaddr,\aaddr + \calllen)}$ iff $\isLinear{((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)}$ is indeed the case.
+    Both capabilities are non-linear, so
+    \[
+      \isLinear{\retptrc(\baddr,\eaddr,\aaddr + \calllen)}\text{ iff } \isLinear{((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)}
+    \]
+    is indeed the case.
     Finally we need to show:
     \[
       \begin{array}{l}
@@ -865,10 +886,8 @@ then
       \end{array}
     \]
     To this end let $W'' \future \purePart{W_{R,\rretc}'}$ and $W_o$ be given s.t.
-    $W'' \future \purePart{W_{R,\rretc}'} \oplus W_o$ is defined. Further, let
-    $\npair[n'']{(\vsc_S',\vsc'_T)} \in H^\mathrm{code,\square}_\sigma \;
-    \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\stkb) \; \sigma' \;
-    \xi^{-1}(W_o)$ be given and show
+    $W'' \oplus W_o$ is defined.
+    Further, let $\npair[n'']{(\vsc_S',\vsc'_T)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_o)$ be given and show
     \[
       \npair[n'']{\retptrc(\baddr,\eaddr,\aaddr + \calllen),\vsc_S',((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset),\vsc_T'} \in \lrexj(W''\oplus W_o))
     \]
@@ -881,16 +900,18 @@ then
 
     Based on $H_\sigma^\var{code}$, there are three possible values for $\vsc_S'$ and $\vsc_T'$.
     In the first case, $\vsc_S'$ is a $\retptrc$ and $\vsc_T'$ is a capability with permission $\rx$.
-    In this case, $\xjumpResult{}{}{}$ will produce failed configurations which are trivially in the observation relation.
-    In the next case, it is required that $\sigma' \in \sigcloss'$, but this cannot be the case as \lau{TODO I think this case should follow from $H^\var{code}$ and the comp-code judgement, but it does not.
+    In this case, $\var{xjumpResult}$ will produce failed configurations which are trivially in the observation relation.
+    In the next case, it is required that $\sigma' \in \sigcloss'$, but this
+    cannot be the case as $\sigma' \in \sigrets'$ and we have $\sigrets',\sigcloss' \vdash_{\mathrm{comp-code}} \mscode'$.
+\lau{TODO I think this case should follow from $H^\var{code}$ and the comp-code judgement, but it does not.
       Specifically, the comp-code judgement (for now) does not require $\sigrets'$ and $\sigcloss'$ to be disjoint.}
 
     This leaves us with one final case, namely $\vsc_S'= \retptrd(\baddr_\stk',\eaddr_\stk')$ and $\vsc_T'=((\rw,\linear),\baddr_\stk',\eaddr_\stk',\baddr_\stk'-1)$.
     Further we know
     \[
       \begin{array}{l}
-        \exists r \in \addressable{\linear,\pwpriv[W_o]} \ldotp \pwpriv[W_o](r).H \nequal (\stareg[(\ms_{\priv,S}^{(3)},\ms_{\priv,T}^{(3)}),(\ta,\stkb)]{\spao,\square}, \aaddr'+\calllen) \tand \\
-        \quad \dom(\ms_S) = \dom(\ms_T) = [\baddr_\stk',\eaddr_\stk'] \tand\\
+        \exists r \in \addressable{\linear,\pwpriv[W_o]} \ldotp \pwpriv[W_o](r).H \nequal (\stareg[(\ms_{\priv,S}^{(3)},\ms_{\priv,T}^{(3)}),\gc]{\spao,\square}, \aaddr'+\calllen) \tand \\
+        \quad \dom(\ms_{\priv,S}^{(3)}) = \dom(\ms_{\priv,T}^{(3)}) = [\baddr_\stk',\eaddr_\stk'] \tand\\
         \quad \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
         \quad \code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand \sigma = \sigma_b + \offsigma \in \sigrets
       \end{array}
@@ -899,12 +920,10 @@ then
     By the above, the fact that the code capability pair is in $H_\sigma^\var{code}$ (\ref{eq:code-caps-in-h-sigma}) and Lemma~\ref{lem:unique-ret-seals}, we get $\aaddr' = \aaddr$.
     This means that $W_M''$ and $W_R''$ have this region.
 
-    We know that the two register-files are related which in particular means that
-    the values in register $\rstk$ are related. Now consider the following cases:
-    \lau{TODO: Perhaps make a lemma that says if source fail and target step to
-      fail, then the two configurations are in $\lro$.}
+    We know that the two register-files are related which in particular means that the values in register $\rstk$ are related.
+    Now consider the following cases: \lau{TODO: Perhaps make a lemma that says if source fail and target step to fail, then the two configurations are in $\lro$.}
     \begin{itemize}
-    \item $\Phi_S(\rstk) \neq \stkptr{\_,\_,\_,\_}$\\
+    \item $\reg_S^{(3)}(\rstk) \neq \stkptr{\_,\_,\_,\_}$\\
       In this case due to $\reg[3]_S$ being related to $\reg[3]_T$, there are three cases we need to consider.
       In all cases, the source configuration will fail because the value in the stack register is not a stack capability.
       If we can argue that the target configuration also will fail, then the two are in the observation relation.
@@ -913,14 +932,14 @@ then
       Finally, $\reg[3]_T = ((\perm_\var{ret\_\stk},\lin_\var{ret\_\stk}),\baddr_\var{ret\_\stk},\eaddr_\var{ret\_\stk},\_)$ and $\npair[n''']{[\baddr_\var{ret\_\stk},\eaddr_\var{ret\_\stk}]} \in \readCond{\lin_\var{ret\_\stk},W_{R,\rstk}''}$ is satisfied.
       This means that it is satisfied by some heap region, but by the memory satisfaction assumption $\stkb$ must be in the free stack part of the world.
       This means that the execution will fail that $\stkb$ check.
-    \item $\Phi_S(\rstk) = \stkptr{\perm_\var{ret\_\stk},\baddr_\var{ret\_\stk},\_,\_}$ and $\baddr_\var{ret\_\stk} \neq \stkb$\\
+    \item $\reg_S^{(3)}(\rstk) = \stkptr{\perm_\var{ret\_\stk},\baddr_\var{ret\_\stk},\_,\_}$ and $\baddr_\var{ret\_\stk} \neq \stkb$\\
       Here the source side will fail the xjmp as the base address is not $\stkb$.
       Similarly on the target side, the return code will fail the $\stkb$ check.
-    \item $\Phi_S(\rstk) = \stkptr{\_,\baddr_\var{ret\_\stk},\eaddr_\var{ret\_\stk},\_}$ and $\baddr_\var{ret\_\stk} = \stkb$ and either $\eaddr_\var{ret\_\stk} +1 \neq \baddr_\stk' $ or $\perm_\var{ret\_\stk} \neq \rw$ or
+    \item $\reg_S^{(3)}(\rstk) = \stkptr{\_,\baddr_\var{ret\_\stk},\eaddr_\var{ret\_\stk},\_}$ and $\baddr_\var{ret\_\stk} = \stkb$ and either $\eaddr_\var{ret\_\stk} +1 \neq \baddr_\stk' $ or $\perm_\var{ret\_\stk} \neq \rw$ or
       $\baddr_\var{ret\_\stk} > \eaddr_\var{ret\_\stk}$.\\
       In this case, the source configuration will fail as one of the conditions in $\var{xjumpResult}$ will not be met.
       On the target side, the splice will fail as either the two capabilities being spliced don't line up, the permissions don't match, or the range of authority is empty, respectively.
-    \item $\Phi_S(\rstk) = \stkptr{\perm_\var{ret\_\stk},\baddr_\var{ret\_\stk},\eaddr_\var{ret\_\stk},\_}$ and $\baddr_\var{ret\_\stk} = \stkb$ and $\eaddr_\var{ret\_\stk} +1 = \baddr_\stk' $ and $\perm_\var{ret\_\stk} = \rw$ and $\baddr_\var{ret\_\stk} \leq \eaddr_\var{ret\_\stk}$.
+    \item $\reg_S^{(3)}(\rstk) = \stkptr{\perm_\var{ret\_\stk},\baddr_\var{ret\_\stk},\eaddr_\var{ret\_\stk},\_}$ and $\baddr_\var{ret\_\stk} = \stkb$ and $\eaddr_\var{ret\_\stk} +1 = \baddr_\stk' $ and $\perm_\var{ret\_\stk} = \rw$ and $\baddr_\var{ret\_\stk} \leq \eaddr_\var{ret\_\stk}$.
       \\
       We would like to show that $\ms_{\priv,S}^{(3)}$ is the top most stack frame and that $r'$ governs it.
       By the memory satisfaction assumption and the presence of $r'$ in $W_M''$ we know that $\stk^{(3)}$ is non-empty.
@@ -995,10 +1014,190 @@ then
         \[
           \npair[n''']{(\Phi^{(4)}_S,\Phi^{(5)}_T)} \in \lro
         \]
-        Here we need to use our assumption that Theorem~\ref{thm:ftlr} holds for all $n' < n$.
-        TODO: continue
-        \lau{TODO: the reasonability requirements of the FTLR seems to be an issue here.}
-        \dominique{should now be fine?}
+        For fresh $r_{b_\stk'}\dots r_{e_\stk'}$ and $W'''$ defined as
+        \[
+          W''' = W''[\priv.r' \mapsto \revoked,\free.r_{b_\stk'}\dots r_{e_\stk'}\mapsto \stdreg{\{b_\stk'\},\gc}{\spa} \dots \stdreg{\{e_\stk'\},\gc}{\spa}]
+        \]
+        and $W'''_R$ with the ownership of $W''_R$ as well as for the regions $r_{b_\stk'}\dots r_{e_\stk'}$,
+        and $W'''_M$ with the ownership of $W''_M$,
+        we show the following:
+        \begin{enumproof}
+        \item $\npair[n''']{(\Phi_S^{(4)}.\reg,\Phi_T^{(5)}.\reg)} \in \lrv(W'''_R)$
+        \item $\memSat[n''']{\Phi_S^{(4)}.\mem,\Phi_S^{(4)}.\stk,\Phi_S^{(4)}.\ms_\stk,\Phi_T^{(5)}.\mem}{W'''_M}$ 
+        \item $W''' \oplus W'''_R \oplus W'''_M$ defined
+        \end{enumproof}
+        Assuming the above, we use our assumption that Theorem~\ref{thm:ftlr} holds for all $n' < n$ to get
+        \[
+          \npair[n''']{(((\rx,\normal),\baddr,\eaddr,\aaddr+\calllen),((\rx,\normal),\baddr,\eaddr,\aaddr+\calllen))} \in \lreg[\trusted](W''')
+        \]
+        Using this along with the register-file safety and memory satisfaction,
+        we get
+        \[
+          \npair[n''']{(\Phi^{(4)}_S,\Phi^{(5)}_T)} \in \lro
+        \]
+        as desired. We need to show the three things we skipped:
+
+        Show:
+        \[
+          \npair[n''']{(\Phi_S^{(4)}.\reg,\Phi_T^{(5)}.\reg)} \in \lrrtrusted(W'''_R)
+        \]
+        Using Lemma~\ref{lem:untrusted-subset-trust}, it suffices to show $\npair[n''']{(\Phi_S^{(4)}.\reg,\Phi_T^{(5)}.\reg)} \in \lrrtrusted(W'''_R)$.
+        We will split the world like in $\npair[n''']{(\reg_S^{(3)},\reg_T^{(3)})} \in \lrr(W)$, but where $r_\stk$ also get the ownership of $r_{b_\stk'}\dots r_{e_\stk'}$.
+        We need to show the following
+        \begin{itemize}
+        \item Case $\rdata$, $\rtmp{1}$, $\rtmp{2}$:
+
+          Trivial.
+        \item Case $r \not\in \{\rdata,\rtmp{1},\rtmp{2},\pcreg,\rstk\}$:
+
+          We have $\Phi^{(4)}_S.\reg(r) = \reg^{(3)}_S(r)$ and $\Phi^{(5)}_T.\reg(r) = \reg^{(3)}_T(r)$.
+          We already know: $\npair[n''']{(\reg^{(3)}_S(r),\reg^{(3)}_T(r))} \in \lrr(W''_{R,r})$, so by Lemma~\ref{lem:monotonicity}, we get
+          \[
+            \npair[n''']{(\reg^{(3)}_S(r),\reg^{(3)}_T(r))} \in \lrr(W'''_{R,r})
+          \]
+          as desired.
+        \item Case $\rstk$:
+
+          For this case, we need to show
+          \[
+            \npair[n''']{[\stkb,e_\stk']} \in \stackReadCond{W'''_{R,\rstk}}
+          \]
+          and
+          \[
+            \npair[n''']{[\stkb,e_\stk']} \in \stackWriteCond{W'''_{R,\rstk}}
+          \]
+          For $W'''_{R,\rstk}$ that owns the same as $W''_{R,\rstk}$ as well as $r_{b_\stk'},\dots,r_{e_\stk'}$.
+
+          For the first part, we use $\npair[n''']{(\reg_S^{(3)}(\rstk),\reg_T^{(3)}(\rstk))} \in \lrv(W_{R,\rstk}'')$ and the fact that the stack capability must have $\rw$ permission from which it follows that
+          \[
+            \npair[n''']{[\stkb,e_\var{ret\_stk}]} \in \stackReadCond{W''_{R,\rstk}}
+          \]
+          which gives us $S_\free \subseteq \addressable{\linear,\pwfree}$ and $R_\free : S_\free \fun \powerset{\nats}$ such that
+          \begin{itemize}
+          \item $\forall r \in S_\free \ldotp |R(r)| = 1$
+          \item $\biguplus_{r \in S_\free} R(r) \subseteq [\stkb,e_\var{ret\_stk}]$
+          \item $\forall r \in S_\free \ldotp \pwfree(r) \nsupeq \stdreg{R(r),\gc}{\spao}$
+          \end{itemize}
+          Now pick $S_\var{read} = S_\free \cup \{r_{b_\stk'},\dots,r_{e_\stk'}\}$ and
+          \[
+            R_\var{read}(r) =
+            \begin{cases}
+              R_\var{read}(r) & r \in S_\var{read} \\
+              \{a\} & r \in \{r_{b_\stk'},\dots,r_{e_\stk'}\} \wedge r = r_a
+            \end{cases}
+          \]
+          It is clearly the case that $\forall r \in S_\var{read} \ldotp |R_\var{read}(r)| = 1$ and $\biguplus_{r \in S_\var{read}} R(r) \subseteq [\stkb,e_\var{ret\_stk}]$.
+          For $\forall r \in S_\var{free} \ldotp \pwfree(r) \nsupeq \stdreg{R(r),\gc}{\spao}$ it follows from $\forall r \in S_\free \ldotp \pwfree(r) \nsupeq \stdreg{R(r),\gc}{\spao}$ and $\pwfree(r) = \stdreg{R(r),\gc}{\spao}$ for $r \in \{r_{b_\stk'},\dots,r_{e_\stk'}\}$.
+
+          The $\var{stackReadCondition}$ is showed in the same way, but we also use Lemma~\ref{lem:stdreg-singleton-addr-strat} to argue that the new regions are address-stratified.
+        \end{itemize}
+
+        Show:
+        \begin{equation}
+          \memSat[n''']{\ms^{(3)}_S,\Phi_S^{(4)}.\stk,\ms_\stk^{(3)} \uplus \ms_{\priv,S}^{(3)} ,\ms^{(3)}_T}{W'''_M}\label{eq:ftlr:case:last-mem-sat}
+        \end{equation}
+
+        From the assumption $\memSat[n''']{\ms^{(3)}_S,\ms^{(3)}_\stk, \stk^{(3)}, \ms^{(3)}_T}{W_M''}$, we know
+        \begin{itemize}
+        \item $\stk = (\addr + \calllen,\ms_{\priv,S}^{(3)})::(\opc_1,\ms_1):: \dots :: (\opc_m,\ms_m)$
+        \item $\ms^{(3)}_S \uplus \ms^{(3)}_\stk \uplus \ms_{\priv,S}^{(3)} \uplus \ms_1 \uplus \dots \uplus \ms_m  \text{ is defined}$
+        \item $W''_M = W_{\var{stack}}'' \oplus W_{\var{free\_stack}}'' \oplus W_{\var{heap}}''$
+        \item $\ms_\var{T,stack}, \ms_\var{T,free\_stack}, \ms_\var{T,heap}, \ms_{T,f}, \ms_{S,f}, \ms_S',\overline{\sigma}$ such that
+          \begin{itemize}
+          \item $\ms^{(3)}_S = \ms_{f,S} \uplus \ms_S'$
+          \item $\ms^{(3)}_T = \ms_\var{T,stack} \uplus \ms_\var{T,free\_stack} \uplus \ms_\var{T,heap} \uplus \ms_{T,f}$
+          \item $\memSatStack{\stk,\ms_\var{T,stack}}{W_{\var{stack}}''}$
+          \item $\memSatFStack{\ms^{(3)}_\stk,\ms_\var{T,free\_stack}}{W_{\var{free\_stack}}''}$
+          \item $\npair{(\overline{\sigma},\ms_S',\ms_\var{T,heap})} \in \lrheap(\pwheap)(W_{\var{heap}}'')$
+          \end{itemize}
+        \end{itemize}
+        We will pick the same things to show \ref{eq:ftlr:case:last-mem-sat} with a few changes.
+        We have to show
+        \begin{itemize}
+        \item $\Phi_S^{(4)}.\stk = (\opc_1,\ms_1):: \dots :: (\opc_m,\ms_m)$
+
+          By the memory satisfaction assumption and the change to the stack.
+        \item $\ms^{(3)}_S \uplus \ms^{(3)}_\stk \uplus \ms_{\priv,S}^{(3)} \uplus \ms_1 \uplus \dots \uplus \ms_m \text{ is defined}$
+
+          By the memory satisfaction assumption.
+        \item $W'''_M = W_{\var{stack}}''' \oplus W_{\var{free\_stack}}''' \oplus W_{\var{heap}}'''$
+
+          Define the new worlds to have the ownership of their $W_M''$ counterparts except $W_{\var{stack}}'''$ does not take ownership of the regions used for the safety of addresses $b_\stk',\dots,e_\stk'$.
+          This ownership goes to $W_{\var{free\_stack}}'''$ instead.
+        \item We need to pick partitions of $\ms^{(3)}_T$ and a frame for $\ms^{(3)}_S$.
+          We pick the same as we get from the memory satisfaction assumption except we pick the free stack partition of the target memory to be $\ms_\var{T,free\_stack} \uplus \ms_{\priv,S}^{(3)}$ and the stack partition to be $\ms_\var{T,stack}\setminus \ms_\var{T,stack} | _{\dom(\ms_{\priv,S}^{(3)})}$
+        \item $\ms^{(3)}_S = \ms_{f,S} \uplus \ms_S'$
+
+          By assumption.
+        \item $\ms^{(3)}_T = \ms_\var{T,stack} \uplus \ms_\var{T,free\_stack} \uplus \ms_\var{T,heap} \uplus \ms_{T,f}$
+
+          By assumption and the fact that the only change is that we moved part of the stack to the free stack.
+        \item $\memSatStack{(\opc_1,\ms_1):: \dots :: (\opc_m,\ms_m),\ms_\var{T,stack}\setminus \ms_\var{T,stack} | _{\dom(\ms_{\priv,S}^{(3)})}}{W_{\var{stack}}'''}$
+
+          Follows easily from the private stack satisfaction assumption.
+          The distribution functions from the assumption are simply limited to forget about the now revoked region and extend the world partition to be on $W_M'''$, but with the same ownership as in the one we had in the assumption.
+          All the new partitions are future worlds of the old ones as none of them owned the revoked region (it was owned by $W_R''$).
+        \item $\memSatFStack{\ms^{(3)}_\stk \uplus \ms_{\priv,S}^{(3)},\ms_\var{T,free\_stack} \uplus \ms_\var{T,stack} | _{\dom(\ms_{\priv,S}^{(3)})}}{W_{\var{free\_stack}}'''}$
+
+          From the $\memSatFStack{\ms^{(3)}_\stk,\ms_\var{T,free\_stack}}{W_{\var{free\_stack}}''}$ assumption we get $R_\ms : \dom(\activeReg{W_{\var{free\_stack}}''}) \fun \MemSeg \times \MemSeg$ and $R_W : \dom(\activeReg{W_{\var{free\_stack}}''}.\free) \fun \Worlds$ for which
+          \begin{itemize}
+          \item $\ms^{(3)}_\stk = \biguplus_{r \in \dom(\activeReg{W_{\var{free\_stack}}''.\free})} \pi_1(R_\ms(r))$
+          \item $\ms_\var{T,free\_stack} = \biguplus_{r \in \dom(\activeReg{W_{\var{free\_stack}}''.\free})} \pi_2(R_\ms(r))$
+          \item $\stkb \in \dom(\ms^{(3)}_\stk)$ and $\stkb \in \dom(\ms_\var{T,free\_stack})$
+          \item $W_{\var{free\_stack}}'' \bigoplus_{r \in \dom(\activeReg{W_{\var{free\_stack}}''.\free})} R_W(r)$
+          \item $\forall r \in \dom(\activeReg{W_{\var{free\_stack}}''.\free})\ldotp \npair[n''']{R_\ms(r)} \in W_{\var{free\_stack}}''.\free(r).H \; \xi^{-1}(R_W(r))$
+          \end{itemize}
+          Now pick
+          \[
+            R_\ms'(r) =
+            \begin{cases}
+              (\ms_{\priv,S}^{(3)}|_{\{a'\}} , \ms_\var{T,stack}|_{\{a'\}}) & r_{a'} \in \{r_{b_\stk'}\dots r_{e_\stk'}\}\\
+              R_\ms(r) & \totherwise
+            \end{cases}
+          \]
+          and
+          \[
+            R_W'(r) =
+            \begin{cases}
+              W'''_{a'} & r_{a'} \in \{r_{b_\stk'}\dots r_{e_\stk'}\} \\
+              R_W(r)[\priv.r' \mapsto \revoked,\free.r_{b_\stk'}\dots r_{e_\stk'}\mapsto \stdreg{\{b_\stk'\},\gc}{\spa} \dots \stdreg{\{e_\stk'\},\gc}{\spa}]& \totherwise
+            \end{cases}
+          \]
+          for $W'''_{a'}$ constructed as follows: $W_{\var{stack}}''$ is the part of the world given to the stack judgement in the assumption.
+          This world is split into a number of parts to satisfy the memory interpretation of each frame.
+          Say $W_{top,\var{stack}}''$ is used for the top stack frame in the assumption.
+          The top stack frame is governed by a static region, so by definition it is split into parts that satisfy each of the addresses.
+          That is for $a' \in \{b_\stk' \dots e_\stk'\}$, $W_{a'}''$ is the part that makes the value in memory satisfy the value relation.
+          Now let $W_{a'}'''$ be $W'''$ but with the ownership of $W_{a'}''$
+
+          It is easy to see that the $R_\ms'$ constructs the two memories, and
+          from the assumption, we also get that the base stack address is in there.
+
+          It remains to show
+          \[
+            \forall r \in \dom(\activeReg{W_{\var{free\_stack}}'''.\free}) \in \npair[n''']{R_\ms(r)} \in W_{\var{free\_stack}}'''.\free(r).H \; \xi^{-1}(R_W(r))
+          \]
+          for $r \in \dom(\activeReg{W_{\var{free\_stack}}'''.\free}) \setminus \{r_{b_\stk'}\dots r_{e_\stk'}\}$, it follows from monotonicity of the $H$ (memory interpretation) function.
+          For $r_{a'} \in \{r_{b_\stk'}\dots r_{e_\stk'}\}$, we need to show
+          \[
+            \npair[n''']{(\ms_{\priv,S}^{(3)}(a') , \ms_\var{T,stack}|(a'))} \in \stdreg{\{a\},\gc}{\spa}.H (\xi^{-1}R_W(r_{a'}))
+          \]
+          which amounts to showing $\dom(\ms_{\priv,S}^{(3)}|_{\{a'\}}) = \dom(\ms_\var{T,stack}|_{\{a'\}}) \{a'\}$, which is the case, and
+          \[
+            \npair[n''']{(\ms_{\priv,S}^{(3)}(a') , \ms_\var{T,stack}|(a'))} \in \lrv (W_{a'}''')
+          \]
+          Which follows from Lemma~\ref{lem:monotonicity} and the fact that we have a memory satisfaction assumption in which $\ms_{\priv,S}^{(3)}$ is governed by a standard static region.
+
+        \item $\npair{(\overline{\sigma},\ms_S',\ms_\var{T,heap})} \in \lrheap(\pwheap)(W_{\var{heap}}''')$
+
+          Follows by region interpretation monotonicity and the heap satisfaction assumption.
+        \end{itemize}
+
+        Argue:
+        \[
+          W''' \oplus W'''_R \oplus W'''_M \text{ is defined.}
+        \]
+        This follows from the assumption $W'' \oplus W''_R \oplus W''_M$ and the fact that each of the new worlds is constructed from one of the past worlds and only one of them claims the ownership of the new regions.
       \end{itemize}
     \end{itemize}
 
@@ -1119,6 +1318,20 @@ By Lemma~\ref{lem:ftlr-internal-lemma}, it suffices to show that:
 \item Theorem~\ref{thm:ftlr} holds for all $n'' < n'$:
   Follows from our induction hypothesis since $n' \le n$.
 \end{itemize}
+\end{proof}
+
+\begin{lemma}
+  \label{lem:stack-sat-unchanged-future}
+  If $\pwfree = \pwfree[W']$ and $W' \future W$ and
+  $\memSatFStack{\ms_\stk,\ms_T}{W}$, then $\memSatFStack{\ms_\stk,\ms_T}{W'}$.
+\end{lemma}
+
+\begin{lemma}
+  \label{lem:stdreg-singleton-addr-strat}
+  $\stdreg{\{*\},\gc}{v}$ is address-stratified.
+\end{lemma}
+\begin{proof}
+  Trivial.
 \end{proof}
 
 \begin{lemma}[Unique return seals]

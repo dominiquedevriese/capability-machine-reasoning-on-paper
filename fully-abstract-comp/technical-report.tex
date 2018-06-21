@@ -2128,7 +2128,7 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
     \; \middle| \;
     \begin{array}{l}
       \exists r \in \dom(\pwheap) \ldotp \\
-      \quad \pwheap(r) \nequal \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)} \wedge\\
+      \quad \pwheap(r) \nequal \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb,\gsigrets,\gsigcloss)} \wedge\\
       \quad \dom(\code) \subseteq \ta \wedge [\sigma_\baddr,\sigma_\eaddr] \subseteq (\sigrets\cup\sigcloss) \wedge\\
       \quad \sigrets \subseteq \gsigrets \wedge \sigcloss \subseteq \gsigcloss
     \end{array}
@@ -2143,6 +2143,17 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
     \right\}
   \end{array}
 \]
+
+\begin{lemma}[Untrusted is trusted]
+  \label{lem:untrusted-subset-trust}
+  \begin{itemize}
+  \item $\lrvtrusted(W) \subseteq \lrv(W)$
+  \item $\lrrtrusted(W) \subseteq \lrr(W)$
+  \end{itemize}
+\end{lemma}
+\begin{proof}
+  TODO
+\end{proof}
 
 Note: the case for sub-$\rx$ capabilities in the trusted value relation allows for pointers to trusted code blocks.
 Such pointers will not satisfy the read condition, which requires the standard region, which is defined in terms of the untrusted value relation.
@@ -2321,9 +2332,8 @@ H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
   H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; (\ta,\_,\gsigrets,\gsigcloss) \; \hat{W} =\\
   \left\{\npair{(\code,\code)} \middle|
     \begin{array}{l}
-    \dom(\code) = [\aaddr,\baddr] \wedge \\
-      (\dom(\code) \subseteq \ta \wedge \sigrets \subseteq \gsigrets \wedge \trust = \trusted) \vee \\
-      \quad (\dom(\code)\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted) \wedge \\
+      ((\dom(\code) \subseteq \ta \wedge \sigrets \subseteq \gsigrets \wedge \trust = \trusted) \vee \\
+      \quad (\dom(\code)\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted)) \wedge \\
       \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \code \wedge\\
       \forall a \in \dom(\code)\ldotp\\
       \quad\npair{(\code(a),\code(a))} \in \lrvg{\trust}(\purePart{\xi(\hat{W})})
@@ -2490,8 +2500,7 @@ or the following implications hold.
     \item $\src{\Phi'}(\src{r_\stk}) =
       \src{\stkptr{\_,\stkb,\eaddr_\stk,\aaddr_\stk}}$
     \item $r_1 \neq \rtmp{1}$
-    \item $\Phi'(\pcreg) + \calllen$ and $\Phi'(\rstk)$ behaves reasonably up to
-      $n'-i$ steps
+    \item $\Phi'(\pcreg) + \calllen$ behaves reasonably up to $n'-i$ steps
     \end{itemize}
   \item \emph{Use return seals only for calls, use closure seals appropriately} If
     \begin{itemize}
@@ -2598,14 +2607,14 @@ or the following implications hold.
 
 \begin{lemma}
   \label{lem:codereg-Hsigma-not-lrv}
-  If $\dom(\code) \subseteq \ta$,  $\sigrets \subseteq \gsigrets$, $\sigcloss \subseteq \gsigcloss$, $n > 0$ and $\sigma \in (\sigrets \uplus \sigcloss)$, then $\codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)}.H_\sigma~ \sigma \not\nequal (\lrv \circ \xi)$.
+  If $\dom(\code) \subseteq \ta$,  $\sigrets \subseteq \gsigrets$, $\sigcloss \subseteq \gsigcloss$, $n > 0$ and $\sigma \in (\sigrets \uplus \sigcloss)$, then $\codereg{\sigrets,\sigcloss,\code,(\ta,\stkb,\gsigrets,\gsigcloss)}.H_\sigma~ \sigma \not\nequal (\lrv \circ \xi)$.
 \end{lemma}
 \begin{proof}
   Consider the following two cases:
   \begin{itemize}
   \item $\sigma \in \sigrets$:
 
-    In this case, we have that $\npair[0]{\left(\retptrd(\baddr,\eaddr),((\rw,\linear),\baddr,\eaddr,\baddr-1)\right)}$ is not in $\lrv(\xi(\hat{W}))$, but we can show that it is in $\codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)}.H_\sigma~ \sigma~\hat{W}$ by taking a $\hat{W}$ such that the following hold:
+    In this case, we have that $\npair[0]{\left(\retptrd(\baddr,\eaddr),((\rw,\linear),\baddr,\eaddr,\baddr-1)\right)}$ is not in $\lrv(\xi(\hat{W}))$, but we can show that it is in $\codereg{\sigrets,\sigcloss,\code,(\ta,\stkb,\gsigrets,\gsigcloss)}.H_\sigma~ \sigma~\hat{W}$ by taking a $\hat{W}$ such that the following hold:
     \begin{itemize}
     \item $\sigrets \subseteq \gsigrets$: assumption.
     \item $\dom(\code) \subseteq \ta$: assumption.
@@ -2680,7 +2689,7 @@ or the following implications hold.
   \item $\npair{(w,\_)} \in \lrv(W_w)$
   \item $\memSat{\ms_S,\stk,\ms_\stk,\_}{W_M}$
   \item $\purePart{W_w} \oplus \purePart{W_M}$ is defined
-  \item $\pwheap[W_w](r_\code) \nequal \codereg{\sigrets,\sigcloss,\code,\gc}$
+  \item $\pwheap[W_w](r_\code) \nequal \codereg{\gc}$
   \item $\dom(\code) \subseteq \ta$
   \item $\sigrets \subseteq \gsigrets$ and $\sigcloss \subseteq \gsigcloss$
   \end{itemize}
@@ -2704,7 +2713,7 @@ or the following implications hold.
    
     From $\dom(\pwheap[W_{\var{heap}}](r).H_\sigma) = R_\var{seal}(r)$ and the definedness of all the $\oplus$ operations on worlds, it follows that also $\dom(\pwheap[W_w](r).H_\sigma) = R_\var{seal}(r)$ for all $r$.
 
-    From the facts that $\pwheap[W_w](r_\code) \nequal \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)}$, $\pwheap[W_w].H_\sigma~\sigma \nequal \lrv$, the disjointness of all the $R_{\var{seal}}(r)$, it follows that $r = r_\code$.
+    From the facts that $\pwheap[W_w](r_\code) \nequal \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb,\gsigrets,\gsigcloss)}$, $\pwheap[W_w].H_\sigma~\sigma \nequal \lrv$, the disjointness of all the $R_{\var{seal}}(r)$, it follows that $r = r_\code$.
     However, this contradicts Lemma~\ref{lem:codereg-Hsigma-not-lrv}.
 
   \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\perm \neq 0$, then $[\baddr,\eaddr] \# \ta$:
@@ -2831,7 +2840,7 @@ or the following implications hold.
   \item $\npair{(\reg_S,\_)} \in \lrr(W_w)$
   \item $\memSat{\ms_S,\stk,\ms_\stk,\_}{W_M}$
   \item $\purePart{W_w} \oplus \purePart{W_M}$ is defined
-  \item $\pwheap[W_w](r) \nequal \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)}$
+  \item $\pwheap[W_w](r) \nequal \codereg{\sigrets,\sigcloss,\code,\gc}$
   \item $\dom(\code) \subseteq \ta$
   \item $\sigrets \subseteq \gsigrets$ and $\sigcloss \subseteq \gsigcloss$
   \end{itemize}
@@ -2890,7 +2899,7 @@ or the following implications hold.
     \item $w = \src{\seal{\sigma,\sigma_\baddr,\sigma_\eaddr}}$
     \item $w_T = \seal{\sigma,\sigma_\baddr,\sigma_\eaddr}$ 
     \item $r \in \dom(\pwheap)$
-    \item $\pwheap(r) \nequal \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb)}$
+    \item $\pwheap(r) \nequal \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb,\gsigrets,\gsigcloss)}$
     \item $\dom(\code) \subseteq \ta$ 
     \item $[\sigma_\baddr,\sigma_\eaddr] \subseteq (\sigrets\cup\sigcloss)$ 
     \item $\sigrets \subseteq \gsigrets$
@@ -3253,7 +3262,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 \end{lemma}
 \begin{proof}
   Follows easily from the definitions.
-  In the case for $\execCond$ where $\lin = \linear$, we have a partition of the world into $W = \oplus_{a \in A} W_a(a)$ that we need to convert into a partition $W = \oplus_{a \in A'} W_a'(a)$.
+  In the case for $\execCond{}$ where $\lin = \linear$, we have a partition of the world into $W = \oplus_{a \in A} W_a(a)$ that we need to convert into a partition $W = \oplus_{a \in A'} W_a'(a)$.
   It suffices construct new $W_a'$ by taking $W_a$ but adding $\oplus_{a\in(A\setminus A')}$ to an $W_a(a)$ for an arbitrary $a \in A'$ to make this work.
 \end{proof}
 
