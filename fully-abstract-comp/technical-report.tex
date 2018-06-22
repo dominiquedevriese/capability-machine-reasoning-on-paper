@@ -1268,12 +1268,11 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
   \inference{
     \text{$\mscode$ has no hidden calls}\\
     \sigrets \mathrel{\#} \sigcloss \\
-    \exists d_\sigma : \dom(\mscode) \rightarrow \powerset{\Seal}^3 \ldotp
-    \sigrets = \biguplus_{a \in \dom(\mscode)} \phi_2(d_\sigma(a)) \tand\\
-    \sigrets = \bigcup_{a \in \dom(\mscode)} \phi_1(d_\sigma(a)) \tand\\
-    \sigcloss = \bigcup_{a \in \dom(\mscode)} \phi_3(d_\sigma(a)) \tand\\
+    \exists d_\sigma : \dom(\mscode) \rightarrow \powerset{\Seal} \ldotp
+    \sigrets = \biguplus_{a \in \dom(\mscode)} d_\sigma(a) \tand\\
     \forall a \in \dom(\mscode) \ldotp 
-    \pi_1(d_\sigma(a)),\pi_2(d_\sigma(a)),\pi_3(d_\sigma(a)) \vdash_{\mathrm{comp-code}} \mscode,a
+    \sigrets,d_\sigma(a),\sigcloss \vdash_{\mathrm{comp-code}} \mscode,a\\
+    \exists a \ldotp \mscode(a) = \seal{\sigma_\baddr,\sigma_\eaddr,\_} \wedge [\sigma_\baddr,\sigma_\eaddr] \neq \emptyset
   }{
     \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode
   }
@@ -2468,8 +2467,45 @@ or the following implications hold.
 \end{proof}
 
 \begin{lemma}
+  \label{lem:codereg-H-not-subs-lrv}
+  If
+  \begin{itemize}
+  \item $\dom(\code) \subseteq \ta$
+  \item $\sigrets \subseteq \gsigrets$
+  \item $\sigcloss
+    \subseteq \gsigcloss$
+  \item $n > 0$
+  \item $\sigrets,\sigcloss\vdash\var{code}$
+  \end{itemize}
+  then
+  \begin{equation*}
+    \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb,\gsigrets,\gsigcloss)}.H \not\nsubeq \stdreg{\dom(\code),\gc}{\pure}.H
+  \end{equation*}
+\end{lemma}
+\begin{proof}
+  We show that $\npair[0]{(\code,\code)} \in \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb,\gsigrets,\gsigcloss)}.H~\hat{W}$ but not $\npair[0]{(\code,\code)} \in \stdreg{\dom(\code),\gc}{\pure}.H~\hat{W}$ for a world with only island $\codereg{\sigrets,\sigcloss,\code,(\ta,\stkb,\gsigrets,\gsigcloss)}$ in $\pwfree$ but otherwise empty.
+
+  From $\sigrets,\sigcloss\vdash\var{code}$, we know that there is an $a$ such that $\code(a) = \seal{\sigma_b,\sigma_e,\_}$ with $[\sigma_b,\sigma_e] \neq \emptyset$
+  It follows easily that $\npair[0]{(\code,\code)} \not\in \stdreg{\dom(\code),\gc}{\pure}.H~\hat{W}$ since $\npair[0]{(\code(a),\code(a))} \not\in\lrv(W)$ by definition.
+
+  The fact that $\npair[0]{(\code,\code)} \in \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb,\gsigrets,\gsigcloss)}.H~\hat{W}$ follows from Lemma~\ref{lem:ftlr-component-code-ptrs}.
+\end{proof}
+
+\begin{lemma}
   \label{lem:codereg-Hsigma-not-lrv}
-  If $\dom(\code) \subseteq \ta$,  $\sigrets \subseteq \gsigrets$, $\sigcloss \subseteq \gsigcloss$, $n > 0$ and $\sigma \in (\sigrets \uplus \sigcloss)$, then $\codereg{\sigrets,\sigcloss,\code,(\ta,\stkb,\gsigrets,\gsigcloss)}.H_\sigma~ \sigma \not\nequal (\lrv \circ \xi)$.
+  If
+  \begin{itemize}
+  \item $\dom(\code) \subseteq \ta$
+  \item $\sigrets \subseteq \gsigrets$
+  \item $\sigcloss \subseteq \gsigcloss$
+  \item $n > 0$
+  \item $\sigrets,\sigcloss\vdash\var{code}$
+  \item $\sigma \in (\sigrets \uplus \sigcloss)$
+  \end{itemize}
+  then
+  \begin{equation*}
+    \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb,\gsigrets,\gsigcloss)}.H_\sigma~ \sigma \not\nequal (\lrv \circ \xi)
+  \end{equation*}
 \end{lemma}
 \begin{proof}
   Consider the following two cases:
@@ -2488,15 +2524,15 @@ or the following implications hold.
     It suffices to observe that $\npair[0]{(0,0)} \in \lrv(\xi(\hat{W}))$ but not $\npair[0]{(0,0)} \in \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb,\gsigrets,\gsigcloss)}.H_\sigma~ \sigma~ \hat{W}$.
 
   \item $\sigma \in \sigcloss$:
-    TODO: UPDATE
-
-    This follows easily from the definition of $\codereg{}$ and Lemma~\ref{lem:lrvtrusted-not-nequal-lrvuntrusted}.
+    By definition of $\codereg{}$, it suffices to show an $\npair[0]{(\vsc,\vsc')} \in (\lrvg{\trusted}(W) \setminus \lrv(W))$ with $\exec{\vsc}$.
+    If we take $\vsc=\vsc' = ((\rx,\normal),b,e,a)$ then it suffices to show that we can take $[b,e]$ such that $[b,e] \subseteq \ta$, $\npair{[b,e]} \in\xReadCond{W}$ but not $\npair{[b,e]}\in\readCond{\normal,W}$.
+    Choosing an appropriate world, this follows by definition of $\readCond{}$ and $\xReadCond{}$ from Lemma~\ref{lem:codereg-H-not-subs-lrv}.
   \end{itemize}
 \end{proof}
 
 \begin{lemma}
   \label{lem:codereg-not-read-write}
-  If $n > 0$, $\dom(\code) \subseteq \ta$, $\gc = (\ta,\stkb)$, $\pwheap(r_\code) \nequal \codereg{\sigrets,\sigcloss,\code,\gc}$ and $a \in \dom(\code)$ and $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W}$ and $\sigrets \neq \emptyset$, then
+  If $n > 0$, $\dom(\code) \subseteq \ta$, $\gc = (\ta,\stkb,\gsigrets,\gsigcloss)$, $\pwheap(r_\code) \nequal \codereg{\sigrets,\sigcloss,\code,\gc}$ and $a \in \dom(\code)$ and $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W}$ and $\sigrets \neq \emptyset$, then
   \begin{itemize}
   \item $\npair{\{a\}} \not\in \readCond{\normal,W}$
     % \item $\npair{\{a\}} \not\in \writeCond{\normal,W}$
