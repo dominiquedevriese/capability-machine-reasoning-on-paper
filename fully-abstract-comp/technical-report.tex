@@ -1777,8 +1777,8 @@ Also: the future region relation allows $\spatial$ regions to become $\spatialo$
 
 \begin{lemma}[purePart respects $\oplus$]
   \label{lem:purePart-oplus}
-  For all $W_1,W_2$, we have that $\purePart{W_1\oplus W_2} = \purePart{W_1} \oplus \purePart{W_2}$.
-  Also, the latter is defined when the former is defined (but not necessarily vice versa).
+  For all $W_1,W_2$, we have that $\purePart{W_1\oplus W_2} = \purePart{W_1} \oplus \purePart{W_2} = \purePart{W_1} = \purePart{W_2}$.
+  Also, all worlds in the equations above are defined when $W_1\oplus W_2$ is defined (but not necessarily vice versa).
 \end{lemma}
 \begin{proof}
   Follows from the definition of $\purePart{}$ and $\oplus$.
@@ -2493,19 +2493,18 @@ or the following implications hold.
     \item $\Phi \nstep[i]{\ta,\stkb} \Phi'$
     \item $\Phi'$ points to $\src{\scall{\offpc,\offsigma}{r_1}{r_2}}$ in $\ta$
       for some $\src{r_1}$ and $\src{r_2}$
-    \item $0 < i \le n'$
+    \item $i \le n'$
     \end{itemize}
     Then all of the following hold:
     \begin{itemize}
     \item $\src{\Phi'}(\src{r_\stk}) =
       \src{\stkptr{\_,\stkb,\eaddr_\stk,\aaddr_\stk}}$
     \item $r_1 \neq \rtmp{1}$
-    \item $\Phi'(\pcreg) + \calllen$ behaves reasonably up to $n'-i$ steps
+    \item $\Phi'(\pcreg) + \calllen$ behaves reasonably up to $n'-i - 1$ steps
     \end{itemize}
   \item \emph{Use return seals only for calls, use closure seals appropriately} If
     \begin{itemize}
     \item $\Phi \nstep[i]{\ta,\stkb} \Phi'$
-    \item i > 0
     \item $\src{\Phi'}$ points to $\src{\tcseal{r_1}{r_2}}$ in $\ta$ and $\Phi'(r_1) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$
     \end{itemize}
     Then one of the following holds:
@@ -2514,23 +2513,23 @@ or the following implications hold.
       and $\sigma \in \gsigrets$
     \item $\sigma \in \gsigcloss$ and one of the following holds:
       \begin{itemize}
-      \item $\exec{\Phi'(r_2)}$ and $\Phi'(r_2)$ behaves reasonably up to $n$ steps.
-      \item $\nonExec{\Phi'(r_2)}$ and $\Phi'(r_2)$ is reasonable up to $n$ steps in memory $\Phi'.\ms$ and free stack $\Phi'.\ms_\stk$.
+      \item $\exec{\Phi'(r_2)}$ and $\Phi'(r_2)$ behaves reasonably up to $n' - i - 1$ steps.
+      \item $\nonExec{\Phi'(r_2)}$ and $\Phi'(r_2)$ is reasonable up to $n' - i - 1$ steps in memory $\Phi'.\ms$ and free stack $\Phi'.\ms_\stk$.
       \end{itemize}
     \end{itemize}
   \item \emph{Don't store private stuff...} If
     \begin{itemize}
     \item $\Phi \nstep[i]{\ta,\stkb} \Phi'$
     \item $\src{\Phi'}$ points to $\src{\tstore{r_1}{r_2}}$ in $\ta$, then
-    \item $0 < i \le n'$
+    \item $i \le n'$
     \end{itemize}
-    Then $\Phi.\reg(r_2)$ is reasonable in memory $\Phi'.\mem$ up to $n'-i$ steps
+    Then $\Phi.\reg(r_2)$ is reasonable in memory $\Phi'.\mem$ up to $n'-i -1$ steps
   \item \emph{Don't leak private stuff...} If
     \begin{itemize}
     \item $\Phi \nstep[i]{\ta,\stkb} \Phi' \step \Phi''$
     \item $\src{\Phi'}$ is in $\ta$
     \item $\src{\Phi''}$ is not in $\ta$
-    \item $0 < i \le n'$
+    \item $i \le n'$
     \end{itemize}
     Then $\Phi.\reg(r)$ is reasonable in memory $\Phi'.\mem$ up to $n'-i$ steps for
     all $r$ (including $\pcreg$)
@@ -2579,7 +2578,7 @@ or the following implications hold.
       free stack $\Phi.\ms_\stk$ for all $r \not\in \{\pcreg\}$
     \item $\Phi.\mem$, $\Phi.\ms_\stk$ and $\Phi.\stk$ are all disjoint
     \end{itemize}
-    We have that $\Phi$ is reasonable.
+    We have that $\Phi$ is reasonable up to $n$ steps.
   \end{definition}
 
   \begin{definition}[Reasonable component]
@@ -2871,13 +2870,7 @@ or the following implications hold.
   \label{lem:trusted-and-reasonable-is-untrusted}
   If
   \begin{itemize}
-  % \item $\gc = (\ta,\stkb,\gsigrets,\gsigcloss)$
   \item $\npair{(w,\_)} \in \lrvg{\trusted}(W_w)$
-  % \item $\memSat{\ms_S,\stk,\ms_\stk,\_}{W_M}$
-  % \item $\purePart{W_w} \oplus \purePart{W_M}$ is defined
-  % \item $\pwheap[W_w](r_\code) \nequal \codereg{\sigrets,\sigcloss,\code,\gc}$
-  % \item $\dom(\code) \subseteq \ta$
-  % \item $\sigrets \subseteq \gsigrets$ and $\sigcloss \subseteq \gsigcloss$
   \item $w$ is reasonable up to $n$ steps in memory $\ms_S$ and free stack $\ms_\stk$, with respect to $\code,\ta,\gsigrets,\gsigcloss$.
   \item $\gsigrets \neq \emptyset$
   \item $n > 0$
@@ -2940,19 +2933,17 @@ or the following implications hold.
   \begin{itemize}
   \item \begin{itemize}
     \item $[\baddr,\eaddr] \subseteq \ta$
-    \item $\trust = \trusted$
     \item $({((\rx,\normal),\baddr,\eaddr,\aaddr)}$ behaves reasonably up to $n$ steps.
     \end{itemize}
   \item
     \begin{itemize}
     \item $[\baddr,\eaddr] \mathrel{\#} \ta$
-    \item $\trust = \untrusted$
     \end{itemize}
   \end{itemize}
   Then
   \[
     \npair{\left(\arraycolsep=0pt\array{l}((\rx,\lin),\baddr,\eaddr,\aaddr),\\
-      ((\rx,\lin),\baddr,\eaddr,\aaddr)\endarray\right)} \in \lreg{\trust}(W)
+      ((\rx,\lin),\baddr,\eaddr,\aaddr)\endarray\right)} \in \lre(W)
   \]
 \end{theorem}
 Note: we don't require the readcondition in the trusted case because trusted code pointers point to trusted code blocks which may require seals for trusted seals which are not in the untrusted value relation.
@@ -3238,6 +3229,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \item If $\npair{A} \in \readCond{\normal,W}$, then $\npair{A} \in \readCond{}(\normal, \purePart{W} )$.
   \item If $\npair{A} \in \writeCond{\normal,W}$, then $\npair{A} \in \writeCond{}(\normal,\purePart{W})$
   \item If $\npair{A} \in \execCond{W}$, then $\npair{A} \in \execCond{}(\purePart{W})$
+  \item If $\npair{A} \in \xReadCond{W}$, then $\npair{A} \in \xReadCond{}(\purePart{W} )$.
   \item If $\npair{(w_1,w_2)} \in \lrv(W)$ and ($\nonLinear{w_1}$ or
     $\nonLinear{w_2}$), then
     $\npair{(w_1,w_2)} \in \lrv(H_\sigma,\purePart{W})$.
