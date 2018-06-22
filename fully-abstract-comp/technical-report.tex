@@ -3734,9 +3734,10 @@ The untrusted case can be considered as a back-translation correctness result.
 \end{proof}
 
 \begin{lemma}[Adequacy of execution configuration LR]
+  \label{lem:adequacy}
   If
   \begin{itemize}
-  \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\preceq](W)$
+  \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\preceq,\gc](W)$
   \item $i \leq n$
   \item $\Phi_S \sterm[i]{\gc}$
   \end{itemize}
@@ -3744,7 +3745,7 @@ The untrusted case can be considered as a back-translation correctness result.
 
   Also, if
   \begin{itemize}
-  \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\succeq](W)$
+  \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\succeq,\gc](W)$
   \item $i \leq n$
   \item $\Phi_T \term[i]$,
   \end{itemize}
@@ -3787,6 +3788,7 @@ The untrusted case can be considered as a back-translation correctness result.
 \end{proof}
 
 \begin{lemma}[Compatibility lemma for context plugging]
+  \label{lem:compat-context-plug}
   If $\npair{\stpair{C}{C}}\in\lrcomp(W_1)$ and $\npair{\stpair{P}{P}} \in \lrcomp(W_2)$, then
   $\npair{(\plug{C_S}{P_S},\plug{C_T}{P_T})} \in \lrec(W_1 \uplus W_2)$.
 \end{lemma}
@@ -3967,8 +3969,63 @@ This works perfectly fine, except that the context does not get any well-bracket
   \end{gather*}
 \end{theorem}
 \begin{proof}
-  First, 
-  TODO
+  \begin{itemize}
+  \item Consider first the upward arrow.
+    Assume $\comp{\src{\var{comp}_1}} \tconeq \comp{\src{\var{comp}_2}}$.
+
+    Take a $\src{\context}$ such that $\vdash \src{\context}$, take $\src{\ta[,i]}
+    = \src{\dom(\var{comp}_i.\mscode)}$, $\gsigrets_i = \var{comp}_i.\sigrets$ and
+    $\gsigcloss_i = \var{comp}_i.\sigcloss$, $\gc_i = (\ta[,i],\stkb_i,\gsigrets_i,\gsigcloss_i)$ and we will prove that
+    $\src{\plug{\context}{\var{comp}_1} \sterm{\gc_1}} \Leftrightarrow
+    \src{\plug{\context}{\var{comp}_2} \sterm{\gc_2}}$.
+
+    By symmetry, we can assume w.l.o.g. that $\src{\plug{\context}{\var{comp}_1} \sterm{\gc_1}}$ and prove that $\src{\plug{\context}{\var{comp}_2} \sterm{\gc_2}}$.
+    Note that this implies that $\src{\context}$ is a valid context for both $\src{\var{comp}_1}$ and $\src{\var{comp}_2}$.
+
+    First, we show that also $\plug{\context}{\var{comp}_1} \trg{\term}$.
+    Take $n$ the amount of steps in the termination of $\src{\plug{\context}{\var{comp}_1} \sterm{\gc_1}}$.
+    It follows from Lemma~\ref{lem:ftlr-comps} that $\npair{(\var{comp}_1,\var{comp}_1)} \in \lrcomp[\preceq,\gc_1](W_1)$ for some $W_1$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
+    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair{(\context,\context)} \in \lrcomp[\preceq,\gc_1](W_1')$ for some $W_1'$ that we can choose such that $W_1 \uplus W_1'$ is defined.
+    Lemma~\ref{lem:compat-context-plug} then tells us that $\npair{(\plug{\context}{\var{comp}_1}, \plug{\context}{\var{comp}_1})} \in \lrec[\preceq,\gc_1](W_1\uplus W_1')$
+    Together with $\src{\plug{\context}{\var{comp}_1} \sterm[n]{\gc_1}}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_1} \trg{\term}$.
+
+    It follows from $\comp{\src{\var{comp}_1}} \tconeq \comp{\src{\var{comp}_2}}$ that also $\plug{\context}{\var{comp}_2} \trg{\term}$.
+
+    It now remains to show that also $\src{\plug{\context}{\var{comp}_2} \sterm{\gc_2}}$.
+    Take $n'$ the amount of steps in the termination of $\plug{\context}{\var{comp}_2} \trg{\term}$.
+    It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n']{(\var{comp}_2,\var{comp}_2)} \in \lrcomp[\succeq,\gc_2](W_2)$ for some $W_2$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
+    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n']{(\context,\context)} \in \lrcomp[\succeq,\gc_2](W_2')$ for some $W_2'$ that we can choose such that $W_2 \uplus W_2'$ is defined.
+    Lemma~\ref{lem:compat-context-plug} then tells us that $\npair[n']{(\plug{\context}{\var{comp}_2}, \plug{\context}{\var{comp}_2})} \in \lrec[\succeq,\gc_2](W_2\uplus W_2')$
+    Together with $\plug{\context}{\var{comp}_2} \trg{\term[n']}$, Lemma~\ref{lem:adequacy} then tells us that $\src{\plug{\context}{\var{comp}_2} \sterm{\gc_2}}$, concluding this direction of the proof.
+
+  \item The downward arrow is similar.
+
+    Assume $\src{\var{comp}_1} \sconeq \src{\var{comp}_2}$.
+    Take $\src{\ta[,i]} = \src{\dom(\var{comp}_i.\mscode)}$, $\gsigrets_i = \var{comp}_i.\sigrets$ and $\gsigcloss_i = \var{comp}_i.\sigcloss$, $\gc_i = (\ta[,i],\stkb_i,\gsigrets_i,\gsigcloss_i)$.
+
+    Take a $\trg{\context}$ such that $\vdash \trg{\context}$ and we will prove that
+    $\trg{\plug{\context}{\var{comp}_1} \term} \Leftrightarrow
+    \trg{\plug{\context}{\var{comp}_2} \term}$.
+
+    By symmetry, we can assume w.l.o.g. that $\trg{\plug{\context}{\var{comp}_1} \term}$ and prove that $\trg{\plug{\context}{\var{comp}_2} \term}$.
+    Note that this implies that $\trg{\context}$ is a valid context for both $\trg{\var{comp}_1}$ and $\trg{\var{comp}_2}$.
+
+    First, we show that also $\plug{\context}{\var{comp}_1} \src{\sterm{\gc_1}}$.
+    Take $n$ the amount of steps in the termination of $\plug{\context}{\var{comp}_1} \trg{\term}$.
+    It follows from Lemma~\ref{lem:ftlr-comps} that $\npair{(\var{comp}_1,\var{comp}_1)} \in \lrcomp[\succeq,\gc_1](W_1)$ for some $W_1$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
+    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair{(\context,\context)} \in \lrcomp[\succeq,\gc_1](W_1')$ for some $W_1'$ that we can choose such that $W_1 \uplus W_1'$ is defined.
+    Lemma~\ref{lem:compat-context-plug} then tells us that $\npair{(\plug{\context}{\var{comp}_1}, \plug{\context}{\var{comp}_1})} \in \lrec[\succeq,\gc_1](W_1\uplus W_1')$
+    Together with $\plug{\context}{\var{comp}_1} \trg{\term[n]}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_1} \src{\sterm{\gc_1}}$.
+
+    It follows from $\src{\var{comp}_1} \sconeq \src{\var{comp}_2}$ that also $\plug{\context}{\var{comp}_2} \src{\sterm{\gc_2}}$.
+
+    It now remains to show that also $\plug{\context}{\var{comp}_2} \trg{\term}$.
+    Take $n'$ the amount of steps in the termination of $\plug{\context}{\var{comp}_2} \src{\sterm{\gc_2}}$.
+    It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n']{(\var{comp}_2,\var{comp}_2)} \in \lrcomp[\preceq,\gc_2](W_2)$ for some $W_2$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
+    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n']{(\context,\context)} \in \lrcomp[\preceq,\gc_2](W_2')$ for some $W_2'$ that we can choose such that $W_2 \uplus W_2'$ is defined.
+    Lemma~\ref{lem:compat-context-plug} then tells us that $\npair[n']{(\plug{\context}{\var{comp}_2}, \plug{\context}{\var{comp}_2})} \in \lrec[\preceq,\gc_2](W_2\uplus W_2')$
+    Together with $\plug{\context}{\var{comp}_2} \trg{\term[n']}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_2} \trg{\term}$, concluding the second direction of the proof.
+  \end{itemize}
 \end{proof}
 
 \section{Lemmas}
