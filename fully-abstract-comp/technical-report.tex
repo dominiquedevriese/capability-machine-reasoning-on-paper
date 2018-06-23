@@ -33,7 +33,7 @@
   \begin{array}{rrcl}
    \addrbnf,\basebnf \in & \Addr & \defeq & \nats \\
     \sealbasebnf, \sigma \in & \Seal & \defeq & \nats \\
-    &\Word & \defeq & \ints \uplus \Caps\\
+    w \in &\Word & \defeq & \ints \uplus \Caps\\
     \permbnf \in& \Perm & \defbnf & \dots \\
     &\linbnf & \defbnf & \linear \mid \normal \\
     &\aendbnf & \in & \Addr \uplus \{\infty \} \\
@@ -1245,6 +1245,9 @@ It contains code memory, data memory a list of imported symbols, a list of expor
 
 We define a component as follows:
 \begin{align*}
+  s &\in \Symbol\\
+  \var{import} &\mathrel{::=} a \mapsfrom s\\
+  \var{export} &\mathrel{::=} s \mapsto w\\
   \var{comp}_0 &\mathrel{::=} (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss,A_\linear)\\
   \var{comp} &\mathrel{::=} \var{comp}_0\\
                &\mid  (\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})
@@ -1281,13 +1284,7 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
 \begin{mathpar}
   \inference{
   }{
-    A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} z
-  }
-  \and
-  \inference{
-    c \in \overline{c_{\mathrm{import}}}
-  }{
-    A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} c
+    A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} z
   }
   \and
   \inference{
@@ -1295,14 +1292,14 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
     \lin = \linear \Rightarrow \emptyset \subset [\baddr,\eaddr] \subseteq A_{\mathrm{own}} &
     \lin = \normal \Rightarrow [\baddr,\eaddr] \subseteq A_{\mathrm{non-linear}}
   }{
-    A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} ((\perm,\lin),\baddr,\eaddr,\aaddr)
+    A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} ((\perm,\lin),\baddr,\eaddr,\aaddr)
   }
   \and
   \inference{
-    A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \vsc \\
+    A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \vsc \\
     \sigma \in \sigcloss
   }{
-    A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \sealed{\sigma,\vsc}
+    A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \sealed{\sigma,\vsc}
   }
 \end{mathpar}
 
@@ -1311,13 +1308,13 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
     [\baddr,\eaddr] \subseteq A_{\mathrm{code}} & 
     \sigma \in \sigcloss
   }{
-    A_{\mathrm{code}},A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-export}} \sealed{\sigma,((\rx,\normal),\baddr,\eaddr,\aaddr)}
+    A_{\mathrm{code}},A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-export}} s \mapsto \sealed{\sigma,((\rx,\normal),\baddr,\eaddr,\aaddr)}
   }
   \and
   \inference{
-    A_{\mathrm{code}},\emptyset,A_{\mathrm{non-linear}},\emptyset,\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} w
+    A_{\mathrm{code}},\emptyset,A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} w
   }{
-    A_{\mathrm{code}},A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-export}} w
+    A_{\mathrm{code}},A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-export}} s \mapsto w
   }
 \end{mathpar}
 
@@ -1328,17 +1325,18 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
     \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode \\
     \exists A_\mathrm{own} : \dom(\msdata) \rightarrow \powerset{\dom(\msdata)} & \dom(\msdata) = A_{\mathrm{non-linear}} \uplus A_\linear \\
     A_\linear = \biguplus_{a \in \dom(\msdata)} A_{\mathrm{own}}(a) \\
-    \forall a \in \dom(\msdata)\ldotp \dom(\mscode),A_{\mathrm{own}}(a),A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \msdata(a)\\
-    \overline{\dom(\mscode), A_{\mathrm{non-linear}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-export}} c_{\mathrm{export}}}\\
-    \overline{c_{\mathrm{export}}} \mathrel{\#} \overline{c_{\mathrm{import}}} & (\dom(\mscode) \subseteq \ta) \vee (\dom(\mscode) \mathrel{\#} \ta \wedge \sigrets = \emptyset)&
+    \forall a \in \dom(\msdata)\ldotp \dom(\mscode),A_{\mathrm{own}}(a),A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \msdata(a)\\
+    \overline{\var{export}} = \overline{s_{\mathrm{export}} \mapsto w_{\mathrm{export}}} & \overline{\var{import}} = \overline{a_{\mathrm{import}} \mapsfrom s_{\mathrm{import}}}& \{\overline{a_{\mathrm{import}}}\} \subseteq \dom(\msdata)\\
+    \overline{\dom(\mscode), A_{\mathrm{non-linear}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-export}} w_{\mathrm{export}}}\\
+    \overline{s_{\mathrm{import}}} \mathrel{\#} \overline{s_{\mathrm{export}}} & (\dom(\mscode) \subseteq \ta) \vee (\dom(\mscode) \mathrel{\#} \ta \wedge \sigrets = \emptyset)&
     \dom(\msdata) \mathrel{\#} \ta
   }{
-    \vdash (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss,A_\linear)
+    \vdash (\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
   }
   \and
   \inference{
-    \var{comp}_0 = (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss,A_\linear)\\
-    \vdash \var{comp}_0 & c_{\mathrm{main},c}, c_{\mathrm{main},d} \in \overline{c_{\mathrm{export}}}
+    \var{comp}_0 = (\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)\\
+    \vdash \var{comp}_0 & (\_ \mapsto c_{\mathrm{main},c}), (\_ \mapsto c_{\mathrm{main},d}) \in \overline{\var{export}}
   }{
     \vdash (\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})
   }
@@ -1368,10 +1366,10 @@ where the following definition is used
     \var{comp}_1 = (\mscode[1], \msdata[1], \overline{c_{\mathrm{import},1}}, \overline{c_{\mathrm{export},1}}, \sigrets[1], \sigcloss[1],A_{\linear,1})\\
     \var{comp}_2 = (\mscode[2], \msdata[2], \overline{c_{\mathrm{import},2}}, \overline{c_{\mathrm{export},2}}, \sigrets[2], \sigcloss[2],A_{\linear,2})\\
     \var{comp}_3 = (\mscode[3], \msdata[3], \overline{c_{\mathrm{import},3}}, \overline{c_{\mathrm{export},3}}, \sigrets[3], \sigcloss[3],A_{\linear,3})\\
-    \mscode[3] = \mscode[1] \uplus \mscode[2] &
-    \msdata[3] = \msdata[1] \uplus \msdata[2] \\
-    \overline{c_{\mathrm{export},3}} = \overline{c_{\mathrm{export},1}} \cup \overline{c_{\mathrm{export},2}}&
-    \overline{c_{\mathrm{import},3}} = (\overline{c_{\mathrm{import},1}} \cup \overline{c_{\mathrm{import},2}}) \setminus \overline{c_{\mathrm{export},3}}\\
+    \mscode[3] = \mscode[1] \uplus \mscode[2] \\
+    \msdata[3] = (\msdata[1] \uplus \msdata[2])[a \mapsto w \mid (a \mapsfrom s) \in (\overline{\var{import}_1} \cup \overline{\var{import}_2}), (s \mapsto w) \in \overline{\var{export}}_3] \\
+    \overline{\var{export}_3} = \overline{\var{export}_1} \cup \overline{\var{export}_2}&
+    \overline{\var{import}_3} = \{ a \mapsfrom s \in (\overline{\var{import}_1} \cup \overline{\var{import}_2}) \mid s \mapsto \_ \not\in \overline{\var{export}_3} \}\\
     \sigrets[3] = \sigrets[1] \uplus \sigrets[2] &
     \sigcloss[3] = \sigcloss[1] \uplus \sigcloss[2] &
     A_{\linear,3} = A_{\linear,1} \uplus A_{\linear,2}\\
@@ -1430,9 +1428,9 @@ A context for a given component is any other component that can be linked with i
       \range{\ms_\stk} = \{0\}&
       \mem = \mscode \uplus \msdata \trg{\;\uplus\; \ms_\stk} \\
       [\baddr_\stk,\eaddr_\stk] = \dom(\ms_\stk ) \mathrel{\#} (\dom(\mscode) \cup \dom(\msdata)) &
-      \overline{c_{\mathrm{import}}} = \emptyset
+      \overline{\var{import}} = \emptyset
     }{
-      ((\mscode, \msdata, \overline{c_{\mathrm{import}}}, \overline{c_{\mathrm{export}}}, \sigrets, \sigcloss,A_\linear),  c_{\mathrm{main},c}, c_{\mathrm{main},d}) \rightsquigarrow (\mem, \reg\src{, \emptyset, \ms_\stk})
+      ((\mscode, \msdata, \overline{\var{import}}, \overline{\var{export}}, \sigrets, \sigcloss,A_\linear),  c_{\mathrm{main},c}, c_{\mathrm{main},d}) \rightsquigarrow (\mem, \reg\src{, \emptyset, \ms_\stk})
     }
   \end{mathpar}
 \end{definition}
@@ -2345,7 +2343,7 @@ or the following implications hold.
   \begin{itemize}
   \item If $w = \seal{\sigma_\baddr,\sigma_\eaddr,\_}$, then
     $[\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\gsigrets \cup \gsigcloss)$
-  \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\gsigrets \neq \emptyset$, then $[\baddr,\eaddr] \# \dom(\ta)$
+  \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$, then $[\baddr,\eaddr] \# \dom(\ta)$
   \item If $w = \sealed{\sigma,\vsc}$ and $\sigma \not\in (\gsigrets\cup
     \gsigcloss)$ then $\vsc$ is reasonable up to $n - 1$ steps.
   \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\perm \in \readAllowed{}$
@@ -2459,10 +2457,13 @@ or the following implications hold.
   \begin{definition}[Reasonable component]
     \label{def:reasonable-component}
     We say that a component
-    $(\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss,A_\linear)$
-    is reasonable if the following hold: For all $\sealed{\sigma,\vsc} \in
+    $(\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)$
+    is reasonable if the following hold: For all $(s \mapsto \sealed{\sigma,\vsc}) \in
     \overline{c_{\mathrm{export}}}$, with $\exec{\vsc}$, we have that $\vsc$
     behaves reasonably up to any number of steps $n$.
+
+    We say that a component
+    $(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})$ is reasonable if $\var{comp}_0$ is reasonable.
     % \lau{Is this reasonable as a word? In that case, it should  mention the
     %   memory and free stack.}
     % \dominique{No: this is reasonable as a pc.}
@@ -2915,18 +2916,19 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \lrcomp(W) &=
   \left\{\begin{aligned}
      &\npair{\var{comp},\var{comp}} \;\mid \;\\
-      &\qquad\var{comp} = (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss) \tand \\
+      &\qquad\var{comp} = (\mscode,\msdata,\overline{a_{\mathrm{import}} \mapsfrom s_{\mathrm{import}}},\overline{s_{\mathrm{export}} \mapsto w_{\mathrm{export}}},\sigrets,\sigcloss) \tand \\
       &\qquad\text{For all } W' \future W \ldotp \\
-      &\qquad\quad\text{If } \overline{\npair[n']{(c_{\mathrm{import}},c_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$}\\
-      &\qquad\quad\text{then } \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata, \mscode\uplus\msdata)} \in \lrheap(\pwheap)(W') \tand\\
-      &\qquad\quad\overline{\npair{(c_{\mathrm{export}},c_{\mathrm{export}})}} \in \lrv(\purePart{W'})
+      &\qquad\quad\text{If } \overline{\npair[n']{(w_{\mathrm{import}},w_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$}\\
+      &\qquad\quad\text{and } \msdata' = \msdata{}[\overline{a_{\mathrm{import}} \mapsto w_{\mathrm{import}}}] \\
+      &\qquad\quad\text{then } \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata', \mscode\uplus\msdata')} \in \lrheap(\pwheap)(W') \tand\\
+      &\qquad\quad\overline{\npair{(w_{\mathrm{export}},w_{\mathrm{export}})}} \in \lrv(\purePart{W'})
   \end{aligned}
     \right\}\\
   &\cup \left\{
     \begin{multlined}
      \npair{(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d}),(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})} \;\mid \;\\
      \npair{(\var{comp}_0,\var{comp}_0)} \in \lrcomp(W) \tand\\
-     \{c_{\mathrm{main},c},c_{\mathrm{main},d}\} \subseteq \overline{c_{\mathrm{export}}}
+     \{(\_ \mapsto c_{\mathrm{main},c}),(\_ \mapsto c_{\mathrm{main},d})\} \subseteq \overline{w_{\mathrm{export}}}
        \end{multlined}
     \right\} 
 \end{align*}
@@ -2951,13 +2953,13 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 
   By definition of $\bowtie$, we have that the following hold:
   \begin{itemize}
-  \item $\var{comp}_1 = (\mscode[1], \msdata[1], \overline{c_{\mathrm{import},1}}, \overline{c_{\mathrm{export},1}}, \sigrets[1], \sigcloss[1],A_{\linear,1})$
-  \item $\var{comp}_2 = (\mscode[2], \msdata[2], \overline{c_{\mathrm{import},2}}, \overline{c_{\mathrm{export},2}}, \sigrets[2], \sigcloss[2],A_{\linear,2})$
-  \item $\var{comp}_3 = (\mscode[3], \msdata[3], \overline{c_{\mathrm{import},3}}, \overline{c_{\mathrm{export},3}}, \sigrets[3], \sigcloss[3],A_{\linear,3})$
+  \item $\var{comp}_1 = (\mscode[1], \msdata[1], \overline{\var{import}_1}, \overline{\var{export}_1}, \sigrets[1], \sigcloss[1],A_{\linear,1})$
+  \item $\var{comp}_2 = (\mscode[2], \msdata[2], \overline{\var{import}_2}, \overline{\var{export}_2}, \sigrets[2], \sigcloss[2],A_{\linear,2})$
+  \item $\var{comp}_3 = (\mscode[3], \msdata[3], \overline{\var{import}_3}, \overline{\var{export}_3}, \sigrets[3], \sigcloss[3],A_{\linear,3})$
   \item $\mscode[3] = \mscode[1] \uplus \mscode[2]$
-  \item $\msdata[3] = \msdata[1] \uplus \msdata[2]$
-  \item $\overline{c_{\mathrm{export},3}} = \overline{c_{\mathrm{export},1}} \cup \overline{c_{\mathrm{export},2}}$
-  \item $\overline{c_{\mathrm{import},3}} = (\overline{c_{\mathrm{import},1}} \cup \overline{c_{\mathrm{import},2}}) \setminus \overline{c_{\mathrm{export},3}}$
+  \item $\msdata[3] = (\msdata[1] \uplus \msdata[2])[a \mapsto w \mid (a \mapsfrom s) \in (\overline{\var{import}_1} \cup \overline{\var{import}_2}), (s \mapsto w) \in \overline{\var{export}}_3]$
+  \item $\overline{\var{export}_3} = \overline{\var{export}_1} \cup \overline{\var{export}_2}$
+  \item $\overline{\var{import}_3} = \{ a \mapsfrom s \in (\overline{\var{import}_1} \cup \overline{\var{import}_2}) \mid s \mapsto \_ \not\in \overline{\var{export}_3} \}$
   \item $\sigrets[3] = \sigrets[1] \uplus \sigrets[2]$
   \item $\sigcloss[3] = \sigcloss[1] \uplus \sigcloss[2]$
   \item $A_{\linear,3} = A_{\linear,1} \uplus A_{\linear,2}$
@@ -2965,10 +2967,12 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \item $\sigrets[3] \mathrel{\#} \sigcloss[3]$
   \end{itemize}
 
-  Now take $W' \future (W_1\uplus W_2)$ and assume that $\overline{\npair[n']{(c_{\mathrm{import},3},c_{\mathrm{import},3})}} \in \lrv(\purePart{W'})$ for all $n' < n$.
+  Now take $W' \future (W_1\uplus W_2)$ and assume that $\overline{\npair[n']{(w_{\mathrm{import},3},w_{\mathrm{import},3})}} \in \lrv(\purePart{W'})$ for all $n' < n$.
+  Take $\overline{\var{import}_3} = \overline{a_{\mathrm{import},3} \mapsfrom s_{\mathrm{import},3}}$.
+  Take $\msdata[3]' = \msdata[3]{}[\overline{a_{\mathrm{import},3} \mapsto w_{\mathrm{import}}}]$
   Then it remains to show that
   \begin{equation*}
-    \npair{(\sigrets[3]\uplus\sigcloss[3],\mscode[3]\uplus \msdata[3], \mscode[3]\uplus\msdata[3])} \in \lrheap(\pwheap[(W_1\uplus W_2)])(W')
+    \npair{(\sigrets[3]\uplus\sigcloss[3],\mscode[3]\uplus \msdata[3]', \mscode[3]\uplus\msdata[3]')} \in \lrheap(\pwheap[(W_1\uplus W_2)])(W')
   \end{equation*}
   and
   \begin{equation*}
@@ -2976,36 +2980,32 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \end{equation*}
   We do this by complete induction on $n$, so that we can assume that $\overline{\npair[n']{(c_{\mathrm{export},3},c_{\mathrm{export},3})}} \in \lrv(\purePart{W'})$ for all $n' < n$.
 
-  First, we prove that
+  First, note that
+  \begin{align*}
+    \msdata[3]' &= \msdata[3]{}[\overline{a_{\mathrm{import},3} \mapsto w_{\mathrm{import}}}]\\
+                &=(\msdata[1] \uplus \msdata[2])[a \mapsto w \mid (a \mapsfrom s) \in (\overline{\var{import}_1} \cup \overline{\var{import}_2}), (s \mapsto w) \in \overline{\var{export}}_3]\\
+                  &\hspace{4cm}[\overline{a_{\mathrm{import},3} \mapsto w_{\mathrm{import}}}]\\
+                &= \msdata[1][a \mapsto w \mid (a \mapsfrom s) \in \overline{\var{import}_1}, (s \mapsto w) \in \overline{\var{export}}_2][\overline{a_{\mathrm{import},3} \mapsto w_{\mathrm{import},3}} \mid \overline{a_{\mathrm{import},3}\mapsfrom \_} \in \overline{\var{import}_1}]\\
+                &\uplus \msdata[2][a \mapsto w \mid (a \mapsfrom s) \in \overline{\var{import}_2}, (s \mapsto w) \in \overline{\var{export}}_1][\overline{a_{\mathrm{import},3} \mapsto w_{\mathrm{import},3}} \mid \overline{a_{\mathrm{import},3}\mapsfrom \_} \in \overline{\var{import}_2}]\\
+                &= \msdata[1]' \uplus \msdata[2]'
+  \end{align*}
+  
+  First, we prove that for all substituted values $w$ in the equations above, we have that
   \begin{equation*}
-    \overline{\npair[n']{(c_{\mathrm{import},1},c_{\mathrm{import},1})}} \in \lrv(\purePart{W'})
-  \end{equation*}
-  and
-  \begin{equation*}
-    \overline{\npair[n']{(c_{\mathrm{import},2},c_{\mathrm{import},2})}} \in \lrv(\purePart{W'})
+    \overline{\npair[n']{(w,w)}} \in \lrv(\purePart{W'})
   \end{equation*}
   for all $n' < n$.
-  Simple set algebra tells us that 
-  \begin{equation*}
-    \overline{c_{\mathrm{import},1}} \cup \overline{c_{\mathrm{import},2}} \subseteq \overline{c_{\mathrm{export},3}} \cup \overline{c_{\mathrm{import},3}}
-  \end{equation*}
-  and for all $n' < n$, we know that
-  \begin{equation*}
-    \overline{\npair[n']{(c_{\mathrm{import},3},c_{\mathrm{import},3})}} \in \lrv(\purePart{W'})
-  \end{equation*}
-  and
-  \begin{equation*}
-    \overline{\npair[n']{(c_{\mathrm{export},3},c_{\mathrm{export},3})}} \in \lrv(\purePart{W'})\text{.}
-  \end{equation*}
+  We know by assumption that this is true for the $\overline{w_{\mathrm{import}}}$ such that $\overline{a_{\mathrm{import},3}\mapsfrom \_} \in \overline{\var{import}_1}$ or $\overline{a_{\mathrm{import},3}\mapsfrom \_} \in \overline{\var{import}_2}$.
+  On the other hand, we know by induction that this is true for the $w$ such that $(s \mapsto w) \in \overline{\var{export}}_1$ or $(s \mapsto w) \in \overline{\var{export}}_2$.
   
-  Then, it follows from our assumptions ($\npair{(\var{comp}_1,\var{comp}_1)} \in \lrcomp(W_1)$ and $\npair{(\var{comp}_2,\var{comp}_2)} \in \lrcomp(W_2)$) that
+  Then, it follows from our assumptions ($\npair{(\var{comp}_1,\var{comp}_1)} \in \lrcomp(W_1)$ and $\npair{(\var{comp}_2,\var{comp}_2)} \in \lrcomp(W_2)$), and using Lemma~\ref{lem:uplus-future} that
   \begin{align*}
-    \npair{(\sigrets[1]\uplus\sigcloss[1],\mscode[1]\uplus \msdata[1], \mscode[1]\uplus\msdata[1])} &\in \lrheap(\pwheap[W_1])(W')\\
-    \npair{(\sigrets[2]\uplus\sigcloss[2],\mscode[2]\uplus \msdata[2], \mscode[2]\uplus\msdata[2])} &\in \lrheap(\pwheap[W_2])(W')
+    \npair{(\sigrets[1]\uplus\sigcloss[1],\mscode[1]\uplus \msdata[1]', \mscode[1]\uplus\msdata[1]')} &\in \lrheap(\pwheap[W_1])(W')\\
+    \npair{(\sigrets[2]\uplus\sigcloss[2],\mscode[2]\uplus \msdata[2]', \mscode[2]\uplus\msdata[2]')} &\in \lrheap(\pwheap[W_2])(W')
   \end{align*}
   It follows by Lemma~\ref{lem:combined-memory-disjoint-world} that 
   \begin{equation*}
-    \npair{(\sigrets[3]\uplus\sigcloss[3],\mscode[3]\uplus \msdata[3], \mscode[3]\uplus\msdata[3])} \in \lrheap(\pwheap[(W_1\uplus W_2)])(W')
+    \npair{(\sigrets[3]\uplus\sigcloss[3],\mscode[3]\uplus \msdata[3]', \mscode[3]\uplus\msdata[3]')} \in \lrheap(\pwheap[(W_1\uplus W_2)])(W')
   \end{equation*}
   
   Finally, for each
@@ -3253,7 +3253,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \label{lem:ftlr-comp-value}
   If
   \begin{equation*}
-    \dom(\mscode), A_{\mathrm{own}}, A_{\mathrm{non-linear}}, \overline{c_{\mathrm{import}}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-value}} w
+    \dom(\mscode), A_{\mathrm{own}}, A_{\mathrm{non-linear}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-value}} w
   \end{equation*}
   and
   \begin{itemize}
@@ -3263,8 +3263,6 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \item $\npair{A_{\mathrm{own}}} \in \writeCond{\linear,W}$
   \item $\pwheap(r_{\mathrm{code}}) = \codereg{\sigrets,\sigcloss,\mscode,\gc}$
   \item $\dom(\mscode) \mathrel{\#} \ta$ or $\dom(\mscode) \subseteq \ta$
-  \item $\npair[n']{(c_{\mathrm{import}},c_{\mathrm{import}})} \in \lrv(\purePart{W})$ for all $n' < n$
-  \item $w \not\in \overline{c_{\mathrm{import}}}$
   \item $(A_{\mathrm{own}} \cup A_{\mathrm{non-linear}}) \mathrel{\#} \ta$
   \end{itemize}
 
@@ -3273,12 +3271,11 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 \begin{proof}
   By induction on the judgement 
   \begin{equation*}
-    \dom(\mscode), A_{\mathrm{own}}, A_{\mathrm{non-linear}}, \overline{c_{\mathrm{import}}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-value}} w
+    \dom(\mscode), A_{\mathrm{own}}, A_{\mathrm{non-linear}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-value}} w
   \end{equation*}
   We have the following cases:
   \begin{itemize}
   \item $w = z$: result follows trivially
-  \item $w = c$, $c \in \overline{c_{\mathrm{import}}}$: contradicts assumption.
   \item $w = ((\perm,\lin),\baddr,\eaddr,\aaddr)$,
     $\permbnf \sqsubseteq \rw$,
     $\lin = \linear \Rightarrow \emptyset \subset [\baddr,\eaddr] \subseteq A_{\mathrm{own}}$ and
@@ -3289,12 +3286,11 @@ Note: we don't require the readcondition in the trusted case because trusted cod
     
   \item $w = \sealed{\sigma,\vsc}$ and
     \begin{equation*}
-      \dom(\mscode),A_{\mathrm{own}},A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \vsc
+      \dom(\mscode),A_{\mathrm{own}},A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \vsc
     \end{equation*}
     and $\sigma \in \sigcloss$:
 
-    First, we have that $\npair{(\vsc,\vsc)} \in \lrv (W)$.
-    This follows by induction (if $\vsc \not\in \overline{c_{\mathrm{import}}}$) or by assumption (if $\vsc \in \overline{c_{\mathrm{import}}}$).
+    First, we have by induction that $\npair{(\vsc,\vsc)} \in \lrv (W)$.
 
     By definition of $\lrv$ and by choosing island $r = r_{\mathrm{code}}$, it suffices to prove that
     \begin{itemize}
@@ -3363,9 +3359,9 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \item $\npair{A_{\mathrm{non-linear}}} \in \writeCond{\normal,W}$
   \item $\pwheap(r_{\mathrm{code}}) = \codereg{\sigrets,\sigcloss,\mscode,\gc}$
   \item $\dom(\mscode) \mathrel{\#} \ta$ or $\dom(\mscode) \subseteq \ta$
-  \item If $w = \sealed{\sigma,\vsc}$ with $\sigma \in \sigcloss$ and $\exec{\vsc}$, then
-  \item $A_{\mathrm{non-linear}}\mathrel{\#} \ta$
+  \item If $w = \sealed{\sigma,\vsc}$ with $\dom(\mscode) \subseteq \ta$, $\sigma \in \sigcloss$ and $\exec{\vsc}$, then
     $\vsc$ behaves reasonably up to $n$ steps.
+  \item $A_{\mathrm{non-linear}}\mathrel{\#} \ta$
   \end{itemize}
 
   then $\npair{(w,w)} \in \lrv(W)$
@@ -3403,7 +3399,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 
       % As above, it follows from Lemma~\ref{lem:ftlr-component-code-ptrs}, using Lemma~\ref{lem:downwards-closed} and the definition of $\xReadCond{}$ with the assumption that $\pwheap(r_{\mathrm{code}}) = \codereg{\sigrets,\sigcloss,\mscode,\gc}$ that $\npair{(\vsc,\vsc)} \in \lrvg{\trust}(\purePart{W})$.
 
-      From one of our assumptions, we know that $\vsc$ behaves reasonably up to $n$ steps.
+      From one of our assumptions, we know that $\vsc$ behaves reasonably up to $n$ steps if $\dom(\mscode)\subseteq \ta$.
 
       Theorem~\ref{thm:ftlr} now tells us that $\npair{(\vsc,\vsc)} \in \lre(\purePart{W})$, using the definition of $\xReadCond{}$ and the assumption that $\pwheap(r_{\mathrm{code}}) = \codereg{\sigrets,\sigcloss,\mscode,\gc}$.
 
@@ -3418,7 +3414,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 
   \item
     \begin{equation*}
-      \dom(\mscode),\emptyset,A_{\mathrm{non-linear}},\emptyset,\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} w
+      \dom(\mscode),\emptyset,A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} w
     \end{equation*}
 
     In this case, the result follows from Lemma~\ref{lem:ftlr-comp-value}, using the fact that $\readCond$ and $\writeCond$ follow trivially for the empty $A_{\mathrm{own}}$ and a similar observation about the empty imports.
@@ -3426,14 +3422,14 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 \end{proof}
 
 \begin{lemma}[FTLR for components]
+  \label{lem:ftlr-comps}
   If
   \begin{itemize}
-  \item $\gc = (\ta,\stkb)$
+  \item $\gc = (\ta,\stkb,\gsigrets,\gsigcloss)$
   \item $\var{comp}$ is a well-formed component, i.e. $\vdash \var{comp}$
   \item One of the following holds:
     \begin{itemize}
-    \item $\var{comp}$ is a reasonable component (see
-      Section~\ref{sec:reas-comp}) and $\dom(\var{comp}.\mscode) \subseteq \ta$
+    \item $\dom(\var{comp}.\mscode) \subseteq \ta$ and $\var{comp}$ is a reasonable component (see Section~\ref{sec:reasonability})
     \item $\dom(\var{comp}.\mscode) \mathrel{\#} \ta$
     \end{itemize}
   \end{itemize}
@@ -3451,7 +3447,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 
   Take
   \begin{equation*}
-    \var{comp} = (\mscode,\msdata,\overline{c_{\mathrm{import}}},\overline{c_{\mathrm{export}}},\sigrets,\sigcloss,A_\linear)
+    \var{comp} = (\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
   \end{equation*}
   We then know from $\vdash \var{comp}$ that 
   \begin{itemize}
@@ -3463,18 +3459,19 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \item $A_\linear = \biguplus_{a \in \dom(\msdata)} A_{\mathrm{own}}(a)$
   \item
     \begin{equation*}
-      \forall a \in \dom(\msdata)\ldotp \dom(\mscode),A_{\mathrm{own}}(a),A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \msdata(a)
+      \forall a \in \dom(\msdata)\ldotp \dom(\mscode),A_{\mathrm{own}}(a),A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \msdata(a)
     \end{equation*}
   \item
     \begin{equation*}
-      \overline{\dom(\mscode), \emptyset, A_{\mathrm{non-linear}}, \overline{c_{\mathrm{import}}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-value}} c_{\mathrm{export}}}
+      \overline{\dom(\mscode), A_{\mathrm{non-linear}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-export}} c_{\mathrm{export}}}
     \end{equation*}
-  \item $\overline{c_{\mathrm{export}}} \mathrel{\#} \overline{c_{\mathrm{import}}}$
   \item $(\dom(\mscode) \subseteq \ta) \vee (\dom(\mscode) \mathrel{\#} \ta \wedge \sigrets = \emptyset)$
   \item $\dom(\msdata) \mathrel{\#} \ta$
   \end{itemize}
 
-  Take $W$ such that
+  Take $\overline{\var{import}} = \overline{a_{\mathrm{import}} \mapsfrom s_{\mathrm{import}}}$.
+
+  Now take $W$ such that
   \begin{itemize}
   \item $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$
   \item $\pwheap(r_\code) =  \codereg[\mathrm{code},\square]{\sigrets,\sigcloss,\mscode,\gc}$
@@ -3488,13 +3485,17 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   It now remains to prove that $\npair{(\var{comp},\var{comp})} \in \lrcomp{W}$.
   Take $W' \future W$ and assume that
   \begin{equation*}
-    \overline{\npair[n']{(c_{\mathrm{import}},c_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$} 
+    \overline{\npair[n']{(w_{\mathrm{import}},w_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$}\\
+  \end{equation*}
+  and
+  \begin{equation*}
+    \msdata' = \msdata{}[\overline{a_{\mathrm{import}} \mapsto w_{\mathrm{import}}}] \\
   \end{equation*}
   We need to show that
   \begin{itemize}
   \item
     \begin{equation*}
-      \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata, \mscode\uplus\msdata)} \in \lrheap(\pwheap)(W')
+      \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata', \mscode\uplus\msdata')} \in \lrheap(\pwheap)(W')
     \end{equation*}
    Take $R_\ms : \dom(\activeReg{\pwheap}) \fun \MemSeg \times \MemSeg$ such that
     \begin{itemize}
@@ -3515,19 +3516,19 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 
     We then need to prove that 
     \begin{itemize}
-    \item $\npair{(\msdata|_{\{\addr\}},\msdata|_{\{\addr\}})} \in \stdreg{\{\aaddr\},\gc}{\lin}.H~ \xi^{-1}(R_W(r_\addr))$:
+    \item $\npair{(\msdata'|_{\{\addr\}},\msdata'|_{\{\addr\}})} \in \stdreg{\{\aaddr\},\gc}{\lin}.H~ \xi^{-1}(R_W(r_\addr))$:
       By definition, it suffices to prove that for all $n' < n$,
-      $\npair[n']{(\msdata(\addr),\msdata(\addr))} \in \lrv(R_W(r_\addr))$.
+      $\npair[n']{(\msdata'(\addr),\msdata'(\addr))} \in \lrv(R_W(r_\addr))$.
 
-      We can assume that $\msdata(\addr) \not\in \overline{c_{\var{import}}}$, because otherwise the result follows from the previous assumption that 
+      If $(a \mapsfrom \_) \in \overline{\var{import}}$, then we know that $\msdata'(a)$ is the corresponding $w_{\mathrm{import}}$ and the result is fine by the assumption that
       \begin{equation*}
-        \overline{\npair[n']{(c_{\mathrm{import}},c_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$} 
+        \overline{\npair[n']{(w_{\mathrm{import}},w_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$}\\
       \end{equation*}
       together with \ref{lem:monotonicity} and the fact that $R_W(\addr) \future \purePart(W')$ (by Lemma~\ref{lem:auth-partial-betterthannothing}).
 
-      We know from our assumptions that
+      Otherwise, $\msdata'(a) = \msdata(a)$ and we know from our assumptions that
       \begin{equation*}
-        \dom(\mscode),A_{\mathrm{own}}(a),A_{\mathrm{non-linear}},\overline{c_{\mathrm{import}}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \msdata(a)
+        \dom(\mscode),A_{\mathrm{own}}(a),A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \msdata(a)
       \end{equation*}
       
       By Lemma~\ref{lem:ftlr-comp-value}, it then suffices to prove that
@@ -3538,11 +3539,6 @@ Note: we don't require the readcondition in the trusted case because trusted cod
       \item $\npair{A_{\mathrm{own}}(\addr)} \in \writeCond{\linear,R_W(\addr)}$: follows by Lemma~\ref{lem:monotonicity} using the fact that $R_W(a) \future R_W'(a)$ and by definition, using the choice of $W$, $R_W'(\addr)$ 
       \item $\pwheap[R_W(\addr)](r_{\mathrm{code}}) = \codereg{\sigrets,\sigcloss,\mscode,\gc}$: follows from the choice of $W$ and $R_W'(\addr)$ and the fact that $R_W(a) \future R_W'(a)$
       \item $\dom(\mscode) \mathrel{\#} \ta$ or $\dom(\mscode) \subseteq \ta$: by assumption.
-      \item $\npair[n']{(c_{\mathrm{import}},c_{\mathrm{import}})} \in \lrv(\purePart{R_W(\addr)})$ for all $n' < n$: by the fact that $\purePart{R_W(\addr)} = \purePart{W'}$ and the above assumption that .
-        \begin{equation*}
-          \overline{\npair[n']{(c_{\mathrm{import}},c_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$} 
-        \end{equation*}
-      \item $w \not\in \overline{c_{\mathrm{import}}}$: by assumption.
       \end{itemize}
     \item $\npair{(\mscode,\mscode)} \in  \codereg[\mathrm{code},\square]{\sigrets,\sigcloss,\mscode,\gc}.H~ \xi^{-1}(\purePart{W'})$:
       We take $\trust = \trusted$ if $\dom(\code) \subseteq \ta$ and $\trust =\untrusted$ otherwise.
@@ -3567,11 +3563,11 @@ Note: we don't require the readcondition in the trusted case because trusted cod
       \end{equation*}
       This follows easily from the definition.
   \end{itemize}
-  \item $\overline{\npair{(c_{\mathrm{export}},c_{\mathrm{export}})}} \in \lrv(\purePart{W'})$:
+  \item $\overline{\npair{(w_{\mathrm{export}},w_{\mathrm{export}})}} \in \lrv(\purePart{W'})$:
 
     We know from our assumptions that
     \begin{equation*}
-      \overline{\dom(\mscode), \emptyset, A_{\mathrm{non-linear}}, \overline{c_{\mathrm{import}}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-value}} c_{\mathrm{export}}}
+      \overline{\dom(\mscode), A_{\mathrm{non-linear}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-export}} w_{\mathrm{export}}}
     \end{equation*}
 
     By Lemma~\ref{lem:ftlr-comp-export}, it then suffices to prove that
@@ -3580,6 +3576,12 @@ Note: we don't require the readcondition in the trusted case because trusted cod
     \item $\npair{A_{\mathrm{non-linear}}} \in \writeCond{}(\normal,\purePart{W'})$: follows by Lemma~\ref{lem:monotonicity} using the fact that $R_W(a) \future R_W'(a)$ and by definition, using the choice of $W$, $R_W'(\addr)$ 
     \item $\pwheap[\purePart{W'}](r_{\mathrm{code}}) = \codereg{\sigrets,\sigcloss,\mscode,\gc}$: follows from the choice of $W$ and the fact that $W' \future W$
     \item $\dom(\mscode) \mathrel{\#} \ta$ or $\dom(\mscode) \subseteq \ta$: by assumption.
+    \item If $w_{\mathrm{export}} = \sealed{\sigma,\vsc}$ with $\dom(\mscode) \subseteq \ta$, $\sigma \in \sigcloss$ and $\exec{\vsc}$, then $\vsc$ behaves reasonably up to $n$ steps:
+
+      This follows directly from the fact that $\var{comp}$ is a reasonable component.
+
+    \item $A_{\mathrm{non-linear}}\mathrel{\#} \ta$:
+      This follows from the facts that $A_{\mathrm{non-linear}}\subseteq \dom(\msdata) \mathrel{\#} \ta$.
     \end{itemize}
   \end{itemize}
 \end{proof}
@@ -3623,7 +3625,7 @@ The untrusted case can be considered as a back-translation correctness result.
   \end{itemize}
 \end{lemma}
 \begin{proof}
-  Take $\var{comp} = ((\mscode, \msdata, \overline{c_{\mathrm{import}}}, \overline{c_{\mathrm{export}}}, \sigrets, \sigcloss,A_\linear),  c_{\mathrm{main},c}, c_{\mathrm{main},d})$.
+  Take $\var{comp} = ((\mscode, \msdata, \overline{\var{import}}, \overline{\var{export}}, \sigrets, \sigcloss,A_\linear),  c_{\mathrm{main},c}, c_{\mathrm{main},d})$.
   Then we know from $\var{comp} \rightsquigarrow \Phi$ that
   \begin{itemize}
   \item $c_{\mathrm{main},c} = \sealed{\sigma_1, c_{\mathrm{main},c}'}$ 
@@ -3638,26 +3640,27 @@ The untrusted case can be considered as a back-translation correctness result.
   \item $\range{\ms_\stk} = \{0\}$
   \item $\mem = \mscode \uplus \msdata \trg{\;\uplus\; \ms_\stk}$
   \item $[\baddr_\stk,\eaddr_\stk] = \dom(\ms_\stk ) \mathrel{\#} (\dom(\mscode) \cup \dom(\msdata))$
-  \item $\overline{c_{\mathrm{import}}} = \emptyset$
+  \item $\overline{\var{import}} = \emptyset$
   \item $\Phi = (\mem, \reg\src{, \emptyset, \ms_\stk})$
   \end{itemize}
 
   From $\npair{(\var{comp},\var{comp})} \in \lrcomp(W)$, we know that
-  $\{c_{\mathrm{main},c}, c_{\mathrm{main},d}\}\subseteq \overline{c_{\mathrm{export}}}$ and 
-  $\npair{(\var{comp}_0,\var{comp}_0)} \in \lrcomp(W)$ with $\var{comp}_0 = (\mscode, \msdata, \overline{c_{\mathrm{import}}}, \overline{c_{\mathrm{export}}}, \sigrets, \sigcloss,A_\linear)$.
+  $\{(\_ \mapsto c_{\mathrm{main},c}), (\_ \mapsto c_{\mathrm{main},d})\}\subseteq \overline{\var{export}}$ and 
+  $\npair{(\var{comp}_0,\var{comp}_0)} \in \lrcomp(W)$ with $\var{comp}_0 = (\mscode, \msdata, \overline{a_{\mathrm{import}}\mapsfrom s_{\mathrm{import}}}, \overline{s_{\mathrm{export}}\mapsto w_{\mathrm{export}}}, \sigrets, \sigcloss,A_\linear)$.
   From this, it follows that for all  $W' \future W$, if
   \begin{equation*}
-    \overline{\npair[n']{(c_{\mathrm{import}},c_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$}
+    \overline{\npair[n']{(w_{\mathrm{import}},w_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$}
   \end{equation*}
+  and $\msdata' = \msdata{}[\overline{a_{\mathrm{import}} \mapsto w_{\mathrm{import}}}]$
   then
   \begin{equation*}
-    \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata, \mscode\uplus\msdata)} \in \lrheap(\pwheap)(W')
+    \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata', \mscode\uplus\msdata')} \in \lrheap(\pwheap)(W')
   \end{equation*}
   and
   \begin{equation*}
-    \overline{\npair{(c_{\mathrm{export}},c_{\mathrm{export}})}} \in \lrv(\purePart{W'})
+    \overline{\npair{(w_{\mathrm{export}},w_{\mathrm{export}})}} \in \lrv(\purePart{W'})
   \end{equation*}
-  Since $\overline{c_{\mathrm{import}}} = \emptyset$, the former holds vacuously and the latter two results follow for every $W' \future W$.
+  Since $\overline{w_{\mathrm{import}}} = \emptyset$, the former holds vacuously, $\msdata' = \msdata$ and the latter two results follow for every $W' \future W$.
   
   Now take $\overline{r_a}$ for $a \in [\baddr_\stk,\eaddr_\stk]$ arbitrary and 
   \begin{align*}
@@ -3678,7 +3681,7 @@ The untrusted case can be considered as a back-translation correctness result.
     $\npair[n']{( (\reg(\pcreg),\reg(\rdata)), (\reg(\pcreg),\reg(\rdata)) )} \in \lrexj(W_\pcreg)$:
     Since $W' \future W$, we know from above that:
     \begin{equation*}
-      \overline{\npair{(c_{\mathrm{export}},c_{\mathrm{export}})}} \in \lrv(\purePart{W'})
+      \overline{\npair{(w_{\mathrm{export}},w_{\mathrm{export}})}} \in \lrv(\purePart{W'})
     \end{equation*}
     and we have defined $W_\pc = \purePart{W'}$ and we know that $\{c_{\mathrm{main},c}, c_{\mathrm{main},d}\}\subseteq
     \overline{c_{\mathrm{export}}}$.
@@ -3688,22 +3691,11 @@ The untrusted case can be considered as a back-translation correctness result.
       \npair{(c_{\mathrm{main},d},c_{\mathrm{main},d})} &\in \lrv(W_\pc)
     \end{align*}
 
-    We also know that $c_{\mathrm{main},c} = \sealed{\sigma, c_{\mathrm{main},c}'}$, $c_{\mathrm{main},d} = \sealed{\sigma, c_{\mathrm{main},d}'}$, $\sigma=\sigma_1 = \sigma_2$, so by definition of $\lrv$, we know that there exist $r_1,r_2 \in \dom(\pwheap[W_\pc])$ such that $\pwheap[W_\pc](r_1) = (\pure,\_,H_{\sigma,1})$, $\pwheap[W_\pc](r_2) = (\pure,\_,H_{\sigma,2})$ and
-    \begin{align*}
-      \npair[n']{(c_{\mathrm{main},d}',c_{\mathrm{main},d}')} &\in H_{\sigma,1}~ \sigma~ \xi^{-1}(W_\pc) \text{ for all } n' < n\\
-      \npair[n']{(c_{\mathrm{main},d}',c_{\mathrm{main},d}')} &\in H_{\sigma,2}~ \sigma~ \xi^{-1}(W_\pc) \text{ for all } n' < n
-    \end{align*}
-    By definition of $W_\stk$, we know that it contains no regions that define $H_\sigma$.
-    Therefore, using the definition of $W'$, we can deduce that $r_1,r_2 \in \dom(\pwheap)$.
-    From the fact that 
+    Since $W_\pc = \purePart{W'}$, Lemma~\ref{lem:safe-vals-safe-exec} tells us that for $n' < n$,
     \begin{equation*}
-      \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata, \mscode\uplus\msdata)} \in \lrheap(\pwheap)(W')
+      \npair[n']{( (c_{\mathrm{main},c},c_{\mathrm{main},d}), (c_{\mathrm{main},c},c_{\mathrm{main},d}) )} \in \lrexj(W_\pcreg)
     \end{equation*}
-    it then follows that $\sigma$ can only be defined in $H_\sigma$ for only one region, so that $r_1 = r_2 = r$ and $H_{\sigma,1} = H_{\sigma,2} = H_\sigma$.
-
-    Since $W_\pc = \purePart{W'}$, we have (in both the linear and non-linear case), that for $n' < n$, $\npair[n']{( (c_{\mathrm{main},c},c_{\mathrm{main},d}), (c_{\mathrm{main},c},c_{\mathrm{main},d}) )} \in \lrexj(W_\pcreg)$.
     Since $\reg(\pcreg) = c_{\mathrm{main},c}'$ and $\reg(\rdata) = c_{\mathrm{main},d}'$, this is what we set out to prove.
-
 
   \item $\reg_S(\pcreg) \neq \retptrc(\_)$, $\reg_S(\rdata) \neq \retptrd(\_)$, $\nonExec{\reg_S(\rdata)}$ and $\nonExec{\reg_T(\rdata)}$:
     This follows from the facts that $\reg(\pcreg) = c_{\mathrm{main},c}'$, $\reg(\rdata) = c_{\mathrm{main},d}'$, 
@@ -3753,9 +3745,10 @@ The untrusted case can be considered as a back-translation correctness result.
 \end{proof}
 
 \begin{lemma}[Adequacy of execution configuration LR]
+  \label{lem:adequacy}
   If
   \begin{itemize}
-  \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\preceq](W)$
+  \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\preceq,\gc](W)$
   \item $i \leq n$
   \item $\Phi_S \sterm[i]{\gc}$
   \end{itemize}
@@ -3763,7 +3756,7 @@ The untrusted case can be considered as a back-translation correctness result.
 
   Also, if
   \begin{itemize}
-  \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\succeq](W)$
+  \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\succeq,\gc](W)$
   \item $i \leq n$
   \item $\Phi_T \term[i]$,
   \end{itemize}
@@ -3806,6 +3799,7 @@ The untrusted case can be considered as a back-translation correctness result.
 \end{proof}
 
 \begin{lemma}[Compatibility lemma for context plugging]
+  \label{lem:compat-context-plug}
   If $\npair{\stpair{C}{C}}\in\lrcomp(W_1)$ and $\npair{\stpair{P}{P}} \in \lrcomp(W_2)$, then
   $\npair{(\plug{C_S}{P_S},\plug{C_T}{P_T})} \in \lrec(W_1 \uplus W_2)$.
 \end{lemma}
@@ -3953,9 +3947,10 @@ and
 \begin{definition}[Source language contextual equivalence]
   In the source language, we define that $\src{\var{comp}_1 \sconeq \var{comp}_2}$ iff
   \begin{equation*}
-    \forall \src{\context} \ldotp \src{\plug{\context}{\var{comp}_1} \sterm{\ta[,1],\stkb_1}} \Leftrightarrow \src{\plug{\context}{\var{comp}_2} \sterm{\ta[,2],\stkb_2}}
+    \forall \src{\context} \ldotp \vdash \src{\context} \Rightarrow \src{\plug{\context}{\var{comp}_1} \sterm{\ta[,1],\stkb_1},\gsigrets_1,\gsigcloss_1} \Leftrightarrow \src{\plug{\context}{\var{comp}_2} \sterm{\ta[,2],\stkb_2,\gsigrets_2,\gsigcloss_2}}
   \end{equation*}
-  with $\src{\ta[,i]} = \src{\dom(\var{comp}_i.\mscode)}$
+  with $\src{\ta[,i]} = \src{\dom(\var{comp}_i.\mscode)}$, $\gsigrets_i = \var{comp}_i.\sigrets$ and $\gsigcloss_i = \var{comp}_i.\sigcloss$
+  \dominique{and stkbase?}
 \end{definition}
 
 Note that we define source language contextual equivalence with respect to contexts that are not in $\ta$.
@@ -3971,13 +3966,13 @@ This works perfectly fine, except that the context does not get any well-bracket
 \begin{definition}[Target language contextual equivalence]
   In the target language, we define that $\trg{\var{comp}_1 \tconeq \var{comp}_2}$ iff
   \begin{equation*}
-    \forall \trg{\context} \ldotp \trg{\plug{\context}{\var{comp}_1} \term} \Leftrightarrow \trg{\plug{\context}{\var{comp}_2} \term}
+    \forall \trg{\context} \ldotp \vdash \trg{\context} \Rightarrow \trg{\plug{\context}{\var{comp}_1} \term} \Leftrightarrow \trg{\plug{\context}{\var{comp}_2} \term}
   \end{equation*}
 \end{definition}
 
 \begin{theorem}
   \label{thm:full-abstraction}
-  For reasonable components $\var{comp}_1$ and $\var{comp}_2$, we have
+  For reasonable, well-formed components $\var{comp}_1$ and $\var{comp}_2$, we have
   \begin{gather*}
     \src{\var{comp}_1} \sconeq \src{\var{comp}_2}\\
     \Updownarrow\\
@@ -3985,8 +3980,63 @@ This works perfectly fine, except that the context does not get any well-bracket
   \end{gather*}
 \end{theorem}
 \begin{proof}
-  First, 
-  TODO
+  \begin{itemize}
+  \item Consider first the upward arrow.
+    Assume $\comp{\src{\var{comp}_1}} \tconeq \comp{\src{\var{comp}_2}}$.
+
+    Take a $\src{\context}$ such that $\vdash \src{\context}$, take $\src{\ta[,i]}
+    = \src{\dom(\var{comp}_i.\mscode)}$, $\gsigrets_i = \var{comp}_i.\sigrets$ and
+    $\gsigcloss_i = \var{comp}_i.\sigcloss$, $\gc_i = (\ta[,i],\stkb_i,\gsigrets_i,\gsigcloss_i)$ and we will prove that
+    $\src{\plug{\context}{\var{comp}_1} \sterm{\gc_1}} \Leftrightarrow
+    \src{\plug{\context}{\var{comp}_2} \sterm{\gc_2}}$.
+
+    By symmetry, we can assume w.l.o.g. that $\src{\plug{\context}{\var{comp}_1} \sterm{\gc_1}}$ and prove that $\src{\plug{\context}{\var{comp}_2} \sterm{\gc_2}}$.
+    Note that this implies that $\src{\context}$ is a valid context for both $\src{\var{comp}_1}$ and $\src{\var{comp}_2}$.
+
+    First, we show that also $\plug{\context}{\var{comp}_1} \trg{\term}$.
+    Take $n$ the amount of steps in the termination of $\src{\plug{\context}{\var{comp}_1} \sterm{\gc_1}}$.
+    It follows from Lemma~\ref{lem:ftlr-comps} that $\npair{(\var{comp}_1,\var{comp}_1)} \in \lrcomp[\preceq,\gc_1](W_1)$ for some $W_1$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
+    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair{(\context,\context)} \in \lrcomp[\preceq,\gc_1](W_1')$ for some $W_1'$ that we can choose such that $W_1 \uplus W_1'$ is defined.
+    Lemma~\ref{lem:compat-context-plug} then tells us that $\npair{(\plug{\context}{\var{comp}_1}, \plug{\context}{\var{comp}_1})} \in \lrec[\preceq,\gc_1](W_1\uplus W_1')$
+    Together with $\src{\plug{\context}{\var{comp}_1} \sterm[n]{\gc_1}}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_1} \trg{\term}$.
+
+    It follows from $\comp{\src{\var{comp}_1}} \tconeq \comp{\src{\var{comp}_2}}$ that also $\plug{\context}{\var{comp}_2} \trg{\term}$.
+
+    It now remains to show that also $\src{\plug{\context}{\var{comp}_2} \sterm{\gc_2}}$.
+    Take $n'$ the amount of steps in the termination of $\plug{\context}{\var{comp}_2} \trg{\term}$.
+    It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n']{(\var{comp}_2,\var{comp}_2)} \in \lrcomp[\succeq,\gc_2](W_2)$ for some $W_2$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
+    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n']{(\context,\context)} \in \lrcomp[\succeq,\gc_2](W_2')$ for some $W_2'$ that we can choose such that $W_2 \uplus W_2'$ is defined.
+    Lemma~\ref{lem:compat-context-plug} then tells us that $\npair[n']{(\plug{\context}{\var{comp}_2}, \plug{\context}{\var{comp}_2})} \in \lrec[\succeq,\gc_2](W_2\uplus W_2')$
+    Together with $\plug{\context}{\var{comp}_2} \trg{\term[n']}$, Lemma~\ref{lem:adequacy} then tells us that $\src{\plug{\context}{\var{comp}_2} \sterm{\gc_2}}$, concluding this direction of the proof.
+
+  \item The downward arrow is similar.
+
+    Assume $\src{\var{comp}_1} \sconeq \src{\var{comp}_2}$.
+    Take $\src{\ta[,i]} = \src{\dom(\var{comp}_i.\mscode)}$, $\gsigrets_i = \var{comp}_i.\sigrets$ and $\gsigcloss_i = \var{comp}_i.\sigcloss$, $\gc_i = (\ta[,i],\stkb_i,\gsigrets_i,\gsigcloss_i)$.
+
+    Take a $\trg{\context}$ such that $\vdash \trg{\context}$ and we will prove that
+    $\trg{\plug{\context}{\var{comp}_1} \term} \Leftrightarrow
+    \trg{\plug{\context}{\var{comp}_2} \term}$.
+
+    By symmetry, we can assume w.l.o.g. that $\trg{\plug{\context}{\var{comp}_1} \term}$ and prove that $\trg{\plug{\context}{\var{comp}_2} \term}$.
+    Note that this implies that $\trg{\context}$ is a valid context for both $\trg{\var{comp}_1}$ and $\trg{\var{comp}_2}$.
+
+    First, we show that also $\plug{\context}{\var{comp}_1} \src{\sterm{\gc_1}}$.
+    Take $n$ the amount of steps in the termination of $\plug{\context}{\var{comp}_1} \trg{\term}$.
+    It follows from Lemma~\ref{lem:ftlr-comps} that $\npair{(\var{comp}_1,\var{comp}_1)} \in \lrcomp[\succeq,\gc_1](W_1)$ for some $W_1$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
+    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair{(\context,\context)} \in \lrcomp[\succeq,\gc_1](W_1')$ for some $W_1'$ that we can choose such that $W_1 \uplus W_1'$ is defined.
+    Lemma~\ref{lem:compat-context-plug} then tells us that $\npair{(\plug{\context}{\var{comp}_1}, \plug{\context}{\var{comp}_1})} \in \lrec[\succeq,\gc_1](W_1\uplus W_1')$
+    Together with $\plug{\context}{\var{comp}_1} \trg{\term[n]}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_1} \src{\sterm{\gc_1}}$.
+
+    It follows from $\src{\var{comp}_1} \sconeq \src{\var{comp}_2}$ that also $\plug{\context}{\var{comp}_2} \src{\sterm{\gc_2}}$.
+
+    It now remains to show that also $\plug{\context}{\var{comp}_2} \trg{\term}$.
+    Take $n'$ the amount of steps in the termination of $\plug{\context}{\var{comp}_2} \src{\sterm{\gc_2}}$.
+    It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n']{(\var{comp}_2,\var{comp}_2)} \in \lrcomp[\preceq,\gc_2](W_2)$ for some $W_2$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
+    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n']{(\context,\context)} \in \lrcomp[\preceq,\gc_2](W_2')$ for some $W_2'$ that we can choose such that $W_2 \uplus W_2'$ is defined.
+    Lemma~\ref{lem:compat-context-plug} then tells us that $\npair[n']{(\plug{\context}{\var{comp}_2}, \plug{\context}{\var{comp}_2})} \in \lrec[\preceq,\gc_2](W_2\uplus W_2')$
+    Together with $\plug{\context}{\var{comp}_2} \trg{\term[n']}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_2} \trg{\term}$, concluding the second direction of the proof.
+  \end{itemize}
 \end{proof}
 
 \section{Lemmas}
