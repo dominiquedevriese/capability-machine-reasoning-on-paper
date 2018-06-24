@@ -1207,56 +1207,239 @@ from \ref{eq:ftlr:rretd:Hcode} we also get
 \end{description}
 This concludes case \ref{case:ftlr:scall:reg}
 
-Case: \ref{case:ftlr:scall:mem}, we need to show
+% Case: \ref{case:ftlr:scall:mem}, we need to show
 
-\begin{equation}
-  \memSat[n'-1]{\Phi_S''.\mem,\Phi_S''.\stk,\Phi_S''.\ms_\stk,\Phi_T''.\mem}{W_M'}\label{eq:ftlr:call:memsat-case}
-\end{equation}
-We have the following memory satisfaction on the initial memory:
-\begin{equation}
-  \memSat[n']{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}\label{eq:ftlr-call-og-mem-sat}
-\end{equation}
-By definition of memory satisfaction, this gives us:
-\begin{itemize}
-\item $\stk = (\opc_1,\ms_1) :: \dots :: (\opc_m,\ms_m)$
-\item $\ms_1 \# \dots \# \ms_m \# \ms_S \# \ms_\stk$
-\item $W = W_{\var{stack}} \oplus W_{\var{free\_stack}} \oplus W_{\var{heap}}$
-\item $\ms_\var{T,stack}, \ms_\var{T,free\_stack}, \ms_\var{T,heap}, \ms_{T,f}, \ms_{S,f}, \ms_S',\overline{\sigma}$ such that
+% \begin{equation}
+%   \memSat[n-1]{\Phi_S''.\mem,\Phi_S''.\stk,\Phi_S''.\ms_\stk,\Phi_T''.\mem}{W_M'}\label{eq:ftlr:call:memsat-case}
+% \end{equation}
+% We have the following memory satisfaction on the initial memory:
+% \begin{equation}
+%   \memSat[n]{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}\label{eq:ftlr-call-og-mem-sat}
+% \end{equation}
+% By definition of memory satisfaction, this gives us:
+% \begin{itemize}
+% \item $\stk = (\opc_1,\ms_1) :: \dots :: (\opc_m,\ms_m)$
+% \item $\ms_1 \# \dots \# \ms_m \# \ms_S \# \ms_\stk$
+% \item $W = W_{\var{stack}} \oplus W_{\var{free\_stack}} \oplus W_{\var{heap}}$
+% \item $\ms_\var{T,stack}, \ms_\var{T,free\_stack}, \ms_\var{T,heap}, \ms_{T,f}, \ms_{S,f}, \ms_S',\overline{\sigma}$ such that
+%   \begin{itemize}
+%   \item $\ms_S = \ms_{f,S} \uplus \ms_S'$
+%   \item $\ms_T = \ms_\var{T,stack} \uplus \ms_\var{T,free\_stack} \uplus \ms_\var{T,heap} \uplus \ms_{T,f}$
+%   \item $\memSatStack{\stk,\ms_\var{T,stack}}{W_{\var{stack}}}$
+%   \item $\memSatFStack{\ms_\stk,\ms_\var{T,free\_stack}}{W_{\var{free\_stack}}}$
+%   \item $\npair{(\overline{\sigma},\ms_S',\ms_\var{T,heap})} \in \lrheap(\pwheap)(W_{\var{heap}})$
+%   \end{itemize}
+% \end{itemize}
+% We need to consider the memories of $\Phi_S''$ and $\Phi_T''$.
+% The memories of the initial configurations have only changed little:
+% \[
+%   \Phi_T''.\mem = \Phi_T''.\mem\update{\aaddr_\stk}{42}
+% \]
+% and 
+% \[
+% \Phi_S''.\ms_\stk = \Phi_S.\ms_\stk - \Phi_S.\ms_\stk|_{[\aaddr_\stk,\eaddr_\stk]}
+% \]
+% and
+% \[
+%   \Phi_S''.\stk = ((\aaddr+\calllen),\ms_{\stk\_\priv,S}) :: \Phi_S.\stk
+% \]
+% with $\ms_{\stk\_\priv,S} = \Phi_S.\ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42}$.
+% We need to show the memory satisfaction in \ref{eq:ftlr:call:memsat-case}. Say
+% $(\opc_0,\ms_0) = ((\aaddr+\calllen),\ms_{\stk\_\priv,S})$. In this case we have
+% to argue 
+% \[
+%   \ms_{\stk\_\priv,S} \# \ms_1 \# \dots \# \ms_m \# \ms_S \# \Phi_S.\ms_\stk - \Phi_S.\ms_\stk|_{[\aaddr_\stk,\eaddr_\stk]}
+% \]
+% which follows from Assumption~\ref{eq:ftlr:call:memsat-case} and the fact that the memory we remove from $\Phi_S.\ms_\stk$ is exactly what we add to the private stack.
+% \lau{This is a bit more involved than I make it to be here, but the fact that we also have a safety assumption on the register-file with the stack pointer means that all of the memory removed from the free stack is actually there.}
+
+
+%   This concludes case \ref{case:ftlr:scall:reg}
+
+  Case \ref{case:ftlr:scall:mem}:
+  we need to show:
+  \[
+    \memSat[n-1]{\Phi_S''.\mem,\Phi_S''.\stk,\Phi_S''.\ms_\stk,\Phi_T''.\mem}{W_M'}
+  \]
+  which amounts to
+  \[
+    \memSat[n-1]{\Phi_S.\mem,((\aaddr+\calllen),\ms_{\stk\_\priv,S}) :: \Phi_S,\Phi_S.\ms_\stk - \Phi_S.\ms_\stk|_{[\aaddr_\stk,\eaddr_\stk]},\Phi_T''.\mem}{W_M'}
+  \]
+  for $\ms_{\stk\_\priv,S} = \Phi_S.\ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42}$.
+
+  In order to show this, we will first show the following:
   \begin{itemize}
-  \item $\ms_S = \ms_{f,S} \uplus \ms_S'$
-  \item $\ms_T = \ms_\var{T,stack} \uplus \ms_\var{T,free\_stack} \uplus \ms_\var{T,heap} \uplus \ms_{T,f}$
-  \item $\memSatStack{\stk,\ms_\var{T,stack}}{W_{\var{stack}}}$
-  \item $\memSatFStack{\ms_\stk,\ms_\var{T,free\_stack}}{W_{\var{free\_stack}}}$
-  \item $\npair{(\overline{\sigma},\ms_S',\ms_\var{T,heap})} \in \lrheap(\pwheap)(W_{\var{heap}})$
+  \item $\baddr_\stk = \stkb$
+
+    We know $\Phi_S$ is reasonable up to $n$ steps.
+    Further, from $\callCond{\Phi_S,r_1,r_2,a}$ and $b \leq a$ and $a + \calllen -1 \leq e$ and $[b,e] \subseteq \ta$ we can conclude that $\Phi_S$ points to $\src{\scall{\offpc,\offsigma}{r_1}{r_2}}$ in $\ta$.
+    By the \emph{Guarantee stack base address before call} we then know $\Phi_S(r_\stk) = \stkptr{\_,\stkb,\_,\_}$.
   \end{itemize}
-\end{itemize}
-We need to consider the memories of $\Phi_S''$ and $\Phi_T''$.
-The memories of the initial configurations have only changed little:
-\[
-  \Phi_T''.\mem = \Phi_T''.\mem\update{\aaddr_\stk}{42}
-\]
-and 
-\[
-\Phi_S''.\ms_\stk = \Phi_S.\ms_\stk - \Phi_S.\ms_\stk|_{[\aaddr_\stk,\eaddr_\stk]}
-\]
-and
-\[
-  \Phi_S''.\stk = ((\aaddr+\calllen),\ms_{\stk\_\priv,S}) :: \Phi_S.\stk
-\]
-with $\ms_{\stk\_\priv,S} = \Phi_S.\ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42}$.
-We need to show the memory satisfaction in \ref{eq:ftlr:call:memsat-case}. Say
-$(\opc_0,\ms_0) = ((\aaddr+\calllen),\ms_{\stk\_\priv,S})$. In this case we have
-to argue 
-\[
-  \ms_{\stk\_\priv,S} \# \ms_1 \# \dots \# \ms_m \# \ms_S \# \Phi_S.\ms_\stk - \Phi_S.\ms_\stk|_{[\aaddr_\stk,\eaddr_\stk]}
-\]
-which follows from Assumption~\ref{eq:ftlr:call:memsat-case} and the fact that the memory we remove from $\Phi_S.\ms_\stk$ is exactly what we add to the private stack.
-\lau{This is a bit more involved than I make it to be here, but the fact that we also have a safety assumption on the register-file with the stack pointer means that all of the memory removed from the free stack is actually there.}
 
+  By assumption we have
+  $\memSat{\Phi_S.\mem,\Phi_S.\stk,\Phi_S.\ms_\stk,\Phi_T.\mem}{W_M}$ which
+  gives us $\ms_\var{T,stack}, \ms_\var{T,free\_stack},$ $\ms_\var{T,heap},
+  \ms_{T,f}, \ms_{S,f}, \ms_S', W_{M,\var{stack}}, W_{M,\var{free\_stack}},
+  W_{M,\var{heap}}$ such that:
+  \begin{itemize}
+  \item $\Phi_S.\stk = (\opc_0, \ms_0) \dots (\opc_m,\ms_m)$
+  \item $\ms_0 \uplus \dots \uplus \ms_m \uplus \Phi_S.\mem \uplus \Phi_S.\ms_\stk$
+  \item $W_M = W_{M,\var{stack}} \oplus W_{M,\var{free\_stack}} \oplus W_{M,\var{heap}}$
+  \item $\Phi_S.\mem = \ms_{f,S} \uplus \ms_S'$
+  \item $\Phi_T.\mem = \ms_\var{T,stack} \uplus \ms_\var{T,free\_stack} \uplus
+    \ms_\var{T,heap} \uplus \ms_{T,f}$
+  \item $\memSatStack{\Phi_S.\stk,\ms_\var{T,stack}}{W_{M,\var{stack}}}$
+  \item $\memSatFStack{\Phi_S.\ms_\stk,\ms_\var{T,free\_stack}}{W_{M,\var{free\_stack}}}$
+  \item $\npair{(\overline{\sigma},\ms_S',\ms_\var{T,heap})} \in \lrheap(\pwheap)(W_{M,\var{heap}})$
+  \end{itemize}
 
-  This concludes case \ref{case:ftlr:scall:reg}
+  In order to prove the memory satisfaction, we pick the same memories except for the following changes:
+  \begin{itemize}
+  \item The target free stack partition: $\ms_\var{T,free\_stack} \setminus \ms_\var{T,free\_stack}|_{[\aaddr_\stk,\eaddr_\stk]}$
+  \item The target private stack partition: $\ms_\var{T,stack} \uplus \ms_\var{T,free\_stack}|_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42}$
+  \end{itemize}
+  and the worlds
+  \begin{itemize}
+  \item Free stack world: $W_{M,\var{free\_stack}}'$ is $W_{R,1}'$ with the ownership of $W_{M,\var{free\_stack}}$ except that it gives up any ownership that we used for the safety of the addresses $[\aaddr_\stk,\eaddr_\stk]$.
+  \item Private stack world: $W_{M,\var{stack}}'$ is $W_{R,1}'$ with the ownership of $W_{M,\var{stack}}$ except that it takes the ownership that $W_{M,\var{free\_stack}}$ used for the safety of the addresses $[\aaddr_\stk,\eaddr_\stk]$.
+  \item Heap world: $W_{M,\var{heap}}'$ is $W_{R,1}'$ with the ownership of $W_{M,\var{heap}}$ which gives us $W_{M,\var{heap}}' \future W_{M,\var{heap}}$.
+  \end{itemize}
+  We now need to show:
+  \begin{itemize}
+  \item $\stk = ((\aaddr+\calllen),\ms_{\stk\_\priv,S}) :: (\opc_0, \ms_0) \dots (\opc_m,\ms_m)$
 
-  Case: \ref{case:ftlr:scall:mem}, \lau{TODO}
+    Trivial.
+  \item $\ms_{\stk\_\priv,S} \uplus \ms_0 \uplus \dots \uplus \ms_m \uplus \Phi_S.\mem \uplus \Phi_S.\ms_\stk - \Phi_S.\ms_\stk|_{[\aaddr_\stk,\eaddr_\stk]}$
+
+    Follows by assumption and the fact that we have shuffled around some memory\footnote{Thanks to the register-file safety assumption we know for sure that the memory we remove from the free stack is actually there.}.
+  \item $W_M' = W_{M,\var{stack}}' \oplus W_{M,\var{free\_stack}}' \oplus W_{M,\var{heap}}'$
+
+    This follows by assumption and the fact that all ownership we have added to a world has been removed from another.
+  \item $\Phi_S.\mem = \ms_{f,S} \uplus \ms_S'$
+
+    By assumption.
+  \item $\Phi_T.\mem = \ms_\var{T,stack} \uplus \ms_\var{T,free\_stack}|_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42} \uplus \ms_\var{T,free\_stack} \setminus \ms_\var{T,free\_stack}|_{[\aaddr_\stk,\eaddr_\stk]} \uplus \ms_\var{T,heap} \uplus \ms_{T,f}$
+
+    Follows by assumption and the fact that we have shuffled around some memory\footnote{Thanks to the register-file safety assumption we know for sure that the memory we remove from the free stack is actually there.}.
+  \item $\memSatStack{((\aaddr+\calllen),\ms_{\stk\_\priv,S}) :: \Phi_S,\ms_\var{T,stack} \uplus \ms_\var{T,free\_stack}|_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42}}{W_{M,\var{stack}}'}$:
+
+    For most of the conditions, they follow from the previous stack satisfaction assumption.
+    The only challenge is to argue that the new stack frame satisfies the conditions.
+    First of all, we know $\ms_{\stk\_\priv,S}$ is non-empty as it at least contains address $\aaddr_\stk$.
+    Next, we need to argue that
+    \[
+      \begin{array}{l}
+        \forall i \in \{0,\dots,m\} \ldotp \\
+        \quad \forall a \in \dom(\ms_{\stk\_\priv,S}) \ldotp \forall a' \in \dom(\ms_j) \ldotp \stkb < a < a') \wedge\\
+      \end{array}
+    \]
+    The first bit, $\stkb < a$ for $a \in \dom(\ms_{\stk\_\priv,S})$ follows from the fact that $a_\stk$ is the smallest address of $a \in \dom(\ms_{\stk\_\priv,S})$ and by assumption $\stkb < a_\stk$.
+
+    Now assume for contradiction that there exists $a' \in \dom(\ms_j)$ for some $j$ such that $a' \le a$ for some $a \in \dom(\ms_{\stk\_\priv,S})$.
+    By assumption we have $\stkb < a'$ so $a' \in [\stkb+1,a] \subseteq [\stkb+1,a_\stk] \subseteq [\stkb,e_\stk]$ which means that $a'$ is an address governed by a stack pointer.
+    By the register-safety assumption this must mean that it is an address of the free part of the stack.
+    At the same time, it must be an address of the private stack because $\ms_j$ is part of the stack from the original configuration.
+    This contradicts the initial memory satisfaction assumption as the different parts must be disjointed.
+
+    From the stack satisfaction assumption, we get $R_\ms$ and $R_W$. Pick
+    \[
+      R_\ms'(r) =
+      \begin{cases}
+        (\ms_{\stk\_\priv,S}, (\aaddr+\calllen),\ms_\var{T,free\_stack}|_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42})& \text{for $r = r_\var{priv\_stk}$}\\
+        R_\ms(r) & \totherwise
+      \end{cases}
+    \]
+    and for $R_W'$ pick
+    \[
+      R_W'(r) =
+      \begin{cases}
+        W_{M,\var{free\_stack},[\aaddr_\stk,\eaddr_\stk]}[\free.R^{-1}([\aaddr_\stk,\eaddr_\stk]) \mapsto \revoked][\priv.r_\var{priv\_stk} \mapsto (\stareg[(\ms_{\stk\_\priv,S},\Phi_T''.\mem|_{[\aaddr_\stk,\eaddr_\stk]}),\gc]{\spa,\square},\aaddr+\calllen)]
+        & \text{for $r = r_\var{priv\_stk}$} \\
+        R_W(r)[\free.R^{-1}([\aaddr_\stk,\eaddr_\stk]) \mapsto \revoked][\priv.r_\var{priv\_stk} \mapsto (\stareg[(\ms_{\stk\_\priv,S},\Phi_T''.\mem|_{[\aaddr_\stk,\eaddr_\stk]}),\gc]{\spa,\square},\aaddr+\calllen)] &
+      \end{cases}
+    \]
+    where $W_{M,\var{free\_stack},[\aaddr_\stk,\eaddr_\stk]}$ is the world that the free stack assumption uses to satisfy that range of addresses.
+
+    Most of the condition trivially holds. 
+    % This follows in part by mono of the interpretation function and the worlds
+    % picked are future worlds of the past worlds.
+    The only one that requires some argumentation is
+    \[
+      \npair[n-1]{(\ms_{\stk\_\priv,S},\ms_\var{T,free\_stack}|_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42})}
+      \in
+      \stareg[(\ms_{\stk\_\priv,S},\Phi_T''.\mem|_{[\aaddr_\stk,\eaddr_\stk]}),\gc]{\spa,\square}.H
+      \; \xi^{-1}(R_W'(r_\var{priv\_stk}))
+    \]
+    Where $R_W'(r_\var{priv\_stk})$ is the part of $W_{M,\var{stack}}'$ with the ownership used for addresses $[\aaddr_\stk, \eaddr_\stk]$ in the memory satisfaction assumption.
+
+    As we have the safe register-file assumption, we know that the stack capability is safe.
+    This means that addresses $[\aaddr_\stk,\eaddr_\stk]$ must be part of the free stack.
+    Further, $\Phi''_T.\mem = \Phi_T.\mem\update{\aaddr_\stk}{42}$ and $\ms_\var{T,free\_stack} \subseteq \Phi_T.\mem$ and $\dom(\ms_\var{T,free\_stack}) \supseteq [\aaddr_\stk,\eaddr_\stk]$ from which it follows that the memories are equal to the one of the static region.
+
+    It remains to show
+    \[
+      \forall \aaddr \in [\aaddr_\stk,\eaddr_\stk] \ldotp \npair[n-1]{(\ms_{\stk\_\priv,S}(\aaddr),\ms_\var{T,free\_stack}|_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42}(\aaddr))} \in \lrv(W_{R,\aaddr}')
+    \]
+    for $\aaddr = \aaddr_\stk$ it is trivial as we have to show
+    \[
+      \npair[n-1]{(42,42)} \in \lrv(W_{R,\aaddr_\stk}')
+    \]
+    for $\aaddr \in [\aaddr_\stk+1,\eaddr_\stk]$ we need to show
+    \[
+      \npair[n-1]{(\ms_{\stk\_\priv,S}(\aaddr),\ms_\var{T,free\_stack}|_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42}(\aaddr))} \in \lrv(W_{R,\aaddr}')
+    \]
+    If we can show
+    \[
+      \npair[n-1]{(\Phi_S.\ms_\stk(\aaddr),\ms_\var{T,free\_stack}(\aaddr))} \in \lrv(W_{R,\aaddr})
+    \]
+    then we are done by monotonicity of $\lrv$.
+
+    By assumption we know $\npair{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)$ which entails $\npair{(\Phi_S.\reg(\rstk),\Phi_T.\reg(\rstk))} \in \lrrg{\trust}(W_{R,\rstk})$.
+    We know $\Phi_S.\reg(\rstk) = \stkptr{\rw,\stkb,\eaddr_\stk,\aaddr_\stk}$, so by the definition of $\lrv$ we get
+    \[
+      \npair{[\stkb,\eaddr_\stk]} \in \stackReadCond{W_{R,\rstk}}
+    \]
+    which in turn gives us $S_{\rstk} \subseteq \addressable{\linear,\pwfree}$ and
+    $R_{\rstk} : S_{\rstk} \fun \powerset{\nats}$ for which
+    \begin{itemize}
+    \item $\forall r \in S_{\rstk} \ldotp |R_{\rstk}(r)| = 1$
+    \item $\uplus_{r \in S_{\rstk}} R_{\rstk}(r) \supseteq [\stkb,\eaddr_\stk]$
+    \item $\forall r \in S_{\rstk} \ldotp W_{R,\rstk}(r).H \nsubeq \stdreg{R_{\rstk}(r),\gc}{\spao}$
+    \end{itemize}
+    Further, we know $\memSatFStack{\Phi_S.\ms_\stk,\ms_\var{T,free\_stack}}{W_{M,\var{free\_stack}}.\free}$ which means that we have $R_\ms : \dom(\activeReg{W_{M,\var{free\_stack}}}) \fun MemSeg \times \MemSeg$ and $R_W : \dom(W_{M,\var{free\_stack}}.\free) \fun \Worlds$.
+    $R_W$ distributes the ownership of $W_{M,\var{free\_stack}}$ and $R_\ms$ partitions the memories.
+
+    We know that all regions in $S_{\rstk}$ govern singleton memory segments, so $R_\ms$ must map to singleton memory segment pairs for $r \in S_{\rstk}$.
+    Further, by definition of the free stack satisfaction for $r \in \S_{\rstk}$ we have
+    \[
+      \npair{R_\ms(r)} \in W_{R,\rstk}(r).H \; \xi^{-1}(R_W(r))
+    \]
+    which entails
+    \[
+      \npair[n-1]{R_\ms(r)} \in \stdreg{R_{\rstk}(r),\gc}{\spao} \; \xi^{-1}(R_W(r))
+    \]
+    which entails
+    \[
+      \npair[n-1]{R_\ms(r)(a)} \in \lrv (R_W(r))
+    \]
+    for $a \in R_{\rstk(r)}$.
+
+    Now this is exactly what we wanted to show because $R_W(r)$ is what we picked as $W_{R,\aaddr}$.
+  \item $\memSatFStack{\Phi_S.\ms_\stk - \Phi_S.\ms_\stk|_{[\aaddr_\stk,\eaddr_\stk]},\ms_\var{T,free\_stack} \setminus \ms_\var{T,free\_stack}|_{[\aaddr_\stk,\eaddr_\stk]}}{W_{M,\var{free\_stack}}'}$:
+
+    From the safety assumption on the stack capability, we can deduce a number of things:
+    \begin{itemize}
+    \item $[\aaddr_\stk,\eaddr_\stk]$ must have been part of the free stack
+    \item for every address in $[\aaddr_\stk,\eaddr_\stk]$ there is a region for that singleton memory segment.
+    \end{itemize}
+    The first part means that we do indeed remove all of the memory we try to subtract.
+    The latter means that we can reuse the same split of the remaining memory and the world ownership as we get from assumption $\memSatFStack{\Phi_S.\ms_\stk,\ms_\var{T,free\_stack}}{W_{M,\var{free\_stack}}}$.
+    Using this, the result follows from monotonicity of the $H$ function.
+
+  \item $\npair{(\overline{\sigma},\ms_S',\ms_\var{T,heap})} \in \lrheap(\pwheap)(W_{M,\var{heap}}')$:
+
+    Follows from Lemma~\ref{lem:heap-sat-unchanged-future}, the fact the the heap part of the world remains unchanged and $W_{M,\var{heap}}' \future W_{M,\var{heap}}$.
+  \end{itemize}
 \end{proof}
 
 \begin{proof}[Proof of Theorem~\ref{thm:ftlr}]
@@ -1343,6 +1526,17 @@ By Lemma~\ref{lem:ftlr-internal-lemma}, taking $\trust = \trusted$ iff $[b,e] \s
   If $\pwfree = \pwfree[W']$ and $W' \future W$ and
   $\memSatFStack{\ms_\stk,\ms_T}{W}$, then $\memSatFStack{\ms_\stk,\ms_T}{W'}$.
 \end{lemma}
+\begin{proof}
+  TODO
+\end{proof}
+
+\begin{lemma}
+  \label{lem:heap-sat-unchanged-future}
+  If $\pwheap = \pwheap[W']$ and $W' \future W$ and $\npair{(\overline{\sigma},\ms_S,\ms_T)} \in \lrheap(W)$, then $\npair{(\overline{\sigma},\ms_S,\ms_T)} \in\lrheap(W')$.
+\end{lemma}
+\begin{proof}
+  TODO
+\end{proof}
 
 \begin{lemma}
   \label{lem:stdreg-singleton-addr-strat}
