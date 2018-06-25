@@ -207,6 +207,67 @@ then
   Direct from the definition of $\sqsubseteq$ and $\lrvg{\trust}$.
 \end{proof}
 
+\begin{lemma}[Capability splitting retains safety for normal capabilities]
+  \label{lem:splitting-safety-normal}
+  If
+  \begin{itemize}
+  \item $\npair{(c,c)} \in \lrvg{\trust}(W)$
+  \item $c = ((\perm,\lin),\baddr,\eaddr,\aaddr)$
+  \item $b \le n \le e$
+  \item $c_1 = ((\perm,\lin),\baddr,n,\aaddr)$
+  \item $c_2 = ((\perm,\lin),n,\eaddr,\aaddr)$
+  \item $c_3 = \linCons{c}$
+  \end{itemize}
+  then there exist $W_1,W_2$,$W_3$ such that
+  \begin{itemize}
+  \item $W = W_1 \oplus W_2 \oplus W_3$
+  \item $\npair{(c_1,c_1)} \in \lrvg{\trust}(W_1)$
+  \item $\npair{(c_2,c_2)} \in \lrvg{\trust}(W_2)$
+  \item $\npair{(c_3,c_3)} \in \lrvg{\trust}(W_3)$
+  \end{itemize}
+\end{lemma}
+\begin{proof}
+  TODO
+  
+  From $\npair{(c,c)} \in \lrvg{\trust}(W)$, we get that either $\perm = \noperm$, in which case we can pick the ownership distribution to be the same as before, or $\npair{[\baddr,\eaddr]} \in \readCond{\linear,R_R(r_3)}$.
+
+    In the latter case, we get $S \subseteq \addressable{\linear,R_R(r_3)}$ and $R : S \fun \powerset{R_R(r_3)}$ such that $\forall r \in S \ldotp |R(r)| = 1$ and $\biguplus_{r\in S} R(r) \supseteq [\baddr,\eaddr]$.
+
+    This gives us a way to distribute the ownership, namely $r_3$ gives up ownership of regions $R^{-1}([\baddr,\eaddr])$, $r_1$ gets ownership of $R^{-1}([\baddr,n])$, and $r_2$ gets ownership over $R^{-1}([n+1,\eaddr])$.
+    The remainder of the ownership distribution remains unchanged.
+
+TODO TODO TODO     
+    Now we have to argue the following:
+    \begin{itemize}
+    \item if $\perm \in \readAllowed$, then
+      \begin{itemize}
+      \item $\npair{[\baddr,n]} \in \readCond{\linear,R_R'(r_1)}$
+      \item $\npair{[n+1,\eaddr]} \in \readCond{R_R'(r_2)}$
+      \end{itemize}
+      
+    \item if $\perm \in \writeAllowed$, then
+      \begin{itemize}
+      \item $\npair{[\baddr,n]} \in \writeCond{\linear,R_R'(r_1)}$
+      \item $\npair{[n+1,\eaddr]} \in \writeCond{\linear,R_R'(r_2)}$
+      \end{itemize}
+    \item $\perm \neq \rx$
+
+      Assuming $\perm = \rx$, then it must have been the case that $\lin = \normal$ contradicting the assumption $\isLinear{(\Phi_S(r_3))}$.
+      
+    \end{itemize}
+    or
+    \begin{itemize}
+    \item 
+    \end{itemize}
+    depending on whether the permission of the capability was $\perm = \noperm$
+    or not. In both cases, the result follows immediately by the assumptions.
+
+    If $\neg \isLinear{(\Phi_S(r_3))}$, then we pick $R_R' = R_R$
+
+    TODO
+
+\end{proof}
+
 \begin{lemma}[Stack capability safety monotone w.r.t. permission]
 \label{lem:stkptr-in-lrv-mono-perm}
   If
@@ -618,7 +679,7 @@ then
       \item \label{case:ftlr:move-cca-etc:split-normal} (split) $\Phi_T(r_3) = \Phi_S(r_3) =
         ((\perm,\lin),\baddr,\eaddr,\aaddr)$, $\baddr \leq n$, $n < \eaddr$,
         $w_1 = w_1' = ((\perm,\lin),\baddr,n,\aaddr)$, $w_2 = w_2' =
-        ((\perm,\lin),n+1,\eaddr,\aaddr)$, $k=2$.
+        ((\perm,\lin),n+1,\eaddr,\aaddr)$, $w_3 = w_3' = \linCons{\Phi_S(r_3)}$, $k=3$.
       \item \label{case:ftlr:move-cca-etc:split-seal} (split) $\Phi_T(r_3) = \Phi_S(r_3) =
         \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$, $\sigma_\baddr \leq n$, $n <
         \sigma_\eaddr$, $w_1 = w_1' = \seal{\sigma_\baddr,n,\sigma}$, $w_2 =
@@ -628,7 +689,7 @@ then
         $n < \eaddr$, $w_1 = \stkptr{\perm,\baddr,n,\aaddr}$, $w_1' =
         ((\perm,\linear),\baddr,n,\aaddr)$, $w_2 =
         \stkptr{\perm,n+1,\eaddr,\aaddr}$, $w_2' =
-        ((\perm,\linear),n+1,\eaddr,\aaddr)$, $k=2$.
+        ((\perm,\linear),n+1,\eaddr,\aaddr)$, $w_3 = w_3' = 0$, $k=3$.
       \item \label{case:ftlr:move-cca-etc:splice-stack}(splice) $\Phi_T(r_2) = ((\perm,\linear),\baddr_2,\eaddr_2,\_)$,
         $\Phi_S(r_2) = \stkptr{\perm,\baddr_2,\eaddr_2,\_}$, and $\Phi_T(r_3) =
         ((\perm,\linear),\eaddr_2+1,\eaddr_3,\aaddr_3)$, $\Phi_S(r_3) =
@@ -1639,7 +1700,7 @@ This concludes case \ref{case:ftlr:scall:reg}
 
     If $r_2 = \pcreg$, show
     \[
-      \npair[n-1]{(\Phi_S(\pcreg),\Phi_T(\pcreg))} \in \lrvg{\trust}(R(r_1))
+      \npair[n-1]{(\Phi_S(\pcreg),\Phi_T(\pcreg))} \in \lrvg{\trust}(R_R(r_1))
     \]
     which follows from Lemma~\ref{lem:monotonicity} and \ref{lem:world-fut-purePart} and what we have proven about the pc.
   \item Case \ref{case:ftlr:move-cca-etc:move-eq}:
@@ -1652,54 +1713,21 @@ This concludes case \ref{case:ftlr:scall:reg}
   \item Case \ref{case:ftlr:move-cca-etc:split-normal}:
     First we only consider registers $r_1,r_2,r_3$.
 
-    If $\isLinear{(\Phi_S(r_3))}$, then we need to redistribute the ownership
-    previously owned by the world used for $r_3$ to $r_1$ and $r_2$.
+    From $\npair{(\Phi_S(r_3),\Phi_S(r_3))} \in \lrvg{\trust}(R_R(r_3))$, Lemma~\ref{lem:splitting-safety-normal} gives us $W_1$, $W_2$ and $W_3$ such that $R_R(r_3) = W_1 \oplus W_2 \oplus W_3$ and $\npair{(w_1,w_1) \in \lrvg{\trust}(W_1)}$, $\npair{(w_2,w_2) \in \lrvg{\trust}(W_2)}$ and $\npair{(w_3,w_3) \in \lrvg{\trust}(W_3)}$.
+    We take $R_R'(r_1) = W_1$, $R_R'(r_2) = W_2$ and $R_R'(r_3) = W_3 \oplus R_R(r_1) \oplus R_R(r_2)$ and $R_R' = R_R(r)$ elsewhere.
 
-    From $\npair{(\Phi_S(r_3),\Phi_S(r_3))} \in \lrvg{\trust}(R_R(r_3))$, we get that either $\perm = \noperm$, in which case we can pick the ownership distribution to be the same as before, or $\npair{[\baddr,\eaddr]} \in \readCond{\linear,R_R(r_3)}$.
-
-    In the latter case, we get $S \subseteq \addressable{\linear,R_R(r_3)}$ and $R : S \fun \powerset{R_R(r_3)}$ such that $\forall r \in S \ldotp |R(r)| = 1$ and $\biguplus_{r\in S} R(r) \supseteq [\baddr,\eaddr]$.
-
-    This gives us a way to distribute the ownership, namely $r_3$ gives up ownership of regions $R^{-1}([\baddr,\eaddr])$, $r_1$ gets ownership of $R^{-1}([\baddr,n])$, and $r_2$ gets ownership over $R^{-1}([n+1,\eaddr])$.
-    The remainder of the ownership distribution remains unchanged.
-
-TODO TODO TODO     
-    Now we have to argue the following:
-    \begin{itemize}
-    \item if $\perm \in \readAllowed$, then
-      \begin{itemize}
-      \item $\npair{[\baddr,n]} \in \readCond{\linear,R_R'(r_1)}$
-      \item $\npair{[n+1,\eaddr]} \in \readCond{R_R'(r_2)}$
-      \end{itemize}
-      
-    \item if $\perm \in \writeAllowed$, then
-      \begin{itemize}
-      \item $\npair{[\baddr,n]} \in \writeCond{\linear,R_R'(r_1)}$
-      \item $\npair{[n+1,\eaddr]} \in \writeCond{\linear,R_R'(r_2)}$
-      \end{itemize}
-    \item $\perm \neq \rx$
-
-      Assuming $\perm = \rx$, then it must have been the case that $\lin = \normal$ contradicting the assumption $\isLinear{(\Phi_S(r_3))}$.
-      
-    \end{itemize}
-    or
-    \begin{itemize}
-    \item 
-    \end{itemize}
-    depending on whether the permission of the capability was $\perm = \noperm$
-    or not. In both cases, the result follows immediately by the assumptions.
-
-    If $\neg \isLinear{(\Phi_S(r_3))}$, then we pick $R_R' = R_R$
-
-    TODO
-
-    For regions $r \neq r_1,r_2,r_3$, we have
+    By the above points, by assumption and using Lemma~\ref{lem:downwards-closed}, we then have for all $r$ that:
     \[
-      \npair[n-1]{(\Phi_S'(r), \Phi_T'(r))} \in \lrvg{\trust}(R(r_1))
+      \npair[n-1]{(\Phi_S'(r), \Phi_T'(r))} \in \lrvg{\trust}(R_R'(r))
     \]
-    by assumption and Lemma~\ref{lem:downwards-closed}.
   \item Case \ref{case:ftlr:move-cca-etc:split-seal}:
+    In this case, we can take $R_R' = R_R$ and use Lemma~\ref{lem:purePart-oplus} to give us that all $\purePart{R_R(r)}$ are equal.
+    For $r = r_1, r_2, r_3$, we then get easily by definition that
+    \[
+      \npair[n-1]{(\Phi_S'(r), \Phi_T'(r))} \in \lrvg{\trust}(R_R'(r))
+    \]
+    and for other registers, it follows by Lemma~\ref{lem:downwards-closed}.
 
-TODO
   \item Case \ref{case:ftlr:move-cca-etc:split-stack}:
 
 TODO
@@ -1711,7 +1739,12 @@ TODO
 TODO
   \item Case \label{case:ftlr:move-cca-etc:splice-seal}:
 
-TODO
+    In this case, we can take $R_R' = R_R$ and use Lemma~\ref{lem:purePart-oplus} to give us that all $\purePart{R_R(r)}$ are equal.
+    For $r = r_1, r_2, r_3$, we then get easily by definition that
+    \[
+      \npair[n-1]{(\Phi_S'(r), \Phi_T'(r))} \in \lrvg{\trust}(R_R'(r))
+    \]
+    and for other registers, it follows by Lemma~\ref{lem:downwards-closed}.
   \end{itemize}
 
 
