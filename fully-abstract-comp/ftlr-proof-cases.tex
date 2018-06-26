@@ -682,6 +682,40 @@ TODO TODO TODO
   The fact that $\npair[n']{(c_3,c_3')} \in \lrv(W_2')$ follows from Lemma~\ref{lem:non-linear-pure}.
 \end{proof}
 
+\begin{lemma}[Store to stack capability works]
+  \label{lem:store-stack-works}
+  If
+  \begin{itemize}
+  \item $\memSat{(\ms_S,\stk,\ms_\stk,\ms_T)}{W_M}$
+  \item $c_1 = \stkptr{\perm,\baddr,\eaddr,\aaddr}$
+  \item $c_1' = ((\perm',\linear),\baddr',\eaddr',\aaddr')$
+  \item $\perm \in \writeAllowed{}$, $\perm' \in \writeAllowed{}$
+  \item $\aaddr \in [\baddr,\eaddr]$
+  \item $\aaddr' \in [\baddr',\eaddr']$
+  \item $\npair{(c_1,c_1')}\in\lrvg{\trusted}(H_\sigma,W_1)$
+  \item $\npair{(c_2,c_2')}\in\lrv(H_\sigma,W_2)$
+  \item $W_1 \oplus W_2 \oplus W_M$ is defined
+  \item $n' < n$
+  \item $c_3 = \linCons{c_2}$, $c_3' = \linCons{c_2'}$
+  \end{itemize}
+  Then $\exists W_2', W_M'\ldotp$
+  \begin{itemize}
+  \item $W_2 \oplus W_M = W_2' \oplus W_M'$
+  \item $\memSat[n']{(\ms_S,\stk,\ms_\stk\update{\aaddr}{c_2},\ms_T\update{\aaddr'}{c_2'})}{W_M'}$
+  \item $\npair[n']{(c_3,c_3')} \in \lrv(W_2')$
+  \end{itemize}
+\end{lemma}
+\begin{proof}
+  From $\npair{(c_1,c_1')}\in\lrvg{\trusted}(W_1)$ and $\perm \in \writeAllowed{}$, it follows that $\perm = \perm'$, $\baddr = \baddr'$, $\eaddr = \eaddr'$, $\aaddr = \aaddr'$ and $\npair{[b,e]} \in \stackWriteCond{W_1}$. 
+
+  We then get a $r$ and $A$, such that $a \in A$, $\pwfree[W_1](r).H \nsupeq \stdreg{A,\gc}{v}.H$ and $\pwfree[W_1](r)$ is address-stratified.
+
+  If we decompose the judgement that $\memSat{(\ms_S,\stk,\ms_\stk,\ms_T)}{W_M}$, then we get some $\npair[n-1]{\ms_\stk|_A, \ms_T|_A} \in \stdreg{A,\gc}{v}.H~W_{M,A}$ for some $W_M = W_{M,A} \oplus W_{M,R}$.
+  If we define $W_M'$ as $W_M \oplus W_2$ and $W_2' = \purePart{W_2}$, then we can use the properties about $\pwfree[W_1](r)$ above to show that  $\memSat[n']{(\ms_S,\stk,\ms_\stk\update{\aaddr}{c_2},\ms_T\update{\aaddr'}{c_2'})}{W_M'}$.
+  The fact that $\npair[n']{(c_3,c_3')} \in \lrv(W_2')$ follows from Lemma~\ref{lem:non-linear-pure}.
+\end{proof}
+
+
 \subsection{FTLR proof}
 
 \begin{lemma}
@@ -873,17 +907,13 @@ TODO TODO TODO
         \stkptr{\perm,\baddr,\eaddr,\aaddr}$, and $\perm \in \writeAllowed{}$,
         and
         $\withinBounds{w_1}$, and\\
-        $w = \Phi_S(r_2)$, and $w' = \Phi_T(r_2)$, and $\isLinear{w} \Rightarrow
-        w_2 = w_2' = 0$, and $\neg \isLinear{w} \Rightarrow (w_2 = \Phi_S(r_2)
-        \text{ and } w_2' = \Phi_T(r_2))$.
+        $w = \Phi_S(r_2)$, and $w' = \Phi_T(r_2)$, and $w_2 = \linCons{\Phi_S(r_2)}$, $w_2' = \linCons{\Phi_T(r_2)}$, $r_2 \neq \pcreg$.
       \item (load) $ w_2' = \Phi_T(r_2) =
         ((\perm,\linear),\baddr,\eaddr,\aaddr)$, and $w_2 = \Phi_S(r_2) =
         \stkptr{\perm,\baddr,\eaddr,\aaddr}$, and $\perm \in \readAllowed{}$,
         $\withinBounds{((\perm,\lin),\baddr,\eaddr,\aaddr)}$, and $\aaddr \in
         \dom(\Phi.\ms_\stk)$, and $\aaddr \in \dom(\Phi.\ms_\stk)$, and\\
-        $w_1 = \Phi_S.\ms_\stk(\aaddr)$, and $w_1' = \Phi_T.\ms_\stk(\aaddr)$, and \\
-        $\isLinear{w_1} \Rightarrow w = w' = 0$, and \\
-        $\neg \isLinear{w_1} \Rightarrow w = w_1 \text{ and } w' = w_1'$
+        $w_1 = \Phi_S.\ms_\stk(\aaddr)$, and $w_1' = \Phi_T.\ms_\stk(\aaddr)$, and $w = \linCons{w_1}$, $w' = \linCons{w_1'}$, $\linConsPerm{\perm,w_1}$ and $\linConsPerm{\perm,w_1'}$ and $r_1 \neq \pcreg$.
       \end{enumproof}
     \end{itemize}
   \item \label{case:ftlr:store-load-jump} All of the following hold: (includes control-flow manipulation cases:
@@ -1936,15 +1966,15 @@ TODO
 
     Follows by definition of $\updPcAddr{}$ and the fact that stores from pc into memory and loads into pc are not allowed.
 
-  \item $\npair{[\baddr,\eaddr]} \in \xReadCond{W_\pcreg}$:
+  \item $\npair[n-1]{[\baddr,\eaddr]} \in \xReadCond{W_\pcreg}$:
 
-    Follows by the same assumption of this lemma.
+    Follows by the same assumption of this lemma, using Lemma~\ref{lem:downwards-closed}.
 
-  \item $\npair{(\Phi_S'.\reg,\Phi_T'.\reg)} \in \lrrg{\trust}(W_R')$:
+  \item $\npair[n-1]{(\Phi_S'.\reg,\Phi_T'.\reg)} \in \lrrg{\trust}(W_R')$:
 
     See above.
 
-  \item $\memSat{\Phi_S'.\mem,\Phi_S'.\stk,\Phi_S'.\ms_\stk,\Phi_T'.\mem}{W_M'}$:
+  \item $\memSat[n-1]{\Phi_S'.\mem,\Phi_S'.\stk,\Phi_S'.\ms_\stk,\Phi_T'.\mem}{W_M'}$:
 
     See above.
 
@@ -1957,7 +1987,63 @@ TODO
 
   Case \ref{case:ftlr:store-load-stack}
 
-  TODO
+  By Lemma~\ref{lem:lro-anti-red-gen} it suffices to show
+  \[
+    \npair[n-1]{\Phi_S',\Phi_T'} \in \lro
+  \]
+
+  First, we show that for some $W_R'$ and $W_M'$ such that $W_R \oplus W_M = W_R' \oplus W_M'$, we have that $\npair[n-1]{(\Phi_S'.\reg,\Phi_T'.\reg)} \in \lrrg{\trust}(W_R')$ and $\memSat[n-1]{\Phi_S'.\mem,\Phi_S'.\stk,\Phi_S'.\ms_\stk,\Phi_T'.\mem}{W_M'}$.
+  We have that $\Phi_S' = \updPcAddr{\Phi_S\updReg{r_1,r_2}{w_1,w_2}\update{\ms_\stk.\aaddr}{w}}$, $\Phi_T' = \updPcAddr{\Phi_T\updReg{r_1',r_2'}{w_1',w_2'}\update{\ms_\stk.\aaddr}{w'}}$ and we distinguish the following two cases:
+  \begin{itemize}
+  \item (store) $w_1 = \Phi_T(r_1) =
+        ((\perm,\linear),\baddr,\eaddr,\aaddr)$, $w_1' = \Phi_S(r_1) =
+        \stkptr{\perm,\baddr,\eaddr,\aaddr}$, and $\perm \in \writeAllowed{}$, and $\withinBounds{w_1}$, and $w = \Phi_S(r_2)$, and $w' = \Phi_T(r_2)$, and $w_2 = \linCons{\Phi_S(r_2)}$, $w_2' = \linCons{\Phi_T(r_2)}$:
+
+        Follows from Lemma~\ref{lem:store-stack-works}, redistributing ownership in the obvious way.
+
+  \item (load) $ w_2' = \Phi_T(r_2) =
+        ((\perm,\linear),\baddr,\eaddr,\aaddr)$, and $w_2 = \Phi_S(r_2) =
+        \stkptr{\perm,\baddr,\eaddr,\aaddr}$, and $\perm \in \readAllowed{}$,
+        $\withinBounds{((\perm,\lin),\baddr,\eaddr,\aaddr)}$, and $\aaddr \in
+        \dom(\Phi.\ms_\stk)$, and $\aaddr \in \dom(\Phi.\ms_\stk)$, and\\
+        $w_1 = \Phi_S.\ms_\stk(\aaddr)$, and $w_1' = \Phi_T.\ms_\stk(\aaddr)$, and $w = \linCons{w_1}$, $w' = \linCons{w_1'}$, $\linConsPerm{\perm,w_1}$ and $\linConsPerm{\perm,w_1'}$ and $r_1 \neq \pcreg$:
+
+    Follows from Lemma~\ref{lem:load-stack-cap-works}, redistributing ownership in the obvious way.
+
+  \end{itemize}
+
+  By the induction hypothesis, it suffices to prove that:
+  \begin{itemize}
+  \item One of the following sets of requirements holds:
+    \begin{itemize}
+    \item $\trust = \trusted$, $\Phi_S'$ is reasonable up to $n$ steps and $[\baddr,\eaddr] \subseteq \dom(\mscode) = \ta$
+    \item $\trust = \untrusted$ and $[b,e] \mathrel{\#} \ta$ and $\npair{[\baddr,\eaddr]} \in \readCond{\normal,W_\pcreg}$
+    \end{itemize}:
+
+    Follows by the same assumption of this lemma.
+
+  \item $\Phi_S'(\pcreg) = \Phi_T'(\pcreg) = ((\rx,\normal),\baddr,\eaddr,\_)$:
+
+    Follows by definition of $\updPcAddr{}$ and the fact that stores from pc into memory and loads into pc are not allowed.
+
+  \item $\npair[n-1]{[\baddr,\eaddr]} \in \xReadCond{W_\pcreg}$:
+
+    Follows by the same assumption of this lemma, using Lemma~\ref{lem:downwards-closed}.
+
+  \item $\npair[n-1]{(\Phi_S'.\reg,\Phi_T'.\reg)} \in \lrrg{\trust}(W_R')$:
+
+    See above.
+
+  \item $\memSat[n-1]{\Phi_S'.\mem,\Phi_S'.\stk,\Phi_S'.\ms_\stk,\Phi_T'.\mem}{W_M'}$:
+
+    See above.
+
+  \item $W_\pcreg \oplus W_R' \oplus W_M'$ is defined.
+
+  \item Theorem~\ref{thm:ftlr} holds for all $n' < n-1$:
+
+    Follows by the same assumption of this lemma.
+  \end{itemize}
 
   Case \ref{case:ftlr:store-load-jump}
 
