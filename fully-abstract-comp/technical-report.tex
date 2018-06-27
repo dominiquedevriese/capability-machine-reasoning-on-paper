@@ -626,8 +626,9 @@ For the linearity encoding, we make similar assumptions: $\encLin{} : \Linear \f
 \begin{align*}
   \sem{\tmove{r}{\rn}}(\Phi) = & 
                               \begin{cases}
-                                \updPcAddr{\Phi\updReg{r}{\rn}} & \rn \in \ints \\
-                                \updPcAddr{\Phi\updReg{\rn}{w}\updReg{r}{\Phi(\rn)}} & w = \linCons{\Phi(\rn)}
+                                \updPcAddr{\Phi\updReg{r}{\rn}} & r \neq \pcreg \wedge \rn \in \ints \\
+                                \updPcAddr{\Phi\updReg{\rn}{w}\updReg{r}{\Phi(\rn)}} & r \neq \pcreg \wedge w = \linCons{\Phi(\rn)}\\
+                                \failed & \totherwise
                               \end{cases}
 \end{align*}
 (Notice that in the case where we are moving a linear capability and $r = \rn$ the order of the updates matter.)
@@ -731,7 +732,8 @@ For the linearity encoding, we make similar assumptions: $\encLin{} : \Linear \f
                                     \begin{array}[t]{l}
                                       \Phi(\rn) = n \tand \\
                                       \Phi(r) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
-                                      c = ((\perm,\lin),\baddr,\eaddr,\aaddr + n)
+                                      c = ((\perm,\lin),\baddr,\eaddr,\aaddr + n) \tand\\
+                                      r \neq \pcreg
                                     \end{array}
                                     \\
                                     \updPcAddr{\Phi\updReg{r}{s}} &  
@@ -771,7 +773,8 @@ This instruction uses the $\decPerm{}$ function.
                                           \Phi(r_1) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
                                           \Phi(\rn) = n \tand\\
                                           \decPerm{n} \sqsubseteq \perm \tand \\
-                                          c = ((\decPerm{n},\lin),\baddr,\eaddr,\aaddr)
+                                          c = ((\decPerm{n},\lin),\baddr,\eaddr,\aaddr) \tand\\
+                                          r_1 \neq \pcreg
                                         \end{array}
                                         \\
                                         \sourcecolor\left.
@@ -803,14 +806,14 @@ This instruction uses the $\decPerm{}$ function.
                                                     \begin{array}[t]{l}
                                                       \text{if for $i \in \{1,2\}$}\\
                                                       \quad\Phi(\rn_i) = n_i \tand\\
-                                                      \quad\text{and $n_1 < n_2$}\\        
+                                                      \quad n_1 < n_2
                                                     \end{array}\\
                                                     \updPcAddr{\Phi\updReg{r_0}{0}} &
                                                     \arraycolsep=0pt
                                                     \begin{array}[t]{l}
                                                       \text{if for $i \in \{1,2\}$}\\
                                                       \quad \Phi(\rn_i) = n_i \tand \\
-                                                      \quad\text{and $n_1 \not< n_2$}\\        
+                                                      \quad n_1 \not< n_2\\
                                                     \end{array}\\
                                                     \failed & \text{otherwise}
                                                   \end{cases}  
@@ -854,7 +857,8 @@ This instruction uses the $\decPerm{}$ function.
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
                                       \Phi(r_1) = ((\perm,\lin),\baddr,\eaddr,\_) \tand \\
-                                      c = ((\perm,\lin),\baddr,\eaddr,\baddr)
+                                      c = ((\perm,\lin),\baddr,\eaddr,\baddr) \tand\\
+                                      r_1 \neq \pcreg
                                     \end{array} \\
                                   \updPcAddr{}\left(
                                     \Phi \updReg{r_1}{c}
@@ -1040,7 +1044,8 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                    \baddr \leq n \tand n < \eaddr \tand \\
                                    c_1 = ((\perm,\lin),\baddr,n,\aaddr) \tand \\
                                    c_2 = ((\perm,\lin),n+1,\eaddr,\aaddr) \tand \\
-                                   w = \linCons{\Phi(r_3)}
+                                   w = \linCons{\Phi(r_3)} \tand \\
+                                   r_1,r_2,r_3 \neq \pcreg
                                  \end{array}\\
                                  \updPcAddr{} \left(
                                  \arraycolsep=0pt
@@ -1055,7 +1060,7 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                    \Phi(\rn_4) = n \tand\\
                                    \sigma_\baddr \leq n \tand n < \sigma_\eaddr \tand \\
                                    c_1 = \seal{\sigma_\baddr,n,\sigma} \tand \\
-                                   c_2 = \seal{n+1,\sigma_\eaddr,\sigma}         
+                                   c_2 = \seal{n+1,\sigma_\eaddr,\sigma}
                                  \end{array}\\
                                    \sourcecolor\left.
                                    \updPcAddr{}\left(
@@ -1073,7 +1078,7 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                    \Phi(\rn_4) = n \tand \\
                                    \baddr \leq n \tand n < \eaddr \tand \\
                                    c_1 = \stkptr{\perm,\baddr,n,\aaddr} \tand \\
-                                   c_2 = \stkptr{\perm,n+1,\eaddr,\aaddr} 
+                                   c_2 = \stkptr{\perm,n+1,\eaddr,\aaddr}
                                  \end{array} \right.\\
                                  \failed & \totherwise
                                \end{cases}
@@ -1099,7 +1104,8 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                   \eaddr_2 + 1 = \baddr_3 \tand \baddr_2 \leq \eaddr_2 \tand \baddr_3 \leq \eaddr_3 \tand \\
                                   c = ((\perm,\lin),\baddr_2,\eaddr_3,\aaddr_3) \tand\\
                                   w_2 = \linCons{\Phi(r_2)} \tand \\
-                                  w_3 = \linCons{\Phi(r_3)} \\
+                                  w_3 = \linCons{\Phi(r_3)}  \tand \\
+                                  r_1,r_2,r_3 \neq \pcreg\\
                                 \end{array}\\
                                 \updPcAddr{}\left(
                                 \arraycolsep=0pt
