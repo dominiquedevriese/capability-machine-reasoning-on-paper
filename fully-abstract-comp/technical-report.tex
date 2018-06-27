@@ -1320,8 +1320,9 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
 
 \begin{mathpar}
   \inference{
-    \dom(\mscode) \mathrel{\#} \dom(\msdata)&
-    \dom(\mscode) = [\baddr,\eaddr]\\
+    \dom(\mscode) = [\baddr,\eaddr]&
+    [\baddr-1,\eaddr+1] \mathrel{\#} \dom(\msdata)\\
+    \mspad = [\baddr-1\mapsto 0] \uplus [\eaddr+1 \mapsto 0]\\
     \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode \\
     \exists A_\mathrm{own} : \dom(\msdata) \rightarrow \powerset{\dom(\msdata)} & \dom(\msdata) = A_{\mathrm{non-linear}} \uplus A_\linear \\
     A_\linear = \biguplus_{a \in \dom(\msdata)} A_{\mathrm{own}}(a) \\
@@ -1331,7 +1332,7 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
     \overline{s_{\mathrm{import}}} \mathrel{\#} \overline{s_{\mathrm{export}}} & (\dom(\mscode) \subseteq \ta) \vee (\dom(\mscode) \mathrel{\#} \ta \wedge \sigrets = \emptyset)&
     \dom(\msdata) \mathrel{\#} \ta
   }{
-    \vdash (\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
+    \vdash (\mscode\uplus \mspad,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
   }
   \and
   \inference{
@@ -2262,17 +2263,19 @@ H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
 
 \begin{multline*}
   H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; (\ta,\_,\gsigrets,\gsigcloss) \; \hat{W} =\\
-  \left\{\npair{(\code,\code)} \middle|
+  \left\{\npair{\arraycolsep=0pt\left(\array{l}\code \uplus \mspad,\\ \code \uplus \mspad\endarray\right)} \middle|
     \begin{array}{l}
-    \dom(\code) = [\aaddr,\baddr] \wedge \\
-      (\dom(\code) \subseteq \ta \wedge \sigrets \subseteq \gsigrets \wedge \sigcloss \subseteq \gsigcloss \wedge \trust = \trusted) \vee \\
-      \quad (\dom(\code)\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted) \wedge \\
+    \dom(\code) = [\baddr,\eaddr] \wedge \\
+      ([\baddr - 1, \eaddr + 1] \subseteq \ta \wedge \sigrets \subseteq \gsigrets \wedge \sigcloss \subseteq \gsigcloss \wedge \trust = \trusted) \vee \\
+      \quad ([\baddr-1,\eaddr+1]\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted) \wedge \\
+      \mspad = [\baddr-1 \mapsto 0] \uplus [\eaddr + 1 \mapsto 0]\wedge\\
       \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \code \wedge\\
       \forall a \in \dom(\code)\ldotp\\
-      \quad\npair{(\code(a),\code(a))} \in \lrvg{\trust}(\purePart{\xi(\hat{W})})
+      \quad\npair{(\code(a),\code(a))} \in \lrvg{\trust}(\purePart{\xi(\hat{W})}) \wedge
     \end{array}
   \right\}
 \end{multline*}
+
 
 \lau{19-03-2018: Add the link capability to the above? code in ta?}
 \lau{TODO: look at the $[b,e] \subseteq ...$ condition - will it work for splice?}
@@ -3447,12 +3450,14 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 
   Take
   \begin{equation*}
-    \var{comp} = (\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
+    \var{comp} = (\mscode\uplus\mspad,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
   \end{equation*}
+  Note that confusingly, $\var{comp}.\mscode = \mscode\uplus\mspad$, so the assumption about $\dom(\var{comp}.\mscode)$ should be interpreted properly.
   We then know from $\vdash \var{comp}$ that 
   \begin{itemize}
-  \item $\dom(\mscode) \mathrel{\#} \dom(\msdata)$
   \item $\dom(\mscode) = [\baddr,\eaddr]$
+  \item $[\baddr-1,\eaddr+1] \mathrel{\#} \dom(\msdata)$
+  \item $\mspad = [\baddr-1\mapsto 0] \uplus [\eaddr+1 \mapsto 0]$
   \item $\sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode$
   \item $\exists A_\mathrm{own} : \dom(\msdata) \rightarrow \powerset{\dom(\msdata)}$
   \item $\dom(\msdata) = A_{\mathrm{non-linear}} \uplus A_\linear$
@@ -3495,12 +3500,12 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \begin{itemize}
   \item
     \begin{equation*}
-      \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata', \mscode\uplus\msdata')} \in \lrheap(\pwheap)(W')
+      \npair{(\sigrets\uplus\sigcloss,\mspad\uplus\mscode\uplus \msdata', \mspad\uplus\mscode\uplus\msdata')} \in \lrheap(\pwheap)(W')
     \end{equation*}
    Take $R_\ms : \dom(\activeReg{\pwheap}) \fun \MemSeg \times \MemSeg$ such that
     \begin{itemize}
-    \item $R_\ms(r_\addr) = \msdata|_{\{a\}} \times \msdata|_{\{a\}}$.
-    \item $R_\ms(r_\var{code}) = \mscode\times\mscode$
+    \item $R_\ms(r_\addr) = (\msdata|_{\{a\}}, \msdata|_{\{a\}})$.
+    \item $R_\ms(r_\var{code}) = (\mspad\uplus\mscode,\mspad\uplus\mscode)$
     \end{itemize}
     Take $R_W' : \dom(\activeReg{\pwheap}) \fun \World$ such that
     \begin{itemize}
@@ -3540,14 +3545,16 @@ Note: we don't require the readcondition in the trusted case because trusted cod
       \item $\pwheap[R_W(\addr)](r_{\mathrm{code}}) = \codereg{\sigrets,\sigcloss,\mscode,\gc}$: follows from the choice of $W$ and $R_W'(\addr)$ and the fact that $R_W(a) \future R_W'(a)$
       \item $\dom(\mscode) \mathrel{\#} \ta$ or $\dom(\mscode) \subseteq \ta$: by assumption.
       \end{itemize}
-    \item $\npair{(\mscode,\mscode)} \in  \codereg[\mathrm{code},\square]{\sigrets,\sigcloss,\mscode,\gc}.H~ \xi^{-1}(\purePart{W'})$:
-      We take $\trust = \trusted$ if $\dom(\code) \subseteq \ta$ and $\trust =\untrusted$ otherwise.
+    \item $\npair{(\mspad\uplus\mscode,\mspad\uplus\mscode)} \in  \codereg[\mathrm{code},\square]{\sigrets,\sigcloss,\mscode,\gc}.H~ \xi^{-1}(\purePart{W'})$:
+      We take $\trust = \trusted$ if $[\baddr-1,\eaddr+1] \subseteq \ta$ and $\trust =\untrusted$ otherwise.
       By definition, we need to prove that:
       
       \begin{itemize}
-      \item $\dom(\code) = [\aaddr,\baddr]$: by assumption.
-      \item $(\dom(\code) \subseteq \ta \wedge \trust = \trusted) \vee (\dom(\code)\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted)$: by assumption and choice of $\trust$.
+      \item $\dom(\code) = [\baddr,\eaddr]$: by assumption.
+      \item $([\baddr-1,\eaddr+1] \wedge \trust = \trusted) \vee ([\baddr-1,\eaddr+1]\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted)$: by assumption and choice of $\trust$.
       \item $\sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \code$: by assumption.
+      \item $\mspad = [\baddr-1 \mapsto 0] \uplus [\eaddr + 1 \mapsto 0]$:
+        by assumption
       \item $\forall a \in \dom(\code), n' < n \ldotp \npair[n']{(\code(a),\code(a))} \in \lrvg{\trust}(\purePart{}(\xi(\xi^{-1}(\purePart{W'}))))$:
         Note first that $\purePart{}(\xi(\xi^{-1}(\purePart{W'}))) =\purePart{W'}$.
 
