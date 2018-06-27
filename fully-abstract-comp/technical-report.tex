@@ -2158,15 +2158,12 @@ where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-region
 \[
   \xReadCond{W} = \left\{ \npair{A} \middle| 
     \begin{array}{l}
-      \exists S \subseteq \addressable{\normal, \pwheap} \ldotp \\
-      \quad \exists M : S \fun \powerset{\MemSeg} \\
-      \qquad \biguplus_{r\in S} \dom(M(r)) \supseteq A \wedge\\
-      % \qquad \biguplus_{r\in S} R(r) \# \biguplus_{r\in S} C(r) \wedge \\
-      \qquad \forall r \in S \ldotp \pwheap(r) \nequal \codereg{\_,\_,M(r),\gc}
+      \exists r \in \addressable{\normal, \pwheap} \ldotp \\
+      \qquad \pwheap(r) \nequal \codereg{\_,\_,\code,\gc}\wedge\\
+      \qquad \dom(\code) \supseteq A 
     \end{array}
   \right\}
 \]
-\lau{RESOLVED: Make this condition require a set of adjacent regions.}
 
 \begin{definition}
   \label{def:address-stratified}
@@ -3133,7 +3130,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
     $\npair{A'} \in \readCond{\lin,W}$.
   \item If $\npair{A} \in \writeCond{\lin,W}$  and $\emptyset \neq A' \subseteq A$, then
     $\npair{A'} \in \writeCond{\lin,W}$.
-  \item If $\npair{A} \in \xReadCond{W}$  and $\emptyset \neq A' \subseteq A$, then
+  \item If $\npair{A} \in \xReadCond{W}$  and $A' \subseteq A$, then
     $\npair{A'} \in \xReadCond{W}$.
   \item If $\npair{A} \in \execCond{W}$  and $\emptyset \neq A' \subseteq A$, then
     $\npair{A'} \in \execCond{W}$.
@@ -3165,6 +3162,51 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 
   For the execute condition, we get a partition of the world into $W = \oplus_{a \in A} W_a(a)$ and we can define $W_1 = \oplus_{a\in[\baddr_1,\eaddr_1]} W_a(a)$ and likewise for $W_2$.
   The results then follow easily from the definitions.
+\end{proof}
+
+\begin{lemma}[permission-based conditions splicable]
+  \label{lem:conds-splicable}
+  If
+  \begin{itemize}
+  \item $[\baddr,\eaddr] = [\baddr_1,\eaddr_1] \uplus [\baddr_2,\eaddr_2]$
+  \item $[\baddr,\eaddr]\mathrel{\#} \ta$
+  \item $W_1\oplus W_2$ is defined.
+  \end{itemize}
+  then
+  \begin{itemize}
+  \item If $\npair{[\baddr_1,\eaddr_1]} \in \readCond{\lin,W_1}$ and $\npair{[\baddr_2,\eaddr_2]} \in \readCond{\lin,W_2}$, then $\npair{[\baddr,\eaddr]} \in \readCond{\lin,W_1 \oplus W_2}$
+  \item If $\npair{[\baddr_1,\eaddr_1]} \in \writeCond{\lin,W_1}$ and $\npair{[\baddr_2,\eaddr_2]} \in \writeCond{\lin,W_2}$, then $\npair{[\baddr,\eaddr]} \in \writeCond{\lin,W_1 \oplus W_2}$.
+  \item If $\npair{[\baddr_1,\eaddr_1]} \in \execCond{W_1}$ and $\npair{[\baddr_2,\eaddr_2]} \in \execCond{W_2}$, then $\npair{[\baddr,\eaddr]} \in \execCond{W_1 \oplus W_2}$.
+  \end{itemize}
+
+  If
+  \begin{itemize}
+  \item $[\baddr,\eaddr] = [\baddr_1,\eaddr_1] \uplus [\baddr_2,\eaddr_2]$
+  \item $W_1\oplus W_2 \oplus W_M$ is defined.
+  \item $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$
+  \end{itemize}
+  then
+  \begin{itemize}
+  \item If $\npair{[\baddr_1,\eaddr_1]} \in \xReadCond{\lin,W_1}$ and
+    $\npair{[\baddr_2,\eaddr_2]} \in \xReadCond{\lin,W_2}$, then
+    $\npair{[\baddr,\eaddr]} \in \xReadCond{\lin,W_1 \oplus W_2}$
+  \end{itemize}
+
+  If $[\baddr,\eaddr] = [\baddr_1,\eaddr_1] \uplus [\baddr_2,\eaddr_2]$, then
+  \begin{itemize}
+  \item If $\npair{[\baddr_1,\eaddr_1]} \in \stackReadCond{W_1}$ and $\npair{[\baddr_2,\eaddr_2]} \in \stackReadCond{W_2}$, then $\npair{[\baddr,\eaddr]} \in \stackReadCond{W_1 \oplus W_2}$
+  \item If $\npair{[\baddr_1,\eaddr_1]} \in \stackWriteCond{W_1}$ and $\npair{[\baddr_2,\eaddr_2]} \in \stackWriteCond{W_2}$, then $\npair{[\baddr,\eaddr]} \in \stackWriteCond{W_1 \oplus W_2}$.
+  \end{itemize}
+\end{lemma}
+\begin{proof}
+  The results for $\readCond{}$, $\writeCond{}$, $\stackReadCond{}$ and $\stackWriteCond{}$ follow by taking the union of the two sets $S$, and the union of $R$ for every $r$.
+
+  The result for $\execCond{}$ follows easily by definition and using Lemmas~\ref{lem:purePart-oplus} and~\ref{lem:oplus-future}.
+
+  For $\xReadCond{}$, we get $r_i \in \addressable{\normal,W_i}$ such that $\pwheap[W_i](r_i) \nequal \codereg{\_,\_,\code_i,\gc}$ such that $\dom(\code_i)\supseteq [\baddr_i,\eaddr_i]$.
+  From $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$, it follows that $\code_i = [\baddr_i',\eaddr_i']$ and if $r_1 \neq r_2$, then $[\baddr_1'-1,\eaddr_1+1] \mathrel{\#} [\baddr_2'-1,\eaddr_2'+1]$.
+  Because $[\baddr,\eaddr] = [\baddr_1,\eaddr_1] \uplus [\baddr_2,\eaddr_2]$ and $[\baddr_i',\eaddr_i'] = \dom(\code_i)\supseteq [\baddr_i,\eaddr_i]$, we can derive that $r_1= r_2$.
+  The result then follows by definition of $\xReadCond{}$.
 \end{proof}
 
 \begin{lemma}[FTLR for component code capabilities]

@@ -300,12 +300,14 @@ TODO TODO TODO
   \begin{itemize}
   \item $\npair{(c_1,c_1)} \in \lrvg{\trust}(W_1)$
   \item $\npair{(c_2,c_2)} \in \lrvg{\trust}(W_2)$
-  \item $c_1 = ((\perm,\lin),\baddr,n,\aaddr)$
-  \item $c_2 = ((\perm,\lin),n,\eaddr,\aaddr)$
+  \item $c_1 = ((\perm,\lin),\baddr,m,\aaddr)$
+  \item $c_2 = ((\perm,\lin),m+1,\eaddr,\aaddr)$
   \item $c = ((\perm,\lin),\baddr,\eaddr,\aaddr)$
-  \item $b \le n \le e$
+  \item $b \le m \le e$
   \item $c_1' = \linCons{c_1}$
   \item $c_2' = \linCons{c_2}$
+  \item $W_1\oplus W_2 \oplus W_M$ is defined
+  \item $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$
   \end{itemize}
   then there exist $W_1',W_2',W_3'$ such that
   \begin{itemize}
@@ -316,7 +318,19 @@ TODO TODO TODO
   \end{itemize}
 \end{lemma}
 \begin{proof}
-  TODO
+  From $\npair{(c_1,c_1)} \in \lrvg{\trust}(W_1)$ and $\npair{(c_2,c_2)} \in \lrvg{\trust}(W_2)$, it follows that either ($[b,m] \mathrel{\#} \ta$ or $[b,m] \subseteq \ta$) and also either ($[m+1,e] \mathrel{\#} \ta$ or $[m+1,e] \subseteq \ta$).
+
+  Consider first the case where either $[b,m] \subseteq \ta$ or $[m+1,e]\subseteq \ta$.
+  Then by definition of $\lrvg{\trust}$, we have that $\lin = \normal$, $\trust = \trusted$ and $\npair{[b,m]} \in \xReadCond{W_1}$ or $\npair{[m+1,e]} \in \xReadCond{W_2}$, respectively.
+  It follows by definition of $\xReadCond{}$ and $\codereg{}$ that $[\baddr-1,m+1]$ or $[m,\eaddr+1] \subseteq \ta$, respectively, so that it is impossible that $[m+1,\eaddr]\mathrel{\#} \ta$ or $[\baddr,m] \mathrel{\#} \ta$ respectively.
+  In other words, we must have that both $[b,m] \subseteq \ta$ and $[m+1,e]\subseteq \ta$.
+
+  From Lemma~\ref{lem:conds-splicable}, it follows that also $\npair{[\baddr,\eaddr]}\in\xReadCond{W_1\oplus W_2}$ and from Lemma~\ref{lem:non-linear-pure}, it follows that $\npair{[\baddr,\eaddr]}\in\xReadCond{}(\purePart{W_1\oplus W_2})$.
+  Finally, we have that $\npair{(c,c)}\in\lrvg{\trust}(\purePart{W_1\oplus W_2})$.
+  We can take $W_3' = \purePart{W_1\oplus W_2}$, $W_1' = W_1$ and $W_2' = W_2$ and the remaining proof obligations follow by assumption and by Lemma~\ref{lem:purePart-duplicable} and~\ref{lem:oplus-assoc-comm}.
+  
+  Now consider the case that both $[b,m] \mathrel{\#} \ta$ and $[m+1,e]\mathrel{\#} \ta$.
+  The results now follow by definition of $\lrv$, using Lemma~\ref{lem:conds-splicable} and~\ref{lem:non-linear-pure}, taking $W_3' = W_1 \oplus W_2$ and $W_1' = \purePart{W_1}$ and $W_2' = \purePart{W_2}$.
 \end{proof}
 
 \begin{lemma}[Capability splicing retains safety for stack capabilities]
@@ -724,7 +738,7 @@ TODO TODO TODO
   \begin{itemize}
   \item One of the following sets of requirements holds:
     \begin{itemize}
-    \item $\trust = \trusted$, $\Phi_S$ is reasonable up to $n$ steps and $[\baddr,\eaddr] \subseteq \dom(\mscode) = \ta$
+    \item $\trust = \trusted$, $\Phi_S$ is reasonable up to $n$ steps and $[\baddr,\eaddr] \subseteq \ta$
     \item $\trust = \untrusted$ and $[b,e] \mathrel{\#} \ta$ and $\npair{[\baddr,\eaddr]} \in \readCond{\normal,W_\pcreg}$
     \end{itemize}
   \item $\Phi_S(\pcreg) = \Phi_T(\pcreg) = ((\rx,\normal),\baddr,\eaddr,\_)$
@@ -983,7 +997,7 @@ TODO TODO TODO
   \begin{itemize}
   \item One of the following sets of requirements holds:
     \begin{itemize}
-    \item $\trust = \trusted$, $\Phi_S$ is reasonable up to $n-1$ steps and $[\baddr,\eaddr] \subseteq \dom(\mscode) = \ta$
+    \item $\trust = \trusted$, $\Phi_S$ is reasonable up to $n-1$ steps and $[\baddr,\eaddr] \subseteq \ta$
     \item $\trust = \untrusted$ and $\npair[n-1]{[\baddr,\eaddr]} \in \readCond{\normal,W_\pcreg}$
     \end{itemize}
     This follows from the corresponding assumption of this lemma and the fact that $\Phi_S \nstep[1]{\gc} \Phi_S'$ and Lemma~\ref{lem:ec-reasonable-antired}, \ref{lem:ec-reasonable-downwards-closed}, and \ref{lem:downwards-closed}.
@@ -1061,27 +1075,23 @@ TODO TODO TODO
   \]
   as desired.
 
-  It remains to show \ref{case:ftlr:scall:world}-\ref{case:ftlr:scall:mem}, but first we note that we can deduce the following: From the assumption $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$ we get $R \subseteq \addressable{\normal, \pwheap}$ and $\exists M : S \fun \powerset{\MemSeg}$ such that $\biguplus_{r\in S} \dom(M(r)) \supseteq [\baddr,\eaddr]$ and $\forall r \in S \ldotp \pwheap(r) \nequal \codereg{\sigrets',\_,M(r),\gc}$.
-  Further by $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W}$, we know that for one $r \in S$ there is a $\mscode'\uplus\mspad \subseteq \mscode$, call this $r$ for $r_{\mscode'}$,\footnote{Follows from $H^\var{code}$ requiring $\dom(\mscode') \subseteq \ta$ and $\dom(\mscode) = \ta$ and finally that $\mscode$ is part of $\ms_S$.}
-  such that
+  It remains to show \ref{case:ftlr:scall:world}-\ref{case:ftlr:scall:mem}, but first we note that we can deduce the following: From the assumption $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$ we get $r \in \addressable{\normal, \pwheap}$ and $\mscode$ such that $\dom(\mscode) \supseteq [\baddr,\eaddr]$ and $\pwheap(r) \nequal \codereg{\sigrets',\_,\mscode,\gc}$.
+  Further by $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W}$, we know that
   \begin{equation}
-    \npair{(\mscode'\uplus\mspad,\mscode'\uplus\mspad)} \in H^{\var{code}} \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\_,\gsigrets,\gsigcloss)\label{eq:ftlr:rretd:Hcode}
+    \npair{(\mscode\uplus\mspad,\mscode\uplus\mspad)} \in H^{\var{code}} \; \sigrets' \; \sigcloss' \; \mscode \; (\ta,\_,\gsigrets,\gsigcloss)~ W_r\label{eq:ftlr:rretd:Hcode}
   \end{equation}
-  where $\sigma' \in \sigrets'$ and $\dom(\mscode') \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode')$.
-  \dominique{How do we know $\ms_\code'$ contains [b,e] entirely?
-    It does seem plausible that it contains the call entirely as well as $a + \offpc$ thanks to the code region's well-formedness.
-  }
-  That is: $\mscode'$ contains the call we are considering.
+  where $\sigma' \in \sigrets'$ and $\dom(\mscode) \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode)$ and $W = W_r \oplus \_$.
+  That is: $\mscode$ contains the call we are considering.
   This also entails
   \begin{equation}
     \label{eq:ftlr:code-comp-jud}
-    \sigrets',\sigcloss' \vdash_\var{code\_comp} \mscode'
+    \sigrets',\sigcloss' \vdash_\var{code\_comp} \mscode
   \end{equation}
   from \ref{eq:ftlr:rretd:Hcode} we also get
 \begin{itemize}
-\item $\dom(\mscode'\uplus\mspad) \subseteq \ta$
+\item $\dom(\mscode\uplus\mspad) \subseteq \ta$
 
-  Otherwise we would have $\dom(\mscode') \# \ta$ which would contradict $\dom(\mscode'\uplus\mspad) \subseteq \dom(\mscode) \subseteq\ta$
+  Otherwise we would have $\dom(\mscode\uplus\mspad) \# \ta$ which would contradict $\ta\supseteq [b,e] \subseteq\dom(\mscode\uplus\mspad)$
 
 \item $\sigrets' \subseteq \gsigrets$
 
@@ -1155,8 +1165,8 @@ TODO TODO TODO
     \]
     where $W_{R,\rretd}'$ is the part of $W_R'$ with ownership over $r_\var{priv\_stk}$.
 
-    Use the $r=r_{\mscode'}$ as the witness.
-    The $\xReadCond{}$ gives us $\pwheap(r) \nequal \codereg{\_,\_,\mscode',\gc}$.
+    Use the $r=r_{\mscode}$ as the witness.
+    The $\xReadCond{}$ gives us $\pwheap(r) \nequal \codereg{\_,\_,\mscode,\gc}$.
     As it is a pure region, it is also present in the future world we consider.
     We now have to show:
     \begin{enumerate}[label=\alph*)]
@@ -1165,11 +1175,11 @@ TODO TODO TODO
         \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode'
         \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_{R,\rretd}')
       \]
-      First, we already know $\dom(\mscode') \subseteq \ta$ and $\sigrets' \subseteq \gsigrets$.
+      First, we already know $\dom(\mscode) \subseteq \ta$ and $\sigrets' \subseteq \gsigrets$.
       Now pick $r_\var{priv\_stk}$ as the witness.
       We immediately get $\dom(\ms_{\stk\_\priv,S}) = \dom(\Phi_T''.\mem|_{[\aaddr_\stk,\eaddr_\stk]}) = [\aaddr_\stk,\eaddr_\stk]$.
       Next, $\decInstr{\mscode'(\aaddr,\aaddr+\calllen-1)} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}}$ follows from $\callCond{\Phi_S,r_1,r_2,\offpc,\offsigma,\aaddr}$.
-      Finally, $\ms_\code(\aaddr+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr}$ with $\sigma' = \sigma_\baddr + \offpc \in \sigrets'$ which follows from $\sigrets',\sigcloss' \vdash_{\mathrm{comp-code}} \mscode'$ and the fact that the call is there.
+      Finally, $\ms_\code(\aaddr+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr}$ with $\sigma' = \sigma_\baddr + \offpc \in \sigrets'$ which follows from $\sigrets',\sigcloss' \vdash_{\mathrm{comp-code}} \mscode$ and the fact that the call is there.
     \item $\isLinear{\sealed{\sigma',\retptrd(\aaddr_\stk,\eaddr_\stk)}}$ iff
       $\isLinear{\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk)}}$\\
       Trivial, both are linear.
@@ -1194,11 +1204,11 @@ TODO TODO TODO
             \calllen)},\\\sealed{\sigma',((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)}\endarray\right)} \in \lrv(W_{R,\rretc}')
     \]
     where $W_{R,\rretc}'$ has the ownership of $W$.
-    Just as in the previous case, we know that for some region $r$ there exists $\mscode' \subseteq \mscode$ such that: $\pwheap(r) \nequal \codereg{\sigrets',\_,\mscode',\gc}$ where $\sigma' \in \sigrets'$ and $\dom(\mscode') \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode')$ and $\sigrets' \subseteq \gsigrets$.
+    Just as in the previous case, we know that for some region $r$ there exists an $\mscode$ such that: $\pwheap(r) \nequal \codereg{\sigrets',\_,\mscode,\gc}$ where $\sigma' \in \sigrets'$ and $\dom(\mscode) \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode)$ and $\sigrets' \subseteq \gsigrets$.
     It follows easily from the definition of $H_\sigma^\var{code}$ that
     \begin{equation}
       \label{eq:code-caps-in-h-sigma}
-      \npair[n'']{\left(\array{l}\retptrc(\baddr,\eaddr,\aaddr + \calllen),\\((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)\endarray\right)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_{R,\rretc}')
+      \npair[n'']{\left(\array{l}\retptrc(\baddr,\eaddr,\aaddr + \calllen),\\((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)\endarray\right)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_{R,\rretc}')
     \end{equation}
     for $n'' < n-1$.
     Both capabilities are non-linear, so
@@ -1211,13 +1221,13 @@ TODO TODO TODO
     \[
       \begin{array}{l}
         \forall W'' \future \purePart{W_{R,\rretc}'}, W_o, n'' < n-1,\\
-        \quad  \npair[n'']{(\vsc_S',\vsc'_T)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_o) \ldotp \\
+        \quad  \npair[n'']{(\vsc_S',\vsc'_T)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_o) \ldotp \\
         \qquad \npair[n'']{\retptrc(\baddr,\eaddr,\aaddr + \calllen),\vsc_S',((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset),\vsc_T'} \in \lrexj(W''\oplus W_o))
       \end{array}
     \]
 
     To this end let $W'' \future \purePart{W_{R,\rretc}'}$ and $W_o$ be given s.t. $W'' \oplus W_o$ is defined.
-    Further, let $\npair[n'']{(\vsc_S',\vsc'_T)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_o)$ be given and show
+    Further, let $\npair[n'']{(\vsc_S',\vsc'_T)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_o)$ be given and show
     \[
       \npair[n'']{\retptrc(\baddr,\eaddr,\aaddr + \calllen),\vsc_S',((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset),\vsc_T'} \in \lrexj(W''\oplus W_o))
     \]
@@ -1233,7 +1243,7 @@ TODO TODO TODO
     In the first case, $\vsc_S'$ is a $\retptrc$ and $\vsc_T'$ is a capability with permission $\rx$.
     In this case, $\var{xjumpResult}$ will produce failed configurations which are trivially in the observation relation.
     In the next case, it is required that $\sigma' \in \sigcloss'$, but this
-    cannot be the case as $\sigma' \in \sigrets'$ and we have $\sigrets',\sigcloss' \vdash_{\mathrm{comp-code}} \mscode'$, which implies that $\sigcloss' \mathrel{\#} \sigrets'$.
+    cannot be the case as $\sigma' \in \sigrets'$ and we have $\sigrets',\sigcloss' \vdash_{\mathrm{comp-code}} \mscode$, which implies that $\sigcloss' \mathrel{\#} \sigrets'$.
 
     This leaves us with one final case, namely $\vsc_S'= \retptrd(\baddr_\stk',\eaddr_\stk')$ and $\vsc_T'=((\rw,\linear),\baddr_\stk',\eaddr_\stk',\baddr_\stk'-1)$.
     Further we know
