@@ -295,17 +295,19 @@ TODO TODO TODO
 \end{proof}
 
 \begin{lemma}[Capability splicing retains safety for normal capabilities]
-  \label{lem:splitting-safety-normal}
+  \label{lem:splicing-safety-normal}
   If
   \begin{itemize}
   \item $\npair{(c_1,c_1)} \in \lrvg{\trust}(W_1)$
   \item $\npair{(c_2,c_2)} \in \lrvg{\trust}(W_2)$
-  \item $c_1 = ((\perm,\lin),\baddr,n,\aaddr)$
-  \item $c_2 = ((\perm,\lin),n,\eaddr,\aaddr)$
+  \item $c_1 = ((\perm,\lin),\baddr,m,\aaddr)$
+  \item $c_2 = ((\perm,\lin),m+1,\eaddr,\aaddr)$
   \item $c = ((\perm,\lin),\baddr,\eaddr,\aaddr)$
-  \item $b \le n \le e$
+  \item $b \le m \le e$
   \item $c_1' = \linCons{c_1}$
   \item $c_2' = \linCons{c_2}$
+  \item $W_1\oplus W_2 \oplus W_M$ is defined
+  \item $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$
   \end{itemize}
   then there exist $W_1',W_2',W_3'$ such that
   \begin{itemize}
@@ -316,148 +318,42 @@ TODO TODO TODO
   \end{itemize}
 \end{lemma}
 \begin{proof}
-TODO
+  From $\npair{(c_1,c_1)} \in \lrvg{\trust}(W_1)$ and $\npair{(c_2,c_2)} \in \lrvg{\trust}(W_2)$, it follows that either ($[b,m] \mathrel{\#} \ta$ or $[b,m] \subseteq \ta$) and also either ($[m+1,e] \mathrel{\#} \ta$ or $[m+1,e] \subseteq \ta$).
 
-Copy paste from work on ftlr proof case: 
+  Consider first the case where either $[b,m] \subseteq \ta$ or $[m+1,e]\subseteq \ta$.
+  Then by definition of $\lrvg{\trust}$, we have that $\lin = \normal$, $\trust = \trusted$ and $\npair{[b,m]} \in \xReadCond{W_1}$ or $\npair{[m+1,e]} \in \xReadCond{W_2}$, respectively.
+  It follows by definition of $\xReadCond{}$ and $\codereg{}$ that $[\baddr-1,m+1]$ or $[m,\eaddr+1] \subseteq \ta$, respectively, so that it is impossible that $[m+1,\eaddr]\mathrel{\#} \ta$ or $[\baddr,m] \mathrel{\#} \ta$ respectively.
+  In other words, we must have that both $[b,m] \subseteq \ta$ and $[m+1,e]\subseteq \ta$.
 
-    First we only consider registers $r_1,r_2,r_3$.
-
-    If $\isLinear{(\Phi_S(r_3))}$, then we need to redistribute the ownership
-    previously owned by the world used for $r_3$ to $r_1$ and $r_2$.
-
-    From $\npair{(\Phi_S(r_3),\Phi_S(r_3))} \in \lrvg{\trust}(R_R(r_3))$, we get that either $\perm = \noperm$, in which case we can pick the ownership distribution to be the same as before, or $\npair{[\baddr,\eaddr]} \in \readCond{\linear,R_R(r_3)}$.
-
-    In the latter case, we get $S \subseteq \addressable{\linear,\pwheap{R_R(r_3)}}$ and $R : S \fun \powerset{R_R(r_3)}$ such that $\forall r \in S \ldotp |R(r)| = 1$ and $\biguplus_{r\in S} R(r) \supseteq [\baddr,\eaddr]$.
-
-    This gives us a way to distribute the ownership, namely $r_3$ gives up ownership of regions $R^{-1}([\baddr,\eaddr])$, $r_1$ gets ownership of $R^{-1}([\baddr,n])$, and $r_2$ gets ownership over $R^{-1}([n+1,\eaddr])$.
-    The remainder of the ownership distribution remains unchanged.
-
-    Now we have to argue the following:
-    \begin{itemize}
-    \item if $\perm \in \readAllowed$, then
-      \begin{itemize}
-      \item $\npair{[\baddr,s]} \in \readCond{\linear,R_R'(r_1)}$
-      \item $\npair{[s+1,\eaddr]} \in \readCond{R_R'(r_2)}$
-      \end{itemize}
-      Both follow from the assumption $\npair{[\baddr,\eaddr]} \in \readCond{\linear,R_R(r_3)}$, and the fact that $R_R'(r_i), i=1,2$ owns the appropriate regions.
-    \item if $\perm \in \writeAllowed$, then
-      \begin{itemize}
-      \item $\npair{[\baddr,s]} \in \writeCond{\linear,R_R'(r_1)}$
-      \item $\npair{[s+1,\eaddr]} \in \writeCond{\linear,R_R'(r_2)}$
-      \end{itemize}
-      Both follow from the assumption $\npair{[\baddr,\eaddr]} \in \writeCond{\linear,R_R(r_3)}$, and the fact that $R_R'(r_i), i=1,2$ owns the appropriate regions.
-    \item $\perm = \rwx$
-
-      By assumption.
-    \item $\perm \neq \rx$
-
-      Assuming $\perm = \rx$, then it must have been the case that $\lin = \normal$ contradicting the assumption $\isLinear{(\Phi_S(r_3))}$.
-    \end{itemize}
-
-    We also trivially have $\npair[n-1]{(0,0)} \in \lrv{R_R'(r_3)}$ which shows the content of register $r_3$ to be safe.
-
-    If $\neg \isLinear{(\Phi_S(r_3))}$, then we pick $R_R' = R_R$.
-    In this case, we need to show
-    \begin{itemize}
-    \item if $\perm \in \readAllowed$, then
-      \begin{itemize}
-      \item $\npair[n-1]{[\baddr,s]} \in \readCond{\normal,R_R'(r_1)}$
-      \item $\npair[n-1]{[s+1,\eaddr]} \in \readCond{R_R'(r_2)}$
-      \end{itemize}
-      This follows by assumption, Lemma~\ref{lem:conds-shrinkable}, Lemma~\ref{lem:non-linear-pure}, and Lemma~\ref{lem:monotonicity}.
-    \item if $\perm \in \writeAllowed$, then
-      \begin{itemize}
-      \item $\npair[n-1]{[\baddr,s]} \in \writeCond{\normal,R_R'(r_1)}$
-      \item $\npair[n-1]{[s+1,\eaddr]} \in \writeCond{\normal,R_R'(r_2)}$
-      \end{itemize}
-      This follows by assumption, Lemma~\ref{lem:conds-shrinkable}, Lemma~\ref{lem:non-linear-pure}, and Lemma~\ref{lem:monotonicity}.
-    \item $\perm \neq \rwx$
-
-      By assumption.
-    \item if $\perm = \rx$, then 
-      \begin{itemize}
-      \item $\npair[n-1]{[\baddr,s]} \in \xReadCond{R_R'(r_1)}$
-      \item $\npair[n-1]{[s+1,\eaddr]} \in \xReadCond{R_R'(r_2)}$
-      \item $\npair[n-1]{[\baddr,s]} \in \execCond{R_R'(r_1)}$
-      \item $\npair[n-1]{[s+1,\eaddr]} \in \execCond{R_R'(r_2)}$
-      \end{itemize}
-      All of the above follow by assumption, Lemma~\ref{lem:conds-shrinkable}, Lemma~\ref{lem:non-linear-pure}, and Lemma~\ref{lem:monotonicity}.
-    \end{itemize}
-
-    Finally, we have
-    \[
-      \npair[n-1]{\Phi_S'(r_3),\Phi_T'(r_3)}\in \lrv{R_R'(3)}
-    \]
-    by assumption and Lemma~\ref{lem:downwards-closed}.
-
-
-  TODO
+  From Lemma~\ref{lem:conds-splicable}, it follows that also $\npair{[\baddr,\eaddr]}\in\xReadCond{W_1\oplus W_2}$ and from Lemma~\ref{lem:non-linear-pure}, it follows that $\npair{[\baddr,\eaddr]}\in\xReadCond{}(\purePart{W_1\oplus W_2})$.
+  Finally, we have that $\npair{(c,c)}\in\lrvg{\trust}(\purePart{W_1\oplus W_2})$.
+  We can take $W_3' = \purePart{W_1\oplus W_2}$, $W_1' = W_1$ and $W_2' = W_2$ and the remaining proof obligations follow by assumption and by Lemma~\ref{lem:purePart-duplicable} and~\ref{lem:oplus-assoc-comm}.
+  
+  Now consider the case that both $[b,m] \mathrel{\#} \ta$ and $[m+1,e]\mathrel{\#} \ta$.
+  The results now follow by definition of $\lrv$, using Lemma~\ref{lem:conds-splicable} and~\ref{lem:non-linear-pure}, taking $W_3' = W_1 \oplus W_2$ and $W_1' = \purePart{W_1}$ and $W_2' = \purePart{W_2}$.
 \end{proof}
 
 \begin{lemma}[Capability splicing retains safety for stack capabilities]
-  \label{lem:splitting-safety-stack}
+  \label{lem:splicing-safety-stack}
   If
   \begin{itemize}
   \item $\npair{(c_{1,S},c_{1,T})} \in \lrvg{\trust}(W_1)$
   \item $\npair{(c_{2,S},c_{2,T})} \in \lrvg{\trust}(W_2)$
-  \item $b \le n \le e$
-  \item $c_{1,S} = \stkptr{\perm,\baddr,n,\aaddr}$
-  \item $c_{1,T} = ((\perm,\linear),\baddr,n,\aaddr)$
-  \item $c_{2,S} = \stkptr{\perm,n,\eaddr,\aaddr}$
-  \item $c_{2,T} = ((\perm,\linear),n,\eaddr,\aaddr)$
+  \item $b \le m \le e$
+  \item $c_{1,S} = \stkptr{\perm,\baddr,m,\aaddr}$
+  \item $c_{1,T} = ((\perm,\linear),\baddr,m,\aaddr)$
+  \item $c_{2,S} = \stkptr{\perm,m+1,\eaddr,\aaddr}$
+  \item $c_{2,T} = ((\perm,\linear),m+1,\eaddr,\aaddr)$
   \item $c_S = \stkptr{\perm,\baddr,\eaddr,\aaddr}$
   \item $c_T = ((\perm,\linear),\baddr,\eaddr,\aaddr)$
-  \item $c_{1,S}' = c_{1,T}' = 0$
-  \item $c_{2,S}' = c_{2,T}' = 0$
   \end{itemize}
-  then there exist $W_1',W_2',W_3'$ such that
+  then we have that
   \begin{itemize}
-  \item $W_1 \oplus W_2 = W_1' \oplus W_2' \oplus W_3'$
-  \item $\npair{(c_S,c_T)} \in \lrvg{\trust}(W_3')$
-  \item $\npair{(c_{1,S}',c_{1,T}')} \in \lrvg{\trust}(W_1')$
-  \item $\npair{(c_{2,S}',c_{2,T}')} \in \lrvg{\trust}(W_2')$
+  \item $\npair{(c_S,c_T)} \in \lrvg{\trust}(W_1 \oplus W_2)$
   \end{itemize}
 \end{lemma}
 \begin{proof}
-TODO
-
-  copy paste from FTLR proof
-
-      We need to redistribute the ownership previously owned by the world used for $r_3$ to $r_1$ and $r_2$.
-
-    From $\npair{(\Phi_S(r_3),\Phi_S(r_3))} \in \lrvg{\trust}(R_R(r_3))$, we get that either $\perm = \noperm$, in which case we can pick the ownership distribution to be the same as before, or $\npair{[\baddr,\eaddr]} \in \stackReadCond{R_R(r_3)}$.
-
-    In the latter case, we get $S \subseteq \addressable{\linear,\pwfree{R_R(r_3)}}$ and $R : S \fun \powerset{R_R(r_3)}$ such that $\forall r \in S \ldotp |R(r)| = 1$ and $\biguplus_{r\in S} R(r) \supseteq [\baddr,\eaddr]$.
-
-    This gives us a way to distribute the ownership, namely $r_3$ gives up ownership of regions $R^{-1}([\baddr,\eaddr])$, $r_1$ gets ownership of $R^{-1}([\baddr,n])$, and $r_2$ gets ownership over $R^{-1}([n+1,\eaddr])$.
-    The remainder of the ownership distribution remains unchanged.
-
-    Now we have to argue the following:
-    \begin{itemize}
-    \item if $\perm \in \readAllowed$, then
-      \begin{itemize}
-      \item $\npair{[\baddr,s]} \in \stackReadCond{\linear,R_R'(r_1)}$
-      \item $\npair{[s+1,\eaddr]} \in \stackReadCond{R_R'(r_2)}$
-      \end{itemize}
-      Both follow from the assumption $\npair{[\baddr,\eaddr]} \in \stackReadCond{\linear,R_R(r_3)}$, and the fact that $R_R'(r_i), i=1,2$ owns the appropriate regions.
-    \item if $\perm \in \writeAllowed$, then
-      \begin{itemize}
-      \item $\npair{[\baddr,s]} \in \stackWriteCond{\linear,R_R'(r_1)}$
-      \item $\npair{[s+1,\eaddr]} \in \stackWriteCond{\linear,R_R'(r_2)}$
-      \end{itemize}
-      Both follow from the assumption $\npair{[\baddr,\eaddr]} \in \stackWriteCond{\linear,R_R(r_3)}$, and the fact that $R_R'(r_i), i=1,2$ owns the appropriate regions.
-    \end{itemize}
-
-    We also trivially have $\npair[n-1]{(0,0)} \in \lrv{R_R'(r_3)}$ which shows the content of register $r_3$ to be safe.
-
-    For regions $r \neq r_1,r_2,r_3$, we have
-    \[
-      \npair[n-1]{(\Phi_S'(r), \Phi_T'(r))} \in \lrvg{\trust}(R(r))
-    \]
-    by assumption and Lemma~\ref{lem:downwards-closed}.
-
-
-  TODO
+  This follows easily by definition of $\lrv$ and using Lemma~\ref{lem:conds-splicable}.
 \end{proof}
 
 \begin{lemma}[Stack capability safety monotone w.r.t. permission]
@@ -829,6 +725,24 @@ TODO
 \end{proof}
 
 
+\begin{lemma}
+  \label{lem:sealed-lrv-lrexj}
+  If
+  \begin{itemize}
+  \item $\npair{(\sealed{\sigma,\vsc_1},\sealed{\sigma,\vsc_1'})} \in \lrvg{\trust}(W_{R,1})$
+  \item $\npair{(\sealed{\sigma,\vsc_2},\sealed{\sigma,\vsc_2'})} \in \lrvg{\trust}(W_{R,2})$ 
+  \item $\nonExec{\vsc_1'}$ and $\nonExec{\vsc_2'}$
+  \item $W_{R,1} \oplus W_{R,2}$ is defined
+  \end{itemize}
+  Then
+  \begin{itemize}
+  \item $\npair{(\vsc_1,\vsc_2,\vsc_1',\vsc_2')} \in \lrexj(W_{R,1}\oplus W_{R,2})$
+  \end{itemize}
+\end{lemma}
+\begin{proof}
+  TODO
+\end{proof}
+
 \subsection{FTLR proof}
 
 \begin{lemma}
@@ -837,7 +751,7 @@ TODO
   \begin{itemize}
   \item One of the following sets of requirements holds:
     \begin{itemize}
-    \item $\trust = \trusted$, $\Phi_S$ is reasonable up to $n$ steps and $[\baddr,\eaddr] \subseteq \dom(\mscode) = \ta$
+    \item $\trust = \trusted$, $\Phi_S$ is reasonable up to $n$ steps and $[\baddr,\eaddr] \subseteq \ta$
     \item $\trust = \untrusted$ and $[b,e] \mathrel{\#} \ta$ and $\npair{[\baddr,\eaddr]} \in \readCond{\normal,W_\pcreg}$
     \end{itemize}
   \item $\Phi_S(\pcreg) = \Phi_T(\pcreg) = ((\rx,\normal),\baddr,\eaddr,\_)$
@@ -859,8 +773,8 @@ TODO
 
   In order to prove this, we first, we prove that one of the following holds:
   \begin{enumproof}
-  \item \label{case:ftlr:failed} $\Phi_S \step[\gc] \failed$ and $\Phi_T
-    \step[i] \failed$ for some $i$.
+  \item \label{case:ftlr:failed} $\Phi_S \nstep[j]{\gc} \failed$ and $\Phi_T
+    \step[i] \failed$ for some $i$,$j$.
   \item \label{case:ftlr:halted} $\Phi_S \step[\gc] \halted$ and $\Phi_T \step\halted$
   \item \label{case:ftlr:get-and-arith-op} All of the following hold: (includes simple cases: gettype, geta, getb,
     gete, getp, getl, lt, plus, minus, one case of move that can be handled
@@ -868,6 +782,7 @@ TODO
     \begin{itemize}
     \item $\Phi_S \step[\gc] \Phi_S'$
     \item $\Phi_T \step \Phi_T'$
+    \item $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$
     \item $\Phi_S' = \updPcAddr{\Phi_S\updReg{r}{z}} \neq \failed$
     \item $\Phi_T' = \updPcAddr{\Phi_T\updReg{r}{z}} \neq \failed$
     \item $z \in \ints$
@@ -920,10 +835,12 @@ TODO
     \begin{itemize}
     \item $\Phi_S \step[\gc] \Phi_S'$
     \item $\Phi_T \step \Phi_T'$
+    \item $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$
     \item $\Phi_S' = \updPcAddr{\Phi_S\updReg{r_1\cdots r_k}{w_1\cdots w_k}}\neq
       \failed$
     \item $\Phi_T' = \updPcAddr{\Phi_T\updReg{r_1\cdots r_k}{w_1'\cdots w_k'}}
       \neq \failed$
+    \item $r_i \neq \pcreg$ for all $i$
     \item One of the following holds:
       \begin{enumproof}
       \item \label{case:ftlr:move-cca-etc:cca-normal} (restrict,cca,seta2b) $w_1 = ((\perm',\lin),\baddr,\eaddr,\aaddr')$,
@@ -983,6 +900,7 @@ TODO
         $\sigma_{\baddr,2} \leq \sigma_{\eaddr,2}$, and $\sigma_{\eaddr,2} + 1
         \leq \sigma_{\eaddr,3}$and $w_1 = w_1' = \seal{\sigma_{\baddr,2},
           \sigma_{\eaddr,3}, \sigma}$
+      \item \label{case:ftlr:jnz-z} (jnz zero case) $k = 0$
       \end{enumproof}
     \end{itemize}
   \item \label{case:ftlr:store-load-mem} All of the following hold: (includes memory-manipulation cases: store,
@@ -990,22 +908,24 @@ TODO
     \begin{itemize}
     \item $\Phi_S \step[\gc] \Phi_S'$
     \item $\Phi_T \step \Phi_T'$
+    \item $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$
     \item $\Phi_S' =
       \updPcAddr{\Phi_S\updReg{r_1,r_2}{w_1,w_2}\update{\mem.\aaddr}{w}}$
     \item $\Phi_T' =
       \updPcAddr{\Phi_T\updReg{r_1',r_2'}{w_1',w_2'}\update{\mem.\aaddr}{w'}}$
+    \item $r_i \neq \pcreg$ for all $i$
     \item One of the following hold:
       \begin{enumproof}
       \item (store) $w_1 = w_1' = \Phi_S(r_1) = \Phi_T(r_1) =
         ((\perm,\lin),\baddr,\eaddr,\aaddr)$, and $\perm \in \writeAllowed{}$,
         and
         $\withinBounds{w_1}$, and\\
-        $w = \Phi_S(r_2)$, and $w' = \Phi_T(r_2)$, and $w_2 = \linCons{\Phi_S(r_2)}$, $w_2' = \linCons{\Phi_T(r_2)}$,  $r_2 \neq \pcreg$.
+        $w = \Phi_S(r_2)$, and $w' = \Phi_T(r_2)$, and $w_2 = \linCons{\Phi_S(r_2)}$, $w_2' = \linCons{\Phi_T(r_2)}$.
       \item (load) $w_2 = w_2' = \Phi_T(r_2) = \Phi_S(r_2) =
         ((\perm,\lin),\baddr,\eaddr,\aaddr)$, and $\perm \in \readAllowed{}$,
         $\withinBounds{((\perm,\lin),\baddr,\eaddr,\aaddr)}$, and \\
         $w_1 = \Phi_S.\mem(\aaddr)$, and $w_1' = \Phi_T.\mem(\aaddr)$, and \\
-        $w = \linCons{w_1}$, $w' = \linCons{w_1'}$, $\linConsPerm{\perm}{w_1}$, $\linConsPerm{\perm}{w_1'}$ and $r_1 \neq \pcreg$
+        $w = \linCons{w_1}$, $w' = \linCons{w_1'}$, $\linConsPerm{\perm}{w_1}$, $\linConsPerm{\perm}{w_1'}$
       \end{enumproof}
     \end{itemize}
   \item \label{case:ftlr:store-load-stack} All of the following hold: (includes memory-manipulation cases: store,
@@ -1013,10 +933,12 @@ TODO
     \begin{itemize}
     \item $\Phi_S \step[\gc]\Phi_S'$
     \item $\Phi_T \step \Phi_T'$
+    \item $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$
     \item $\Phi_S' =
       \updPcAddr{\Phi_S\updReg{r_1,r_2}{w_1,w_2}\update{\ms_\stk.\aaddr}{w}}$
     \item $\Phi_T' =
       \updPcAddr{\Phi_T\updReg{r_1',r_2'}{w_1',w_2'}\update{\ms_\stk.\aaddr}{w'}}$
+    \item $r_i \neq \pcreg$ for all $i$
     \item One of the following hold:
       \begin{enumproof}
       \item (store) $w_1 = \Phi_T(r_1) =
@@ -1024,13 +946,13 @@ TODO
         \stkptr{\perm,\baddr,\eaddr,\aaddr}$, and $\perm \in \writeAllowed{}$,
         and
         $\withinBounds{w_1}$, and\\
-        $w = \Phi_S(r_2)$, and $w' = \Phi_T(r_2)$, and $w_2 = \linCons{\Phi_S(r_2)}$, $w_2' = \linCons{\Phi_T(r_2)}$, $r_2 \neq \pcreg$.
+        $w = \Phi_S(r_2)$, and $w' = \Phi_T(r_2)$, and $w_2 = \linCons{\Phi_S(r_2)}$, $w_2' = \linCons{\Phi_T(r_2)}$.
       \item (load) $ w_2' = \Phi_T(r_2) =
         ((\perm,\linear),\baddr,\eaddr,\aaddr)$, and $w_2 = \Phi_S(r_2) =
         \stkptr{\perm,\baddr,\eaddr,\aaddr}$, and $\perm \in \readAllowed{}$,
         $\withinBounds{((\perm,\lin),\baddr,\eaddr,\aaddr)}$, and $\aaddr \in
         \dom(\Phi.\ms_\stk)$, and $\aaddr \in \dom(\Phi.\ms_\stk)$, and\\
-        $w_1 = \Phi_S.\ms_\stk(\aaddr)$, and $w_1' = \Phi_T.\ms_\stk(\aaddr)$, and $w = \linCons{w_1}$, $w' = \linCons{w_1'}$, $\linConsPerm{\perm,w_1}$ and $\linConsPerm{\perm,w_1'}$ and $r_1 \neq \pcreg$.
+        $w_1 = \Phi_S.\ms_\stk(\aaddr)$, and $w_1' = \Phi_T.\ms_\stk(\aaddr)$, and $w = \linCons{w_1}$, $w' = \linCons{w_1'}$, $\linConsPerm{\perm,w_1}$ and $\linConsPerm{\perm,w_1'}$.
       \end{enumproof}
     \end{itemize}
   \item \label{case:ftlr:store-load-jump} All of the following hold: (includes control-flow manipulation cases:
@@ -1038,41 +960,22 @@ TODO
     \begin{itemize}
     \item $\Phi_S \step[\gc] \Phi_S'$
     \item $\Phi_T \step \Phi_T'$
+    \item $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$
     \item One of the following holds
       \begin{enumproof}
-      \item(jnz) $\Phi_S' = \updPcAddr{\Phi_S}$ and $\Phi_T' =
-        \updPcAddr{\Phi_T}$
       \item(jmp,jnz) $\Phi_S' = \Phi_S\updReg{\pcreg,r_1}{\Phi_S(r_1),w_1}$ and
         $\Phi_T' = \Phi_T\updReg{\pcreg,r_1'}{\Phi_T(r_1),w_1'}$ and
-        $\isLinear{\Phi_S(r_1)} \Rightarrow w_1 = w_1' = 0$ and $\neg
-        \isLinear{\Phi_S(r_1)} \Rightarrow (w_1 = \Phi_S(r_1) \text{ and } w_1'
-        = \Phi_T(r_1))$
+        $\Phi_S(r_1) = \Phi_T(r_1) = ((\perm_1,\lin_1),\baddr_1,\eaddr_1,\aaddr_1)$,
+        $\exec{\Phi_S(r_1)}$, $\withinBounds{\Phi_S(r_1)}$,
+        $w_1 = \linCons{\Phi_S(r_1)}$ and $w_1' = \linCons{\Phi_T(r_1)}$
       \item(xjmp) $\Phi_S(r_1) = \sealed{\sigma,c_1}$ and $\Phi_S(r_2) =
         \sealed{\sigma,c_2}$ and $\Phi_T(r_1) = \sealed{\sigma,c_1'}$ and
-        $\Phi_T(r_2) = \sealed{\sigma,c_2'}$ and $\Phi_S'(r_1,r_2) =
-        \linCons{c_1},\linCons{c_2}$ and $\Phi_T'(r_1,r_2) =
-        \linCons{c_1'},\linCons{c_2'}$ and\\
+        $\Phi_T(r_2) = \sealed{\sigma,c_2'}$ and
         $c_1' \neq \retptrc(\_)$ and $c_2' \neq \retptrd(\_)$ and
-        $\nonExec{c_\data}$ and $\Phi_T'(\pcreg,\rdata) = c_1',c_2'$ and one of
-        the following hold:
-        \begin{enumproof}
-        \item $c_1 \neq \retptrc(\_)$ and $c_2 \neq \retptrd(\_)$ and
-          $\nonExec{c_\data}$ and $\Phi_S'(\pcreg,\rdata) = c_1,c_2$.
-        \item $c_1 = \retptrc(\baddr,\eaddr,\aaddr)$, and $c_2 =
-          \retptrd(\aaddr_\stk,\eaddr_{\stk,\priv})$ and $\Phi(r_\stk) =
-          \stkptr{\rw,\stkb,\eaddr_\stk,\_}$ and $\Phi_S.\stk = \stk_\var{frame}
-          :: (\aaddr,\ms_{\stk,\priv})$ and $\dom(\ms_{\stk,\priv} =
-          [\eaddr_\stk+1,\eaddr_{\stk,\priv}])$ and $\Phi_S'.\ms_\stk =
-          \ms_{\stk,\priv} \uplus \Phi_S.\ms_\stk$ and $\Phi_S'.\stk = \stk$ and
-          \[
-            \begin{split}
-              \Phi_S' = \Phi_S&[\pcreg \mapsto ((\rx,\normal),\baddr,\eaddr,\aaddr)]\\
-              &[\rstk \mapsto
-              \stkptr{\rw,\stkb,\eaddr_{\stk,\priv},e_\stk+1}] \\
-              &[\rdata,\rtmp{1},\rtmp{2},r_2 \mapsto 0, 0, 0, 0]
-            \end{split}
-          \]
-        \end{enumproof}
+        $\nonExec{\Phi_S(r_2)}$ and $\nonExec{\Phi_T(r_2)}$ and
+        $\Phi_S'' = \Phi_S\updReg{r_1,r_2}{\linCons{c_1},\linCons{c_2}}$ and $\Phi_S' = \xjumpResult{c_1}{c_2}{\Phi_S''}$ and
+        $\Phi_T'' = \Phi_T\updReg{r_1,r_2}{\linCons{c_1'},\linCons{c_2'}}$ and
+        $\Phi_T' = \xjumpResult{c_1'}{c_2'}{\Phi_T''}$
       \end{enumproof}
     \end{itemize}
   \end{enumproof}
@@ -1100,10 +1003,10 @@ TODO
   \begin{itemize}
   \item One of the following sets of requirements holds:
     \begin{itemize}
-    \item $\trust = \trusted$, $\Phi_S$ is reasonable up to $n-1$ steps and $[\baddr,\eaddr] \subseteq \dom(\mscode) = \ta$
-    \item $\trust = \untrusted$ and $\npair[n-1]{[\baddr,\eaddr]} \in \readCond{\normal,W_\pcreg}$
+    \item $\trust = \trusted$, $\Phi_S$ is reasonable up to $n-1$ steps and $[\baddr,\eaddr] \subseteq \ta$
+    \item $\trust = \untrusted$ and $[b,e] \mathrel{\#} \ta$ and $\npair[n-1]{[\baddr,\eaddr]} \in \readCond{\normal,W_\pcreg}$
     \end{itemize}
-    This follows from the corresponding assumption of this lemma and the fact that $\Phi_S \nstep[1]{\gc} \Phi_S'$ and Lemma~\ref{lem:ec-reasonable-antired}, \ref{lem:ec-reasonable-downwards-closed}, and \ref{lem:downwards-closed}.
+    This follows from the corresponding assumption of this lemma, the fact that $\Phi_S \step[\gc] \Phi_S'$ and $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$ and \ref{lem:downwards-closed}.
   \item $\Phi_S'(\pcreg) = \Phi_T'(\pcreg) = ((\rx,\normal),\baddr,\eaddr,\_)$:
     Follows from the definition of $\updPcAddr{}$ and the assumptions of this case.
   \item $\npair[n-1]{[\baddr,\eaddr]} \in \xReadCond{W_\pcreg}$:
@@ -1178,27 +1081,23 @@ TODO
   \]
   as desired.
 
-  It remains to show \ref{case:ftlr:scall:world}-\ref{case:ftlr:scall:mem}, but first we note that we can deduce the following: From the assumption $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$ we get $R \subseteq \addressable{\normal, \pwheap}$ and $\exists M : S \fun \powerset{\MemSeg}$ such that $\biguplus_{r\in S} \dom(M(r)) \supseteq [\baddr,\eaddr]$ and $\forall r \in S \ldotp \pwheap(r) \nequal \codereg{\sigrets',\_,M(r),\gc}$.
-  Further by $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W}$, we know that for one $r \in S$ there is a $\mscode' \subseteq \mscode$, call this $r$ for $r_{\mscode'}$,\footnote{Follows from $H^\var{code}$ requiring $\dom(\mscode') \subseteq \ta$ and $\dom(\mscode) = \ta$ and finally that $\mscode$ is part of $\ms_S$.}
-  such that
+  It remains to show \ref{case:ftlr:scall:world}-\ref{case:ftlr:scall:mem}, but first we note that we can deduce the following: From the assumption $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$ we get $r \in \addressable{\normal, \pwheap}$ and $\mscode$ such that $\dom(\mscode) \supseteq [\baddr,\eaddr]$ and $\pwheap(r) \nequal \codereg{\sigrets',\_,\mscode,\gc}$.
+  Further by $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W}$, we know that
   \begin{equation}
-    \npair{(\mscode',\mscode')} \in H^{\var{code}} \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\_,\gsigrets,\gsigcloss)\label{eq:ftlr:rretd:Hcode}
+    \npair{(\mscode\uplus\mspad,\mscode\uplus\mspad)} \in H^{\var{code}} \; \sigrets' \; \sigcloss' \; \mscode \; (\ta,\_,\gsigrets,\gsigcloss)~ W_r\label{eq:ftlr:rretd:Hcode}
   \end{equation}
-  where $\sigma' \in \sigrets'$ and $\dom(\mscode') \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode')$.
-  \dominique{How do we know $\ms_\code'$ contains [b,e] entirely?
-    It does seem plausible that it contains the call entirely as well as $a + \offpc$ thanks to the code region's well-formedness.
-  }
-  That is: $\mscode'$ contains the call we are considering.
+  where $\sigma' \in \sigrets'$ and $\dom(\mscode) \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode)$ and $W = W_r \oplus \_$.
+  That is: $\mscode$ contains the call we are considering.
   This also entails
   \begin{equation}
     \label{eq:ftlr:code-comp-jud}
-    \sigrets',\sigcloss' \vdash_\var{code\_comp} \mscode'
+    \sigrets',\sigcloss' \vdash_\var{code\_comp} \mscode
   \end{equation}
   from \ref{eq:ftlr:rretd:Hcode} we also get
 \begin{itemize}
-\item $\dom(\mscode') \subseteq \ta$
+\item $\dom(\mscode\uplus\mspad) \subseteq \ta$
 
-  Otherwise we would have $\dom(\mscode') \# \ta$ which would contradict $\dom(\mscode') \subseteq \dom(\mscode) \subseteq\ta$
+  Otherwise we would have $\dom(\mscode\uplus\mspad) \# \ta$ which would contradict $\ta\supseteq [b,e] \subseteq\dom(\mscode\uplus\mspad)$
 
 \item $\sigrets' \subseteq \gsigrets$
 
@@ -1272,8 +1171,8 @@ TODO
     \]
     where $W_{R,\rretd}'$ is the part of $W_R'$ with ownership over $r_\var{priv\_stk}$.
 
-    Use the $r=r_{\mscode'}$ as the witness.
-    The $\xReadCond{}$ gives us $\pwheap(r) \nequal \codereg{\_,\_,\mscode',\gc}$.
+    Use the $r=r_{\mscode}$ as the witness.
+    The $\xReadCond{}$ gives us $\pwheap(r) \nequal \codereg{\_,\_,\mscode,\gc}$.
     As it is a pure region, it is also present in the future world we consider.
     We now have to show:
     \begin{enumerate}[label=\alph*)]
@@ -1282,11 +1181,11 @@ TODO
         \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode'
         \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_{R,\rretd}')
       \]
-      First, we already know $\dom(\mscode') \subseteq \ta$ and $\sigrets' \subseteq \gsigrets$.
+      First, we already know $\dom(\mscode) \subseteq \ta$ and $\sigrets' \subseteq \gsigrets$.
       Now pick $r_\var{priv\_stk}$ as the witness.
       We immediately get $\dom(\ms_{\stk\_\priv,S}) = \dom(\Phi_T''.\mem|_{[\aaddr_\stk,\eaddr_\stk]}) = [\aaddr_\stk,\eaddr_\stk]$.
       Next, $\decInstr{\mscode'(\aaddr,\aaddr+\calllen-1)} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}}$ follows from $\callCond{\Phi_S,r_1,r_2,\offpc,\offsigma,\aaddr}$.
-      Finally, $\ms_\code(\aaddr+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr}$ with $\sigma' = \sigma_\baddr + \offpc \in \sigrets'$ which follows from $\sigrets',\sigcloss' \vdash_{\mathrm{comp-code}} \mscode'$ and the fact that the call is there.
+      Finally, $\ms_\code(\aaddr+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr}$ with $\sigma' = \sigma_\baddr + \offpc \in \sigrets'$ which follows from $\sigrets',\sigcloss' \vdash_{\mathrm{comp-code}} \mscode$ and the fact that the call is there.
     \item $\isLinear{\sealed{\sigma',\retptrd(\aaddr_\stk,\eaddr_\stk)}}$ iff
       $\isLinear{\sealed{\sigma',((\rw,\linear),\aaddr_\stk,\eaddr_\stk,\aaddr_\stk)}}$\\
       Trivial, both are linear.
@@ -1311,11 +1210,11 @@ TODO
             \calllen)},\\\sealed{\sigma',((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)}\endarray\right)} \in \lrv(W_{R,\rretc}')
     \]
     where $W_{R,\rretc}'$ has the ownership of $W$.
-    Just as in the previous case, we know that for some region $r$ there exists $\mscode' \subseteq \mscode$ such that: $\pwheap(r) \nequal \codereg{\sigrets',\_,\mscode',\gc}$ where $\sigma' \in \sigrets'$ and $\dom(\mscode') \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode')$ and $\sigrets' \subseteq \gsigrets$.
+    Just as in the previous case, we know that for some region $r$ there exists an $\mscode$ such that: $\pwheap(r) \nequal \codereg{\sigrets',\_,\mscode,\gc}$ where $\sigma' \in \sigrets'$ and $\dom(\mscode) \supseteq [\baddr,\eaddr]$ and $\aaddr + \offpc \in \dom(\mscode)$ and $\sigrets' \subseteq \gsigrets$.
     It follows easily from the definition of $H_\sigma^\var{code}$ that
     \begin{equation}
       \label{eq:code-caps-in-h-sigma}
-      \npair[n'']{\left(\array{l}\retptrc(\baddr,\eaddr,\aaddr + \calllen),\\((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)\endarray\right)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_{R,\rretc}')
+      \npair[n'']{\left(\array{l}\retptrc(\baddr,\eaddr,\aaddr + \calllen),\\((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset)\endarray\right)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_{R,\rretc}')
     \end{equation}
     for $n'' < n-1$.
     Both capabilities are non-linear, so
@@ -1328,13 +1227,13 @@ TODO
     \[
       \begin{array}{l}
         \forall W'' \future \purePart{W_{R,\rretc}'}, W_o, n'' < n-1,\\
-        \quad  \npair[n'']{(\vsc_S',\vsc'_T)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_o) \ldotp \\
+        \quad  \npair[n'']{(\vsc_S',\vsc'_T)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_o) \ldotp \\
         \qquad \npair[n'']{\retptrc(\baddr,\eaddr,\aaddr + \calllen),\vsc_S',((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset),\vsc_T'} \in \lrexj(W''\oplus W_o))
       \end{array}
     \]
 
     To this end let $W'' \future \purePart{W_{R,\rretc}'}$ and $W_o$ be given s.t. $W'' \oplus W_o$ is defined.
-    Further, let $\npair[n'']{(\vsc_S',\vsc'_T)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode' \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_o)$ be given and show
+    Further, let $\npair[n'']{(\vsc_S',\vsc'_T)} \in H^\mathrm{code,\square}_\sigma \; \sigrets' \; \sigcloss' \; \mscode \; (\ta,\stkb) \; \sigma' \; \xi^{-1}(W_o)$ be given and show
     \[
       \npair[n'']{\retptrc(\baddr,\eaddr,\aaddr + \calllen),\vsc_S',((\rx,\normal),\baddr,\eaddr,\aaddr + \retoffset),\vsc_T'} \in \lrexj(W''\oplus W_o))
     \]
@@ -1350,7 +1249,7 @@ TODO
     In the first case, $\vsc_S'$ is a $\retptrc$ and $\vsc_T'$ is a capability with permission $\rx$.
     In this case, $\var{xjumpResult}$ will produce failed configurations which are trivially in the observation relation.
     In the next case, it is required that $\sigma' \in \sigcloss'$, but this
-    cannot be the case as $\sigma' \in \sigrets'$ and we have $\sigrets',\sigcloss' \vdash_{\mathrm{comp-code}} \mscode'$, which implies that $\sigcloss' \mathrel{\#} \sigrets'$.
+    cannot be the case as $\sigma' \in \sigrets'$ and we have $\sigrets',\sigcloss' \vdash_{\mathrm{comp-code}} \mscode$, which implies that $\sigcloss' \mathrel{\#} \sigrets'$.
 
     This leaves us with one final case, namely $\vsc_S'= \retptrd(\baddr_\stk',\eaddr_\stk')$ and $\vsc_T'=((\rw,\linear),\baddr_\stk',\eaddr_\stk',\baddr_\stk'-1)$.
     Further we know
@@ -1995,7 +1894,7 @@ This concludes case \ref{case:ftlr:scall:reg}
   \item Case \ref{case:ftlr:move-cca-etc:split-stack}:
     First we only consider registers $r_1,r_2,r_3$.
 
-    From $\npair{(\Phi_S(r_3),\Phi_S(r_3))} \in \lrvg{\trust}(R_R(r_3))$, Lemma~\ref{lem:splitting-safety-stack} gives us $W_1$, $W_2$ and $W_3$ such that $R_R(r_3) = W_1 \oplus W_2 \oplus W_3$ and $\npair{(w_1,w_1) \in \lrvg{\trust}(W_1)}$, $\npair{(w_2,w_2) \in \lrvg{\trust}(W_2)}$ and $\npair{(w_3,w_3) \in \lrvg{\trust}(W_3)}$.
+    From $\npair{(\Phi_S(r_3),\Phi_T(r_3))} \in \lrvg{\trust}(R_R(r_3))$, Lemma~\ref{lem:splitting-safety-stack} gives us $W_1$, $W_2$ and $W_3$ such that $R_R(r_3) = W_1 \oplus W_2 \oplus W_3$ and $\npair{(w_1,w_1) \in \lrvg{\trust}(W_1)}$, $\npair{(w_2,w_2) \in \lrvg{\trust}(W_2)}$ and $\npair{(w_3,w_3) \in \lrvg{\trust}(W_3)}$.
     We take $R_R'(r_1) = W_1$, $R_R'(r_2) = W_2$ and $R_R'(r_3) = W_3 \oplus R_R(r_1) \oplus R_R(r_2)$ and $R_R' = R_R(r)$ elsewhere.
 
     By the above points, by assumption and using Lemma~\ref{lem:downwards-closed}, we then have for all $r$ that:
@@ -2005,74 +1904,30 @@ This concludes case \ref{case:ftlr:scall:reg}
 
   \item Case \ref{case:ftlr:move-cca-etc:splice-stack}:
 
-TODO
+    From $\npair{(\Phi_S(r_2),\Phi_T(r_2))} \in \lrvg{\trust}(R_R(r_2))$ and $\npair{(\Phi_S(r_3),\Phi_T(r_3))} \in \lrvg{\trust}(R_R(r_3))$, Lemma~\ref{lem:splicing-safety-stack} tells us that $\npair{(w_1,w_1) \in \lrvg{\trust}(R_R(r_2)\oplus R_R(r_3))}$.
+    Since $w_2 = w_2'=w_3=w_3'=0$, it's clear that 
+    $\npair{(w_2,w_2') \in \lrvg{\trust}(R_R(r_1))}$ and $\npair{(w_3,w_3') \in \lrvg{\trust}(\purePart{R_R(r_3)})}$.
+    We take $R_R'(r_1) = R_R(r_2)\oplus R_R(r_3)$, $R_R'(r_2) = R_R(r_1)$ and $R_R'(r_3) = \purePart{R_R(r_3)}$ and $R_R' = R_R(r)$ elsewhere.
+
+    By the above points, by assumption and using Lemma~\ref{lem:downwards-closed}, we then have for all $r$ that:
+    \[
+      \npair[n-1]{(\Phi_S'(r), \Phi_T'(r))} \in \lrvg{\trust}(R_R'(r))
+    \]
+
   \item Case \ref{case:ftlr:move-cca-etc:splice-normal}:
     
     We start by arguing the safety of $r_1$:
 
-    If the permission is $\noperm$, then it is trivial to show.
+    From $\npair{(\Phi_S(r_2),\Phi_T(r_2))} \in \lrvg{\trust}(R_R(r_2))$ and $\npair{(\Phi_S(r_3),\Phi_T(r_3))} \in \lrvg{\trust}(R_R(r_3))$, Lemma~\ref{lem:splicing-safety-normal} gives us $W_1',W_2',W_3'$ such that $R_R(r_2)\oplus R_R(r_3) = W_1'\oplus W_2' \oplus W_3'$ and
+    $\npair{(w_i,w_i) \in \lrvg{\trust}(W_i')}$ for $i = 1,2,3$.
+    We take $R_R'(r_1) = W_1'\oplus R_R(r_1)$ (which is defined because $R_R(r_1) \oplus (R_R(r_2)\oplus R_R(r_3))$ is defined), $R_R'(r_2) = W_2'$ and $R_R'(r_3) = W_3'$ and $R_R' = R_R(r)$ elsewhere.
 
-    Assuming the permission is not $\noperm$, we know $\perm \in \readAllowed{}$.
-
-    If we further assume $\isLinear{\Phi_S(r_2)}$
-    \begin{itemize}
-    \item $\npair{[\baddr_2,\eaddr_2]} \in \readCond{\linear,R_R(r_2)}$
-    \item $\npair{[\eaddr_2+1,\eaddr_3]} \in \readCond{\linear,R_R(r_3)}$
-    \end{itemize}
-    From this we get $S_2 \subseteq \addressable{\linear,\pwheap{R_R(r_2)}}$ and
-    $R_2 : S_2 \fun \powerset{\nats}$ such that $\forall r \in S_2 \ldotp
-    |R_2(r)| = 1$ (and so on) as well as $S_3 \subseteq \addressable{\linear,\pwheap{R_R(r_3)}}$ and
-    $R_3 : S_3 \fun \powerset{\nats}$ such that $\forall r \in S_3 \ldotp
-    |R_3(r)| = 1$ (and so on).
-
-    In $R_R'$ give $r_1$ ownership of $R_2^{-1}([\baddr_2,\eaddr_2])$ and $R_3^{-1}([\baddr_2+1,\eaddr_3])$ and removed it from the respective regions that owned it before.
-    The remaining ownership remains unchanged.
-    
-    Now we need to show
+    By the above points, by assumption and using Lemma~\ref{lem:downwards-closed}, we then have for all $r$ that:
     \[
-      \npair[n-1]{[\baddr_2,\eaddr_3]} \in \readCond{\linear,R_R(r_2)}
+      \npair[n-1]{(\Phi_S'(r), \Phi_T'(r))} \in \lrvg{\trust}(R_R'(r))
     \]
-    which we do by picking $S' = S_2 \cup S_3$ and $R'(r) = R_2(r)$ for $r \in S_2$ and $R'(r) = R_3(r)$ for $r \in S_3$.
-    With these choices, the rest follow by the readCondition assumptions and downwards-closure.
 
-    If $\perm \in \writeAllowed{}$, then we need to show
-    \[
-      \npair[n-1]{[\baddr_2,\eaddr_3]} \in \writeCond{\linear,R_R(r_2)}
-    \]
-    which is done in a similar fashion\footnote{We do technically need to argue that the readCondition and the writeCondition agree on the set of regions we got from the readCondition.
-      This is done using the memory satisfaction assumption.}.
-
-    Using the same ownership distribution, it is trivial to show
-    \[
-      \npair[n-1]{(\Phi_S'(r_i),\Phi_T'(r_i))} \in \lrv(R'_R(r_i)) \text{ for $i
-        \in \{1,2\}$}
-    \]
-    as the pair is $(0,0)$.
-
-    For $\neg \isLinear{\Phi_S(r_2)}$, we use $R_R' = R_R$ as the distribution function.
-    In this case, for $r_1$ it works like before, i.e.\ the result follows from the assumptions.
-    However, in the case where the permission is $\rx$, we also have to show the following:
-    \begin{itemize}
-    \item $\npair[n-1]{[\baddr_2,\eaddr_3]} \in \xReadCond{R_R'(r_1)}$
-
-      By assumption we have
-      \begin{itemize}
-      \item $\npair{[\baddr_2,\eaddr_2]} \in \xReadCond{\linear,R_R(r_2)}$
-      \item $\npair{[\eaddr_2+1,\eaddr_3]} \in \xReadCond{\linear,R_R(r_3)}$
-      \end{itemize}
-      From which the result follows.
-    \item $\npair[n-1]{[\baddr_2,\eaddr_3]} \in \execCond{R_R'(r_1)}$
-
-      TODO
-    \end{itemize}
-
-    For regions $r \neq r_1,r_2,r_3$, we have
-    \[
-      \npair[n-1]{(\Phi_S'(r), \Phi_T'(r))} \in \lrvg{\trust}(R(r))
-    \]
-    by assumption and Lemma~\ref{lem:downwards-closed}.
-    
-  \item Case \label{case:ftlr:move-cca-etc:splice-seal}:
+  \item Case \ref{case:ftlr:move-cca-etc:splice-seal}:
 
     In this case, we can take $R_R' = R_R$ and use Lemma~\ref{lem:purePart-oplus} to give us that all $\purePart{R_R(r)}$ are equal.
     For $r = r_1, r_2, r_3$, we then get easily by definition that
@@ -2080,6 +1935,10 @@ TODO
       \npair[n-1]{(\Phi_S'(r), \Phi_T'(r))} \in \lrvg{\trust}(R_R'(r))
     \]
     and for other registers, it follows by Lemma~\ref{lem:downwards-closed}.
+
+  \item Case \ref{case:ftlr:move-cca-etc:jnz-z}:
+
+    In this case, we can take $R_R' = R_R$ and for all registers, the result follows by Lemma~\ref{lem:downwards-closed}.
   \end{itemize}
 
 
@@ -2087,7 +1946,7 @@ TODO
   \[
     \npair[n-1]{\Phi_S',\Phi_T'} \in \lro
   \]
-  which follows from the induction hypothesis in the case where $\Phi_S'.\reg(\pcreg) = ((\rx,\normal),\baddr,\eaddr,\_)$.
+  which follows from the induction hypothesis.
   In this case, the IH is applicable because we have the following:
   \begin{itemize}
   \item One of the following sets of requirements holds:
@@ -2103,7 +1962,7 @@ TODO
     \end{itemize}
     If the latter is the case, then the result follows by Lemma~\ref{lem:downwards-closed}.
 
-    If the former holds, then it follows from Lemma~\ref{lem:ec-reasonable-antired}.
+    If the former holds, then it follows by definition of execution configuration reasonability, using the fact that $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$.
 
     \item TODO (the remaining cases)
   \end{itemize}
@@ -2144,7 +2003,7 @@ TODO
     \item $\trust = \untrusted$ and $[b,e] \mathrel{\#} \ta$ and $\npair{[\baddr,\eaddr]} \in \readCond{\normal,W_\pcreg}$
     \end{itemize}:
 
-    Follows by the same assumption of this lemma.
+    Follows by the same assumption of this lemma, in the first case using the definition of execution configuration reasonability, using the fact that $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$.
 
   \item $\Phi_S'(\pcreg) = \Phi_T'(\pcreg) = ((\rx,\normal),\baddr,\eaddr,\_)$:
 
@@ -2204,7 +2063,7 @@ TODO
     \item $\trust = \untrusted$ and $[b,e] \mathrel{\#} \ta$ and $\npair{[\baddr,\eaddr]} \in \readCond{\normal,W_\pcreg}$
     \end{itemize}:
 
-    Follows by the same assumption of this lemma.
+    Follows by the same assumption of this lemma, in the first case using the definition of execution configuration reasonability, using the fact that $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$.
 
   \item $\Phi_S'(\pcreg) = \Phi_T'(\pcreg) = ((\rx,\normal),\baddr,\eaddr,\_)$:
 
@@ -2230,6 +2089,67 @@ TODO
   \end{itemize}
 
   Case \ref{case:ftlr:store-load-jump}
+
+  We have that
+  \begin{itemize}
+  \item $\Phi_S \step[\gc] \Phi_S'$
+  \item $\Phi_T \step \Phi_T'$
+  \item $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$
+  \item One of the following holds
+    \begin{enumproof}
+    \item(jmp,jnz) $\Phi_S' = \Phi_S\updReg{\pcreg,r_1}{\Phi_S(r_1),w_1}$ and
+      $\Phi_T' = \Phi_T\updReg{\pcreg,r_1'}{\Phi_T(r_1),w_1'}$ and
+      $\Phi_S(r_1) = \Phi_T(r_1) = ((\perm_1,\lin_1),\baddr_1,\eaddr_1,\aaddr_1)$,
+      $\exec{\Phi_S(r_1)}$, $\withinBounds{\Phi_S(r_1)}$,
+      $w_1 = \linCons{\Phi_S(r_1)}$ and $w_1' = \linCons{\Phi_T(r_1)}$
+    \item(xjmp) $\Phi_S(r_1) = \sealed{\sigma,c_1}$ and $\Phi_S(r_2) =
+      \sealed{\sigma,c_2}$ and $\Phi_T(r_1) = \sealed{\sigma,c_1'}$ and
+      $\Phi_T(r_2) = \sealed{\sigma,c_2'}$ and
+      $c_1' \neq \retptrc(\_)$ and $c_2' \neq \retptrd(\_)$ and
+      $\nonExec{\Phi_S(r_2)}$ and $\nonExec{\Phi_T(r_2)}$ and
+      $\Phi_S'' = \Phi_S\updReg{r_1,r_2}{\linCons{c_1},\linCons{c_2}}$ and $\Phi_S' = \xjumpResult{c_1}{c_2}{\Phi_S''}$ and
+      $\Phi_T'' = \Phi_T\updReg{r_1,r_2}{\linCons{c_1'},\linCons{c_2'}}$ and
+      $\Phi_T' = \xjumpResult{c_1'}{c_2'}{\Phi_T''}$
+    \end{enumproof}
+  \end{itemize}
+
+  According to Lemma~\ref{lem:lro-anti-red-gen}, it suffices to show:
+  \[
+    \npair[n-1]{(\Phi_S',\Phi_T')} \in \lro
+  \]
+
+  In the first case (jmp,jnz), the fact that $\Phi_S$ is reasonable, with $\Phi_S \step[\gc] \Phi_S'$ and $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$, gives us that $\perm_1 = \perm$, $\lin_1 = \normal$, $b_1 = b$, $e_1 = e$.
+  The fact that $\lin_1 =\normal$ implies that $w_1 =\Phi_S(r_1)$ and $w_1' = \Phi_T(r_1)$.
+
+  The induction hypothesis tells us that it suffices to prove the following:
+  \begin{itemize}
+  \item One of the following sets of requirements holds:
+    \begin{itemize}
+    \item $\trust = \trusted$, $\Phi_S'$ is reasonable up to $n-1$ steps and $[\baddr,\eaddr] \subseteq \ta$
+    \item $\trust = \untrusted$ and $[b,e] \mathrel{\#} \ta$ and $\npair[n-1]{[\baddr,\eaddr]} \in \readCond{\normal,W_\pcreg}$
+    \end{itemize}
+    This follows from the corresponding assumption of this lemma, the fact that $\Phi_S \step[\gc] \Phi_S'$ and $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$ and \ref{lem:downwards-closed}.
+  \item $\Phi_S'(\pcreg) = \Phi_T'(\pcreg) = ((\rx,\normal),\baddr,\eaddr,\_)$:
+    See above.
+  \item $\npair[n-1]{[\baddr,\eaddr]} \in \xReadCond{W_\pcreg}$:
+    Follows by Lemma~\ref{lem:downwards-closed} from the fact that $\npair{[b,e]} \in \xReadCond{W_\pcreg}$.
+  \item $\npair[n-1]{(\Phi_S'.\reg,\Phi_T'.\reg)} \in \lrrg{\trust}(W_R)$:
+
+    We have that $\Phi_S'.\reg(r) = \Phi_S.\reg(r)$ for all $r \neq \pcreg$, so the result follows by Lemma~\ref{lem:downwards-closed} from the corresponding assumption of this lemma.
+
+  \item $\memSat[n-1]{\Phi_S'.\mem,\Phi_S'.\stk,\Phi_S'.\ms_\stk,\Phi_T'.\mem}{W_M}$:
+
+    These components of $\Phi_S'$ and $\Phi_T'$ are all unmodified from $\Phi_S$ and $\Phi_T$, so the result follows by Lemma~\ref{lem:downwards-closed} from the corresponding assumption of this lemma.
+
+  \item $W_\pcreg \oplus W_R \oplus W_M$ is defined: by assumption.
+
+  \item Theorem~\ref{thm:ftlr} holds for all $n' < n-1$:
+    Follows by the same assumption of this lemma.
+  \end{itemize}
+
+  In the second case (xjmp), we have that $\npair{(\Phi_S(r_1),\Phi_T(r_1))} \in \lrvg{\trust}(W_{R,1})$, $\npair{(\Phi_S(r_2),\Phi_T(r_2))} \in \lrvg{\trust}(W_{R,2})$ and $\npair{(\Phi_S'',\Phi_T'')} \in \lrrg{\trust}(W_R')$ for some $W_{R,1}, W_{R,2}, W_R'$ with $W_R = W_{R,1} \oplus W_{R,2} \oplus W_R'$.
+
+  Using the facts that $\Phi_S(r_1) = \sealed{\sigma,c_1}$ and $\Phi_S(r_2) = \sealed{\sigma,c_2}$ and $\Phi_T(r_1) = \sealed{\sigma,c_1'}$ and $\Phi_T(r_2) = \sealed{\sigma,c_2'}$ and $\nonExec{\Phi_S(r_2)}$ and $\nonExec{\Phi_T(r_2)}$, and the above points, Lemma~\ref{lem:sealed-lrv-lrexj} tells us that $\npair{(c_1,c_2,c_1',c_2')} \in \lrexj(W_{R,1} \oplus W_{R,2})$. 
 
   TODO
 \end{proof}

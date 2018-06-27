@@ -626,8 +626,9 @@ For the linearity encoding, we make similar assumptions: $\encLin{} : \Linear \f
 \begin{align*}
   \sem{\tmove{r}{\rn}}(\Phi) = & 
                               \begin{cases}
-                                \updPcAddr{\Phi\updReg{r}{\rn}} & \rn \in \ints \\
-                                \updPcAddr{\Phi\updReg{\rn}{w}\updReg{r}{\Phi(\rn)}} & w = \linCons{\Phi(\rn)}
+                                \updPcAddr{\Phi\updReg{r}{\rn}} & r \neq \pcreg \wedge \rn \in \ints \\
+                                \updPcAddr{\Phi\updReg{\rn}{w}\updReg{r}{\Phi(\rn)}} & r \neq \pcreg \wedge w = \linCons{\Phi(\rn)}\\
+                                \failed & \totherwise
                               \end{cases}
 \end{align*}
 (Notice that in the case where we are moving a linear capability and $r = \rn$ the order of the updates matter.)
@@ -731,7 +732,8 @@ For the linearity encoding, we make similar assumptions: $\encLin{} : \Linear \f
                                     \begin{array}[t]{l}
                                       \Phi(\rn) = n \tand \\
                                       \Phi(r) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
-                                      c = ((\perm,\lin),\baddr,\eaddr,\aaddr + n)
+                                      c = ((\perm,\lin),\baddr,\eaddr,\aaddr + n) \tand\\
+                                      r \neq \pcreg
                                     \end{array}
                                     \\
                                     \updPcAddr{\Phi\updReg{r}{s}} &  
@@ -771,7 +773,8 @@ This instruction uses the $\decPerm{}$ function.
                                           \Phi(r_1) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \tand \\
                                           \Phi(\rn) = n \tand\\
                                           \decPerm{n} \sqsubseteq \perm \tand \\
-                                          c = ((\decPerm{n},\lin),\baddr,\eaddr,\aaddr)
+                                          c = ((\decPerm{n},\lin),\baddr,\eaddr,\aaddr) \tand\\
+                                          r_1 \neq \pcreg
                                         \end{array}
                                         \\
                                         \sourcecolor\left.
@@ -803,14 +806,14 @@ This instruction uses the $\decPerm{}$ function.
                                                     \begin{array}[t]{l}
                                                       \text{if for $i \in \{1,2\}$}\\
                                                       \quad\Phi(\rn_i) = n_i \tand\\
-                                                      \quad\text{and $n_1 < n_2$}\\        
+                                                      \quad n_1 < n_2
                                                     \end{array}\\
                                                     \updPcAddr{\Phi\updReg{r_0}{0}} &
                                                     \arraycolsep=0pt
                                                     \begin{array}[t]{l}
                                                       \text{if for $i \in \{1,2\}$}\\
                                                       \quad \Phi(\rn_i) = n_i \tand \\
-                                                      \quad\text{and $n_1 \not< n_2$}\\        
+                                                      \quad n_1 \not< n_2\\
                                                     \end{array}\\
                                                     \failed & \text{otherwise}
                                                   \end{cases}  
@@ -854,7 +857,8 @@ This instruction uses the $\decPerm{}$ function.
                                     \arraycolsep=0pt
                                     \begin{array}[t]{l}
                                       \Phi(r_1) = ((\perm,\lin),\baddr,\eaddr,\_) \tand \\
-                                      c = ((\perm,\lin),\baddr,\eaddr,\baddr)
+                                      c = ((\perm,\lin),\baddr,\eaddr,\baddr) \tand\\
+                                      r_1 \neq \pcreg
                                     \end{array} \\
                                   \updPcAddr{}\left(
                                     \Phi \updReg{r_1}{c}
@@ -1040,7 +1044,8 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                    \baddr \leq n \tand n < \eaddr \tand \\
                                    c_1 = ((\perm,\lin),\baddr,n,\aaddr) \tand \\
                                    c_2 = ((\perm,\lin),n+1,\eaddr,\aaddr) \tand \\
-                                   w = \linCons{\Phi(r_3)}
+                                   w = \linCons{\Phi(r_3)} \tand \\
+                                   r_1,r_2,r_3 \neq \pcreg
                                  \end{array}\\
                                  \updPcAddr{} \left(
                                  \arraycolsep=0pt
@@ -1055,7 +1060,7 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                    \Phi(\rn_4) = n \tand\\
                                    \sigma_\baddr \leq n \tand n < \sigma_\eaddr \tand \\
                                    c_1 = \seal{\sigma_\baddr,n,\sigma} \tand \\
-                                   c_2 = \seal{n+1,\sigma_\eaddr,\sigma}         
+                                   c_2 = \seal{n+1,\sigma_\eaddr,\sigma}
                                  \end{array}\\
                                    \sourcecolor\left.
                                    \updPcAddr{}\left(
@@ -1073,7 +1078,7 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                    \Phi(\rn_4) = n \tand \\
                                    \baddr \leq n \tand n < \eaddr \tand \\
                                    c_1 = \stkptr{\perm,\baddr,n,\aaddr} \tand \\
-                                   c_2 = \stkptr{\perm,n+1,\eaddr,\aaddr} 
+                                   c_2 = \stkptr{\perm,n+1,\eaddr,\aaddr}
                                  \end{array} \right.\\
                                  \failed & \totherwise
                                \end{cases}
@@ -1099,7 +1104,8 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                   \eaddr_2 + 1 = \baddr_3 \tand \baddr_2 \leq \eaddr_2 \tand \baddr_3 \leq \eaddr_3 \tand \\
                                   c = ((\perm,\lin),\baddr_2,\eaddr_3,\aaddr_3) \tand\\
                                   w_2 = \linCons{\Phi(r_2)} \tand \\
-                                  w_3 = \linCons{\Phi(r_3)} \\
+                                  w_3 = \linCons{\Phi(r_3)}  \tand \\
+                                  r_1,r_2,r_3 \neq \pcreg\\
                                 \end{array}\\
                                 \updPcAddr{}\left(
                                 \arraycolsep=0pt
@@ -1320,8 +1326,9 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
 
 \begin{mathpar}
   \inference{
-    \dom(\mscode) \mathrel{\#} \dom(\msdata)&
-    \dom(\mscode) = [\baddr,\eaddr]\\
+    \dom(\mscode) = [\baddr,\eaddr]&
+    [\baddr-1,\eaddr+1] \mathrel{\#} \dom(\msdata)\\
+    \mspad = [\baddr-1\mapsto 0] \uplus [\eaddr+1 \mapsto 0]\\
     \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode \\
     \exists A_\mathrm{own} : \dom(\msdata) \rightarrow \powerset{\dom(\msdata)} & \dom(\msdata) = A_{\mathrm{non-linear}} \uplus A_\linear \\
     A_\linear = \biguplus_{a \in \dom(\msdata)} A_{\mathrm{own}}(a) \\
@@ -1331,7 +1338,7 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
     \overline{s_{\mathrm{import}}} \mathrel{\#} \overline{s_{\mathrm{export}}} & (\dom(\mscode) \subseteq \ta) \vee (\dom(\mscode) \mathrel{\#} \ta \wedge \sigrets = \emptyset)&
     \dom(\msdata) \mathrel{\#} \ta
   }{
-    \vdash (\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
+    \vdash (\mscode\uplus \mspad,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
   }
   \and
   \inference{
@@ -2051,6 +2058,7 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
     \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\stkptr{\perm,\baddr,\eaddr,\aaddr}},\\ ((\perm,\linear),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\;
     \begin{array}{l}
       \begin{array}{r l l}
+        \perm \not\in \{\rx,\rwx\} \wedge\\
         % \perm = \noperm & \Rightarrow & \npair{(\linear,\baddr,\eaddr)} \in \lrp(W) \wedge \\
         \perm \in \readAllowed{} &\Rightarrow& \npair{[\baddr,\eaddr]} \in \stackReadCond{W} \wedge \\
         \perm \in \writeAllowed{} &\Rightarrow& \npair{[\baddr,\eaddr]} \in \stackWriteCond{W}
@@ -2111,7 +2119,7 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
   \end{itemize}
 \end{lemma}
 \begin{proof}
-  TODO
+  Follows easily by definition.
 \end{proof}
 
 Note: the case for sub-$\rx$ capabilities in the trusted value relation allows for pointers to trusted code blocks.
@@ -2157,15 +2165,12 @@ where $\iota_A$ is a standard region defined in Section~\ref{sec:standard-region
 \[
   \xReadCond{W} = \left\{ \npair{A} \middle| 
     \begin{array}{l}
-      \exists S \subseteq \addressable{\normal, \pwheap} \ldotp \\
-      \quad \exists M : S \fun \powerset{\MemSeg} \\
-      \qquad \biguplus_{r\in S} \dom(M(r)) \supseteq A \wedge\\
-      % \qquad \biguplus_{r\in S} R(r) \# \biguplus_{r\in S} C(r) \wedge \\
-      \qquad \forall r \in S \ldotp \pwheap(r) \nequal \codereg{\_,\_,M(r),\gc}
+      \exists r \in \addressable{\normal, \pwheap} \ldotp \\
+      \qquad \pwheap(r) \nequal \codereg{\_,\_,\code,\gc}\wedge\\
+      \qquad \dom(\code) \supseteq A 
     \end{array}
   \right\}
 \]
-\lau{RESOLVED: Make this condition require a set of adjacent regions.}
 
 \begin{definition}
   \label{def:address-stratified}
@@ -2262,17 +2267,19 @@ H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
 
 \begin{multline*}
   H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; (\ta,\_,\gsigrets,\gsigcloss) \; \hat{W} =\\
-  \left\{\npair{(\code,\code)} \middle|
+  \left\{\npair{\arraycolsep=0pt\left(\array{l}\code \uplus \mspad,\\ \code \uplus \mspad\endarray\right)} \middle|
     \begin{array}{l}
-    \dom(\code) = [\aaddr,\baddr] \wedge \\
-      (\dom(\code) \subseteq \ta \wedge \sigrets \subseteq \gsigrets \wedge \sigcloss \subseteq \gsigcloss \wedge \trust = \trusted) \vee \\
-      \quad (\dom(\code)\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted) \wedge \\
+    \dom(\code) = [\baddr,\eaddr] \wedge \\
+      ([\baddr - 1, \eaddr + 1] \subseteq \ta \wedge \sigrets \subseteq \gsigrets \wedge \sigcloss \subseteq \gsigcloss \wedge \trust = \trusted) \vee \\
+      \quad ([\baddr-1,\eaddr+1]\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted) \wedge \\
+      \mspad = [\baddr-1 \mapsto 0] \uplus [\eaddr + 1 \mapsto 0]\wedge\\
       \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \code \wedge\\
       \forall a \in \dom(\code)\ldotp\\
-      \quad\npair{(\code(a),\code(a))} \in \lrvg{\trust}(\purePart{\xi(\hat{W})})
+      \quad\npair{(\code(a),\code(a))} \in \lrvg{\trust}(\purePart{\xi(\hat{W})}) \wedge
     \end{array}
   \right\}
 \end{multline*}
+
 
 \lau{19-03-2018: Add the link capability to the above? code in ta?}
 \lau{TODO: look at the $[b,e] \subseteq ...$ condition - will it work for splice?}
@@ -2358,73 +2365,66 @@ or the following implications hold.
 \begin{definition}[Reasonable configuration]
   \label{def:reasonable-conf}
   We say that an execution configuration $\Phi$ is reasonable up to $n$ steps with $(\ta,\stkb,\gsigrets,\gsigcloss)$ 
-  iff for all $n' \le n$:
-  \dominique{require that evaluations below stay within $\ta$ or even within the bounds of the current pc?}
+  iff for $n' \leq n$:
   \begin{itemize}
   \item \emph{Guarantee stack base address before call} If
     \begin{itemize}
-    \item $\Phi \nstep[i]{\ta,\stkb} \Phi'$
-    \item $\Phi'$ points to $\src{\scall{\offpc,\offsigma}{r_1}{r_2}}$ in $\ta$
+    \item $\Phi$ points to $\src{\scall{\offpc,\offsigma}{r_1}{r_2}}$ in $\ta$
       for some $\src{r_1}$ and $\src{r_2}$
-    \item $i \le n'$
     \end{itemize}
     Then all of the following hold:
     \begin{itemize}
-    \item $\src{\Phi'}(\src{r_\stk}) =
+    \item $\src{\Phi}(\src{r_\stk}) =
       \src{\stkptr{\_,\stkb,\_,\_}}$
     \item $r_1 \neq \rtmp{1}$
-    \item $\Phi'(\pcreg) + \calllen$ behaves reasonably up to $n'-i - 1$ steps
+    \item $\Phi(\pcreg) + \calllen$ behaves reasonably up to $n'-1$ steps
     \end{itemize}
   \item \emph{Use return seals only for calls, use closure seals appropriately} If
     \begin{itemize}
-    \item $\Phi \nstep[i]{\ta,\stkb} \Phi'$
-    \item $i \le n'$
-    \item $\src{\Phi'}$ points to $\src{\tcseal{r_1}{r_2}}$ in $\ta$ and $\Phi'(r_1) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$
+    \item $\src{\Phi}$ points to $\src{\tcseal{r_1}{r_2}}$ in $\ta$ and $\Phi(r_1) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$
     \end{itemize}
     Then one of the following holds:
     \begin{itemize}
-    \item $\src{\Phi'}$ is inside $\src{\scall{\offpc,\offsigma}{r_1'}{r_2'}}$
-      and $\sigma \in \gsigrets$
+    \item $\src{\Phi}$ is inside $\src{\scall{\offpc,\offsigma}{r_1'}{r_2'}}$ and $\sigma \in \gsigrets$
     \item $\sigma \in \gsigcloss$ and one of the following holds:
       \begin{itemize}
-      \item $\exec{\Phi'(r_2)}$ and $\Phi'(r_2)$ behaves reasonably up to $n' - i - 1$ steps.
-      \item $\nonExec{\Phi'(r_2)}$ and $\Phi'(r_2)$ is reasonable up to $n' - i - 1$ steps in memory $\Phi'.\ms$ and free stack $\Phi'.\ms_\stk$.
+      \item $\exec{\Phi(r_2)}$ and $\Phi(r_2)$ behaves reasonably up to $n' - 1$ steps.
+      \item $\nonExec{\Phi(r_2)}$ and $\Phi(r_2)$ is reasonable up to $n' - 1$ steps in memory $\Phi.\ms$ and free stack $\Phi.\ms_\stk$.
       \end{itemize}
     \end{itemize}
   \item \emph{Don't store private stuff...} If
     \begin{itemize}
-    \item $\Phi \nstep[i]{\ta,\stkb} \Phi'$
-    \item $\src{\Phi'}$ points to $\src{\tstore{r_1}{r_2}}$ in $\ta$, then
-    \item $i \le n'$
+    \item $\src{\Phi}$ points to $\src{\tstore{r_1}{r_2}}$ in $\ta$, then
     \end{itemize}
-    Then $\Phi.\reg(r_2)$ is reasonable in memory $\Phi'.\mem$ up to $n'-i -1$ steps
+    Then $\Phi.\reg(r_2)$ is reasonable in memory $\Phi.\mem$ up to $n' -1$ step
   \item \emph{Don't leak private stuff...} If
     \begin{itemize}
-    \item $\Phi \nstep[i]{\ta,\stkb} \Phi' \step \Phi''$
-    \item $\src{\Phi'}$ is in $\ta$
-    \item $\src{\Phi''}$ is not in $\ta$
-    \item $i \le n'$
+    \item $\Phi \step[\ta,\stkb] \Phi'$
     \end{itemize}
-    Then $\Phi.\reg(r)$ is reasonable in memory $\Phi'.\mem$ up to $n'-i$ steps for
-    all $r$ (including $\pcreg$)
-  \end{itemize}  
+    Then one of the following holds:
+    \begin{itemize}
+    \item All of the following hold:
+      \begin{itemize}
+      \item $\Phi'.\reg(\pcreg) =
+        ((\perm,\lin),\baddr,\eaddr,\aaddr')$ and $\Phi.\reg(\pcreg) =
+        ((\perm,\lin),\baddr,\eaddr,\aaddr)$
+      \item $\Phi'$ is reasonable up to $n'-1$ steps
+      \end{itemize}
+      % \dominique{the following seems unnecessary: why would we allow trusted code to use a jump instruction to jump out of a trusted component? it can use call and xjmp for calls/returns/tailcalls}
+    % \item $\Phi'.\reg(r)$ is reasonable in memory $\Phi'.\mem$ and free stack $\Phi'.\ms_\stk$ up to $n'-1$ steps for all $r$ (including $\pcreg$)
+    \item
+      \begin{itemize}
+      \item $\Phi$ points to $\src{\scall{\offpc,\offsigma}{r_1}{r_2}}$ for some $\src{r_1}$ and $\src{r_2}$
+      \item $\Phi.\reg(r)$ is reasonable in memory $\Phi.\mem$ and free stack $\Phi.\ms_\stk$ up to $n'-1$ steps for all $r \neq \pcreg$
+      \end{itemize}
+    \item
+      \begin{itemize}
+      \item $\Phi$ points to $\src{\txjmp{\offpc,\offsigma}{r_1}{r_2}}$ for some $\src{r_1}$ and $\src{r_2}$
+      \item $\Phi.\reg(r)$ is reasonable in memory $\Phi.\mem$ and free stack $\Phi.\ms_\stk$ up to $n'-1$ steps for all $r \neq \pcreg$
+      \end{itemize}
+    \end{itemize}
+  \end{itemize}
 \end{definition}
-
-  \begin{lemma}
-    \label{lem:ec-reasonable-antired}
-    If
-    \begin{itemize}
-    \item $\Phi$ is reasonable up to $n$ steps
-    \item $\Phi \nstep[i]{\gc} \Phi'$
-    \end{itemize}
-    Then
-    \begin{itemize}
-    \item $\Phi'$ is reasonable up to $n-i$ steps
-    \end{itemize}
-  \end{lemma}
-  \begin{proof}
-    Follows easily by definition.
-  \end{proof}
 
   \begin{lemma}
     \label{lem:ec-reasonable-downwards-closed}
@@ -3039,7 +3039,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \label{lem:codereg-untrusted-stdreg}
   If
   \begin{itemize}
-  \item $\emptyset\neq\dom(\mscode) \mathrel{\#} \ta$
+  \item $\dom(\mscode) \mathrel{\#} \ta$
   \end{itemize}
   then $\codereg{\sigrets,\sigcloss,\mscode,\gc}.H \nsubeq \stdreg{\dom(\mscode),\gc}{\pur}.H$ 
 \end{lemma}
@@ -3050,9 +3050,9 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \end{equation*}
   So take $\npair{\ms_S,\ms_T} \in H^\mathrm{code}\;\sigrets\;\sigcloss\;\mscode\;\gc \; \hat{W}$, then we know that
   \begin{itemize}
-  \item $\ms_S = \ms_T = \mscode$ 
-  \item $\dom(\mscode) =[\aaddr,\baddr]$
-  \item $\dom(\mscode) \subseteq \ta \vee (\dom(\mscode)\mathrel{\#} \ta \wedge \sigrets = \emptyset)$, but we know that $\emptyset \neq\dom(\mscode) \mathrel{\#} \ta$, so we get that $\sigrets = \emptyset$.
+  \item $\ms_S = \ms_T = \mscode\uplus\mspad$
+  \item $\dom(\mscode) =[\baddr,\eaddr]$
+  \item $[\baddr-1,\eaddr+1] \subseteq \ta \vee ([\baddr-1,\eaddr+1]\mathrel{\#} \ta \wedge \sigrets = \emptyset)$, but we know that $\dom(\mscode) \mathrel{\#} \ta$, so we get that $\sigrets = \emptyset$.
   \item For all $a \in \dom(\code)$, $\npair{(\code(a),\code(a))} \in \lrv(\purePart{\xi(\hat{W})})$
   \end{itemize}
 
@@ -3130,7 +3130,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
     $\npair{A'} \in \readCond{\lin,W}$.
   \item If $\npair{A} \in \writeCond{\lin,W}$  and $\emptyset \neq A' \subseteq A$, then
     $\npair{A'} \in \writeCond{\lin,W}$.
-  \item If $\npair{A} \in \xReadCond{W}$  and $\emptyset \neq A' \subseteq A$, then
+  \item If $\npair{A} \in \xReadCond{W}$  and $A' \subseteq A$, then
     $\npair{A'} \in \xReadCond{W}$.
   \item If $\npair{A} \in \execCond{W}$  and $\emptyset \neq A' \subseteq A$, then
     $\npair{A'} \in \execCond{W}$.
@@ -3162,6 +3162,51 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 
   For the execute condition, we get a partition of the world into $W = \oplus_{a \in A} W_a(a)$ and we can define $W_1 = \oplus_{a\in[\baddr_1,\eaddr_1]} W_a(a)$ and likewise for $W_2$.
   The results then follow easily from the definitions.
+\end{proof}
+
+\begin{lemma}[permission-based conditions splicable]
+  \label{lem:conds-splicable}
+  If
+  \begin{itemize}
+  \item $[\baddr,\eaddr] = [\baddr_1,\eaddr_1] \uplus [\baddr_2,\eaddr_2]$
+  \item $[\baddr,\eaddr]\mathrel{\#} \ta$
+  \item $W_1\oplus W_2$ is defined.
+  \end{itemize}
+  then
+  \begin{itemize}
+  \item If $\npair{[\baddr_1,\eaddr_1]} \in \readCond{\lin,W_1}$ and $\npair{[\baddr_2,\eaddr_2]} \in \readCond{\lin,W_2}$, then $\npair{[\baddr,\eaddr]} \in \readCond{\lin,W_1 \oplus W_2}$
+  \item If $\npair{[\baddr_1,\eaddr_1]} \in \writeCond{\lin,W_1}$ and $\npair{[\baddr_2,\eaddr_2]} \in \writeCond{\lin,W_2}$, then $\npair{[\baddr,\eaddr]} \in \writeCond{\lin,W_1 \oplus W_2}$.
+  \item If $\npair{[\baddr_1,\eaddr_1]} \in \execCond{W_1}$ and $\npair{[\baddr_2,\eaddr_2]} \in \execCond{W_2}$, then $\npair{[\baddr,\eaddr]} \in \execCond{W_1 \oplus W_2}$.
+  \end{itemize}
+
+  If
+  \begin{itemize}
+  \item $[\baddr,\eaddr] = [\baddr_1,\eaddr_1] \uplus [\baddr_2,\eaddr_2]$
+  \item $W_1\oplus W_2 \oplus W_M$ is defined.
+  \item $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$
+  \end{itemize}
+  then
+  \begin{itemize}
+  \item If $\npair{[\baddr_1,\eaddr_1]} \in \xReadCond{\lin,W_1}$ and
+    $\npair{[\baddr_2,\eaddr_2]} \in \xReadCond{\lin,W_2}$, then
+    $\npair{[\baddr,\eaddr]} \in \xReadCond{\lin,W_1 \oplus W_2}$
+  \end{itemize}
+
+  If $[\baddr,\eaddr] = [\baddr_1,\eaddr_1] \uplus [\baddr_2,\eaddr_2]$, then
+  \begin{itemize}
+  \item If $\npair{[\baddr_1,\eaddr_1]} \in \stackReadCond{W_1}$ and $\npair{[\baddr_2,\eaddr_2]} \in \stackReadCond{W_2}$, then $\npair{[\baddr,\eaddr]} \in \stackReadCond{W_1 \oplus W_2}$
+  \item If $\npair{[\baddr_1,\eaddr_1]} \in \stackWriteCond{W_1}$ and $\npair{[\baddr_2,\eaddr_2]} \in \stackWriteCond{W_2}$, then $\npair{[\baddr,\eaddr]} \in \stackWriteCond{W_1 \oplus W_2}$.
+  \end{itemize}
+\end{lemma}
+\begin{proof}
+  The results for $\readCond{}$, $\writeCond{}$, $\stackReadCond{}$ and $\stackWriteCond{}$ follow by taking the union of the two sets $S$, and the union of $R$ for every $r$.
+
+  The result for $\execCond{}$ follows easily by definition and using Lemmas~\ref{lem:purePart-oplus} and~\ref{lem:oplus-future}.
+
+  For $\xReadCond{}$, we get $r_i \in \addressable{\normal,W_i}$ such that $\pwheap[W_i](r_i) \nequal \codereg{\_,\_,\code_i,\gc}$ such that $\dom(\code_i)\supseteq [\baddr_i,\eaddr_i]$.
+  From $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W_M}$, it follows that $\code_i = [\baddr_i',\eaddr_i']$ and if $r_1 \neq r_2$, then $[\baddr_1'-1,\eaddr_1+1] \mathrel{\#} [\baddr_2'-1,\eaddr_2'+1]$.
+  Because $[\baddr,\eaddr] = [\baddr_1,\eaddr_1] \uplus [\baddr_2,\eaddr_2]$ and $[\baddr_i',\eaddr_i'] = \dom(\code_i)\supseteq [\baddr_i,\eaddr_i]$, we can derive that $r_1= r_2$.
+  The result then follows by definition of $\xReadCond{}$.
 \end{proof}
 
 \begin{lemma}[FTLR for component code capabilities]
@@ -3447,12 +3492,14 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 
   Take
   \begin{equation*}
-    \var{comp} = (\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
+    \var{comp} = (\mscode\uplus\mspad,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
   \end{equation*}
+  Note that confusingly, $\var{comp}.\mscode = \mscode\uplus\mspad$, so the assumption about $\dom(\var{comp}.\mscode)$ should be interpreted properly.
   We then know from $\vdash \var{comp}$ that 
   \begin{itemize}
-  \item $\dom(\mscode) \mathrel{\#} \dom(\msdata)$
   \item $\dom(\mscode) = [\baddr,\eaddr]$
+  \item $[\baddr-1,\eaddr+1] \mathrel{\#} \dom(\msdata)$
+  \item $\mspad = [\baddr-1\mapsto 0] \uplus [\eaddr+1 \mapsto 0]$
   \item $\sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode$
   \item $\exists A_\mathrm{own} : \dom(\msdata) \rightarrow \powerset{\dom(\msdata)}$
   \item $\dom(\msdata) = A_{\mathrm{non-linear}} \uplus A_\linear$
@@ -3495,12 +3542,12 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \begin{itemize}
   \item
     \begin{equation*}
-      \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata', \mscode\uplus\msdata')} \in \lrheap(\pwheap)(W')
+      \npair{(\sigrets\uplus\sigcloss,\mspad\uplus\mscode\uplus \msdata', \mspad\uplus\mscode\uplus\msdata')} \in \lrheap(\pwheap)(W')
     \end{equation*}
    Take $R_\ms : \dom(\activeReg{\pwheap}) \fun \MemSeg \times \MemSeg$ such that
     \begin{itemize}
-    \item $R_\ms(r_\addr) = \msdata|_{\{a\}} \times \msdata|_{\{a\}}$.
-    \item $R_\ms(r_\var{code}) = \mscode\times\mscode$
+    \item $R_\ms(r_\addr) = (\msdata|_{\{a\}}, \msdata|_{\{a\}})$.
+    \item $R_\ms(r_\var{code}) = (\mspad\uplus\mscode,\mspad\uplus\mscode)$
     \end{itemize}
     Take $R_W' : \dom(\activeReg{\pwheap}) \fun \World$ such that
     \begin{itemize}
@@ -3540,14 +3587,16 @@ Note: we don't require the readcondition in the trusted case because trusted cod
       \item $\pwheap[R_W(\addr)](r_{\mathrm{code}}) = \codereg{\sigrets,\sigcloss,\mscode,\gc}$: follows from the choice of $W$ and $R_W'(\addr)$ and the fact that $R_W(a) \future R_W'(a)$
       \item $\dom(\mscode) \mathrel{\#} \ta$ or $\dom(\mscode) \subseteq \ta$: by assumption.
       \end{itemize}
-    \item $\npair{(\mscode,\mscode)} \in  \codereg[\mathrm{code},\square]{\sigrets,\sigcloss,\mscode,\gc}.H~ \xi^{-1}(\purePart{W'})$:
-      We take $\trust = \trusted$ if $\dom(\code) \subseteq \ta$ and $\trust =\untrusted$ otherwise.
+    \item $\npair{(\mspad\uplus\mscode,\mspad\uplus\mscode)} \in  \codereg[\mathrm{code},\square]{\sigrets,\sigcloss,\mscode,\gc}.H~ \xi^{-1}(\purePart{W'})$:
+      We take $\trust = \trusted$ if $[\baddr-1,\eaddr+1] \subseteq \ta$ and $\trust =\untrusted$ otherwise.
       By definition, we need to prove that:
       
       \begin{itemize}
-      \item $\dom(\code) = [\aaddr,\baddr]$: by assumption.
-      \item $(\dom(\code) \subseteq \ta \wedge \trust = \trusted) \vee (\dom(\code)\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted)$: by assumption and choice of $\trust$.
+      \item $\dom(\code) = [\baddr,\eaddr]$: by assumption.
+      \item $([\baddr-1,\eaddr+1] \wedge \trust = \trusted) \vee ([\baddr-1,\eaddr+1]\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted)$: by assumption and choice of $\trust$.
       \item $\sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \code$: by assumption.
+      \item $\mspad = [\baddr-1 \mapsto 0] \uplus [\eaddr + 1 \mapsto 0]$:
+        by assumption
       \item $\forall a \in \dom(\code), n' < n \ldotp \npair[n']{(\code(a),\code(a))} \in \lrvg{\trust}(\purePart{}(\xi(\xi^{-1}(\purePart{W'}))))$:
         Note first that $\purePart{}(\xi(\xi^{-1}(\purePart{W'}))) =\purePart{W'}$.
 
