@@ -755,8 +755,8 @@ TODO TODO TODO
 
   In order to prove this, we first, we prove that one of the following holds:
   \begin{enumproof}
-  \item \label{case:ftlr:failed} $\Phi_S \step[\gc] \failed$ and $\Phi_T
-    \step[i] \failed$ for some $i$.
+  \item \label{case:ftlr:failed} $\Phi_S \nstep[j]{\gc} \failed$ and $\Phi_T
+    \step[i] \failed$ for some $i$,$j$.
   \item \label{case:ftlr:halted} $\Phi_S \step[\gc] \halted$ and $\Phi_T \step\halted$
   \item \label{case:ftlr:get-and-arith-op} All of the following hold: (includes simple cases: gettype, geta, getb,
     gete, getp, getl, lt, plus, minus, one case of move that can be handled
@@ -878,6 +878,7 @@ TODO TODO TODO
         $\sigma_{\baddr,2} \leq \sigma_{\eaddr,2}$, and $\sigma_{\eaddr,2} + 1
         \leq \sigma_{\eaddr,3}$and $w_1 = w_1' = \seal{\sigma_{\baddr,2},
           \sigma_{\eaddr,3}, \sigma}$
+      \item \label{case:ftlr:jnz-z} (jnz zero case) $k = 0$
       \end{enumproof}
     \end{itemize}
   \item \label{case:ftlr:store-load-mem} All of the following hold: (includes memory-manipulation cases: store,
@@ -940,10 +941,10 @@ TODO TODO TODO
     \item $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$
     \item One of the following holds
       \begin{enumproof}
-      \item(jnz) $\Phi_S' = \updPcAddr{\Phi_S}$ and $\Phi_T' =
-        \updPcAddr{\Phi_T}$
       \item(jmp,jnz) $\Phi_S' = \Phi_S\updReg{\pcreg,r_1}{\Phi_S(r_1),w_1}$ and
         $\Phi_T' = \Phi_T\updReg{\pcreg,r_1'}{\Phi_T(r_1),w_1'}$ and
+        $\Phi_S(r_1) = \Phi_T(r_1) = ((\perm_1,\lin_1),\baddr_1,\eaddr_1,\aaddr_1)$,
+        $\exec{\Phi_S(r_1)}$, $\withinBounds{\Phi_S(r_1)}$,
         $w_1 = \linCons{\Phi_S(r_1)}$ and $w_1' = \linCons{\Phi_T(r_1)}$
       \item(xjmp) $\Phi_S(r_1) = \sealed{\sigma,c_1}$ and $\Phi_S(r_2) =
         \sealed{\sigma,c_2}$ and $\Phi_T(r_1) = \sealed{\sigma,c_1'}$ and
@@ -1905,6 +1906,10 @@ This concludes case \ref{case:ftlr:scall:reg}
       \npair[n-1]{(\Phi_S'(r), \Phi_T'(r))} \in \lrvg{\trust}(R_R'(r))
     \]
     and for other registers, it follows by Lemma~\ref{lem:downwards-closed}.
+
+  \item Case \ref{case:ftlr:move-cca-etc:jnz-z}:
+
+    In this case, we can take $R_R' = R_R$ and for all registers, the result follows by Lemma~\ref{lem:downwards-closed}.
   \end{itemize}
 
 
@@ -2056,6 +2061,63 @@ This concludes case \ref{case:ftlr:scall:reg}
 
   Case \ref{case:ftlr:store-load-jump}
 
+  We have that
+  \begin{itemize}
+  \item $\Phi_S \step[\gc] \Phi_S'$
+  \item $\Phi_T \step \Phi_T'$
+  \item $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$
+  \item One of the following holds
+    \begin{enumproof}
+    \item(jmp,jnz) $\Phi_S' = \Phi_S\updReg{\pcreg,r_1}{\Phi_S(r_1),w_1}$ and
+      $\Phi_T' = \Phi_T\updReg{\pcreg,r_1'}{\Phi_T(r_1),w_1'}$ and
+      $\Phi_S(r_1) = \Phi_T(r_1) = ((\perm_1,\lin_1),\baddr_1,\eaddr_1,\aaddr_1)$,
+      $\exec{\Phi_S(r_1)}$, $\withinBounds{\Phi_S(r_1)}$,
+      $w_1 = \linCons{\Phi_S(r_1)}$ and $w_1' = \linCons{\Phi_T(r_1)}$
+    \item(xjmp) $\Phi_S(r_1) = \sealed{\sigma,c_1}$ and $\Phi_S(r_2) =
+      \sealed{\sigma,c_2}$ and $\Phi_T(r_1) = \sealed{\sigma,c_1'}$ and
+      $\Phi_T(r_2) = \sealed{\sigma,c_2'}$ and
+      $c_1' \neq \retptrc(\_)$ and $c_2' \neq \retptrd(\_)$ and
+      $\Phi_S'' = \Phi_S\updReg{r_1,r_2}{\linCons{c_1},\linCons{c_2}}$ and $\Phi_S' = \xjumpResult{c_1}{c_2}{\Phi_S''}$ and
+      $\Phi_T'' = \Phi_T\updReg{r_1,r_2}{\linCons{c_1'},\linCons{c_2'}}$ and
+      $\Phi_T' = \xjumpResult{c_1'}{c_2'}{\Phi_T''}$
+    \end{enumproof}
+  \end{itemize}
+
+  According to Lemma~\ref{lem:lro-anti-red-gen}, it suffices to show:
+  \[
+    \npair[n-1]{(\Phi_S',\Phi_T')} \in \lro
+  \]
+
+  In the first case (jmp,jnz), the fact that $\Phi_S$ is reasonable, with $\Phi_S \step[\gc] \Phi_S'$ and $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$, gives us that $\perm_1 = \perm$, $\lin_1 = \normal$, $b_1 = b$, $e_1 = e$.
+  The fact that $\lin_1 =\normal$ implies that $w_1 =\Phi_S(r_1)$ and $w_1' = \Phi_T(r_1)$.
+
+  The induction hypothesis tells us that it suffices to prove the following:
+  \begin{itemize}
+  \item One of the following sets of requirements holds:
+    \begin{itemize}
+    \item $\trust = \trusted$, $\Phi_S'$ is reasonable up to $n-1$ steps and $[\baddr,\eaddr] \subseteq \ta$
+    \item $\trust = \untrusted$ and $[b,e] \mathrel{\#} \ta$ and $\npair[n-1]{[\baddr,\eaddr]} \in \readCond{\normal,W_\pcreg}$
+    \end{itemize}
+    This follows from the corresponding assumption of this lemma, the fact that $\Phi_S \step[\gc] \Phi_S'$ and $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$ and \ref{lem:downwards-closed}.
+  \item $\Phi_S'(\pcreg) = \Phi_T'(\pcreg) = ((\rx,\normal),\baddr,\eaddr,\_)$:
+    See above.
+  \item $\npair[n-1]{[\baddr,\eaddr]} \in \xReadCond{W_\pcreg}$:
+    Follows by Lemma~\ref{lem:downwards-closed} from the fact that $\npair{[b,e]} \in \xReadCond{W_\pcreg}$.
+  \item $\npair[n-1]{(\Phi_S'.\reg,\Phi_T'.\reg)} \in \lrrg{\trust}(W_R)$:
+
+    We have that $\Phi_S'.\reg(r) = \Phi_S.\reg(r)$ for all $r \neq \pcreg$, so the result follows by Lemma~\ref{lem:downwards-closed} from the corresponding assumption of this lemma.
+
+  \item $\memSat[n-1]{\Phi_S'.\mem,\Phi_S'.\stk,\Phi_S'.\ms_\stk,\Phi_T'.\mem}{W_M}$:
+
+    These components of $\Phi_S'$ and $\Phi_T'$ are all unmodified from $\Phi_S$ and $\Phi_T$, so the result follows by Lemma~\ref{lem:downwards-closed} from the corresponding assumption of this lemma.
+
+  \item $W_\pcreg \oplus W_R \oplus W_M$ is defined: by assumption.
+
+  \item Theorem~\ref{thm:ftlr} holds for all $n' < n-1$:
+    Follows by the same assumption of this lemma.
+  \end{itemize}
+
+  In the second case (xjmp), blabla
   TODO
 \end{proof}
 
