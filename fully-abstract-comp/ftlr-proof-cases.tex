@@ -213,10 +213,11 @@ then
   \begin{itemize}
   \item $\npair{(c,c)} \in \lrvg{\trust}(W)$
   \item $c = ((\perm,\lin),\baddr,\eaddr,\aaddr)$
-  \item $b \le n \le e$
-  \item $c_1 = ((\perm,\lin),\baddr,n,\aaddr)$
-  \item $c_2 = ((\perm,\lin),n,\eaddr,\aaddr)$
+  \item $b \le s < e$
+  \item $c_1 = ((\perm,\lin),\baddr,s,\aaddr)$
+  \item $c_2 = ((\perm,\lin),s+1,\eaddr,\aaddr)$
   \item $c_3 = \linCons{c}$
+  \item $\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W \oplus \purePart{W_1 \oplus W_2 \oplus W_3}}$
   \end{itemize}
   then there exist $W_1,W_2$,$W_3$ such that
   \begin{itemize}
@@ -227,45 +228,74 @@ then
   \end{itemize}
 \end{lemma}
 \begin{proof}
-  TODO
-  
-  From $\npair{(c,c)} \in \lrvg{\trust}(W)$, we get that either $\perm = \noperm$, in which case we can pick the ownership distribution to be the same as before, or $\npair{[\baddr,\eaddr]} \in \readCond{\linear,R_R(r_3)}$.
 
-    In the latter case, we get $S \subseteq \addressable{\linear,R_R(r_3)}$ and $R : S \fun \powerset{R_R(r_3)}$ such that $\forall r \in S \ldotp |R(r)| = 1$ and $\biguplus_{r\in S} R(r) \supseteq [\baddr,\eaddr]$.
+  If $\lin = \normal$, then we pick $W_3 = W$ and $W_1 = W_2 = \purePart{W_3}$ which easily satisfies $W = W_1 \oplus W_2 \oplus W_3$.
 
-    This gives us a way to distribute the ownership, namely $r_3$ gives up ownership of regions $R^{-1}([\baddr,\eaddr])$, $r_1$ gets ownership of $R^{-1}([\baddr,n])$, and $r_2$ gets ownership over $R^{-1}([n+1,\eaddr])$.
-    The remainder of the ownership distribution remains unchanged.
+  Assuming $\gc = (\ta,\gc,\gsigrets,\gsigcloss)$, we know by assumption $\npair{(c,c)} \in \lrvg{\trust}(W)$ that either
+\begin{itemize}
+\item $\ta \subseteq [\baddr,\eaddr]$; or
+\item $\ta \# [\addr,\eaddr]$
+\end{itemize}
+In the former case, the result follows from Lemma~\ref{lem:non-linear-pure} and Lemma~\ref{lem:conds-shrinkable}.
 
-TODO TODO TODO     
-    Now we have to argue the following:
-    \begin{itemize}
-    \item if $\perm \in \readAllowed$, then
-      \begin{itemize}
-      \item $\npair{[\baddr,n]} \in \readCond{\linear,R_R'(r_1)}$
-      \item $\npair{[n+1,\eaddr]} \in \readCond{R_R'(r_2)}$
-      \end{itemize}
-      
-    \item if $\perm \in \writeAllowed$, then
-      \begin{itemize}
-      \item $\npair{[\baddr,n]} \in \writeCond{\linear,R_R'(r_1)}$
-      \item $\npair{[n+1,\eaddr]} \in \writeCond{\linear,R_R'(r_2)}$
-      \end{itemize}
-    \item $\perm \neq \rx$
+In the latter case, we know that $[\baddr,s],[s+1,\eaddr] \neq \emptyset$ because $b \le s < e$, so the result follows from Lemma~\ref{lem:non-linear-pure} and Lemma~\ref{lem:conds-shrinkable}.
 
-      Assuming $\perm = \rx$, then it must have been the case that $\lin = \normal$ contradicting the assumption $\isLinear{(\Phi_S(r_3))}$.
-      
-    \end{itemize}
-    or
-    \begin{itemize}
-    \item 
-    \end{itemize}
-    depending on whether the permission of the capability was $\perm = \noperm$
-    or not. In both cases, the result follows immediately by the assumptions.
+If $\lin = \linear$, then 
+we know from $\npair{(c,c)} \in \lrvg{\trust}(W)$ and w.l.o.g we can assume
+\begin{itemize}
+\item $\npair{[\baddr,\eaddr]} \in \readCond{\linear,W}$
+\item $\npair{[\baddr,\eaddr]} \in \writeCond{\linear,W}$
+\end{itemize}
+from this, we get $S_{\var{read}} \subseteq \addressable{\linear,\pwheap{W}}$ and
+$R_{\var{read}} : S_{\var{read}} \fun \Worlds$ such that
+\begin{itemize}
+\item $\biguplus_{r\in S_{\var{read}}} R_{\var{read}}(r) \supseteq A$
+\item $\forall r\ldotp |R_{\var{read}}(r)|  = 1$
+\item $\forall r \in S_{\var{read}} \ldotp \pwheap(r).H \nsubeq \stdreg{R_{\var{read}}(r),\gc}{\pur}.H$
+\end{itemize}
+and
+$S_{\var{write}} \subseteq \addressable{\linear,\pwheap{W}}$ and
+$R_{\var{write}} : S_{\var{write}} \fun \Worlds$ such that
+\begin{itemize}
+\item $\biguplus_{r\in S_{\var{write}}} R_{\var{write}}(r) \supseteq A$
+\item $\forall r\ldotp |R_{\var{write}}(r)|  = 1$
+\item $\forall r \in S_{\var{write}} \ldotp \pwheap(r).H \nsupeq
+  \stdreg{R_{\var{write}}(r),\gc}{\pur}.H \wedge \pwheap(r) \text{ is address-stratified}$
+\end{itemize}
 
-    If $\neg \isLinear{(\Phi_S(r_3))}$, then we pick $R_R' = R_R$
+Now we would like to show $R_{\var{read}}^{-1}([\baddr,\eaddr]) = R_{\var{write}}^{-1}([\baddr,\eaddr])$.
+We know that the two sets are the same size as both $R$'s map to singleton sets.
+This means that there exists $r \neq r'$ s.t.\ $R_{\var{read}}(r) =
+R_{\var{write}}(r') = \{\aaddr'\}$ for $\aaddr' \in [\baddr,\eaddr]$.
 
-    TODO
+By definition of the standard region, we know that for any $\hat{W}$ and any $\ms$ and $\ms'$ where $\npair[n-1]{(\ms,\ms')} \in \pwheap(r)$ we have $\dom(\ms)= \dom(\ms') = \{a'\}$.
 
+By assumption $\pwheap(r)$ is address-stratified which means that for any $\hat{W}$ and any $\ms$ and $\ms'$ where $\npair[n-1]{(\ms,\ms')} \in \pwheap(r)$ we have $\dom(\ms)e= \dom(\ms') = \{a'\}$.
+
+By the memory satisfaction, the memory must be split into disjointed parts that
+each satisfy a region. With two regions that require a memory segment pair with
+the same domain, we cannot satisfy all the regions, so we must have
+
+Now pick $W_1$ as the world that owns $R_{\var{read}}^{-1}([\baddr,s])$, $W_2$
+the world that owns $R_{\var{read}}^{-1}([s+1,\eaddr])$, and $W_3$ as the world
+that owns the remaining regions of $W$.
+
+It is clearly the case that $W = W_1 \oplus W_2 \oplus W_3$.
+
+In this case, we need to show
+\[
+  \npair{(0,0)} \in \lrvg{\trust}(W_3)
+\]
+which is trivially the case.
+
+For the remaining, it suffices to show
+\begin{itemize}
+\item $\npair{[\baddr,s]} \in \readCond{\linear,W_1}$
+\item $\npair{[\baddr,s]} \in \writeCond{\linear,W_1}$
+\item $\npair{[s+1,\eaddr]} \in \readCond{\linear,W_2}$
+\item $\npair{[s+1,\eaddr]} \in \writeCond{\linear,W_2}$
+\end{itemize}
+which follows by assumption.
 \end{proof}
 
 \begin{lemma}[Capability splitting retains safety for stack capabilities]
@@ -2149,7 +2179,7 @@ This concludes case \ref{case:ftlr:scall:reg}
 
   In the second case (xjmp), we have that $\npair{(\Phi_S(r_1),\Phi_T(r_1))} \in \lrvg{\trust}(W_{R,1})$, $\npair{(\Phi_S(r_2),\Phi_T(r_2))} \in \lrvg{\trust}(W_{R,2})$ and $\npair{(\Phi_S'',\Phi_T'')} \in \lrrg{\trust}(W_R')$ for some $W_{R,1}, W_{R,2}, W_R'$ with $W_R = W_{R,1} \oplus W_{R,2} \oplus W_R'$.
 
-  Using the facts that $\Phi_S(r_1) = \sealed{\sigma,c_1}$ and $\Phi_S(r_2) = \sealed{\sigma,c_2}$ and $\Phi_T(r_1) = \sealed{\sigma,c_1'}$ and $\Phi_T(r_2) = \sealed{\sigma,c_2'}$ and $\nonExec{\Phi_S(r_2)}$ and $\nonExec{\Phi_T(r_2)}$, and the above points, Lemma~\ref{lem:sealed-lrv-lrexj} tells us that $\npair{(c_1,c_2,c_1',c_2')} \in \lrexj(W_{R,1} \oplus W_{R,2})$. 
+  Using the facts that $\Phi_S(r_1) = \sealed{\sigma,c_1}$ and $\Phi_S(r_2) = \sealed{\sigma,c_2}$ and $\Phi_T(r_1) = \sealed{\sigma,c_1'}$ and $\Phi_T(r_2) = \sealed{\sigma,c_2'}$ and $\nonExec{\Phi_S(r_2)}$ and $\nonExec{\Phi_T(r_2)}$, and the above points, Lemma~\ref{lem:sealed-lrv-lrexj} tells us that $\npair{(c_1,c_2,c_1',c_2')} \in \lrexj(W_{R,1} \oplus W_{R,2})$.
 
   TODO
 \end{proof}
