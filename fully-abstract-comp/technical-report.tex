@@ -2335,7 +2335,7 @@ and
   \text{ if } \sigma \in \sigcloss
 \end{multline*}
 
-\subsection{Alternative formulation of reasonability?}
+\subsection{Reasonable Components}
 \label{sec:reasonability}
 
 \dominique{The below is an experimental reformulation of the reasonability requirement for the FTLR and full abstraction formulation.  All remarks welcome..
@@ -3865,136 +3865,6 @@ The untrusted case can be considered as a back-translation correctness result.
 \label{sec:full-abstraction}
 \lau{TODO: Did we agree that memory satisfaction should require $\stkb$ to be a free stack address (or at least not in the heap part)? I think we did.}
 
-\subsection{Reasonable components}
-\label{sec:reas-comp}
-\begin{definition}
-  \label{def:points-to-instr}
-  A configuration $(\ms,\reg)$ {\sourcecolor or $\Phi = (\ms,\reg,\_,\_)$} is said to point to non-$\scall{}{}{}$ instruction $i$ in $A$ iff
-  \[
-    \reg(\pcreg) = ((\_,\_),\_,\eaddr,\aaddr) \tand \aaddr \in A
-  \]
-and
-\[
-  \decInstr{\ms(\aaddr)} = i
-\]
-\end{definition}
-
-\begin{definition}
-  \label{def:points-to-call}
-  A configuration {\sourcecolor $\Phi = (\ms,\reg,\_,\_)$} is said to point to instruction $\scall{\offpc,\offsigma}{r_1}{r_2}$ in $A$ iff
-  \[
-    \reg(\pcreg) = ((\_,\_),\_,\eaddr,\aaddr) \tand [\aaddr,\aaddr+\calllen-1] \subseteq A
-  \]
-and
-\[
-  \aaddr+\calllen - 1 \leq \eaddr
-\]
-and
-\[
-  \callCond{\Phi,r_1,r_2,\offpc,\offsigma,\aaddr}
-\]
-\end{definition}
-We want to make a conditional full-abstraction statement. The condition should express two things (1) the compilation so far has been reasonable, so we do not have to setup protection against things any reasonable compiler wouldn't do. (2) the compilation so far has taken care of certain checks that we do not have information to place correctly at this point of the compilation.
-\begin{definition}
-  \label{def:check-stack-addr-before-call}
-  A configuration $\src{\Phi}$ is said to check $\stkb$ before calls in $\ta$ iff\\
-  for all $i$ if
-  \[
-    \src{\Phi} \nstep[i]{(\ta,\stkb)} \src{\Phi'}
-  \]
-  and $\src{\Phi'}$ points to $\src{\scall{\offpc,\offsigma}{r_1}{r_2}}$ in $\ta$ for some $\src{r_1}$ and $\src{r_2}$
-  % and there exists no $j<i$ s.t.
-  % \[
-  %   \src{\Phi} \nstep[j]{} \src{\Phi''}
-  % \]
-  % where $\src{\Phi''}$ points to $\src{\scall{\offpc,\offsigma}{r_1'}{r_2'}}$ in $A$ for some $\src{r_1'}$ and $\src{r_2'}$,
-  then
-  \[
-    \src{\Phi'}(\src{r_\stk}) = \src{\stkptr{\_,\stkb,\_,\_}}
-  \]
-  and
-  \[
-    r_1 \neq \rtmp{1}
-  \]
-  \lau{maybe the last bit should have its own definition.}
-  % and $\src{\Phi'}$ has reasonable calls in $A$ for $n-i$ step.
-\end{definition}
-
-\begin{definition}[Use return seals only for call]
-  \label{def:use-return-seals-call}
-  A configuration $\src{\Phi}$ is said to use linker seals properly in $\ta$ with component parameters $\sigrets$, $\sigcloss$ iff\\
-  for all $i$, if
-  \[
-    \src{\Phi} \nstep[i]{(\ta,\_)} \src{\Phi'}
-  \]
-  and $\src{\Phi'}$ points to $\src{\tcseal{r_1}{r_2}}$ in $\ta$ and $\Phi'(r_1) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$, then either ($\src{\Phi'}$ is inside $\src{\scall{\offpc,\offsigma}{r_1'}{r_2'}}$ and $\sigma \in \sigrets$) or $\sigma \in \sigcloss$.
-\end{definition}
-
-\begin{definition}[Never pass trusted seals accross the trusted-untrusted boundary]
-  \label{def:handle-trusted-seals-properly}
-  A configuration $\src{\Phi}$ is said to handle trusted seals properly in $\ta$ with component parameters $\sigrets$, $\sigcloss$ iff\\
-  for all $i$, if
-  \[
-    \src{\Phi} \nstep[i]{(\ta,\stkb)} \src{\Phi'} \step[(\ta,\stkb)] \src{\Phi''}
-  \]
-  and $\src{\Phi'}$ is in $\ta$ and $\src{\Phi''}$ is not in $\ta$ and, then for all $r \in \RegName$
-  %\dominique{TODO: $\sigma_b,\sigma_e$ contains a seal that was put in $\Phi$ by the linker.}
-  \[
-    \src{\Phi}.\reg(r) = \seal{\sigma_b,\sigma_e,\_} \Rightarrow (\sigrets \cup \sigcloss) \mathrel{\#} [\sigma_b,\sigma_e]
-  \]
-and
-%  \dominique{TODO: Also not allowed: passing a capability to a code area that points (a.o.) to a memory location containing a seal like the one above.}
-  \[
-    \src{\Phi}.\reg(r) = ((\perm,\_),\baddr,\eaddr,\_) \wedge \perm \sqsubseteq \rx \Rightarrow [\baddr,\eaddr] \# \ta
-  \]
-  and
-    \begin{multline*}
-      \src{\Phi}.\reg(r) = \sealed{\sigma,\vsc} \wedge \sigma \not\in (\sigrets\cup\sigcloss) \Rightarrow 
-      \\  \left(  
-      \begin{array}{r l}
-        (\vsc = \seal{\sigma_b,\sigma_e,\_} & \Rightarrow (\sigrets\cup\sigcloss) \# [\sigma_b,\sigma_e]) \wedge\\
-        ( \vsc = ((\perm,\_),\baddr,\eaddr,\_) \wedge \perm \sqsubseteq \rx & \Rightarrow [\baddr,\eaddr] \# \ta )
-      \end{array}
-      \right)
-  \end{multline*}
-\end{definition}
-
-%  \dominique{TODO: Also not allowed: storing a seal or a code capability in memory.}
-\begin{definition}[Never store link seals and code capability]
-  \label{def:never-store-seal-code-cap}
-  A configuration $\src{\Phi}$ is said to not store link seals and code capability in $\ta$ with component parameters $\sigrets$, $\sigcloss$ iff\\
-  for all $i$, if
-  \[
-    \src{\Phi} \nstep[i]{(\ta,\_)} \src{\Phi'}
-  \]
-  and $\src{\Phi'}$ points to $\src{\tstore{r_1}{r_2}}$ in $\ta$, then 
-\[
-  \Phi'(r_2) = \seal{\sigma_\baddr,\sigma_\eaddr,\_} \Rightarrow (\sigrets\cup\sigcloss) \mathrel{\#} [\sigma_\baddr,\sigma_\eaddr]
-\]
-and
-\[
-  \Phi'(r_2) = ((\perm,\_),\baddr,\eaddr,\_) \wedge \perm \sqsubseteq \rx \Rightarrow [\baddr,\eaddr] \# \ta
-\]
-\end{definition}
-
-%   \dominique{TODO: Also not allowed: sealing such a value with a seal that you do not own.}
-%   \lau{is this covered by definition 14 (Use return seals only for call)? }
-% \begin{definition}[Never seal link seals and code capabilities with unknown seal]  
-% \end{definition}
-
-% \dominique{19-3-2018: components should contain information about what seals they use and for what (for building return pointers or for building closures). That should facilitate defining reasonable linking (only when seals disjoint), and for defining the condition for full abstraction and the FTLR. Update: this is resolved}
-\begin{definition}
-  A component $\var{comp}$ with $\dom(\var{comp}.\mscode) = A$, is reasonable if for all $n$ and all contexts $\context$ the configuration $\plug{\context}{\var{comp}}$ satisfies:
-  \begin{itemize}
-  \item $\plug{\context}{\var{comp}}$ checks $\stkb$ before calls in $A$ for $n$ steps (Definition~\ref{def:check-stack-addr-before-call}).
-  \item $\plug{\context}{\var{comp}}$ uses link seals properly in $A$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:use-return-seals-call}).
-  \item $\plug{\context}{\var{comp}}$ handles trusted seals properly in $A$ with components parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:handle-trusted-seals-properly}).
-  \item $\plug{\context}{\var{comp}}$ does not store link seals and code capabilities in $A$ with component parameters $\sigrets$ and $\sigcloss$ for $n$ steps (Definition~\ref{def:never-store-seal-code-cap}).
-  \end{itemize}
-\end{definition}
-
-\subsection{Full abstraction: precise formulation}
-\label{sec:full-abstr-prec}
 
 \begin{definition}[Source language contextual equivalence]
   In the source language, we define that $\src{\var{comp}_1 \sconeq \var{comp}_2}$ iff
