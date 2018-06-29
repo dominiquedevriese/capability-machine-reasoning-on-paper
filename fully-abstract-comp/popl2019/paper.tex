@@ -141,26 +141,49 @@ However, untrusted assembly code is free to ignore this requirement and overwrit
 
 To enforce these properties, target language security primitives are needed that can be used to prevent untrusted code from misbehaving, without imposing too much overhead on well-behaved code.
 The virtual-memory based security primitives on commodity processors do not seem sufficiently fine-grained to efficiently support this.
-More suitable security primitives are offered by a type of processors known as capability machines \citep{levy_capability-based_1984,watson_cheri:_2015}.
+More suitable security primitives are offered by a type of CPUs known as capability machines \citep{levy_capability-based_1984,watson_cheri:_2015}.
 These processors use tagged memory to enforce a strict separation between integers and \emph{capabilities}: pointers that carry authority.
 Capabilities come in different flavours.
-Memory capabilities are used to read from and write to memory.
-Additionally, the CHERI capability machine offers sealed code-data pairs of capabilities that represent an encapsulated closure: a piece of code coupled with private state that it gains access to upon invocation.\footnote{Other capability machines offer other mechanisms that can be used to the same effect.} 
+Memory capabilities allow reading from and writing to a block of memory.
+Additionally, capability machines offer some form of \emph{object capabilities} that represent low-level encapsulated closures, i.e. a piece of code coupled with private state that it gains access to upon invocation.
+The concrete mechanics of object capabilities varies between different capability machines.
+On a recent capability machine called CHERI, for example, they take the form of pairs of capabilities sealed with a common seal that represent the code and data parts of the closure.
+The pair is opaque, but is transparently unsealed by the hardware upon invocation~\citep{watson_capability_2015}.
 
-CheriBSD, an operating system built on CHERI, uses per-component separate stacks and a central, trusted stack manager component to enforce well-bracketed control flow and private state encapsulation \citep{watson_cheri:_2015}.
-To prevent the stack pointer (or derivatives) from being passed to other components, CheriBSD uses local capabilities: a type of capabilities that can be kept in registers but not stored in memory (except through store-local capabilities like the stack pointer itself).
-The literature does not contain many details about the mechanism, let alone a formal analysis, but additionally, the mechanism does not seem able to support higher-order interfaces (e.g. C function pointers) in a scalable fashion.
+To enforce well-bracketed control flow and local state encapsulation on a capability machine, there are essentially two approaches.
+A first approach uses separate stacks for distrusting components, and a central, trusted stack manager component that mediates cross-component invocations.
+This idea has been applied in CheriBSD (an operating system built on CHERI)~\citep{watson_capability_2015}, but it is not without downsides.
+First, it scales poorly to large amounts of distrusting components, because of the need to reserve separate stack space for all components.
+Also, in the presence of higher-order values (e.g. function pointers, objects etc.), the stack manager needs to be able to decide which component a higher-order value belongs to, in order to provide it the right stack pointer upon invocation and it is not clear how this can be done efficiently in the presence of large amounts of components.
+Finally, this approach does not allow passing stack references between components.
 
-In recent work, we have been looking at an alternative approach \citep{skorstengaard_reasoning_2017}.
-We also use CHERI's local capabilities, but combine them with a more traditional, single, shared stack that scales better in the presence of higher-order interfaces.
-By passing stack and return pointers as local capabilities, we effectively prevent callees from storing them on the heap.
-Using a step-indexed Kripke logical relation, we are able to prove correctness of programs that rely on well-bracketed control flow in a complex way.
+A more scalable approach retains a single stack that is shared between components.
+Enforce well-bracketed control flow and stack frame encapsulation in this approach, requires a way to temporarily provide stack and return capabilities to an untrusted component and revoke them after it returns.
+While capability revocation is expensive in general, some capability machines offer restricted forms of revocation that can be implemented efficiently.
+For example, CHERI offers a form of \emph{local} capabilities that, briefly, can only be stored in registers or on the stack, but not in other parts of memory.
+In previous work, we have demonstrated that by making the stack and return pointer local, and a number of security checks and measures, well-bracketedness and local stack frame encapsulation can be guaranteed~\citep{skorstengaard_reasoning_2017}.
+However, a problem with this approach is that revoking the local stack and return capabilities on every boundary crossing requires clearing the entire unused part of the stack, a potentially expensive operation.
 
-While this approach works quite well, this paper investigates another alternative approach.
-We aim to make two improvements, discussed in the next sections: (1) remove the need to clear the stack on boundary crossings and (2) explore a new formal statement of well-bracketed control flow and local state encapsulation.
+In this work, we propose and study another way to enforce well-bracketed control flow and local state encapsulation with a single shared stack.
+Instead of CHERI's local capabilities, we build on \emph{linear} capabilities; a new form of capabilities that has not been previously described in the published literature.\footnote{Although they are mentioned here and there by different people.} 
+These capabilities are enforced by the hardware to be non-duplicable.
+We propose to make stack and return pointers linear and require components to hand them out in cross-component invocations and to return them in returns.
+The non-duplicability of linear capabilities, together with some security checks, then allows us to guarantee well-bracketed control flow and local stack frame encapsulation.
 
+A second contribution of this work is the way in which we formulate these two properties, using a technique we call \emph{fully abstract overlay semantics}.
+Formulations in previous work are either partial and not suitable for reasoning~\cite{abadi_control-flow_2005} or lacked evidence of generality~\cite{skorstengaard_reasoning_2017}.
+Our new formulation starts from the premise that security results for a calling convention should be reusable as part of a larger proof of a secure compiler.
+To accomodate this, we define a second operational semantics for our target language, which has a native well-bracketed stack and primitive ways to do calls and returns.
+This well-behaved semantics natively guarantees well-bracketed control flow and local stack frame encapsulation for components using our calling convention.
+As such, these components can be sure that they will only ever interact with well-behaved other components that respect our desirable properties.
+To express security of our calling convention, we then show that considering the same components in the original semantics, does not give adversaries additional ways to interact with them. 
+More formally, we show that mapping a component in the well-behaved semantics to the same component in the original semantics is fully abstract~\cite{abadi_protection_1999}, i.e. that components are indistinguishable to arbitrary adversaries in the well-behaved language iff they are indistinguishable to arbitrary adversaries in the original language.
 
-% %% Acknowledgments
+This approach expresses what it means to enforce our desirable properties, in a general way and makes it clear that we can support a very general class of programs.
+Additionally, formulating security of a calling convention in this way makes it potentially reusable in a larger security proof of a full compiler.
+The idea is that security of such a compiler could be verified by proving fully abstract compilation with respect to the well-behaved semantics of the target language, so that the proof can rely on native well-bracketedness and local stack frame encapsulation.
+This independent result could then be composed with our result to obtain security of the compiler targeting the real target language, by transitivity of full abstraction.
+
 % \begin{acks}                            %% acks environment is optional
 %                                         %% contents suppressed with 'anonymous'
 %   %% Commands \grantsponsor{<sponsorID>}{<name>}{<url>} and
