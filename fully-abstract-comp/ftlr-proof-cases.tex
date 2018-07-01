@@ -1084,8 +1084,6 @@ which follows by assumption.
     follows from the corresponding assumption of this lemma, since $n - 1 < n$.
   \end{itemize}
 
-  \lau{TODO: look through this case and find the place where the ''no seal cross boundary thing'' should have been used.
-    (I have done this, and it does not seem necessary (?))}
   In case \ref{case:ftlr:call}, we may assume $r_1 \neq r_2$\footnote{If the register contains a data capability, then the execution fails in the step after the jump. If it is an executable capability, then the xjump fails as it does not permit executable capabilities for the data part.} and $r_i \neq \pcreg$ for $i \in \{1,2\}$\footnote{The pc is executable which causes the xjump to fail.} as this will cause the execution to fail.
   We need to let the target execution catch up.
   That is $\Phi_T' \nstep[15]{} \Phi_T''$ for
@@ -1177,18 +1175,23 @@ which follows by assumption.
   The only changes to the worlds is that some ownership has been shifted from $W_R$ to $W_{R,1}$ and $W_{R,2}$ and the ownership for $W$ now belongs to $W_R'$.
   In other words, no ownership has been duplicated.
 
-  Case \ref{case:ftlr:scall:reg}: We need to split the ownership of $W_R'$.
-  From assumption $\npair[n]{(\Phi_S.reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)$, we get a way to split the ownership of $W_R$.
+  Case \ref{case:ftlr:scall:reg}:
+
+  First, from reasonability of $\Phi_S$, we get that $\Phi.\reg(r)$ is reasonable in memory $\Phi.\mem$ and free stack $\Phi.\ms_\stk$ up to $n-1$ steps for all $r \neq \pcreg$.
+  Lemma~\ref{lem:trusted-and-reasonable-is-untrusted} then tells us that
+  $\npair[n-1]{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrr(W_R)$.
+
+  We then need to split the ownership of $W_R'$.
+  From assumption $\npair[n]{(\Phi_S.reg,\Phi_T.\reg)} \in \lrr(W_R)$, we get a way to split the ownership of $W_R$.
   We take this as the starting point, but with the following changes: regions $r_1$ and $r_2$ maps to worlds with no ownership (i.e.\ $\purePart{W_{R,1}'}$).
   region $\rstk$ maps to a world with the same ownership, but of course without the now revoked regions.
   Region $\rretd$ maps to a world that owns private $r_\var{priv\_stk}$ region.
   Finally, $\rretc$ maps to a world with the ownership of $W$.
 
-  we split the world in the same way for the registers that remain unchanged, the
-  result follows from Lemma \ref{lem:downwards-closed} and \ref{lem:monotonicity}.
-  \dominique{No: we need to use Lemma~\ref{lem:trusted-and-reasonable-is-untrusted} together with the reasonability of registers at a boundary crossing (if there is one).}
+  we split the world in the same way for the registers that remain unchanged, and we get from Lemma \ref{lem:downwards-closed} and \ref{lem:monotonicity} that
+  $\npair[n-1]{(\Phi_S''.\reg,\Phi_T''.\reg)} \in \lrrg{\trust}(\{\rdata,\rstk,\rtmp{1},r_1,r_2,\rretd,\rretc\})(W_R'')$ for the appropriate $W_R''$.
 
-  This leaves the following cases:
+  To obtain $\npair[n-1]{(\Phi_S''.\reg,\Phi_T''.\reg)} \in \lrr(\{\rdata\})(W_R')$, it remains to prove the following cases:
   \begin{description}
   \item[Case $\rstk$:] Show:
     \[
@@ -1850,7 +1853,7 @@ This concludes case \ref{case:ftlr:scall:reg}
   \[
     \npair[n]{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)
   \]
-  which gives us $R_R : (\RegName \setminus \{\pcreg\}) \fun World$ such that $W_R = \bigoplus_{r\in \RegName \setminus \{\pcreg\}} R_R(r)$ and for all $r$ in $\RegName \setminus \{\pcreg\}$ we have $\npair[n]{(\Phi_S.\reg(r),\Phi_T.\reg(r))} \in \lrrg{\trust}(R_R(r))$.
+  which gives us $R_R : (\RegName \setminus \{\pcreg\}) \fun \World$ such that $W_R = \bigoplus_{r\in \RegName \setminus \{\pcreg\}} R_R(r)$ and for all $r$ in $\RegName \setminus \{\pcreg\}$ we have $\npair[n]{(\Phi_S.\reg(r),\Phi_T.\reg(r))} \in \lrrg{\trust}(R_R(r))$.
   To this end, we need to consider each of cases
   \ref{case:ftlr:move-cca-etc:cca-normal}-\ref{case:ftlr:move-cca-etc:splice-seal}:
 
@@ -2201,7 +2204,24 @@ This concludes case \ref{case:ftlr:scall:reg}
 
     If the former holds, then it follows by definition of execution configuration reasonability, using the fact that $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$.
 
-    \item TODO (the remaining cases)
+
+  \item $\Phi_S'(\pcreg) = \Phi_T'(\pcreg) = ((\rx,\normal),\baddr,\eaddr,\_)$:
+    Follows by definition of $\updPcAddr{}$ and using the fact that $r_i \neq \pcreg$ for all $i$ and the corresponding assumption of thi slemma.
+
+  \item $\npair[n-1]{[\baddr,\eaddr]} \in \xReadCond{W_\pcreg}$:
+    Follows by Lemma~\ref{lem:downwards-closed} from the corresponding assumption of this lemma.
+
+  \item $\npair[n-1]{(\Phi_S'.\reg,\Phi_T'.\reg)} \in \lrrg{\trust}(W_R)$:
+    See above.
+
+  \item $\memSat[n-1]{\Phi_S'.\mem,\Phi_S'.\stk,\Phi_S'.\ms_\stk,\Phi_T'.\mem}{W_M}$:
+    These components are all unchanged from $\Phi_S$ and $\Phi_T$, so the result follows by Lemma~\ref{lem:downwards-closed} from the corresponding assumption of this lemma.
+
+  \item $W_\pcreg \oplus W_R \oplus W_M$ is defined:
+    Follows from the corresponding assumption of this lemma.
+
+  \item Theorem~\ref{thm:ftlr} holds for all $n' < n-1$:
+    follows from the corresponding assumption of this lemma.
   \end{itemize}
 
   Case \ref{case:ftlr:store-load-mem}:
@@ -2220,7 +2240,12 @@ This concludes case \ref{case:ftlr:scall:reg}
     $\withinBounds{w_1}$, and
     $w = \Phi_S(r_2)$, and $w' = \Phi_T(r_2)$, and $w_2 = \linCons{\Phi_S(r_2)}$, $w_2' = \linCons{\Phi_T(r_2)}$,  $r_2 \neq \pcreg$:
 
-    Follows from Lemma~\ref{lem:store-reg-works}, redistributing ownership in the obvious way.
+    From $\npair{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)$, we know that $\npair{(w,w')} \in \lrvg{\trust}(W_{R,2})$, $\npair{(w_2,w_2')} \in \lrvg{\trust}(\purePart{W_{R,2}]})$ and $\npair{(\Phi_S.\reg\update{r_2}{w_2},\Phi_T.\reg\update{r_2}{w_2'})} \in \lrrg{\trust}(W_R')$ with $W_R =W_R' \oplus W_{R,2}$ (using Lemma~\ref{lem:purePart-oplus} and~\ref{lem:purePart-duplicable}).
+
+    From reasonability of $\Phi_S$, we know that $\Phi.\reg(r_2)$ is reasonable in memory $\Phi.\mem$ up to $n-1$ steps.
+    Lemma~\ref{lem:trusted-and-reasonable-is-untrusted} then tells us that $\npair{(w,w')} \in \lrv(W_{R,2})$.
+
+    The result then follows from Lemma~\ref{lem:store-reg-works}, redistributing ownership in the obvious way.
 
   \item (load) $w_2 = w_2' = \Phi_T(r_2) = \Phi_S(r_2) =
     ((\perm,\lin),\baddr,\eaddr,\aaddr)$, and $\perm \in \readAllowed{}$,
@@ -2543,7 +2568,24 @@ By Lemma~\ref{lem:ftlr-internal-lemma}, taking $\trust = \trusted$ iff $[b,e] \s
   and $\offpc = \offpc'$ and $\offsigma = \offsigma'$ and $r_1 = r_1'$ and $r_2 = r_2'$ and $\sigma_b = \sigma_b'$ and $\sigma_e = \sigma_e'$.
 \end{lemma}
 \begin{proof}
-  \lau{TODO}
+  From $\sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode$,
+  we get a $d_\sigma : \dom(\mscode) \rightarrow \powerset{\Seal}$ such that the following holds:
+  \begin{itemize}
+  \item $\mscode$ has no hidden calls
+  \item $\sigrets \mathrel{\#} \sigcloss$
+  \item $\sigrets = \biguplus_{a \in \dom(\mscode)} d_\sigma(a)$
+  \item $\forall a \in \dom(\mscode) \ldotp \sigrets,d_\sigma(a),\sigcloss \vdash_{\mathrm{comp-code}} \mscode,a$
+  \item $\exists a \ldotp \mscode(a) = \seal{\sigma_\baddr,\sigma_\eaddr,\_} \wedge [\sigma_\baddr,\sigma_\eaddr] \neq \emptyset$
+  \end{itemize}
+
+  Particularly, we have $\sigrets,d_\sigma(a),\sigcloss \vdash_{\mathrm{comp-code}} \mscode,a$ and $\sigrets,d_\sigma(a'),\sigcloss \vdash_{\mathrm{comp-code}} \mscode,a'$.
+  From these, and the facts that $\mscode([\aaddr..\aaddr+\calllen-1]) = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}}$ and $\mscode([\aaddr'..\aaddr'+\calllen-1]) = \overline{\scall{\offpc',\offsigma'}{r_1'}{r_2'}}$, it follows that
+  \begin{itemize}
+  \item $\mscode(a+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr}$ and $\sigma_\baddr+\offsigma \in d_\sigma(a)$
+  \item $\mscode(a'+\offpc') = \seal{\sigma_\baddr',\sigma_\eaddr',\sigma_\baddr'}$ and $ \sigma_\baddr'+\offsigma' \in d_\sigma(a')$
+  \end{itemize}
+  From the facts that $\sigma = \sigma_b + \offsigma = \sigma_b' + \offsigma'$, $\sigma_\baddr+\offsigma \in d_\sigma(a)$, $ \sigma_\baddr'+\offsigma' \in d_\sigma(a')$ and the disjointness of the $d_\sigma(a)$, we get that $a = a'$.
+  With this fact, the rest of the proof obligations follow directly from the other assumed equations.
 \end{proof}
 
 \begin{lemma}
