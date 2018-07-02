@@ -303,7 +303,21 @@ The trusted code knows that the stack capability is linear, so when it splits th
 The trusted code encapsulates the capability for its stack frame by sealing it which provides the guarantee that it can only be accessed when used with the appropriate code return pointer.
 
 % Prevention of attack 2
+In a traditional calling convention with a single stack, the stack is used as a call stack in the sense that it keeps track of the order of the calls.
+If everyone follows the calling convention, then a call pushes a stack frame to the call stack and a return pops the topmost stack frame from the call stack.
+This convention is not followed by the adversarial code in Figure~\ref{fig:ret-ptr-abuse} as the adversarial code skips two stack frames.
+In the presence of adversarial code, we need some enforcement mechanism that forces the adversarial code to follow the call stack order.
+One way to enforce this would be to hand out a token on call that can only be used when the caller's stack frame is on top of the call stack.
+The callee would have to give up this token on return to prevent it from spending the same token multiple times As it turns out, the stack capability for the unused part of the stack can be seen as such a token: When the callee returns, we expect that it returns the stack capability we gave it in the call.
+If this stack capability is not present, then we have no whether our stack frame is on top of the stack, so we should refuse to continue execution.
+If we receive a stack pointer, then we try to splice it with the stack pointer for our local stack frame (which by now has been unsealed as we resume execution).
+The splice instruction only splices adjacent capabilities, so in the case where the stack frame that is returned to is on top of the stack, the returned stack capability and the unsealed stack capability are adjacent, so the splice is successful.
+In the case where the stack frame is not on top of the call stack, as illustrated in Figure~\ref{fig:ret-ptr-abuse}, part of the stack capability will be bound in the sealed return pairs for the higher stack frames making the splice fail as illustrated in Figure~\ref{fig:ret-ptr-abuse-prev}.
 
+% Where do we get the stack pointer from, how can we know it is linear
+% The other attack.
+
+% Non-empty trusted stack frames.
 
 % known stack base
 % + more
@@ -342,8 +356,30 @@ The trusted code encapsulates the capability for its stack frame by sealing it w
     \phantom{testtestes}
   \end{subfigure}
   \begin{subfigure}{0.4\linewidth}
+    \centering
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+      % recurrent parts
+      \stdstackstart[13]
+      \inactsf{(0,2)}{(4.5,4)} {\footnotesize Trusted\\ \footnotesize stack frame 1}
+      \inactadv{(0,4)}{(4.5,7)} {\footnotesize Adv. stack frame 1}
+      \inactsf{(0,7)}{(4.5,9)} {\footnotesize Trusted \\ \footnotesize stack frame 2}
+      \actadv{(0,9)}{(4.5,12)} {\footnotesize Adv. stack frame 2}
 
+      \lincapbrace{(4.6,2)}{(4.6,4)}{data return\\\footnotesize cap. 1}
+
+     %  Stack pointer 2
+      \begin{scope}
+        \clip (4.8,4) rectangle (9,13);
+        \lincapbrace{(4.6,9)}{(4.6,13.5)}{adv. stack\\\footnotesize cap. 2}
+      \end{scope}
+
+      \redcross{(5,4)}
+    \end{tikzpicture}
+    \caption{The trusted caller fails to splice the stack capability returned by
+    the adversary with the capability for the trusted caller's local stack frame.}
+    \label{fig:ret-ptr-abuse-prev}
   \end{subfigure}
+
 \end{figure}
 
 
