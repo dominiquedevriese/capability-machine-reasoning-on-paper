@@ -3662,7 +3662,7 @@ The untrusted case can be considered as a back-translation correctness result.
       \exists W_M,W_R,W_\pcreg \ldotp W = W_M \oplus W_R \oplus W_\pcreg \tand\\
       \npair{( (\reg_S(\pcreg),\reg_S(\rdata)), (\reg_T(\pcreg),\reg_T(\rdata)) )} \in \lrexj(W_\pcreg) \tand \\
       \reg_S(\pcreg) \neq \retptrc(\_) \wedge 
-      \reg_S(\rdata) \neq \retptrd(\_) \wedge 
+      \reg_S(\rdata) \neq \retptrd(\_) \wedge \\
       \nonExec{\reg_S(\rdata)} \wedge
       \nonExec{\reg_T(\rdata)}\\
       \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W_M} \tand\\
@@ -4086,7 +4086,7 @@ This works perfectly fine, except that the context does not get any well-bracket
 % \end{lstlisting}
 % \footnote{At this time $\scall{\offpc,\offsigma}{}{}$ did argument spilling and it only takes one argument because we were considering enter capabilities.}distinguishes the two contexts, but two instructions are not enough to do the same at the target level. We would not have enough instructions to set up a proper return pointer for the compiled return to use.
 
-% \section{Notes}
+\section{Notes}
 % \subsection{Leuven stay conclusions}
 % \begin{enumerate}
 % \item Enter capabilities replaced by sealed code/data pairs \label{item:first-point}
@@ -4290,54 +4290,54 @@ This works perfectly fine, except that the context does not get any well-bracket
 % \end{enumerate}
 % (Linear capabilities may still call for some of these to be added for practical purposes. (like when the executing capability is linear, then it cannot be moved from the pc register).)
 
-% At the moment of writing this, I am not sure why we introduced them, but it was related to hiding program lengths (and stack height).
+% At the moment of writing this, I am not sure why we thought about them, but it was related to hiding program lengths (and stack height).
 % At this juncture, it does, however, not seem necessary to have opaque because sealed capabilities can do their job.
 
-% \subsection{Calling convention design decisions}
-% \subsubsection{Returning the full stack}
-% When a callee return from a call, they must return all of the stack they were passed. If we omit this requirement, then we cannot guarantee well-bracketedness. The following is an example of circumventing well-bracketedness by keeping part of the stack:
+\subsection{Calling convention design decisions}
+\subsubsection{Returning the full stack}
+When a callee return from a call, they must return all of the stack they were passed. If we omit this requirement, then we cannot guarantee well-bracketedness. The following is an example of circumventing well-bracketedness by keeping part of the stack:
 
-% \begin{itemize}
-% \item An adversary calls our trusted code with a call-back. 
-% \item Our code uses part of the stack and calls the callback with the rest of the stack.
-% \item The adversary splits that stack in two and saves the part of the stack adjacent to our stack in some persistent memory. The adversary calls us anew with a callback and the part of the stack they did not save. 
-% \item We use part of the stack we receive and call the callback with the rest of the stack. The adversary can now use the saved stack to return from the first call to the callback breaking well-bracketedness. The reason this is possible is because we do not check the size of the stack.
-% \end{itemize}
-% Figure~\ref{fig:ret-full-stk} illustrates the above example. In the figure, $f$ is the function to ``is'' and $g$ is the callback passed to ``us''. In the end, the part of the stack marked \emph{kept by adv} can be used to return from the first call-back (the call with the *). The stack that is used to return lines up with $\var{Us}_\priv$, so the return is successful.
-% \begin{figure}
-%   \centering
-%   \includegraphics[angle=90,width=\textwidth]{img/ret-full-stk.pdf}
-%   \caption{Illustration of the stack in the example that illustrates why the entire stack must be returned.}
-%   \label{fig:ret-full-stk}
-% \end{figure}
+\begin{itemize}
+\item An adversary calls our trusted code with a call-back. 
+\item Our code uses part of the stack and calls the callback with the rest of the stack.
+\item The adversary splits that stack in two and saves the part of the stack adjacent to our stack in some persistent memory. The adversary calls us anew with a callback and the part of the stack they did not save. 
+\item We use part of the stack we receive and call the callback with the rest of the stack. The adversary can now use the saved stack to return from the first call to the callback breaking well-bracketedness. The reason this is possible is because we do not check the size of the stack.
+\end{itemize}
+Figure~\ref{fig:ret-full-stk} illustrates the above example. In the figure, $f$ is the function to ``is'' and $g$ is the callback passed to ``us''. In the end, the part of the stack marked \emph{kept by adv} can be used to return from the first call-back (the call with the *). The stack that is used to return lines up with $\var{Us}_\priv$, so the return is successful.
+\begin{figure}
+  \centering
+  \includegraphics[angle=90,width=\textwidth]{img/ret-full-stk.pdf}
+  \caption{Illustration of the stack in the example that illustrates why the entire stack must be returned.}
+  \label{fig:ret-full-stk}
+\end{figure}
 
-% \subsubsection{Restriction on stack allocation}
-% We need to somehow make sure that it is always the same stack that is used. If we don't, then an adversary can simply split the stack in two, use one part for one call and the other for another call. At this point, they can return to either of the two calls - in other words, well-bracketedness is not enforced.
+\subsubsection{Restriction on stack allocation}
+We need to somehow make sure that it is always the same stack that is used. If we don't, then an adversary can simply split the stack in two, use one part for one call and the other for another call. At this point, they can return to either of the two calls - in other words, well-bracketedness is not enforced.
 
-% \begin{itemize}
-%   \item An adversary starts the execution. They split the stack in two and call us with one part (say the top part) along with a callback.
-%   \item We use part of the stack and call the adversary with the rest of the stack.
-%   \item The adversary calls us again this time using the other part of the stack (here the bottom part of the stack).
-%   \item Again, we use part of the stack and call the adversary with the rest of this part of the stack.
-% \end{itemize}
-% At this point, the adversary can return from either of the two calls. Swapping around the order in which the adversary uses the two parts of the stack changes nothing.
+\begin{itemize}
+  \item An adversary starts the execution. They split the stack in two and call us with one part (say the top part) along with a callback.
+  \item We use part of the stack and call the adversary with the rest of the stack.
+  \item The adversary calls us again this time using the other part of the stack (here the bottom part of the stack).
+  \item Again, we use part of the stack and call the adversary with the rest of this part of the stack.
+\end{itemize}
+At this point, the adversary can return from either of the two calls. Swapping around the order in which the adversary uses the two parts of the stack changes nothing.
 
-% The example is illustrated in Figure~\ref{fig:stk-alloc}.
+The example is illustrated in Figure~\ref{fig:stk-alloc}.
 
-% One way to solve this problem is to make the "top address" of the stack known. There are many ways to do this, but we have chosen to do the following:
-% \begin{itemize}
-% \item The stack grows downwards, so the ``last address'' of the stack is the base address of the initial stack capability.
-% \item The base address of the stack capability is a fixed address, so in the semantics, it will be expressed as a constant that is publicly known.
-% \item At some point before a call, it must be checked whether the stack we are using actually has the globally known base address (if not we must fail because we cannot trust this stack).
-% \item To ensure that the check is made, we require it in the semantic condition (at this moment of time not defined, so we are yet to see what it looks like).
-% \end{itemize}
+One way to solve this problem is to make the "top address" of the stack known. There are many ways to do this, but we have chosen to do the following:
+\begin{itemize}
+\item The stack grows downwards, so the ``last address'' of the stack is the base address of the initial stack capability.
+\item The base address of the stack capability is a fixed address, so in the semantics, it will be expressed as a constant that is publicly known.
+\item At some point before a call, it must be checked whether the stack we are using actually has the globally known base address (if not we must fail because we cannot trust this stack).
+\item To ensure that the check is made, we require it in the semantic condition (at this moment of time not defined, so we are yet to see what it looks like).
+\end{itemize}
 
-% \begin{figure}
-%   \centering
-%   \includegraphics[angle=270,trim={0 0 5cm 0},width=\textwidth]{img/stk-alloc.pdf}
-%   \caption{Illustration of the potential stack allocation issue.}
-%   \label{fig:stk-alloc}
-% \end{figure}
+\begin{figure}
+  \centering
+  \includegraphics[angle=270,trim={0 0 5cm 0},width=\textwidth]{img/stk-alloc.pdf}
+  \caption{Illustration of the potential stack allocation issue.}
+  \label{fig:stk-alloc}
+\end{figure}
 
 
 
