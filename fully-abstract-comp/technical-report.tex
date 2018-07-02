@@ -4089,258 +4089,258 @@ This works perfectly fine, except that the context does not get any well-bracket
 % \end{lstlisting}
 % \footnote{At this time $\scall{\offpc,\offsigma}{}{}$ did argument spilling and it only takes one argument because we were considering enter capabilities.}distinguishes the two contexts, but two instructions are not enough to do the same at the target level. We would not have enough instructions to set up a proper return pointer for the compiled return to use.
 
-\section{Notes}
-\subsection{Leuven stay conclusions}
-\begin{enumerate}
-\item Enter capabilities replaced by sealed code/data pairs \label{item:first-point}
-  \begin{itemize}
-  \item To allow us to forbid dynamic code generation
-  \end{itemize}
-\item Conditional full-abstraction
-  \begin{itemize}
-  \item No undefined behaviour by \emph{trusted code} in any context implies full-abstraction. (Blame idea: undefined as undef of current pc, so current pc can be checked for whether it was the trusted code).
-  \item Avoids dynamic checks to protect trusted code against itself.
-  \item Possible due to point \ref{item:first-point}.
-  \end{itemize}
-\item replace push/pull/call/ret/sload by symbolic return pointer (pair) and stack pointer.
-  \begin{itemize}
-  \item Allows back translation to be embedding into source language.
-    \begin{itemize}
-    \item Interpreter for back translation is not able to accurately replicate code length.
-    \end{itemize}
-  \end{itemize}
-\item Worlds similar to CSF paper, but invariants on seals as well.
-  \begin{itemize}
-  \item Invariants says what can be sealed with a certain seals.
-  \end{itemize}
-\item Linker: resolves symbols
-  \begin{itemize}
-  \item Export refs (Question: do we allow other things than sealed code/data pairs to be exported?)
-  \item Import refs
-  \item Fresh seal requirement
-  \end{itemize}
-\end{enumerate}
+% \section{Notes}
+% \subsection{Leuven stay conclusions}
+% \begin{enumerate}
+% \item Enter capabilities replaced by sealed code/data pairs \label{item:first-point}
+%   \begin{itemize}
+%   \item To allow us to forbid dynamic code generation
+%   \end{itemize}
+% \item Conditional full-abstraction
+%   \begin{itemize}
+%   \item No undefined behaviour by \emph{trusted code} in any context implies full-abstraction. (Blame idea: undefined as undef of current pc, so current pc can be checked for whether it was the trusted code).
+%   \item Avoids dynamic checks to protect trusted code against itself.
+%   \item Possible due to point \ref{item:first-point}.
+%   \end{itemize}
+% \item replace push/pull/call/ret/sload by symbolic return pointer (pair) and stack pointer.
+%   \begin{itemize}
+%   \item Allows back translation to be embedding into source language.
+%     \begin{itemize}
+%     \item Interpreter for back translation is not able to accurately replicate code length.
+%     \end{itemize}
+%   \end{itemize}
+% \item Worlds similar to CSF paper, but invariants on seals as well.
+%   \begin{itemize}
+%   \item Invariants says what can be sealed with a certain seals.
+%   \end{itemize}
+% \item Linker: resolves symbols
+%   \begin{itemize}
+%   \item Export refs (Question: do we allow other things than sealed code/data pairs to be exported?)
+%   \item Import refs
+%   \item Fresh seal requirement
+%   \end{itemize}
+% \end{enumerate}
 
-\subsection{Some explanation}
-\subsubsection{The source language}
-The whole idea of this paper is to show that we enforce well-bracketed control flow correctly by taking a source language with a native stack and native call and return instructions and well-bracketedness enforced by the operational semantics.
-We then prove that we can compile this source language to a regular assembly target language (without a native stack) in a fully abstract way using our stack and return pointer discipline.
-So the design goals for our source language were precisely these: it should be an intermediate language that stays as close as possible to our target language, can be fully abstractly compiled to the target and feature a native well-behaved stack.
-This source language can then be used as the second-to-last language in the compilation chain of a fully abstract compiler.
-By compiling in a fully abstract way to our source language and then composing with our compiler, fully abstract compilation to our target language follows easily.
+% \subsection{Some explanation}
+% \subsubsection{The source language}
+% The whole idea of this paper is to show that we enforce well-bracketed control flow correctly by taking a source language with a native stack and native call and return instructions and well-bracketedness enforced by the operational semantics.
+% We then prove that we can compile this source language to a regular assembly target language (without a native stack) in a fully abstract way using our stack and return pointer discipline.
+% So the design goals for our source language were precisely these: it should be an intermediate language that stays as close as possible to our target language, can be fully abstractly compiled to the target and feature a native well-behaved stack.
+% This source language can then be used as the second-to-last language in the compilation chain of a fully abstract compiler.
+% By compiling in a fully abstract way to our source language and then composing with our compiler, fully abstract compilation to our target language follows easily.
 
-These design goals drove us to the current definition of our source language and some special design choices.
-Particularly, contrary to what one might expect in a language with a native stack, we do not use call/return and push/pop instructions.
-The reason is that we are working in a language where the length of code blocks can be observable.
-Imagine two trusted blocks of code that looks as follows:
-\begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
-p1:       <assert that r1 contains an executable capability to a block of 
-           instr_length (push) + instr_length(jmp)> 
-          <load return capability to p1-ret1 in r2>
-          <load value 0 in r3>
-          <jump to r1>
-p1-ret1:  <assert that 0 is loaded in the next free stack position>
-          <repeat the above with value 1 in r3>
-          ...
-p1-ret2:  <assert that 1 is loaded in the next free stack position>
-          <repeat the above with value 2 in r3>
-          ...
-p1-ret3:  <assert that 2 is loaded in the next free stack position>
-          halt
+% These design goals drove us to the current definition of our source language and some special design choices.
+% Particularly, contrary to what one might expect in a language with a native stack, we do not use call/return and push/pop instructions.
+% The reason is that we are working in a language where the length of code blocks can be observable.
+% Imagine two trusted blocks of code that looks as follows:
+% \begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
+% p1:       <assert that r1 contains an executable capability to a block of 
+%            instr_length (push) + instr_length(jmp)> 
+%           <load return capability to p1-ret1 in r2>
+%           <load value 0 in r3>
+%           <jump to r1>
+% p1-ret1:  <assert that 0 is loaded in the next free stack position>
+%           <repeat the above with value 1 in r3>
+%           ...
+% p1-ret2:  <assert that 1 is loaded in the next free stack position>
+%           <repeat the above with value 2 in r3>
+%           ...
+% p1-ret3:  <assert that 2 is loaded in the next free stack position>
+%           halt
 
-p2:       <assert that r1 contains an executable capability to a block of 
-           instr_length (push) + instr_length(jmp)>
-          <load return capability to p2-ret1 in r2>
-          <load value 1 in r3>
-          <jump to r1>
-p2-ret1:  <assert that 1 is loaded in the next free stack position>
-          <repeat the above with value 2 in r3>
-          ...
-p2-ret2:  <assert that 2 is loaded in the next free stack position>
-          halt
-\end{lstlisting}
+% p2:       <assert that r1 contains an executable capability to a block of 
+%            instr_length (push) + instr_length(jmp)>
+%           <load return capability to p2-ret1 in r2>
+%           <load value 1 in r3>
+%           <jump to r1>
+% p2-ret1:  <assert that 1 is loaded in the next free stack position>
+%           <repeat the above with value 2 in r3>
+%           ...
+% p2-ret2:  <assert that 2 is loaded in the next free stack position>
+%           halt
+% \end{lstlisting}
 
-p1 and p2 each accept an (unprotected) closure from the context whose length is restricted.
-Together with the checks performed by p1 and p2, there is only one possible implementation of the closure that will not fail, namely
-\begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
-closure: push r3
-         jmp r2
-\end{lstlisting}
+% p1 and p2 each accept an (unprotected) closure from the context whose length is restricted.
+% Together with the checks performed by p1 and p2, there is only one possible implementation of the closure that will not fail, namely
+% \begin{lstlisting}[basicstyle=\sourcecolor{}\ttfamily] 
+% closure: push r3
+%          jmp r2
+% \end{lstlisting}
 
-However, this is no longer true in the target language.
-Assume that $\mathtt{push r3}$ is implemented as a store to $\rstk$ followed by an increment of $\rstk$.
-The adversary can now construct a closure that does not use the standard implementation of push, but instead does this:
-\begin{lstlisting}[basicstyle=\targetcolor{}\ttfamily] 
-evil-closure: jnz r3 r2
-              store $\rstk$ r3
-              jmp r2
-\end{lstlisting}
-If we now assume that the instructions in evil-closure (jnz+store+jmp) are the same length as the original closure(store+increment+jmp), then the adversary can now construct a closure that discriminates $\mathtt{p1}$ and $\mathtt{p2}$ above.
-The essential point here is that an assumption in the source language that relies on facts about instruction length (``a closure restricted to the instruction-size of push+ret that modifies the stack and returns can only be implemented in one way'') is no longer valid, because there are now more low-level ways of interacting with the stack.
+% However, this is no longer true in the target language.
+% Assume that $\mathtt{push r3}$ is implemented as a store to $\rstk$ followed by an increment of $\rstk$.
+% The adversary can now construct a closure that does not use the standard implementation of push, but instead does this:
+% \begin{lstlisting}[basicstyle=\targetcolor{}\ttfamily] 
+% evil-closure: jnz r3 r2
+%               store $\rstk$ r3
+%               jmp r2
+% \end{lstlisting}
+% If we now assume that the instructions in evil-closure (jnz+store+jmp) are the same length as the original closure(store+increment+jmp), then the adversary can now construct a closure that discriminates $\mathtt{p1}$ and $\mathtt{p2}$ above.
+% The essential point here is that an assumption in the source language that relies on facts about instruction length (``a closure restricted to the instruction-size of push+ret that modifies the stack and returns can only be implemented in one way'') is no longer valid, because there are now more low-level ways of interacting with the stack.
 
-To remedy this, we decided to modify our source language to use a different way of interacting with the stack.
-This alternative approach stays even closer to the target language.
-The problem is not actually that we shouldn't offer push/pop and call/return instructions, but rather that our language should also offer an equivalent for the more low-level interactions with the stack that are possible in the target language.
-As such, we introduce special token values that play the role of the stack pointer/return pointer and we allow all interactions with them that are possible using instructions like \sstore{}{}, \smove{}{} etc.
-Specifically, as shown in \cref{sec:domains}, there are new token capabilities $\stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}$, $\retptrd$ and $\retptrc$ which represent a copy of the stack pointer, and the sealed part of a code and data return closure.
-Rather than invoking \spush{} or \spop{}, one can store into the $\stkptr{}$ and modify its current address and as we can see in \cref{sec:syntax}, this has the semantic effect that one would expect.
-Similarly, rather than invoking \sreturn{}, one would jump to the $\retptrd$ and $\retptrc$ sealed code/data pair.
+% To remedy this, we decided to modify our source language to use a different way of interacting with the stack.
+% This alternative approach stays even closer to the target language.
+% The problem is not actually that we shouldn't offer push/pop and call/return instructions, but rather that our language should also offer an equivalent for the more low-level interactions with the stack that are possible in the target language.
+% As such, we introduce special token values that play the role of the stack pointer/return pointer and we allow all interactions with them that are possible using instructions like \sstore{}{}, \smove{}{} etc.
+% Specifically, as shown in \cref{sec:domains}, there are new token capabilities $\stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}$, $\retptrd$ and $\retptrc$ which represent a copy of the stack pointer, and the sealed part of a code and data return closure.
+% Rather than invoking \spush{} or \spop{}, one can store into the $\stkptr{}$ and modify its current address and as we can see in \cref{sec:syntax}, this has the semantic effect that one would expect.
+% Similarly, rather than invoking \sreturn{}, one would jump to the $\retptrd$ and $\retptrc$ sealed code/data pair.
 
-We do not offer primitive \sreturn{}, \spush{} and \spop{} instructions, even though there is nothing keeping us from doing that, either as an additional primitive instruction or as a macro on top of the primitive token values mentioned above.
-We do offer a primitive \scall{\offpc,\offsigma}{}{} instruction, and it offers the only way to create a new stack frame.
-It is the only instruction that does not have a target language counterpart.
-However, there is a counterpart to \sxjmp{}{}, the instruction that would be used for jumping in the code that \scall{\offpc,\offsigma}{}{} compiles to.
-We will discuss later that this means that if we back translate an adversary piece of code (in the full abstraction proof), then it will be back translated (under our trivial back-translation) to equivalent code that \emph{never} does an actual call, but always just jumps to where it wants to go.
-In other words, the back-translated code never uses call to protect its own stack frame from the code that it passes control to.
-This means that the back-translated code is quite insecure, but we don't need it to be: it just needs to be behaviorally equivalent to the target language code that it represents.
+% We do not offer primitive \sreturn{}, \spush{} and \spop{} instructions, even though there is nothing keeping us from doing that, either as an additional primitive instruction or as a macro on top of the primitive token values mentioned above.
+% We do offer a primitive \scall{\offpc,\offsigma}{}{} instruction, and it offers the only way to create a new stack frame.
+% It is the only instruction that does not have a target language counterpart.
+% However, there is a counterpart to \sxjmp{}{}, the instruction that would be used for jumping in the code that \scall{\offpc,\offsigma}{}{} compiles to.
+% We will discuss later that this means that if we back translate an adversary piece of code (in the full abstraction proof), then it will be back translated (under our trivial back-translation) to equivalent code that \emph{never} does an actual call, but always just jumps to where it wants to go.
+% In other words, the back-translated code never uses call to protect its own stack frame from the code that it passes control to.
+% This means that the back-translated code is quite insecure, but we don't need it to be: it just needs to be behaviorally equivalent to the target language code that it represents.
 
-% Finally, rather than invoking call, \dominique{7-9-2017: err, what's the reason we don't follow the same pattern for call?}.
-% \lau{07-09-2017: One would use $\scall{\offpc,\offsigma}{}{}$ with a pair of sealed capabilities to securely jump to this pair - that is to have this pair executed in a new stack frame. The return would happen just by using $\sxjmp{}{}$ with the $\retptrd$ and $\retptrc$. However, this would work with the local capabilities as the real implementation of $\retptrd$ would be a sealed version of the entire stack pointer. In other words, upon jumping back no extra work would have to be done. Now, however, the old stack pointer should be spliced (using the new $\ssplice{}{}$ instruction) with the stack pointer we sent away in order to regain the old stack pointer. In other words, we need something to recognise when a return happens.}
-% \lau{07-09-2017: On second thought, when compiled all the code necessary for the call will be generated based on the $\scall{\offpc,\offsigma}{}{}$ instruction. The real implementation of the $\retptrc$ will simply point to a piece of clean up code that splices together the old/private stack pointer with the one we got from the untrusted party. This may, however, give some issues when we want to reason about it because there will be a disconnect between where the clean up job is done in the operational semantics of the source language (namely as part of the $\sxjmp{}{}$), but in a translated program, the code that does the clean up origins with the $\scall{\offpc,\offsigma}{}{}$ instruction. }
+% % Finally, rather than invoking call, \dominique{7-9-2017: err, what's the reason we don't follow the same pattern for call?}.
+% % \lau{07-09-2017: One would use $\scall{\offpc,\offsigma}{}{}$ with a pair of sealed capabilities to securely jump to this pair - that is to have this pair executed in a new stack frame. The return would happen just by using $\sxjmp{}{}$ with the $\retptrd$ and $\retptrc$. However, this would work with the local capabilities as the real implementation of $\retptrd$ would be a sealed version of the entire stack pointer. In other words, upon jumping back no extra work would have to be done. Now, however, the old stack pointer should be spliced (using the new $\ssplice{}{}$ instruction) with the stack pointer we sent away in order to regain the old stack pointer. In other words, we need something to recognise when a return happens.}
+% % \lau{07-09-2017: On second thought, when compiled all the code necessary for the call will be generated based on the $\scall{\offpc,\offsigma}{}{}$ instruction. The real implementation of the $\retptrc$ will simply point to a piece of clean up code that splices together the old/private stack pointer with the one we got from the untrusted party. This may, however, give some issues when we want to reason about it because there will be a disconnect between where the clean up job is done in the operational semantics of the source language (namely as part of the $\sxjmp{}{}$), but in a translated program, the code that does the clean up origins with the $\scall{\offpc,\offsigma}{}{}$ instruction. }
 
-Note that the token values representing the stack and return pointer in our source language are essentially just a weird alternative syntax for something we would otherwise write using call/return and push/pop.
-However, it does remove the problem described above of relying on facts that follow from code length, because we can now write exactly the same code in source and target and it will do exactly the same thing if it is well-behaved.
-The code would look exactly the same in source and target, it would just be working with token values in the source versus real stack and return pointers in the target.
-That the problem is really gone should follow from being able to write a full-abstraction proof.
-However, our approach should also simplify that proof.
-The reason is that back-translating should become essentially trivial: rather than performing some form of emulation or a real back-translation (which would inevitably make code size larger), it should be sufficient to just use unmodified target instructions as source instructions that will just be working with different types of values.
-
-
-\subsubsection{Conditional full abstraction}
-\label{sec:conditional-full-abstraction}
-
-Another novelty in this work is the fact that we do not want to prove general full abstraction (i.e. two source programs are behaviorally equivalent if and only if they are compiled to behaviorally equivalent target programs).
-The reason is that we only want to prove a result about programs that respect the calling convention, i.e.\ that do not do anything stupid.
-For example, in the old setup with global/local capabilities, when trusted code performs an \scall{\offpc,\offsigma}{}{}, it should make sure that it does not store a copy of its stack pointer in a place that is accessible to the callee (e.g.\ in a register or in the callee's part of the stack).
-Such sanity conditions are necessary (we cannot guarantee anything for code that does such stupid things) but we do not want to spend computation time on checking them.
-Instead, we expect a reasonable compiler to guarantee in some way that its generated code never does such stupid things and then our guarantees should apply.
-
-Note that in the new setup with linear capabilities instead of local/global ones, there seems to be less opportunity for the trusted code to do stupid things, so it may be that we no longer need these sanity conditions, but this is not clear yet.
-
-Assuming that we need sanity conditions on the source code, the question is how we formulate them in our full abstraction.
-Our idea is to formulate a notion of conditional full abstraction: ``if source programs t1 and t2 never perform stupid things under any possible source interaction, then they are source-equivalent iff their compilations are target-equivalent.''.
-However, the question remains how we formalise the condition ``if source programs t1 and t2 never perform stupid things under any possible source interaction''.
-
-Two possible approaches:
-\begin{itemize}
-\item \emph{Blame}: the idea here would be that we introduce a notion of ``undefined behavior'' in the operational semantics.
-  ``Doing stupid things'' like leaving copies of the stack pointer around on a call, would cause the system to enter an undefined state.
-  We would then like to express the above mentioned sanity condition as ``t1 and t2 never evaluate to undefined when plugged into an arbitrary program context''.
-  However, that doesn't work, because it does not discriminate between undefined behavior caused by t1 or t2 (on the one hand) and the program context (on the other hand).
-  To remedy this, we intended to use a notion of blame assignment: the undefined state would contain the address of the pc that was active at the moment it went wrong.
-  We would then express the above mentioned sanity condition as ``t1 and t2 never evaluate to undefined(pc) where pc is within the trusted code's assigned code memory when plugged into an arbitrary program context''.
-
-  The problem with this approach is that it does not combine well with dynamically generated code (solution: exclude code-generation?) and that it adds a lot of complexity.
-
-\item \emph{A logical relation}: An alternative approach (suggested by Lars to Lau) might be to define a logical relation to express the sanity condition ``t1 and t2 never evaluate to undefined when plugged into an arbitrary program context''.
-  This remains to be thought through in more detail, but it might be simpler and/or be easier to combine with dynamic code generation.
-\end{itemize}
-
-\subsection{Linear Capabilities}
-\label{sec:linear-cap}
-The idea with linear capabilities is to limit aliasing of a capability. We specifically wanted a linear capability for the stack pointer, to not have to erase large pieces of memory, which we have to when we use local capabilities. With linear capabilities, we would just need to find the one linear capability to be sure we have the only capability under our control.
-
-There are multiple ways that linear capabilities could work (we choose the third one):
-\begin{enumerate}
-\item A linear capability comes with a system wide guarantee that no \emph{linear} alias exists for this capability (or any part of the memory it has authority over). In other words, the linear capability is the only \emph{linear} capability for this piece of memory.  However, non-linear aliases may exist.
-
-In order for this to work, the memory must initially be partitioned into two parts. One controlled by a non-linear capability and one controlled by a linear capability. The semantics of the machine would now have to make sure that the linear capability is never aliased. For instance, moving a linear capability from one register would cause the source register to be cleared (similar to destructive reads in the ownership types literature). 
-
-In this scheme, it would be okay to permit linear capabilities to become non-linear (which would consume the linear capability). The reasoning would be that it is okay to remove the aliasing restriction and thus make the part of memory with the no-aliasing guarantee smaller. If some program depends on a certain capability received from an adversary to be linear, then they would simple have to check whether it is in fact linear. As the linear capability is consumed when making it non-linear, it would have no way to regain the linear capability.
-
-\item A linear capability can be created from a non-linear capability. The linear capability has no guarantee that it is not aliased, but no aliases can be made from the linear capability. The linear capability can now be passed to an adversary and if the adversary gives back the linear capability when they return, then we know that they have no alias for it (provided we did not give them one and they did not have one in the first place), because the linear capability does not permit them to create an alias.
-
-In this scheme, the system would initially have one non-linear capability for all of the memory. The linear capabilities would then be generated as they are needed.
-\item A linear capability is ``born'' with the guarantee that it is not aliased, either by linear or non-linear capabilities. This guarantee is maintained by the semantics. Linear capabilities cannot be converted to another kind of capability (in other words, this is option one but where linear capabilities cannot be made non-linear).
-
-Note that in this scheme, it would be good if malloc provided a way to initially obtain a linear capability in this model.
-Otherwise, there would never be any linear capabilities other than stack pointers, which seems a waste.
-\end{enumerate}
-Notice that the two first schemes are incompatible as they would undermine each other.
-
-We chose to use the second scheme for the following reasons:
-\begin{itemize}
-\item While the stack pointer was the motivation for the linear capabilities, we believe they can also be used for other things such as return pointers. When used for return pointers, we know that the return pointer used to return to us was the only one available. However, if we used the first scheme, then all of the code would have to be in the linear part of memory. This would be undesirable if we want to provide several entities access to the same program. 
-\end{itemize}
-We later abandoned the second option for the following reason:
-\begin{itemize}
-\item The initial idea with linear capabilities was to use them for stack pointers, because there would only ever be one capability for a any part of the stack. However, when normal capabilities can become linear, then it is only the creator of the linear capability that can be sure that no alias is created from the linear capability. Someone who receives a linear capability would not be able to trust the linear capability as it might have come about as a normal capability that has been aliased and later turned linear.
-
-In other words, we needed a system-wide guarantee to be able to put some trust in linear capabilities from an untrusted source.
-\end{itemize}
-
-Even though we call them linear, they are more like \emph{affine} capabilities because our current operational semantics allows for them to be overwritten. We choose to stick with the name as the term linear is also being misused by others for instance in Rust.
-
-\subsubsection{Write-linear capabilities}
-
-At the time is writing, it is unclear whether write-linear (in the style of write-local permission\footnote{Here it would mean that linear capabilities can only be written through capabilities with write-linear permission and all capabilities with write-linear permission must themselves be linear.}) is necessary. One might think that it is necessary to prevent ``indirect aliasing'', which here would mean that a linear capability would be stored in a piece of memory for which there are multiple non-linear capabilities. This does, however, not seem to be a problem as the aliasing invariants are never broken. The memory the linear capability governs is still not aliased and if anyone needs to use the capability, they would have to load it to a register which would remove it from memory.
-
-One thing write-linear capabilities may be useful for is to make sure that return capabilities are used in the correct order, i.e., ensuring well-bracketedness. 
-\lau{08-09-2017: I have not thought the above completely through} 
-\lau{13-09-2017: Dominique wrote something about this in an e-mail. The splicing necessary for each call would be what is needed to make the write-linear obsolete. The splicing would fail in the cases where someone try to use the wrong data-capability. Further something like write-linear would have the same issue as write-local. We would rely on the fact that the write-linear permission limits the space where we might need to look for linear capabilities. In order to remove the desired linear capability, we would still need to search through all the places it could be which would be infeasible (like the clear memory segment instruction).}
-
-We have also considered removing local capabilities as these no longer seem necessary and only add complexity. However, they may be relevant to ensure the well-bracketed control flow (this will need further consideration).
-
-\dominique{14-9-2017: Currently, we have removed local capabilities and we believe write-linear will (a) not work (because it would require memory clearing like write-local) and (b) not be needed (because of the splicing discussed above).}
+% Note that the token values representing the stack and return pointer in our source language are essentially just a weird alternative syntax for something we would otherwise write using call/return and push/pop.
+% However, it does remove the problem described above of relying on facts that follow from code length, because we can now write exactly the same code in source and target and it will do exactly the same thing if it is well-behaved.
+% The code would look exactly the same in source and target, it would just be working with token values in the source versus real stack and return pointers in the target.
+% That the problem is really gone should follow from being able to write a full-abstraction proof.
+% However, our approach should also simplify that proof.
+% The reason is that back-translating should become essentially trivial: rather than performing some form of emulation or a real back-translation (which would inevitably make code size larger), it should be sufficient to just use unmodified target instructions as source instructions that will just be working with different types of values.
 
 
-\subsection{Opaque capabilities}
-At some point, we contemplated having opaque capabilities. Opaque capabilities would hide the addresses of the capability, i.e, a getter on the base, end or address would yield nothing. It would still be possible to manipulate opaque capabilities. To this end, it would be necessary to have operations that work relatively to the capabilities addresses. These could be: 
-\begin{enumerate}
-\item reset current address of capability to its base address
-\item return difference between current address and base address of a capability
-\item increase/decrease current address of a capability by a set amount
-\end{enumerate}
-(Linear capabilities may still call for some of these to be added for practical purposes. (like when the executing capability is linear, then it cannot be moved from the pc register).)
+% \subsubsection{Conditional full abstraction}
+% \label{sec:conditional-full-abstraction}
 
-At the moment of writing this, I am not sure why we introduced them, but it was related to hiding program lengths (and stack height).
-At this juncture, it does, however, not seem necessary to have opaque because sealed capabilities can do their job.
+% Another novelty in this work is the fact that we do not want to prove general full abstraction (i.e. two source programs are behaviorally equivalent if and only if they are compiled to behaviorally equivalent target programs).
+% The reason is that we only want to prove a result about programs that respect the calling convention, i.e.\ that do not do anything stupid.
+% For example, in the old setup with global/local capabilities, when trusted code performs an \scall{\offpc,\offsigma}{}{}, it should make sure that it does not store a copy of its stack pointer in a place that is accessible to the callee (e.g.\ in a register or in the callee's part of the stack).
+% Such sanity conditions are necessary (we cannot guarantee anything for code that does such stupid things) but we do not want to spend computation time on checking them.
+% Instead, we expect a reasonable compiler to guarantee in some way that its generated code never does such stupid things and then our guarantees should apply.
 
-\subsection{Calling convention design decisions}
-\subsubsection{Returning the full stack}
-When a callee return from a call, they must return all of the stack they were passed. If we omit this requirement, then we cannot guarantee well-bracketedness. The following is an example of circumventing well-bracketedness by keeping part of the stack:
+% Note that in the new setup with linear capabilities instead of local/global ones, there seems to be less opportunity for the trusted code to do stupid things, so it may be that we no longer need these sanity conditions, but this is not clear yet.
 
-\begin{itemize}
-\item An adversary calls our trusted code with a call-back. 
-\item Our code uses part of the stack and calls the callback with the rest of the stack.
-\item The adversary splits that stack in two and saves the part of the stack adjacent to our stack in some persistent memory. The adversary calls us anew with a callback and the part of the stack they did not save. 
-\item We use part of the stack we receive and call the callback with the rest of the stack. The adversary can now use the saved stack to return from the first call to the callback breaking well-bracketedness. The reason this is possible is because we do not check the size of the stack.
-\end{itemize}
-Figure~\ref{fig:ret-full-stk} illustrates the above example. In the figure, $f$ is the function to ``is'' and $g$ is the callback passed to ``us''. In the end, the part of the stack marked \emph{kept by adv} can be used to return from the first call-back (the call with the *). The stack that is used to return lines up with $\var{Us}_\priv$, so the return is successful.
-\begin{figure}
-  \centering
-  \includegraphics[angle=90,width=\textwidth]{img/ret-full-stk.pdf}
-  \caption{Illustration of the stack in the example that illustrates why the entire stack must be returned.}
-  \label{fig:ret-full-stk}
-\end{figure}
+% Assuming that we need sanity conditions on the source code, the question is how we formulate them in our full abstraction.
+% Our idea is to formulate a notion of conditional full abstraction: ``if source programs t1 and t2 never perform stupid things under any possible source interaction, then they are source-equivalent iff their compilations are target-equivalent.''.
+% However, the question remains how we formalise the condition ``if source programs t1 and t2 never perform stupid things under any possible source interaction''.
 
-\subsubsection{Restriction on stack allocation}
-We need to somehow make sure that it is always the same stack that is used. If we don't, then an adversary can simply split the stack in two, use one part for one call and the other for another call. At this point, they can return to either of the two calls - in other words, well-bracketedness is not enforced.
+% Two possible approaches:
+% \begin{itemize}
+% \item \emph{Blame}: the idea here would be that we introduce a notion of ``undefined behavior'' in the operational semantics.
+%   ``Doing stupid things'' like leaving copies of the stack pointer around on a call, would cause the system to enter an undefined state.
+%   We would then like to express the above mentioned sanity condition as ``t1 and t2 never evaluate to undefined when plugged into an arbitrary program context''.
+%   However, that doesn't work, because it does not discriminate between undefined behavior caused by t1 or t2 (on the one hand) and the program context (on the other hand).
+%   To remedy this, we intended to use a notion of blame assignment: the undefined state would contain the address of the pc that was active at the moment it went wrong.
+%   We would then express the above mentioned sanity condition as ``t1 and t2 never evaluate to undefined(pc) where pc is within the trusted code's assigned code memory when plugged into an arbitrary program context''.
 
-\begin{itemize}
-  \item An adversary starts the execution. They split the stack in two and call us with one part (say the top part) along with a callback.
-  \item We use part of the stack and call the adversary with the rest of the stack.
-  \item The adversary calls us again this time using the other part of the stack (here the bottom part of the stack).
-  \item Again, we use part of the stack and call the adversary with the rest of this part of the stack.
-\end{itemize}
-At this point, the adversary can return from either of the two calls. Swapping around the order in which the adversary uses the two parts of the stack changes nothing.
+%   The problem with this approach is that it does not combine well with dynamically generated code (solution: exclude code-generation?) and that it adds a lot of complexity.
 
-The example is illustrated in Figure~\ref{fig:stk-alloc}.
+% \item \emph{A logical relation}: An alternative approach (suggested by Lars to Lau) might be to define a logical relation to express the sanity condition ``t1 and t2 never evaluate to undefined when plugged into an arbitrary program context''.
+%   This remains to be thought through in more detail, but it might be simpler and/or be easier to combine with dynamic code generation.
+% \end{itemize}
 
-One way to solve this problem is to make the "top address" of the stack known. There are many ways to do this, but we have chosen to do the following:
-\begin{itemize}
-\item The stack grows downwards, so the ``last address'' of the stack is the base address of the initial stack capability.
-\item The base address of the stack capability is a fixed address, so in the semantics, it will be expressed as a constant that is publicly known.
-\item At some point before a call, it must be checked whether the stack we are using actually has the globally known base address (if not we must fail because we cannot trust this stack).
-\item To ensure that the check is made, we require it in the semantic condition (at this moment of time not defined, so we are yet to see what it looks like).
-\end{itemize}
+% \subsection{Linear Capabilities}
+% \label{sec:linear-cap}
+% The idea with linear capabilities is to limit aliasing of a capability. We specifically wanted a linear capability for the stack pointer, to not have to erase large pieces of memory, which we have to when we use local capabilities. With linear capabilities, we would just need to find the one linear capability to be sure we have the only capability under our control.
 
-\begin{figure}
-  \centering
-  \includegraphics[angle=270,trim={0 0 5cm 0},width=\textwidth]{img/stk-alloc.pdf}
-  \caption{Illustration of the potential stack allocation issue.}
-  \label{fig:stk-alloc}
-\end{figure}
+% There are multiple ways that linear capabilities could work (we choose the third one):
+% \begin{enumerate}
+% \item A linear capability comes with a system wide guarantee that no \emph{linear} alias exists for this capability (or any part of the memory it has authority over). In other words, the linear capability is the only \emph{linear} capability for this piece of memory.  However, non-linear aliases may exist.
+
+% In order for this to work, the memory must initially be partitioned into two parts. One controlled by a non-linear capability and one controlled by a linear capability. The semantics of the machine would now have to make sure that the linear capability is never aliased. For instance, moving a linear capability from one register would cause the source register to be cleared (similar to destructive reads in the ownership types literature). 
+
+% In this scheme, it would be okay to permit linear capabilities to become non-linear (which would consume the linear capability). The reasoning would be that it is okay to remove the aliasing restriction and thus make the part of memory with the no-aliasing guarantee smaller. If some program depends on a certain capability received from an adversary to be linear, then they would simple have to check whether it is in fact linear. As the linear capability is consumed when making it non-linear, it would have no way to regain the linear capability.
+
+% \item A linear capability can be created from a non-linear capability. The linear capability has no guarantee that it is not aliased, but no aliases can be made from the linear capability. The linear capability can now be passed to an adversary and if the adversary gives back the linear capability when they return, then we know that they have no alias for it (provided we did not give them one and they did not have one in the first place), because the linear capability does not permit them to create an alias.
+
+% In this scheme, the system would initially have one non-linear capability for all of the memory. The linear capabilities would then be generated as they are needed.
+% \item A linear capability is ``born'' with the guarantee that it is not aliased, either by linear or non-linear capabilities. This guarantee is maintained by the semantics. Linear capabilities cannot be converted to another kind of capability (in other words, this is option one but where linear capabilities cannot be made non-linear).
+
+% Note that in this scheme, it would be good if malloc provided a way to initially obtain a linear capability in this model.
+% Otherwise, there would never be any linear capabilities other than stack pointers, which seems a waste.
+% \end{enumerate}
+% Notice that the two first schemes are incompatible as they would undermine each other.
+
+% We chose to use the second scheme for the following reasons:
+% \begin{itemize}
+% \item While the stack pointer was the motivation for the linear capabilities, we believe they can also be used for other things such as return pointers. When used for return pointers, we know that the return pointer used to return to us was the only one available. However, if we used the first scheme, then all of the code would have to be in the linear part of memory. This would be undesirable if we want to provide several entities access to the same program. 
+% \end{itemize}
+% We later abandoned the second option for the following reason:
+% \begin{itemize}
+% \item The initial idea with linear capabilities was to use them for stack pointers, because there would only ever be one capability for a any part of the stack. However, when normal capabilities can become linear, then it is only the creator of the linear capability that can be sure that no alias is created from the linear capability. Someone who receives a linear capability would not be able to trust the linear capability as it might have come about as a normal capability that has been aliased and later turned linear.
+
+% In other words, we needed a system-wide guarantee to be able to put some trust in linear capabilities from an untrusted source.
+% \end{itemize}
+
+% Even though we call them linear, they are more like \emph{affine} capabilities because our current operational semantics allows for them to be overwritten. We choose to stick with the name as the term linear is also being misused by others for instance in Rust.
+
+% \subsubsection{Write-linear capabilities}
+
+% At the time is writing, it is unclear whether write-linear (in the style of write-local permission\footnote{Here it would mean that linear capabilities can only be written through capabilities with write-linear permission and all capabilities with write-linear permission must themselves be linear.}) is necessary. One might think that it is necessary to prevent ``indirect aliasing'', which here would mean that a linear capability would be stored in a piece of memory for which there are multiple non-linear capabilities. This does, however, not seem to be a problem as the aliasing invariants are never broken. The memory the linear capability governs is still not aliased and if anyone needs to use the capability, they would have to load it to a register which would remove it from memory.
+
+% One thing write-linear capabilities may be useful for is to make sure that return capabilities are used in the correct order, i.e., ensuring well-bracketedness. 
+% \lau{08-09-2017: I have not thought the above completely through} 
+% \lau{13-09-2017: Dominique wrote something about this in an e-mail. The splicing necessary for each call would be what is needed to make the write-linear obsolete. The splicing would fail in the cases where someone try to use the wrong data-capability. Further something like write-linear would have the same issue as write-local. We would rely on the fact that the write-linear permission limits the space where we might need to look for linear capabilities. In order to remove the desired linear capability, we would still need to search through all the places it could be which would be infeasible (like the clear memory segment instruction).}
+
+% We have also considered removing local capabilities as these no longer seem necessary and only add complexity. However, they may be relevant to ensure the well-bracketed control flow (this will need further consideration).
+
+% \dominique{14-9-2017: Currently, we have removed local capabilities and we believe write-linear will (a) not work (because it would require memory clearing like write-local) and (b) not be needed (because of the splicing discussed above).}
+
+
+% \subsection{Opaque capabilities}
+% At some point, we contemplated having opaque capabilities. Opaque capabilities would hide the addresses of the capability, i.e, a getter on the base, end or address would yield nothing. It would still be possible to manipulate opaque capabilities. To this end, it would be necessary to have operations that work relatively to the capabilities addresses. These could be: 
+% \begin{enumerate}
+% \item reset current address of capability to its base address
+% \item return difference between current address and base address of a capability
+% \item increase/decrease current address of a capability by a set amount
+% \end{enumerate}
+% (Linear capabilities may still call for some of these to be added for practical purposes. (like when the executing capability is linear, then it cannot be moved from the pc register).)
+
+% At the moment of writing this, I am not sure why we introduced them, but it was related to hiding program lengths (and stack height).
+% At this juncture, it does, however, not seem necessary to have opaque because sealed capabilities can do their job.
+
+% \subsection{Calling convention design decisions}
+% \subsubsection{Returning the full stack}
+% When a callee return from a call, they must return all of the stack they were passed. If we omit this requirement, then we cannot guarantee well-bracketedness. The following is an example of circumventing well-bracketedness by keeping part of the stack:
+
+% \begin{itemize}
+% \item An adversary calls our trusted code with a call-back. 
+% \item Our code uses part of the stack and calls the callback with the rest of the stack.
+% \item The adversary splits that stack in two and saves the part of the stack adjacent to our stack in some persistent memory. The adversary calls us anew with a callback and the part of the stack they did not save. 
+% \item We use part of the stack we receive and call the callback with the rest of the stack. The adversary can now use the saved stack to return from the first call to the callback breaking well-bracketedness. The reason this is possible is because we do not check the size of the stack.
+% \end{itemize}
+% Figure~\ref{fig:ret-full-stk} illustrates the above example. In the figure, $f$ is the function to ``is'' and $g$ is the callback passed to ``us''. In the end, the part of the stack marked \emph{kept by adv} can be used to return from the first call-back (the call with the *). The stack that is used to return lines up with $\var{Us}_\priv$, so the return is successful.
+% \begin{figure}
+%   \centering
+%   \includegraphics[angle=90,width=\textwidth]{img/ret-full-stk.pdf}
+%   \caption{Illustration of the stack in the example that illustrates why the entire stack must be returned.}
+%   \label{fig:ret-full-stk}
+% \end{figure}
+
+% \subsubsection{Restriction on stack allocation}
+% We need to somehow make sure that it is always the same stack that is used. If we don't, then an adversary can simply split the stack in two, use one part for one call and the other for another call. At this point, they can return to either of the two calls - in other words, well-bracketedness is not enforced.
+
+% \begin{itemize}
+%   \item An adversary starts the execution. They split the stack in two and call us with one part (say the top part) along with a callback.
+%   \item We use part of the stack and call the adversary with the rest of the stack.
+%   \item The adversary calls us again this time using the other part of the stack (here the bottom part of the stack).
+%   \item Again, we use part of the stack and call the adversary with the rest of this part of the stack.
+% \end{itemize}
+% At this point, the adversary can return from either of the two calls. Swapping around the order in which the adversary uses the two parts of the stack changes nothing.
+
+% The example is illustrated in Figure~\ref{fig:stk-alloc}.
+
+% One way to solve this problem is to make the "top address" of the stack known. There are many ways to do this, but we have chosen to do the following:
+% \begin{itemize}
+% \item The stack grows downwards, so the ``last address'' of the stack is the base address of the initial stack capability.
+% \item The base address of the stack capability is a fixed address, so in the semantics, it will be expressed as a constant that is publicly known.
+% \item At some point before a call, it must be checked whether the stack we are using actually has the globally known base address (if not we must fail because we cannot trust this stack).
+% \item To ensure that the check is made, we require it in the semantic condition (at this moment of time not defined, so we are yet to see what it looks like).
+% \end{itemize}
+
+% \begin{figure}
+%   \centering
+%   \includegraphics[angle=270,trim={0 0 5cm 0},width=\textwidth]{img/stk-alloc.pdf}
+%   \caption{Illustration of the potential stack allocation issue.}
+%   \label{fig:stk-alloc}
+% \end{figure}
 
 
 
