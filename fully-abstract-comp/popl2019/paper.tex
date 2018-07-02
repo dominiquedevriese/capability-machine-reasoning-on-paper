@@ -269,13 +269,22 @@ Our StackTokens calling convention is based on a traditional single stack, share
 As we are on a capability machine, it is natural to add some extra protection to stack and return pointers.
 First, we replace stack pointers with stack capabilities.
 When a new stack frame is created, the caller provisions it with a stack capability, restricted to the appropriate range, i.e.\ it does not cover the caller's stack frame.
-Return pointers, on the other hand, are replaced by a sealed pair of return capabilities.
+Return pointers, on the other hand, are replaced by a pair of sealed return capabilities.
 They form an opaque closure that the callee can only jump to, and the caller's data becomes available to the caller's return code. 
 
+%informally explain how an adversary may try to abuse stack and return caps
 While the above adds extra protection, it is important to understand that the above is not sufficient for enforcing WBCF and LSE.
 While adversaries only get access to capabilities that they are allowed to use during the stack frame, they have ways to store these capabilities and use them when they are no longer allowed to do so.
 Figure~\ref{fig:stack-ret-ptr-abuse} illustrates two examples of this.
-The figure on the left (Figure~\ref{fig:stack-ptr-abuse}) blabla
+In both examples some trusted and adversarial code has been taking turns calling each other, so the stack now alternates between stack frame of the trusted and adversarial code.
+The figure on the left (Figure~\ref{fig:stack-ptr-abuse}) illustrates how the trusted code tries to ensure LSE by restricting the stack capability to the unused part before every call to the adversary.
+However, restricting the stack capability does not help when the trusted code in the first call gave access to the part of the stack where the stack frame of the second call now resides.
+Generally speaking, the trusted code has no reason to ever trust a stack capability it receives from adversarial code as the adversarial code may have duplicated the stack capability and stored it for later use.
+In the figure on the right (Figure~\ref{fig:ret-ptr-abuse}), the trusted code has given the adversarial code two sealed pairs of return capabilities, one in each of the calls to the adversarial code.
+The adversarial code may have stored the pair of sealed return pointers from the first call, so that it can access it in the second call.
+The figure illustrates how the adversarial code uses the return pair from the first call breaking WBCF.
+
+
 
 \begin{itemize}
 \item informally explain how an adversary may try to abuse stack and return caps
@@ -324,3 +333,4 @@ The figure on the left (Figure~\ref{fig:stack-ptr-abuse}) blabla
 % Text of appendix \ldots
 
 \end{document}
+ 
