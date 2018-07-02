@@ -1203,46 +1203,46 @@ This behavior is in principle fine.
 Source semantics will define that only the non-split-off part will be encapsulated.
 The parts that were split off and passed to the adversary are not protected, as expected.
 
-\subsection{Component layout and linking}
-\dominique{21-3-2018: TODO: update this section (further) to reflect recent changes.}
-A target- or source-level component needs a number of things.
-In the following, we list what it needs followed by a description of how they are made available.
+% \subsection{Component layout and linking}
+% \dominique{21-3-2018: TODO: update this section (further) to reflect recent changes.}
+% A target- or source-level component needs a number of things.
+% In the following, we list what it needs followed by a description of how they are made available.
 
-A component needs access to the following:
-\begin{description}
-\item[Code] The instructions of a component should of course be available so they can be executed.
-\item[Component seals] Each call/return point of the component, as well as every location where new closures are created, needs a unique seal in order to enforce well-bracketedness.
-  This seal needs to be unique on the entire machine.
-\item[Stack] A component stores the value of local variables on the stack. 
-\item[Persistent data storage] A component may also need to use "global variables" these are stored in a piece of memory separate from the stack.
-\item[Access to other components' exported functions] A component may need to call other components.
-  Every component makes available a number of exported values (e.g. sealed code-data pairs for invoking certain functions) and components are allowed to include these exported values in their data memory.
-  They could, for example, keep a linking table there through which they can invoke other components' exports.
-\end{description}
+% A component needs access to the following:
+% \begin{description}
+% \item[Code] The instructions of a component should of course be available so they can be executed.
+% \item[Component seals] Each call/return point of the component, as well as every location where new closures are created, needs a unique seal in order to enforce well-bracketedness.
+%   This seal needs to be unique on the entire machine.
+% \item[Stack] A component stores the value of local variables on the stack. 
+% \item[Persistent data storage] A component may also need to use "global variables" these are stored in a piece of memory separate from the stack.
+% \item[Access to other components' exported functions] A component may need to call other components.
+%   Every component makes available a number of exported values (e.g. sealed code-data pairs for invoking certain functions) and components are allowed to include these exported values in their data memory.
+%   They could, for example, keep a linking table there through which they can invoke other components' exports.
+% \end{description}
 
-In the following, we describe the setup in detail.
-Figure~\ref{fig:trg-prog-link} illustrates the setup (modulo the fact that the code memory contains a reference to the linking table, which is now no longer allowed).
+% In the following, we describe the setup in detail.
+% Figure~\ref{fig:trg-prog-link} illustrates the setup (modulo the fact that the code memory contains a reference to the linking table, which is now no longer allowed).
 
-The \emph{code} and \emph{program seals} are available through a normal read-execute capability in the $\pc$ register.
-The program seals are stored as part of the code memory and can be accessed through the $\pc$ register.
-The data memory may contain references to references exported by other components, organised, for example, as a linking table.
-The remaining addresses governed by the capability in the $\pc$ register contain the instructions of the program.
+% The \emph{code} and \emph{program seals} are available through a normal read-execute capability in the $\pc$ register.
+% The program seals are stored as part of the code memory and can be accessed through the $\pc$ register.
+% The data memory may contain references to references exported by other components, organised, for example, as a linking table.
+% The remaining addresses governed by the capability in the $\pc$ register contain the instructions of the program.
 
-The \emph{linking table} contains pairs of sealed code and data capabilities.
-So the first two addresses of the linking table contains the first pair, the two next contains the next pair and so on.
+% The \emph{linking table} contains pairs of sealed code and data capabilities.
+% So the first two addresses of the linking table contains the first pair, the two next contains the next pair and so on.
 
-The \emph{program seals} contain at least a seal for each of the ``call/return points'' in the program.\lau{it is not clear what this means for a target level program that does not contain the call instruction.}
-The seals are globally unique in the sense that no other program has access to this range of seals.
+% The \emph{program seals} contain at least a seal for each of the ``call/return points'' in the program.\lau{it is not clear what this means for a target level program that does not contain the call instruction.}
+% The seals are globally unique in the sense that no other program has access to this range of seals.
 
-The \emph{stack} is available through a capability in the register $r_\stk$. The stack pointer is a linear read write capability. There are three ways of receiving a stack: (1) the first program executing has a stack pointer in the $r_\stk$ register, (2) call backs and programs can expect to be called with a stack pointer as an argument in the $r_\stk$ register, and (3) when returning from a call, part of the stack is unsealed as the data part of a return pointer the other part is returned from the callee (the callee is allowed to keep part of the stack, but the callee must at least return a non-empty part of the stack adjacent to the part of the stack that was unsealed by returning).
+% The \emph{stack} is available through a capability in the register $r_\stk$. The stack pointer is a linear read write capability. There are three ways of receiving a stack: (1) the first program executing has a stack pointer in the $r_\stk$ register, (2) call backs and programs can expect to be called with a stack pointer as an argument in the $r_\stk$ register, and (3) when returning from a call, part of the stack is unsealed as the data part of a return pointer the other part is returned from the callee (the callee is allowed to keep part of the stack, but the callee must at least return a non-empty part of the stack adjacent to the part of the stack that was unsealed by returning).
 
-The \emph{persistent data storage} is expected to be accessible through a normal read-write capability in $r_\data$ during normal execution (during a return the stack capability will initially be in the $r_\data$ register, but it should be spliced with the returned stack and moved to the $r_\stk$ register). There are two ways for a program to get this data capability: (1) the data part of the code/data pair (for either a callback or a global function in the linking table) should be the sealed data capability. (2) During a call, the data capability should be stored on the stack, so it can be retrieved afterwards.
-\begin{figure}
-  \centering
-  \includegraphics[angle=90,width=\textwidth]{img/linking.pdf}
-  \caption{Linking and program layout (modulo the fact that the code memory contains a reference to the linking table, which is now no longer allowed).}
-  \label{fig:trg-prog-link}
-\end{figure}
+% The \emph{persistent data storage} is expected to be accessible through a normal read-write capability in $r_\data$ during normal execution (during a return the stack capability will initially be in the $r_\data$ register, but it should be spliced with the returned stack and moved to the $r_\stk$ register). There are two ways for a program to get this data capability: (1) the data part of the code/data pair (for either a callback or a global function in the linking table) should be the sealed data capability. (2) During a call, the data capability should be stored on the stack, so it can be retrieved afterwards.
+% \begin{figure}
+%   \centering
+%   \includegraphics[angle=90,width=\textwidth]{img/linking.pdf}
+%   \caption{Linking and program layout (modulo the fact that the code memory contains a reference to the linking table, which is now no longer allowed).}
+%   \label{fig:trg-prog-link}
+% \end{figure}
 
 \subsection{Components}
 \label{sec:components}
