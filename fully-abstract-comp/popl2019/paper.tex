@@ -284,6 +284,67 @@ In the figure on the right (Figure~\ref{fig:ret-ptr-abuse}), the trusted code ha
 The adversarial code may have stored the pair of sealed return pointers from the first call, so that it can access it in the second call.
 The figure illustrates how the adversarial code uses the return pair from the first call breaking WBCF.
 
+% informally explain how we prevent this using linear capabilities
+\lau[inline]{Write an introductory paragraph to the linear capability bit}
+
+% What is linear capabilities, split/splice
+A linear capability is a capability that cannot be duplicated.
+This is enforced dynamically, so when a linear capability is moved between registers or stored to memory, the source register is cleared, and when a linear capability is read from memory, the source address is cleared.
+A capability machine with linear capabilities also needs special instructions to split and splice. Split and splice do exactly what their names indicate: Split splits a capability into two capabilities with the same permissions and with ranges that are disjointed but sum up to the range of the original capability, and splice does the inverse.
+
+% Stack capability linear
+The linear capabilities are put to use by using a linear capability for the stack pointer.
+When a trusted piece of code makes a call, it splits the stack capability in two, so it has a stack capability for its stack frame and one for the unused part of the stack.
+The stack capability for the caller stack frame is sealed and used as the data part of the sealed return pair.
+The stack capability for the remainder of the stack is given to the callee.
+% Prevention of left attack non-aliasing of linear capabilities - token like (ensuring LSE)
+As illustrated in Figure~\ref{fig:stack-ptr-abuse-prev}, this prevents the issue illustrated in Figure~\ref{fig:stack-ptr-abuse}.
+The trusted code knows that the stack capability is linear, so when it splits the stack capability, so it has a linear capability for its local stack frame, then it also knows that this part of memory cannot have an alias.
+The trusted code encapsulates the capability for its stack frame by sealing it which provides the guarantee that it can only be accessed when used with the appropriate code return pointer.
+
+% Prevention of attack 2
+
+
+% known stack base
+% + more
+% non-empty stack frames
+
+\begin{figure}
+  \centering
+  \begin{subfigure}{0.4\linewidth}
+    \centering
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+      % recurrent parts
+      \stdstackstart[13]
+      \inactsf{(0,2)}{(4.5,4)} {\footnotesize Trusted\\ \footnotesize stack frame 1}
+      \inactadv{(0,4)}{(4.5,7)} {\footnotesize Adv. stack frame 1}
+      \inactsf{(0,7)}{(4.5,9)} {\footnotesize Trusted \\ \footnotesize stack frame 2}
+      \actadv{(0,9)}{(4.5,12)} {\footnotesize Adv. stack frame 2}
+
+      \lincapbrace{(4.6,2)}{(4.6,4)}{data return\\\footnotesize cap. 1}
+
+      % Stack pointer 1
+      \lincapbrace{(4.6,4)}{(4.6,7)}{adv. stack\\\footnotesize cap. 1}
+      % return cap
+      \lincapbrace{(4.6,7)}{(4.6,9)}{data return\\\footnotesize cap. 2}
+     %  Stack pointer 2
+      \begin{scope}
+        \clip (4.8,4) rectangle (9,13);
+        \lincapbrace{(4.6,9)}{(4.6,13.5)}{adv. stack\\\footnotesize cap. 2}
+      \end{scope}
+
+    \end{tikzpicture}
+    \caption{The non-duplicable linear stack capability for the trusted code's
+      stack frame and the opacity of sealed capabilities ensures LSE.}
+    \label{fig:stack-ptr-abuse-prev}
+  \end{subfigure}
+  \begin{subfigure}{0.18\linewidth}
+    \phantom{testtestes}
+  \end{subfigure}
+  \begin{subfigure}{0.4\linewidth}
+
+  \end{subfigure}
+\end{figure}
 
 
 \begin{itemize}
