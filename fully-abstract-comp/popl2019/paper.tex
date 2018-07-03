@@ -371,25 +371,39 @@ The issue illustrated in Figure~\ref{fig:ret-ptr-abuse} is prevented by splicing
     the adversary with the capability for the trusted caller's local stack frame.}
     \label{fig:ret-ptr-abuse-prev}
   \end{subfigure}
-
+  \caption{}
 \end{figure}
 
 % Non-empty trusted stack frames.
+In this token-based scheme, it is important that the caller keeps a bit of the token which corresponds to having a non-empty stack frame.
+In a traditional C-like calling convention, this is natural as the caller needs to push information such as the old stack pointer and the old program counter to the stack.
+On a capability machine with CHERI's sealed capabilities, this is not necessary as the old program counter capability and the capability for the caller's stack frame is sealed in the return pair, and they will become unsealed when jumped to.
+If the caller has an empty stack frame, then they have entirely given up all of their return token which practically means that they are not present on the call stack and thus have no way verify whether it is their turn to be returned to.
+
+% known stack base
+% + more
+We check that the returned stack capability is adjacent to the stack capability for our local stack frame, but this does not guarantee that it is the same token as we gave away in the call.
+Specifically, we have no idea whether the callee has kept part of the token for themselves and only given us back the part that is adjacent to our token.
+If we do not make sure that the entire token is returned, then it is possible for an adversary to break WBCF.
+This is illustrated in Figure~\ref{fig:stk-base-abuse}: Some trusted code has created a stack frame with their local data and called a piece of untrusted code giving them access to the remainder of the stack.
+This situation is illustrated in Figure~\ref{fig:stack-base-abuse-a}.
+Now the adversarial code keeps the stack capability for the part of the stack adjacent to the trusted code's stack frame.
+The adversary does not seal this part in a return pair, but simply stores it on the heap.
+At this point the adversary calls the trusted code with the remainder of the stack capability as illustrated in Figure~\ref{fig:stack-base-abuse-b}.
+At some point the trusted code calls the adversary again leaving a second stack frame on the stack an giving the adversary the rest.
+At this point, the adversary has access to the stack capability passed in the second call performed by the trusted code as well as the stack capability stored away after the first call (Figure~\ref{fig:stack-base-abuse-c}).
+Now the adversary has access to a stack capability for part of the stack adjacent to the first stack frame of the trusted caller.
+The adversary can use this stack capability to return from the first call without ever returning from the second call (Figure~\ref{fig:stack-base-abuse-d}).
 
 
 % Where do we get the stack pointer from, how can we know it is linear
 % The other attack.
 
-
-
-% known stack base
-% + more
-% non-empty stack frames
-
+% Summary of CC
 
 \begin{figure}
   \centering
-  \begin{subfigure}{0.2\linewidth}
+  \begin{subfigure}{0.23\linewidth}
     \centering
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
       % recurrent parts
@@ -474,7 +488,7 @@ The issue illustrated in Figure~\ref{fig:ret-ptr-abuse} is prevented by splicing
     \caption{}
     \label{fig:stack-base-abuse-d}
   \end{subfigure}
-
+  \caption{}
   \label{fig:stk-base-abuse}
 \end{figure}
 
