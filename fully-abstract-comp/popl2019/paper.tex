@@ -212,7 +212,7 @@ This independent result could then be composed with our result to obtain securit
 % \end{acks}
 
 \section{Linear Stack and Return Capabilities}
-\todo[inline]{The stack grows downwards, maybe we should make the figures reflect this.}
+\todo[inline]{The stack grows downwards, maybe we should make the figures reflect this. Also make sealed capabilities more clear by greying out.}
 \begin{figure}
   \centering
   \begin{subfigure}{0.4\linewidth}
@@ -309,21 +309,11 @@ This convention is not followed by the adversarial code in Figure~\ref{fig:ret-p
 In the presence of adversarial code, we need some enforcement mechanism that forces the adversarial code to follow the call stack order.
 One way to enforce this would be to hand out a token on call that can only be used when the caller's stack frame is on top of the call stack.
 The callee would have to give up this token on return to make sure that the token is only spent once.
-As it turns out, the stack capability for the unused part of the stack can be seen as such a token: When the callee returns, we expect that it returns the stack capability we gave it in the call.
-If this stack capability is not present, then we have no whether our stack frame is on top of the stack, so we should refuse to continue execution.
-If we receive a stack pointer, then we try to splice it with the stack pointer for our local stack frame (which by now has been unsealed as we resume execution).
-The splice instruction only splices adjacent capabilities, so in the case where the stack frame that is returned to is on top of the stack, the returned stack capability and the unsealed stack capability are adjacent, so the splice is successful.
-In the case where the stack frame is not on top of the call stack, as illustrated in Figure~\ref{fig:ret-ptr-abuse}, part of the stack capability will be bound in the sealed return pairs for the higher stack frames making the splice fail as illustrated in Figure~\ref{fig:ret-ptr-abuse-prev}.
-
-% Where do we get the stack pointer from, how can we know it is linear
-% The other attack.
-
-% Non-empty trusted stack frames.
-
-% known stack base
-% + more
-% non-empty stack frames
-
+As it turns out, the stack capability for the unused part of the stack can be seen as such a token, so when the callee returns, we expect them to return the stack capability we gave them in the call.
+When we receive a stack capability on return, we will try to splice it with the now unsealed stack capability for our private stack frame.
+If this is successful, then we know that the two capabilities are adjacent.
+If it is unsuccessful or if no stack capability is returned, then we cannot determine whether our stack frame is the topmost.
+The issue illustrated in Figure~\ref{fig:ret-ptr-abuse} is prevented by splicing as illustrated in Figure~\ref{fig:ret-ptr-abuse-prev}.
 \begin{figure}
   \centering
   \begin{subfigure}{0.4\linewidth}
@@ -381,6 +371,110 @@ In the case where the stack frame is not on top of the call stack, as illustrate
     \label{fig:ret-ptr-abuse-prev}
   \end{subfigure}
 
+\end{figure}
+
+% Non-empty trusted stack frames.
+
+
+% Where do we get the stack pointer from, how can we know it is linear
+% The other attack.
+
+
+
+% known stack base
+% + more
+% non-empty stack frames
+
+
+\begin{figure}
+  \centering
+  \begin{subfigure}{0.2\linewidth}
+    \centering
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+      % recurrent parts
+      \stdstackstart[13]
+      \inactsf{(0,2)}{(4.5,4)} {\footnotesize Trusted\\ \footnotesize stack frame 1}
+      \actadv{(0,4)}{(4.5,7)}{}
+
+      \lincapbrace{(4.6,2)}{(4.6,4)}{}
+      \begin{scope}
+        \clip (4.8,1) rectangle (9,13);
+      \lincapbracebot{(4.6,4)}{(4.6,13.5)}{}
+      \end{scope}
+
+    \end{tikzpicture}
+    \caption{}
+    \label{fig:stack-base-abuse-a}
+  \end{subfigure}
+  \begin{subfigure}{0.24\linewidth}
+    \centering
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+      % recurrent parts
+      \stdstackstart[13]
+      \inactsf{(0,2)}{(4.5,4)} {\footnotesize Trusted\\ \footnotesize stack frame 1}
+      \inactadv{(0,4)}{(4.5,7)}{\footnotesize Kept by adv.}
+      \node[opacity=0.5,rotate=-45] at (2.25,10) {\footnotesize Sent to trusted};
+      \lincapbrace{(4.6,2)}{(4.6,4)}{}
+      \lincapbrace{(4.6,4)}{(4.6,7)}{}
+      
+      \begin{scope}
+        \clip (4.8,1) rectangle (9,13);
+      \lincapbracebot{(4.6,7)}{(4.6,13.5)}{}
+      \end{scope}
+
+    \end{tikzpicture}
+    \caption{}
+    \label{fig:stack-base-abuse-b}
+  \end{subfigure}
+  \begin{subfigure}{0.24\linewidth}
+    \centering
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+      % recurrent parts
+      \stdstackstart[13]
+      \inactsf{(0,2)}{(4.5,4)} {\footnotesize Trusted\\ \footnotesize stack frame 1}
+      \actadv{(0,4)}{(4.5,7)}{\footnotesize Kept by adv.}
+      \inactsf{(0,7)}{(4.5,9)} {\footnotesize Trusted\\ \footnotesize stack frame 2}
+      \node[opacity=0.5,rotate=-45] at (2.25,11) {\footnotesize Returned to adv.};
+      \lincapbrace{(4.6,2)}{(4.6,4)}{}
+      \lincapbrace{(4.6,4)}{(4.6,7)}{}
+      \lincapbrace{(4.6,7)}{(4.6,9)}{}
+      \begin{scope}
+        \clip (4.8,1) rectangle (9,13);
+        \lincapbracebot{(4.6,9)}{(4.6,13.5)}{}
+      \end{scope}
+
+    \end{tikzpicture}
+    \caption{}
+    \label{fig:stack-base-abuse-c}
+  \end{subfigure}
+  \begin{subfigure}{0.24\linewidth}
+    \centering
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+      % recurrent parts
+      \stdstackstart[13]
+      \actsf{(0,2)}{(4.5,4)} {\footnotesize Trusted\\ \footnotesize stack frame 1}
+
+      \inactsf{(0,7)}{(4.5,9)} {\footnotesize Trusted\\ \footnotesize stack frame 2}
+      \begin{scope}
+        \clip (-.1,-.1) rectangle (4.6,13.1);
+        \draw[fill=gray!50] (0,9) rectangle (4.5,13.5);
+      \end{scope}
+
+      \lincapbrace{(4.6,2)}{(4.6,7)}{}
+      \lincapbrace{(4.6,7)}{(4.6,9)}{}
+
+      \fill[red,draw=red,opacity=.4] (-.1,6.9) rectangle (4.6,9.1);
+      \begin{scope}
+        \clip (4.8,1) rectangle (9,13);
+        \lincapbracebot{(4.6,9)}{(4.6,13.5)}{}
+      \end{scope}
+
+    \end{tikzpicture}
+    \caption{}
+    \label{fig:stack-base-abuse-d}
+  \end{subfigure}
+
+  \label{fig:stk-base-abuse}
 \end{figure}
 
 
