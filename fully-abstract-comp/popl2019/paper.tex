@@ -213,7 +213,7 @@ This independent result could then be composed with our result to obtain securit
 % \end{acks}
 
 \section{Linear Stack and Return Capabilities}
-\todo[inline]{The stack grows downwards, maybe we should make the figures reflect this. Also make sealed capabilities more clear by greying out.}
+\todo[inline]{Make sealed capabilities more clear by greying out.}
 \begin{figure}
   \centering
   \begin{subfigure}{0.4\linewidth}
@@ -287,8 +287,11 @@ In the figure on the right (Figure~\ref{fig:ret-ptr-abuse}), the trusted code ha
 The adversarial code may have stored the pair of sealed return pointers from the first call, so that it can access it in the second call.
 The figure illustrates how the adversarial code uses the return pair from the first call breaking WBCF.
 
-% informally explain how we prevent this using linear capabilities
-\lau[inline]{Write an introductory paragraph to the linear capability bit}
+% Informally explain how we prevent this using linear capabilities
+As the examples illustrate, the standard memory and object-like capabilities do not provide sufficient guarantees to enforce LSE and WBCF.
+The two properties can be enforced with a calling convention that utilizes the guarantees of linear capabilities.
+In the following, we will describe such a calling convention through motivating examples, and in later sections, we will prove that it actually enforces LSE and WBCF.
+We call the calling convention StackTokens for reasons that will become clear later.
 
 % What is linear capabilities, split/splice
 A linear capability is a capability that cannot be duplicated.
@@ -404,9 +407,55 @@ In the scenario we just sketched, we would be alerted to an attempt to break WBC
 
 % Where do we get the stack pointer from, how can we know it is linear
 % The other attack.
+At this point, we have the means to check whether a token actually corresponds to the one that we passed away.
+So far, we have claimed that this can be used to make certain that it is our turn on some call stack, but in order to have WBCF all the well-behaved code must use the same call stack.
+In the case where we are invoked by some adversarial code, we have no way to be sure whether the stack capability passed to us stems from the same stack used to call other well-behaved code.
+For example, an adversary could call us with a callback and some linear capability as the stack capability.
+Assuming we choose to trust the stack, we use it for the necessary token and invoke the callback.
+Now, the adversary could take a completely different linear capability and call some well-behaved code (it could be us) with a callback.
+The same thing happens again: The callback is called, so a return token is generated and passed to the adversary.
+At this point, the adversary has a return token from passed in each call of the callback.
+Both of the return tokens are intact which means that the adversary can return from either callback.
+From a high-level perspective, the problem is that both well-behaved programs believe that they are on top of the call stack.
+They are both correct as the adversarial code has created two different call stacks.
+In order to solve this problem, the well-behaved code needs to somehow agree on the call stack.
+We do this by deciding on a global base address for the stack which is used for the entirety of the execution.
+In order to make sure that we are actually using the correct stack, we check that the base address of the stack capability we receive corresponds to the globally decided stack base address.
+This also means that on every return, it will be this address that we check for when we make sure that the entire token was returned to us.
 
+Having a globally decided stack address also solves another challenge.
+Namely, the stack capability has to be linear in order for us to use it as a token, so in principle we would have to check that this is the case whenever we receive a stack capability.
+This is, however, checked when we check that the stack capability governs the global stack base address.
+The stack capability needs to be linear for us to use it as a token, and if the stack base address is part of the stack, then it must be governed by a linear capability when execution begins. 
+Due to the non-duplicability of linear capability and the fact that they cannot become non-linear during execution, we know during execution that if we have a capability that governs the stack base address, then it must be linear.
+
+% Return pointers/return seals
+The return pointer in the StackToken scheme is a pair of sealed capabilities where the code part of the pair is the old program counter and the data part is the stack capability for the local stack frame of the caller.
+Both of the capabilities in the pair are of course sealed with the same seal.
+% One seal per return point
+All call points need to be associated with a unique seal that is only used to seal the capabilities in the return pair for that call point.
+We refer to the seals used to create return pairs as return seals.
+The return seal is what associates the stack frame on the call stack with a call in a program, so if we allowed return seals to be reused, it would be possible to return to a different call than the one that caused the stack frame to be pushed on the call stack which would break WBCF.
+For similar reasons, we cannot allow return seals to be used to seal a closure.
+% Don't be stupid
+Return seals should never be leaked to adversarial code as this would allow them to unseal the local stack frame of a caller breaking LSE.
+This goes for direct leaks, such as leaving a seal in a register or writing it to adversarial memory, as well as indirect leaks, where a capability for reading a return seal from memory is leaked (either directly or indirectly).
+
+% Note about them vs us, we do nothing that they couldn't do
+In the description of StackToken, we have described it in terms of ``them vs us''.
+This may create the impression of an asymmetric calling convention that allows us to protect us against some adversary, but what if the adversary does not trust us and want to guarantee LSE and WBCF?
+The answer is simple: We have made no assumptions that the adversary cannot make, and we put no restrictions on the adversary that we do not follow, so they can employ StackTokens to get the exact same guarantees as us!
 
 % Summary of CC
+In the previous section, we have described our proposed calling convention, StackTokens.
+In this paragraph we summarize it:
+\begin{description}
+\item[Check the base address of the stack capability before and after calls] 
+\item[Make sure that local stack frames are non-empty]
+\item[Create token and data return capability on call] split the stack capability in two to get a stack capability for you local stack frame and a stack capability for the unused part of the stack. The stack capability for your local stack frame is sealed and used for the data part of the return pair.
+\item[Create code return capability on call] Seal the old program pointer.
+\item[Reasonable use of seals] return seals are only used to seal old program pointers, all return seals are only used for one call site, and return seals are not leaked.
+\end{description}
 
 \begin{figure}
   \centering
