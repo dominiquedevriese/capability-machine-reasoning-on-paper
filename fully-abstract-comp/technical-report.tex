@@ -717,7 +717,6 @@ For the linearity encoding, we make similar assumptions: $\encLin{} : \Linear \f
                                     \failed & \totherwise                                    
                                   \end{cases}
 \end{align*} 
-\dominique{9-3-2018: $\linCons$ should only be allowed to modify the memory if the capability has write permission!}
 
 \noindent\textbf{cca}\\
 % The following comment has been resolved by implementing the suggestion.
@@ -887,55 +886,6 @@ This instruction uses the $\decPerm{}$ function.
 
 \noindent\textbf{xjmp}\\
 \lau{22-09-2017: Can we allow the callee to return any stack pointer? At the moment, it is not possible to create an empty stack pointer which may be a saving grace. If we at some point change this, so you can split capabilities into empty ones, then we need to consider whether it is safe for callees to return empty stacks (I think it is okay as long as we always have some stack usage).}
-\lau{28-09-2017: For now, the jump to a return pointer does the stack end point check. We could possibly move this to the proposed semantic condition as well.}
-% \begin{align*}
-%   \sem{\txjmp{r_1}{r_2}}(\Phi) = &
-%                                    \begin{cases}
-%                                      \arraycolsep=0pt
-%                                      \begin{array}[t]{rl}
-%                                        \Phi & \updReg{r_1}{w_1}\\
-%                                             & \updReg{r_2}{w_2}\\
-%                                             & \updReg{\pcreg}{c_\code}\\
-%                                             & \updReg{\rdata}{c_\data}
-%                                      \end{array} &
-%                                      \begin{array}[t]{l}
-%                                        \Phi(r_1) = \sealed{\sigma_1,c_\code} \tand \\
-%                                        \Phi(r_2) = \sealed{\sigma_2,c_\data} \tand \\
-%                                        \sigma_1 = \sigma_2 \tand \\
-%                                        \nonExec{c_\data} \tand \\
-%                                        w_1 = \linCons{\Phi(r_1)} \tand \\
-%                                        w_2 = \linCons{\Phi(r_2)}
-%                                      \end{array}
-%                                      \\&\\
-%                                      \sourcecolor\left.
-%                                        \arraycolsep=0pt
-%                                        \begin{array}[t]{rl}
-%                                          \Phi' & \updReg{r_2}{0} \\
-%                                                & \updReg{\pcreg}{\opc}\\
-%                                                & \updReg{\rdata}{0}\\
-%                                                & \updReg{\rstk}{c_\stk}\\
-%                                                & \updReg{\rtmp{1}}{0}\\
-%                                                & \updReg{\rtmp{2}}{0}
-%                                        \end{array}\right.&
-%                                      \sourcecolor\left.
-%                                        \begin{array}[t]{l}
-%                                          \Phi(r_1) = \retptrc(\sigma_1,\_) \tand \\
-%                                          \Phi(r_2) = \retptrd(\sigma_2,(\aaddr_\stk,\eaddr_{\stk,\priv})) \tand \\
-%                                          \sigma_1 = \sigma_2 \tand\\
-%                                          \Phi(\rstk) = \stkptr{\rw,\stkb,\eaddr_\stk,\_} \tand \\
-%                                          \Phi = (\mem,\reg,\stkf::\stk,\ms_\stk) \tand \\
-%                                          \stkf = (\opc,\ms_{\stk,\priv}) \tand \\
-%                                          \dom(\ms_{\stk,\priv}) = [\eaddr_\stk+1,\eaddr_{\stk,\priv}] \tand\\
-%                                          \eaddr_{\stk} + 1 = \aaddr_\stk \tand\\
-%                                          c_\stk = \stkptr{\rw,\stkb,\eaddr_{\stk,\priv},\aaddr_\stk} \tand\\
-%                                          \Phi' = (\mem,\reg,\stk,\ms_{\stk,\priv} \uplus \ms_\stk) 
-%                                        \end{array}\right.
-%                                      \\
-%                                      \failed & \totherwise
-%                                    \end{cases}
-% \end{align*}
-
-% \dominique{22-1-2018: the below is an alternative proposal to the above definition. It is part of a proposed refactoring to simplify the merge the cases for return pointers and closures in the value relation.}
 \begin{align*}
   \sem{\txjmp{r_1}{r_2}}(\Phi) = &
                                    \begin{cases}
@@ -1085,8 +1035,8 @@ Split cannot create ``empty capabilities'' (a capability that governs no segment
                                \end{cases}
 \end{align*}
 
-\lau{19-09-2017: Two important points about $\tsplice{}{}{}$ related to the calling convention: (1) Splice fails if two capabilities are not adjacent. This means that if a caller tries to use a return pointer with a stack that is not immediately adjacent to the private stack, then it fails. (2) Splice prohibit splicing with an empty capability! This means that a callee cannot return an empty stack (this also means that it is impossible to make a call when all of the stack is used - this may indeed be undesirable, but without this restriction we need to handle other things).}
-\lau{19-09-2017: Because $\tsplice{}{}{}$ does not allow empty stacks, it is not ``left inverse'' to $\tsplit{}{}{}{}$ (because of the empty case). Intuitively, it is weird that a $\tsplit{}{}{}{}$ followed by a $\tsplice{}{}{}$ does not yield the same capability.}
+Two important points about $\tsplice{}{}{}$ related to the calling convention: (1) Splice fails if two capabilities are not adjacent. This means that if a caller tries to use a return pointer with a stack that is not immediately adjacent to the private stack, then it fails. (2) Splice prohibit splicing with an empty capability! This means that a callee cannot return an empty stack (this also means that it is impossible to make a call when all of the stack is used - this may indeed be undesirable, but without this restriction we need to handle other things).
+Note: because $\tsplice{}{}{}$ does not allow empty stacks, it is not ``left inverse'' to $\tsplit{}{}{}{}$ (because of the empty case). Intuitively, it is weird that a $\tsplit{}{}{}{}$ followed by a $\tsplice{}{}{}$ does not yield the same capability.
 \begin{align*}
   \sem{\tsplice{r_1}{r_2}{r_3}}(\Phi) = &
                               \begin{cases}
@@ -2101,7 +2051,7 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
   \begin{array}[t]{l}
     \lrv(W)\cup \\
 %
-    \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma,\sigma_\baddr,\sigma_\eaddr}},\\ \seal{\sigma,\sigma_\baddr,\sigma_\eaddr} \endarray \right)} 
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma_\baddr,\sigma_\eaddr,\sigma}},\\ \seal{\sigma_\baddr,\sigma_\eaddr,\sigma} \endarray \right)} 
     \; \middle| \;
     \begin{array}{l}
       \exists r \in \dom(\pwheap) \ldotp \\

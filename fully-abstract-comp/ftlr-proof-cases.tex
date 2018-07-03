@@ -818,7 +818,7 @@ which follows by assumption.
     \item $\trust = \trusted$, $\Phi_S$ is reasonable up to $n$ steps and $[\baddr,\eaddr] \subseteq \ta$
     \item $\trust = \untrusted$ and $[b,e] \mathrel{\#} \ta$ and $\npair{[\baddr,\eaddr]} \in \readCond{\normal,W_\pcreg}$
     \end{itemize}
-  \item $\Phi_S(\pcreg) = \Phi_T(\pcreg) = ((\rx,\normal),\baddr,\eaddr,\_)$
+  \item $\Phi_S(\pcreg) = \Phi_T(\pcreg) = ((\rx,\normal),\baddr,\eaddr,a)$
   \item $\npair{[\baddr,\eaddr]} \in \xReadCond{W_\pcreg}$
   \item $\npair{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)$
   \item $\memSat{\Phi_S.\mem,\Phi_S.\stk,\Phi_S.\ms_\stk,\Phi_T.\mem}{W_M}$
@@ -849,6 +849,7 @@ which follows by assumption.
     \item $\Phi_S$ does not point to $\scall{\offpc,\offsigma}{r_1}{r_2}$ or $\txjmp{r_1}{r_2}$
     \item $\Phi_S' = \updPcAddr{\Phi_S\updReg{r}{z}} \neq \failed$
     \item $\Phi_T' = \updPcAddr{\Phi_T\updReg{r}{z}} \neq \failed$
+    \item $r \neq \pcreg$
     \item $z \in \ints$
     \end{itemize}
   \item \label{case:ftlr:call} All of the following hold:
@@ -861,9 +862,6 @@ which follows by assumption.
     \item $[\baddr,\eaddr] \subseteq \ta$
     \item $\Phi_S \step[\gc] \Phi_S' \neq \failed$
     \item $\Phi_T \step \Phi_T' \neq \failed$
-      % domi: this condition doesn't make syntactic sense and is also not used.
-    % \item $\Phi_T' = \updPc{\Phi_T\updReg{\rtmp{1}}{z}}$
-    \item $z \in \ints$
     \item $\Phi_S(r_1) = \sealed{\sigma,c_1}$
     \item $\Phi_S(r_2) = \sealed{\sigma,c_2}$
     \item $\nonExec{c_2}$
@@ -921,9 +919,8 @@ which follows by assumption.
         $w_1' = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma'}$, $\Phi_S(r_1) =
         \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$ and $\Phi_T(r_1) =
         \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$, $k = 1$
-      \item \label{case:ftlr:move-cca-etc:move}(move) $w_1 = \Phi_S(r_2)$, $w_1' = \Phi_T(r_2)$, and $\isLinear{w_1} \Rightarrow w_2 = w_2' = 0$, and $\neg \isLinear{w_1} \Rightarrow (w_2 = \Phi_S(r_2) \wedge w_2' = \Phi_T(r_2)$) and $r_1 \neq r_2$ and $k = 2$.
-      \item \label{case:ftlr:move-cca-etc:move-eq}(move) $w_1 = \Phi_S(r_1)$, $w_1' = \Phi_T(r_1)$ and $k = 1$.
-      \item \label{case:ftlr:move-cca-etc:cseal}(cseal) $w_1 = \sealed{\sigma,\Phi_S(r_1)}$, $w_1' = \sealed{\sigma,\Phi_T(r_1)}$, $\Phi_S(r_2) = \Phi_T(r_2) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$, $\sigma_\baddr \le \sigma \le \sigma_\eaddr$, and $k=1$, and either $\Phi_S$ points to $\src{\tcseal{r_1}{r_2}}$ in $\ta$ or $\ta \# [\baddr,\eaddr]$.
+      \item \label{case:ftlr:move-cca-etc:move}(move) $w_1 = \Phi_S(r_2)$, $w_1' = \Phi_T(r_2)$, and $w_2 = \linCons{w_1}$, $w_2' = \linCons{w_1'}$ and $r_1 \neq r_2$ and $k = 2$.
+      \item \label{case:ftlr:move-cca-etc:cseal}(cseal) $w_1 = \sealed{\sigma,\Phi_S(r_1)}$, $w_1' = \sealed{\sigma,\Phi_T(r_1)}$, $\Phi_S(r_2) = \Phi_T(r_2) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$, $\sigma_\baddr \le \sigma \le \sigma_\eaddr$, and $k=1$, and $\Phi_S$ points to $\src{\tcseal{r_1}{r_2}}$.
       \item \label{case:ftlr:move-cca-etc:split-normal} (split) $\Phi_T(r_3) = \Phi_S(r_3) =
         ((\perm,\lin),\baddr,\eaddr,\aaddr)$, $\baddr \leq s$, $s < \eaddr$,
         $w_1 = w_1' = ((\perm,\lin),\baddr,n,\aaddr)$, $w_2 = w_2' =
@@ -933,12 +930,12 @@ which follows by assumption.
         \sigma_\eaddr$, $w_1 = w_1' = \seal{\sigma_\baddr,s,\sigma}$, $w_2 =
         w_2' = \seal{s+1,\sigma_\eaddr,\sigma}$, $k=2$.
       \item \label{case:ftlr:move-cca-etc:split-stack} (split) $\Phi_S(r_3) = \stkptr{\perm,\baddr,\eaddr,\aaddr}$,
-        $\Phi_T(r_3) = ((\perm,\linear),\baddr,\eaddr,\aaddr)$, $\baddr \leq s$,
-        $s < \eaddr$, $w_1 = \stkptr{\perm,\baddr,n,\aaddr}$, $w_1' =
-        ((\perm,\linear),\baddr,s,\aaddr)$, $w_2 =
-        \stkptr{\perm,s+1,\eaddr,\aaddr}$, 
+        $\Phi_T(r_3) = ((\perm,\linear),\baddr,\eaddr,\aaddr)$, $\baddr \leq n$,
+        $n < \eaddr$, $w_1 = \stkptr{\perm,\baddr,n,\aaddr}$, $w_1' =
+        ((\perm,\linear),\baddr,n,\aaddr)$, $w_2 =
+        \stkptr{\perm,n+1,\eaddr,\aaddr}$,
 
-        $w_2' = ((\perm,\linear),s+1,\eaddr,\aaddr)$, $k=2$.
+        $w_2' = ((\perm,\linear),n+1,\eaddr,\aaddr)$, $k=2$.
       \item \label{case:ftlr:move-cca-etc:splice-stack}(splice) $\Phi_T(r_2) = ((\perm,\linear),\baddr_2,\eaddr_2,\_)$,
         $\Phi_S(r_2) = \stkptr{\perm,\baddr_2,\eaddr_2,\_}$, and
 
@@ -962,7 +959,7 @@ which follows by assumption.
         $\sigma_{\baddr,2} \leq \sigma_{\eaddr,2}$, and $\sigma_{\eaddr,2} + 1
         \leq \sigma_{\eaddr,3}$and $w_1 = w_1' = \seal{\sigma_{\baddr,2},
           \sigma_{\eaddr,3}, \sigma}$
-      \item \label{case:ftlr:move-cca-etc:jnz-z} (jnz zero case) $k = 0$
+      \item \label{case:ftlr:move-cca-etc:jnz-z} (jnz zero case, noop move) $k = 0$
       \end{enumproof}
     \end{itemize}
   \item \label{case:ftlr:store-load-mem} All of the following hold: (includes memory-manipulation cases: store,
@@ -1009,15 +1006,15 @@ which follows by assumption.
         and
         $\withinBounds{w_1}$, and\\
         $w = \Phi_S(r_2)$, and $w' = \Phi_T(r_2)$, and $w_2 = \linCons{\Phi_S(r_2)}$, $w_2' = \linCons{\Phi_T(r_2)}$.
-      \item (load) $ w_2' = \Phi_T(r_2) =
+      \item (load) $w_2' = \Phi_T(r_2) =
         ((\perm,\linear),\baddr,\eaddr,\aaddr)$, and $w_2 = \Phi_S(r_2) =
         \stkptr{\perm,\baddr,\eaddr,\aaddr}$, and $\perm \in \readAllowed{}$,
         $\withinBounds{((\perm,\lin),\baddr,\eaddr,\aaddr)}$, and $\aaddr \in
         \dom(\Phi.\ms_\stk)$, and $\aaddr \in \dom(\Phi.\ms_\stk)$, and\\
-        $w_1 = \Phi_S.\ms_\stk(\aaddr)$, and $w_1' = \Phi_T.\ms_\stk(\aaddr)$, and $w = \linCons{w_1}$, $w' = \linCons{w_1'}$, $\linConsPerm{\perm,w_1}$ and $\linConsPerm{\perm,w_1'}$.
+        $w_1 = \Phi_S.\ms_\stk(\aaddr)$, and $w_1' = \Phi_T.\ms_\stk(\aaddr)$, and $w = \linCons{w_1}$, $w' = \linCons{w_1'}$, $\linConsPerm{\perm}{w_1}$ and $\linConsPerm{\perm}{w_1'}$.
       \end{enumproof}
     \end{itemize}
-  \item \label{case:ftlr:store-load-jump} All of the following hold: (includes control-flow manipulation cases:
+  \item \label{case:ftlr:jump} All of the following hold: (includes control-flow manipulation cases:
     jmp, jnz, xjmp, that can be handled mostly uniformly)
     \begin{itemize}
     \item $\Phi_S \step[\gc] \Phi_S'$
@@ -1041,7 +1038,24 @@ which follows by assumption.
       \end{enumproof}
     \end{itemize}
   \end{enumproof}
-  \lau{TODO: Argue that the above is indeed the case.}
+  The above follows from a careful analysis of the cases of the operational semantics, using the following facts:
+  \begin{itemize}
+  \item $[b,e] \subseteq \ta$ or $[b,e] \mathrel{\#} \ta$ (by assumption of this lemma)
+  \item $\Phi_S.\reg(\pcreg) = \Phi_T.\reg(\pcreg)$ (by assumption of this lemma)
+  \item $\Phi_S.\mem(a) = \Phi_T.\mem(a)$ if $a \in [b,e]$: follows from
+    $\npair{[\baddr,\eaddr]} \in \xReadCond{W_\pcreg}$, the fact that $W_\pcreg
+    \oplus W_R \oplus W_M$ is defined and
+    $\memSat{\Phi_S.\mem,\Phi_S.\stk,\Phi_S.\ms_\stk,\Phi_T.\mem}{W_M}$
+  \item $\Phi_S.\mem(a\cdots a+\calllen-1) = \Phi_T.\mem(a \cdots a+\calllen -1)$ if $[a\cdots a+\calllen-1] \subseteq [b,e]$ (follows similarly).
+  \item $\Phi_S.\reg(r) = ((\perm_1,\lin_1),\baddr_1,\eaddr_1,\aaddr_1)$ implies that $\Phi_S.\reg(r) = \Phi_T.\reg(r)$ and $a_1 \in \dom(\Phi_S.\mem)$ (follows from $\npair{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)$).
+  \item $\Phi_S.\reg(r) = z$ implies that $\Phi_S.\reg(r) = \Phi_T.\reg(r)$ (follows from $\npair{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)$).
+  \item $\Phi_S.\reg(r) = \seal{\sigma_b,\sigma_e,\sigma}$ implies that $\Phi_S.\reg(r) = \Phi_T.\reg(r)$ (follows from $\npair{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)$).
+  \item $\Phi_S.\reg(r) = \sealed{\sigma,\vsc}$ implies that $\Phi_T.\reg(r) = \sealed{\sigma,\vsc'}$ (follows from $\npair{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)$).
+  \item $\Phi_S.\reg(r) \neq \retptrd{\_,\_}$ (follows from $\npair{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)$).
+  \item $\Phi_S.\reg(r) \neq \retptrc{\_,\_}$ (follows from $\npair{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)$).
+  \item $\Phi_S.\reg(r) = \stkptr{\perm_1,\baddr_1,\eaddr_1,\aaddr_1}$ implies that $\Phi_T.\reg(r) = ((\perm_1,\linear),b_1,e_1,a_1)$ and $a \in \dom(\Phi_S.\ms_\stk)$ (follows from $\npair{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)$).
+  \item Similar facts about the current address, base and end pointer, permissions and linearity of all register capabilities being equal (follows from $\npair{(\Phi_S.\reg,\Phi_T.\reg)} \in \lrrg{\trust}(W_R)$).
+  \end{itemize}
 
   By the above observation, we know that $\Phi_S \step[\gc] \Phi_S'$ and $\Phi_T \step
   \Phi_T'$ for some $\Phi_S'$ and $\Phi_T'$.
@@ -1936,10 +1950,6 @@ This concludes case \ref{case:ftlr:scall:reg}
       \npair[n-1]{(\Phi_S(\pcreg),\Phi_T(\pcreg))} \in \lrvg{\trust}(R_R(r_1))
     \]
     which follows from Lemma~\ref{lem:monotonicity} and \ref{lem:world-fut-purePart} and what we have proven about the pc.
-  \item Case \ref{case:ftlr:move-cca-etc:move-eq}:
-    
-    Follows from Assumption and Lemma~\ref{lem:downwards-closed}.
-
   \item Case \ref{case:ftlr:move-cca-etc:cseal}:
 
     Pick $R_R' = R_R$.
@@ -2351,7 +2361,7 @@ This concludes case \ref{case:ftlr:scall:reg}
     Follows by the same assumption of this lemma.
   \end{itemize}
 
-  Case \ref{case:ftlr:store-load-jump}
+  Case \ref{case:ftlr:jump}
 
   We have that
   \begin{itemize}
