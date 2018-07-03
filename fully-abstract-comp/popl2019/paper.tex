@@ -133,6 +133,7 @@
 
 
 \section{Introduction}
+\label{sec:introduction}
 Secure compilers preserve source-language (security-relevant) properties even when the compiled code interacts with arbitrary target-language components.
 Generally, properties that hold in the source language but not in the target language, need to be somehow enforced by the compiler.
 Two properties that hold in many high-level source languages, but not in the assembly languages they are compiled to, are well-bracketed control flow and encapsulation of local state.
@@ -149,10 +150,10 @@ However, untrusted assembly code is free to ignore this requirement and read or 
 To enforce these properties, target language security primitives are needed that can be used to prevent untrusted code from misbehaving, without imposing too much overhead on well-behaved code.
 The virtual-memory based security primitives on commodity processors do not seem sufficiently fine-grained to efficiently support this.
 More suitable security primitives are offered by a type of CPUs known as capability machines \citep{levy_capability-based_1984,watson_cheri:_2015}.
-These processors use tagged memory to enforce a strict separation between integers and \emph{capabilities}: pointers that carry authority.
+These processors use tagged memory to enforce a strict separation between integers and {\itshape capabilities}: pointers that carry authority.
 Capabilities come in different flavours.
 Memory capabilities allow reading from and writing to a block of memory.
-Additionally, capability machines offer some form of \emph{object capabilities} that represent low-level encapsulated closures, i.e. a piece of code coupled with private state that it gains access to upon invocation.
+Additionally, capability machines offer some form of {\itshape object capabilities} that represent low-level encapsulated closures, i.e. a piece of code coupled with private state that it gains access to upon invocation.
 The concrete mechanics of object capabilities varies between different capability machines.
 On a recent capability machine called CHERI, for example, they take the form of pairs of capabilities sealed with a common seal that represent the code and data parts of the closure.
 The pair is opaque, but is transparently unsealed by the hardware upon invocation~\citep{watson_capability_2015}.
@@ -167,17 +168,17 @@ Finally, this approach does not allow passing stack references between component
 A more scalable approach retains a single stack that is shared between components.
 Enforcing WBCF and LSE in this approach, requires a way to temporarily provide stack and return capabilities to an untrusted component and revoke them after it returns.
 While capability revocation is expensive in general, some capability machines offer restricted forms of revocation that can be implemented efficiently.
-For example, CHERI offers a form of \emph{local} capabilities that, briefly, can only be stored in registers or on the stack, but not in other parts of memory.
+For example, CHERI offers a form of {\itshape local} capabilities that, briefly, can only be stored in registers or on the stack, but not in other parts of memory.
 \citet{skorstengaard_reasoning_2017} has demonstrated that by making the stack and return pointer local, and a number of security checks and measures, the two properties can be guaranteed.
 However, a problem with this approach is that revoking the local stack and return capabilities on every boundary crossing requires clearing the entire unused part of the stack, a potentially expensive operation.
 
 In this work, we propose and study StackTokens: an alternative calling convention that enforces WBCF and LSE with a single shared stack.
-Instead of CHERI's local capabilities, it builds on \emph{linear} capabilities; a new form of capabilities that has not been previously described in the published literature.\footnote{Although they are mentioned here and there by different people.} 
+Instead of CHERI's local capabilities, it builds on {\itshape linear} capabilities; a new form of capabilities that has not been previously described in the published literature.\footnote{Although they are mentioned here and there by different people.} 
 These capabilities are enforced by the hardware to be non-duplicable.
 We propose to make stack and return pointers linear and require components to hand them out in cross-component invocations and to return them in returns.
 The non-duplicability of linear capabilities, together with some security checks, then allows us to guarantee WBCF and LSE, without large overhead on boundary crossings and particularly no need for clearing large blocks of memory.
 
-A second contribution of this work is the way in which we formulate these two properties, using a technique we call \emph{fully abstract overlay semantics}.
+A second contribution of this work is the way in which we formulate these two properties, using a technique we call {\itshape fully abstract overlay semantics}.
 Formulations in previous work are either partial and not suitable for reasoning~\cite{abadi_control-flow_2005} or lacked evidence of generality~\cite{skorstengaard_reasoning_2017}.
 Our new formulation starts from the premise that security results for a calling convention should be reusable as part of a larger proof of a secure compiler.
 To accomodate this, we define a second operational semantics for our target language, which has a native well-bracketed stack and primitive ways to do calls and returns.
@@ -514,9 +515,13 @@ The issue illustrated in Figure~\ref{fig:ret-ptr-abuse} is prevented by splicing
 \item mention that tail calls are supported through xjmp
 \item explain how fully abstract overlay semantics could form one pass of a verified secure compiler.
 \item Performance?  Implementability of linear caps?
+\item Sharing stack references accross component boundaries is supported
 \end{itemize}
 
 \section{Related Work}
+
+In this section, we discuss related work on securely enforcing control flow correctness and/or local state encapsulation.
+We do not repeat the work we discussed in Section~\ref{sec:introduction}.
 
 Capability machines originate with Dennis and Van Horn~\cite{Dennis:1966:PSM:365230.365252} and we refer to Levy~\cite{Levy1984capability} and Watson et al.~\cite{Watson2015Cheri} for an overview of previous work.
 The capability machine formalized in \sectionname~\ref{sec:capab-mach-with} is modeled CHERI~\cite{Watson2015Cheri,Woodruff:2014:CCM:2665671.2665740}.
@@ -535,15 +540,18 @@ Such a property ignores temporal properties and seems hard to use for reasoning.
 
 More closely related to our work are papers that use separate per-component stacks, a trusted stack manager and some form of memory isolation to enforce control-flow correctness as part of a secure compilation result~\citep{patrignani_modular_2016-1,juglaret_beyond_2016-1}.
 Our work differs from theirs in that we use a different low-level security primitive (a capability machine with local capabilities rather than a machine with a primitive notion of compartments) and we do not use per-component stacks or a trusted stack manager, but a single shared stack and a decentralized calling convention based on linear capabilities.
-TODO: adapt the following sentence...
-Also, both prove a secure compilation result from a high-level language, which clearly implies a general form of control-flow correctness, while we define a logical relation that can be used to reason about specific programs that rely on well-bracketed control flow.
+Both prove a secure compilation result from a high-level language, which clearly implies a general form of control-flow correctness, but that result is not separated from the results about other aspects of their compiler.
 
-\begin{itemize}
-\item CFI and friends
-\item CheriBSD etc.
-\item our ESOP 2018 paper \citep{skorstengaard_reasoning_2017}
-\item undefined behavior and full abstraction \citep{juglaret_beyond_2016} \dominique{TODO}
-\end{itemize}
+CheriBSD applies a similar approach with separate per-component stacks and a trusted stack manager on a capability machine~\cite{watson_cheri:_2015}.
+The authors use local capabilities to prevent components from accidentally leaking their stack pointer to other components, but there is no actual capability revocation at play.
+They do not provide many details on this mechanism and it is, for example, not clear if and how they intend to deal with higher-order interfaces (C function pointers) or stack references shared accross component boundaries. 
+
+The fact that our full abstraction result only applies to reasonable components (see Section~\ref{sec:form-secur-with}) makes it related to full abstraction results for unsafe languages.
+In their study of compartmentalization primitives, \Cite{juglaret_beyond_2016} discuss the property of Secure Compartmentalizing Compilation (SCC): a variant of full abstraction that is able to deal with source languages with undefined behavior (together with other benefits).
+Essentially, they modify standard full abstraction so that preservation and reflection of contextual equivalence are only guaranteed for components that are {\itshape fully defined}, which means essentially that they do not exhibit undefined behavior in any fully defined context.
+In follow-up work, they extend this approach to apply in scenario's where components only exhibit undefined behavior after a number of well-defined steps~\citep{DBLP:journals/corr/abs-1802-00588}.
+If we see reasonable behavior as defined behavior, then our full abstraction result can be seen as an application of this same idea.
+
 \bibliography{references}
 
 
