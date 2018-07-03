@@ -47,7 +47,12 @@
                         %% http://ctan.org/pkg/subcaption
 \usepackage{wrapfig}
 
+\usepackage{todonotes}
+
 \input{preamble-illu}
+
+\input{../preamble}
+
 
 \begin{document}
 
@@ -70,7 +75,7 @@
 \author{Lau Skorstengaard}
 % \orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
 \affiliation{
-  \institution{Aarhus University}
+  \institution{Aarhus~University}
   \country{Denmark}                    %% \country is recommended
 }
 \email{lask@cs.au.dk}
@@ -87,7 +92,7 @@
 \author{Lars Birkedal}
 % \orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
 \affiliation{
-  \institution{Aarhus University}
+  \institution{Aarhus~University}
   \country{Denmark}                    %% \country is recommended
 }
 \email{birkedal@cs.au.dk}
@@ -186,6 +191,8 @@ Additionally, formulating security of a calling convention in this way makes it 
 The idea is that security of such a compiler could be verified by proving fully abstract compilation with respect to the well-behaved semantics of the target language, so that the proof can rely on native well-bracketedness and local stack frame encapsulation.
 This independent result could then be composed with our result to obtain security of the compiler targeting the real target language, by transitivity of full abstraction.
 
+\todo[inline]{Add itemized contributions}
+
 \paragraph{Outline} Blabla
 
 % \begin{acks}                            %% acks environment is optional
@@ -205,10 +212,10 @@ This independent result could then be composed with our result to obtain securit
 % \end{acks}
 
 \section{Linear Stack and Return Capabilities}
-
+\todo[inline]{The stack grows downwards, maybe we should make the figures reflect this. Also make sealed capabilities more clear by greying out.}
 \begin{figure}
   \centering
-  \begin{subfigure}{0.49\linewidth}
+  \begin{subfigure}{0.4\linewidth}
     \centering
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
       % recurrent parts
@@ -226,7 +233,7 @@ This independent result could then be composed with our result to obtain securit
       Stack pointer 2
       \begin{scope}
         \clip (4.8,4) rectangle (9,13);
-        \capbracebot{(5.2,9)}{(5.2,13.5)}{adv. stack\\\footnotesize cap. 2}
+        \capbrace{(5.2,9)}{(5.2,13.5)}{adv. stack\\\footnotesize cap. 2}
       \end{scope}
 
       \draw[red,thick,->] (4.5,10) to[out=0,in=50] node[midway,right] {} (7.5,7.3);
@@ -235,7 +242,10 @@ This independent result could then be composed with our result to obtain securit
     \caption{An adversary uses a previous stack frame's stack pointer.}
     \label{fig:stack-ptr-abuse}
   \end{subfigure}
-  \begin{subfigure}{0.49\linewidth}
+  \begin{subfigure}{0.18\linewidth}
+    \phantom{testtestes}
+  \end{subfigure}
+  \begin{subfigure}{0.4\linewidth}
     \centering
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
       % recurrent parts
@@ -259,13 +269,214 @@ Our StackTokens calling convention is based on a traditional single stack, share
 As we are on a capability machine, it is natural to add some extra protection to stack and return pointers.
 First, we replace stack pointers with stack capabilities.
 When a new stack frame is created, the caller provisions it with a stack capability, restricted to the appropriate range, i.e.\ it does not cover the caller's stack frame.
-Return pointers, on the other hand, are replaced by a sealed pair of return capabilities.
+Return pointers, on the other hand, are replaced by a pair of sealed return capabilities.
 They form an opaque closure that the callee can only jump to, and the caller's data becomes available to the caller's return code. 
 
+%informally explain how an adversary may try to abuse stack and return caps
 While the above adds extra protection, it is important to understand that the above is not sufficient for enforcing WBCF and LSE.
 While adversaries only get access to capabilities that they are allowed to use during the stack frame, they have ways to store these capabilities and use them when they are no longer allowed to do so.
 Figure~\ref{fig:stack-ret-ptr-abuse} illustrates two examples of this.
-The figure on the left (Figure~\ref{fig:stack-ptr-abuse}) blabla
+In both examples some trusted and adversarial code has been taking turns calling each other, so the stack now alternates between stack frame of the trusted and adversarial code.
+The figure on the left (Figure~\ref{fig:stack-ptr-abuse}) illustrates how the trusted code tries to ensure LSE by restricting the stack capability to the unused part before every call to the adversary.
+However, restricting the stack capability does not help when the trusted code in the first call gave access to the part of the stack where the stack frame of the second call now resides.
+Generally speaking, the trusted code has no reason to ever trust a stack capability it receives from adversarial code as the adversarial code may have duplicated the stack capability and stored it for later use.
+In the figure on the right (Figure~\ref{fig:ret-ptr-abuse}), the trusted code has given the adversarial code two sealed pairs of return capabilities, one in each of the calls to the adversarial code.
+The adversarial code may have stored the pair of sealed return pointers from the first call, so that it can access it in the second call.
+The figure illustrates how the adversarial code uses the return pair from the first call breaking WBCF.
+
+% informally explain how we prevent this using linear capabilities
+\lau[inline]{Write an introductory paragraph to the linear capability bit}
+
+% What is linear capabilities, split/splice
+A linear capability is a capability that cannot be duplicated.
+This is enforced dynamically, so when a linear capability is moved between registers or stored to memory, the source register is cleared, and when a linear capability is read from memory, the source address is cleared.
+A capability machine with linear capabilities also needs special instructions to split and splice. Split and splice do exactly what their names indicate: Split splits a capability into two capabilities with the same permissions and with ranges that are disjointed but sum up to the range of the original capability, and splice does the inverse.
+
+% Stack capability linear
+The linear capabilities are put to use by using a linear capability for the stack pointer.
+When a trusted piece of code makes a call, it splits the stack capability in two, so it has a stack capability for its stack frame and one for the unused part of the stack.
+The stack capability for the caller stack frame is sealed and used as the data part of the sealed return pair.
+The stack capability for the remainder of the stack is given to the callee.
+% Prevention of left attack non-aliasing of linear capabilities - token like (ensuring LSE)
+As illustrated in Figure~\ref{fig:stack-ptr-abuse-prev}, this prevents the issue illustrated in Figure~\ref{fig:stack-ptr-abuse}.
+The trusted code knows that the stack capability is linear, so when it splits the stack capability, so it has a linear capability for its local stack frame, then it also knows that this part of memory cannot have an alias.
+The trusted code encapsulates the capability for its stack frame by sealing it which provides the guarantee that it can only be accessed when used with the appropriate code return pointer.
+
+% Prevention of attack 2
+In a traditional calling convention with a single stack, the stack is used as a call stack in the sense that it keeps track of the order of the calls.
+If everyone follows the calling convention, then a call pushes a stack frame to the call stack and a return pops the topmost stack frame from the call stack.
+This convention is not followed by the adversarial code in Figure~\ref{fig:ret-ptr-abuse} as the adversarial code skips two stack frames.
+In the presence of adversarial code, we need some enforcement mechanism that forces the adversarial code to follow the call stack order.
+One way to enforce this would be to hand out a token on call that can only be used when the caller's stack frame is on top of the call stack.
+The callee would have to give up this token on return to make sure that the token is only spent once.
+As it turns out, the stack capability for the unused part of the stack can be seen as such a token, so when the callee returns, we expect them to return the stack capability we gave them in the call.
+When we receive a stack capability on return, we will try to splice it with the now unsealed stack capability for our private stack frame.
+If this is successful, then we know that the two capabilities are adjacent.
+If it is unsuccessful or if no stack capability is returned, then we cannot determine whether our stack frame is the topmost.
+The issue illustrated in Figure~\ref{fig:ret-ptr-abuse} is prevented by splicing as illustrated in Figure~\ref{fig:ret-ptr-abuse-prev}.
+\begin{figure}
+  \centering
+  \begin{subfigure}{0.4\linewidth}
+    \centering
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+      % recurrent parts
+      \stdstackstart[13]
+      \inactsf{(0,2)}{(4.5,4)} {\footnotesize Trusted\\ \footnotesize stack frame 1}
+      \inactadv{(0,4)}{(4.5,7)} {\footnotesize Adv. stack frame 1}
+      \inactsf{(0,7)}{(4.5,9)} {\footnotesize Trusted \\ \footnotesize stack frame 2}
+      \actadv{(0,9)}{(4.5,12)} {\footnotesize Adv. stack frame 2}
+
+      \lincapbrace{(4.6,2)}{(4.6,4)}{data return\\\footnotesize cap. 1}
+
+      % Stack pointer 1
+      \lincapbrace{(4.6,4)}{(4.6,7)}{adv. stack\\\footnotesize cap. 1}
+      % return cap
+      \lincapbrace{(4.6,7)}{(4.6,9)}{data return\\\footnotesize cap. 2}
+     %  Stack pointer 2
+      \begin{scope}
+        \clip (4.8,4) rectangle (9,13);
+        \lincapbrace{(4.6,9)}{(4.6,13.5)}{adv. stack\\\footnotesize cap. 2}
+      \end{scope}
+
+    \end{tikzpicture}
+    \caption{The non-duplicable linear stack capability for the trusted code's
+      stack frame and the opacity of sealed capabilities ensures LSE.}
+    \label{fig:stack-ptr-abuse-prev}
+  \end{subfigure}
+  \begin{subfigure}{0.18\linewidth}
+    \phantom{testtestes}
+  \end{subfigure}
+  \begin{subfigure}{0.4\linewidth}
+    \centering
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+      % recurrent parts
+      \stdstackstart[13]
+      \inactsf{(0,2)}{(4.5,4)} {\footnotesize Trusted\\ \footnotesize stack frame 1}
+      \inactadv{(0,4)}{(4.5,7)} {\footnotesize Adv. stack frame 1}
+      \inactsf{(0,7)}{(4.5,9)} {\footnotesize Trusted \\ \footnotesize stack frame 2}
+      \actadv{(0,9)}{(4.5,12)} {\footnotesize Adv. stack frame 2}
+
+      \lincapbrace{(4.6,2)}{(4.6,4)}{data return\\\footnotesize cap. 1}
+
+     %  Stack pointer 2
+      \begin{scope}
+        \clip (4.8,4) rectangle (9,13);
+        \lincapbrace{(4.6,9)}{(4.6,13.5)}{adv. stack\\\footnotesize cap. 2}
+      \end{scope}
+
+      \redcross{(5,4)}
+    \end{tikzpicture}
+    \caption{The trusted caller fails to splice the stack capability returned by
+    the adversary with the capability for the trusted caller's local stack frame.}
+    \label{fig:ret-ptr-abuse-prev}
+  \end{subfigure}
+
+\end{figure}
+
+% Non-empty trusted stack frames.
+
+
+% Where do we get the stack pointer from, how can we know it is linear
+% The other attack.
+
+
+
+% known stack base
+% + more
+% non-empty stack frames
+
+
+\begin{figure}
+  \centering
+  \begin{subfigure}{0.2\linewidth}
+    \centering
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+      % recurrent parts
+      \stdstackstart[13]
+      \inactsf{(0,2)}{(4.5,4)} {\footnotesize Trusted\\ \footnotesize stack frame 1}
+      \actadv{(0,4)}{(4.5,7)}{}
+
+      \lincapbrace{(4.6,2)}{(4.6,4)}{}
+      \begin{scope}
+        \clip (4.8,1) rectangle (9,13);
+      \lincapbracebot{(4.6,4)}{(4.6,13.5)}{}
+      \end{scope}
+
+    \end{tikzpicture}
+    \caption{}
+    \label{fig:stack-base-abuse-a}
+  \end{subfigure}
+  \begin{subfigure}{0.24\linewidth}
+    \centering
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+      % recurrent parts
+      \stdstackstart[13]
+      \inactsf{(0,2)}{(4.5,4)} {\footnotesize Trusted\\ \footnotesize stack frame 1}
+      \inactadv{(0,4)}{(4.5,7)}{\footnotesize Kept by adv.}
+      \node[opacity=0.5,rotate=-45] at (2.25,10) {\footnotesize Sent to trusted};
+      \lincapbrace{(4.6,2)}{(4.6,4)}{}
+      \lincapbrace{(4.6,4)}{(4.6,7)}{}
+      
+      \begin{scope}
+        \clip (4.8,1) rectangle (9,13);
+      \lincapbracebot{(4.6,7)}{(4.6,13.5)}{}
+      \end{scope}
+
+    \end{tikzpicture}
+    \caption{}
+    \label{fig:stack-base-abuse-b}
+  \end{subfigure}
+  \begin{subfigure}{0.24\linewidth}
+    \centering
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+      % recurrent parts
+      \stdstackstart[13]
+      \inactsf{(0,2)}{(4.5,4)} {\footnotesize Trusted\\ \footnotesize stack frame 1}
+      \actadv{(0,4)}{(4.5,7)}{\footnotesize Kept by adv.}
+      \inactsf{(0,7)}{(4.5,9)} {\footnotesize Trusted\\ \footnotesize stack frame 2}
+      \node[opacity=0.5,rotate=-45] at (2.25,11) {\footnotesize Returned to adv.};
+      \lincapbrace{(4.6,2)}{(4.6,4)}{}
+      \lincapbrace{(4.6,4)}{(4.6,7)}{}
+      \lincapbrace{(4.6,7)}{(4.6,9)}{}
+      \begin{scope}
+        \clip (4.8,1) rectangle (9,13);
+        \lincapbracebot{(4.6,9)}{(4.6,13.5)}{}
+      \end{scope}
+
+    \end{tikzpicture}
+    \caption{}
+    \label{fig:stack-base-abuse-c}
+  \end{subfigure}
+  \begin{subfigure}{0.24\linewidth}
+    \centering
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+      % recurrent parts
+      \stdstackstart[13]
+      \actsf{(0,2)}{(4.5,4)} {\footnotesize Trusted\\ \footnotesize stack frame 1}
+
+      \inactsf{(0,7)}{(4.5,9)} {\footnotesize Trusted\\ \footnotesize stack frame 2}
+      \begin{scope}
+        \clip (-.1,-.1) rectangle (4.6,13.1);
+        \draw[fill=gray!50] (0,9) rectangle (4.5,13.5);
+      \end{scope}
+
+      \lincapbrace{(4.6,2)}{(4.6,7)}{}
+      \lincapbrace{(4.6,7)}{(4.6,9)}{}
+
+      \fill[red,draw=red,opacity=.4] (-.1,6.9) rectangle (4.6,9.1);
+      \begin{scope}
+        \clip (4.8,1) rectangle (9,13);
+        \lincapbracebot{(4.6,9)}{(4.6,13.5)}{}
+      \end{scope}
+
+    \end{tikzpicture}
+    \caption{}
+    \label{fig:stack-base-abuse-d}
+  \end{subfigure}
+
+  \label{fig:stk-base-abuse}
+\end{figure}
+
 
 \begin{itemize}
 \item informally explain how an adversary may try to abuse stack and return caps
@@ -276,7 +487,7 @@ The figure on the left (Figure~\ref{fig:stack-ptr-abuse}) blabla
 \section{A Capability Machine with Sealing and Linear Capabilities}
 \label{sec:capab-mach-with}
 \begin{itemize}
-\item present our target language and its operational semantics (excerpts)
+\item present our \emph{target language} and its operational semantics (excerpts)
 \item mention roughly what components look like
 \end{itemize}
 
@@ -343,3 +554,4 @@ Also, both prove a secure compilation result from a high-level language, which c
 % Text of appendix \ldots
 
 \end{document}
+ 
