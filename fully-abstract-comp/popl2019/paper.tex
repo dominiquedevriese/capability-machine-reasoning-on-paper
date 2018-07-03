@@ -279,47 +279,48 @@ They form an opaque closure that the callee can only jump to, and the caller's d
 While the above adds extra protection, it is important to understand that the above is not sufficient for enforcing WBCF and LSE.
 While adversaries only get access to capabilities that they are allowed to use during the stack frame, they have ways to store these capabilities and use them when they are no longer allowed to do so.
 Figure~\ref{fig:stack-ret-ptr-abuse} illustrates two examples of this.
-In both examples some trusted and adversarial code has been taking turns calling each other, so the stack now alternates between stack frame of the trusted and adversarial code.
-The figure on the left (Figure~\ref{fig:stack-ptr-abuse}) illustrates how the trusted code tries to ensure LSE by restricting the stack capability to the unused part before every call to the adversary.
-However, restricting the stack capability does not help when the trusted code in the first call gave access to the part of the stack where the stack frame of the second call now resides.
-Generally speaking, the trusted code has no reason to ever trust a stack capability it receives from adversarial code as the adversarial code may have duplicated the stack capability and stored it for later use.
-In the figure on the right (Figure~\ref{fig:ret-ptr-abuse}), the trusted code has given the adversarial code two sealed pairs of return capabilities, one in each of the calls to the adversarial code.
-The adversarial code may have stored the pair of sealed return pointers from the first call, so that it can access it in the second call.
-The figure illustrates how the adversarial code uses the return pair from the first call breaking WBCF.
+In both examples our component and some adversarial component have been taking turns calling each other, so the stack now contains four stack frames alternating between ours and theirs.
+The figure on the left (Figure~\ref{fig:stack-ptr-abuse}) illustrates how we try to ensure LSE by restricting the stack capability to the unused part before every call to the adversary.
+However, restricting the stack capability does not help when we in the first call give access to the part of the stack where our second stack frame will reside as nothing prevents the adversary from duplicating and storing the stack pointer.
+Generally speaking, we have no reason to ever trust a stack capability received from a component we do not trust as that stack capability may have been duplicated and stored for later use.
+In the figure on the right (Figure~\ref{fig:ret-ptr-abuse}), we have given the adversary two pairs of sealed return capabilities, one in each of the two calls to the adversarial component.
+The adversary may have stored the pair of sealed return capabilities from the first call in order to use it in the second call where they are not allowed to use it.
+The figure illustrates how the adversarial code uses the return pair from the first call to return from the second call an thus breaks WBCF.
 
+\todo[inline]{If target cap. machine is introduced before this section, then revisit/delete this section.}
 % Informally explain how we prevent this using linear capabilities
-As the examples illustrate, the standard memory and object-like capabilities do not provide sufficient guarantees to enforce LSE and WBCF.
+As the examples illustrate, the standard memory and object-like capabilities (sealed capabilities) do not provide sufficient guarantees to enforce LSE and WBCF.
 The two properties can be enforced with a calling convention that utilizes the guarantees of linear capabilities.
-In the following, we will describe such a calling convention through motivating examples, and in later sections, we will prove that it actually enforces LSE and WBCF.
-We call the calling convention StackTokens for reasons that will become clear later.
-
 % What is linear capabilities, split/splice
-A linear capability is a capability that cannot be duplicated.
-This is enforced dynamically, so when a linear capability is moved between registers or stored to memory, the source register is cleared, and when a linear capability is read from memory, the source address is cleared.
-A capability machine with linear capabilities also needs special instructions to split and splice. Split and splice do exactly what their names indicate: Split splits a capability into two capabilities with the same permissions and with ranges that are disjointed but sum up to the range of the original capability, and splice does the inverse.
+A linear capability is a capability with no alias that cannot be duplicated.
+This is enforced dynamically on the capability machine, so when a linear capability is moved between registers or stored to memory, the source register is cleared, and when a linear capability is read from memory, the source address is cleared.
+A capability machine with linear capabilities also needs special instructions to split and splice.
+Split and splice do exactly what their names suggest: Split splits a capability into two capabilities with the same permissions and with ranges that are disjointed and sum up to the range of the original capability, and splice does the inverse.
 
 % Stack capability linear
-The linear capabilities are put to use by using a linear capability for the stack pointer.
-When a trusted piece of code makes a call, it splits the stack capability in two, so it has a stack capability for its stack frame and one for the unused part of the stack.
-The stack capability for the caller stack frame is sealed and used as the data part of the sealed return pair.
-The stack capability for the remainder of the stack is given to the callee.
+The linear capabilities are put to use by requiring the stack capability to be linear.
+On call, the caller splits the stack capability in two, so they have a capability for their local stack frame and a capability for the unused part of the stack.
+The stack capability for their local stack frame is sealed and used as the data part of the sealed return pair, and the stack capability for the remainder of the stack is given to the callee.
 % Prevention of left attack non-aliasing of linear capabilities - token like (ensuring LSE)
-As illustrated in Figure~\ref{fig:stack-ptr-abuse-prev}, this prevents the issue illustrated in Figure~\ref{fig:stack-ptr-abuse}.
-The trusted code knows that the stack capability is linear, so when it splits the stack capability, so it has a linear capability for its local stack frame, then it also knows that this part of memory cannot have an alias.
-The trusted code encapsulates the capability for its stack frame by sealing it which provides the guarantee that it can only be accessed when used with the appropriate code return pointer.
+Because the stack capability is linear the caller knows that the capability for their local stack frame cannot have an alias.
+This means that an adversary will need the stack capability the caller produced in order to access their local data.
+While the caller gives the capability to the adversary, it is only after the caller seals it which makes the capability opaque.
+This is illustrated in Figure~\ref{fig:stack-ptr-abuse-prev} and prevents the issue illustrated in Figure~\ref{fig:stack-ptr-abuse}.
 
 % Prevention of attack 2
-In a traditional calling convention with a single stack, the stack is used as a call stack in the sense that it keeps track of the order of the calls.
-If everyone follows the calling convention, then a call pushes a stack frame to the call stack and a return pops the topmost stack frame from the call stack.
-This convention is not followed by the adversarial code in Figure~\ref{fig:ret-ptr-abuse} as the adversarial code skips two stack frames.
-In the presence of adversarial code, we need some enforcement mechanism that forces the adversarial code to follow the call stack order.
+In a traditional calling convention with a single stack, the stack serves as a call stack keeping track of the order calls where made in and thus in which order they should be returned to.
+A caller pushes a stack frame to the stack on call and a callee pops a stack frame from the stack upon return.
+However without any enforcement, there is nothing to prevent a callee from returning from an arbitrary call on the call stack.
+This is exactly what the adversary does in Figure~\ref{fig:ret-ptr-abuse} when they skip two stack frames.
+In the presence of adversarial code, we need some enforcement mechanism that allows us to make sure that the order of the call stack is kept.
 One way to enforce this would be to hand out a token on call that can only be used when the caller's stack frame is on top of the call stack.
-The callee would have to give up this token on return to make sure that the token is only spent once.
-As it turns out, the stack capability for the unused part of the stack can be seen as such a token, so when the callee returns, we expect them to return the stack capability we gave them in the call.
-When we receive a stack capability on return, we will try to splice it with the now unsealed stack capability for our private stack frame.
-If this is successful, then we know that the two capabilities are adjacent.
-If it is unsuccessful or if no stack capability is returned, then we cannot determine whether our stack frame is the topmost.
-The issue illustrated in Figure~\ref{fig:ret-ptr-abuse} is prevented by splicing as illustrated in Figure~\ref{fig:ret-ptr-abuse-prev}.
+The callee would have to provide this token on return to prove that it is allowed to return to the caller, and on return the token would be taken back by the caller to prevent it from being spent multiple times.
+As it turns out, the stack capability for the unused part of the stack can be used as such a token in the following way:
+On return the callee has to give back the stack capability they were given on invocation.
+When the caller receives a stack capability back on return, they need to check that this token is actually spendable, i.e.\ check whether their stack frame is on top of the call stack.
+They do this by attempting to restore the stack capability from before the call by splicing the return token with the stack capability for the local stack frame which at this point has been unsealed again.
+If the splice is successful, then the caller knows that the two capabilities are adjacent. On the other hand, if the splice fails, then they are alerted to the fact that their stack frame may not be the topmost.
+StackTokens uses this approach, and as illustrated in Figure~\ref{fig:ret-ptr-abuse-prev} it prevents the issue in Figure~\ref{fig:ret-ptr-abuse} as the adversary does not return a spendable token when they return.
 \begin{figure}
   \centering
   \begin{subfigure}{0.4\linewidth}
@@ -382,72 +383,69 @@ The issue illustrated in Figure~\ref{fig:ret-ptr-abuse} is prevented by splicing
 \end{figure}
 
 % Non-empty trusted stack frames.
-In this token-based scheme, it is important that the caller keeps a bit of the token which corresponds to having a non-empty stack frame.
-In a traditional C-like calling convention, this is natural as the caller needs to push information such as the old stack pointer and the old program counter to the stack.
-On a capability machine with CHERI's sealed capabilities, this is not necessary as the old program counter capability and the capability for the caller's stack frame is sealed in the return pair, and they will become unsealed when jumped to.
-If the caller has an empty stack frame, then they have entirely given up all of their return token which practically means that they are not present on the call stack and thus have no way verify whether it is their turn to be returned to.
+In order for a call to have a presence on the call stack, its stack frame must be non-empty.
+If we could have empty stack frames on the call stack, then it would be impossible to tell whether the topmost non-empty stack frame has an empty stack frame on top of it.
+Non-empty stack frames come naturally in traditional C-like calling convention as they keep track of old stack pointers and old program counters on the stack, but in StackTokens these things are part of the return pair which means that a caller with no local data may only need an empty stack frame.
+This means that a caller using StackTokens needs to take care that their stack frame is non-empty in order to reserve their spot in the return order.
+There is also a more practical reason for a StackTokens caller to make sure their stack frame is non-empty: They need a bit of the stack capability in order to perform the splice that verifies the validity of the return token.
 
 % known stack base
 % + more
-We check that the returned stack capability is adjacent to the stack capability for our local stack frame, but this does not guarantee that it is the same token as we gave away in the call.
-Specifically, we have no idea whether the callee has kept part of the token for themselves and only given us back the part that is adjacent to our token.
-If we do not make sure that the entire token is returned, then it is possible for an adversary to break WBCF.
-This is illustrated in Figure~\ref{fig:stk-base-abuse}: Some trusted code has created a stack frame with their local data and called a piece of untrusted code giving them access to the remainder of the stack.
-This situation is illustrated in Figure~\ref{fig:stack-base-abuse-a}.
-Now the adversarial code keeps the stack capability for the part of the stack adjacent to the trusted code's stack frame.
-The adversary does not seal this part in a return pair, but simply stores it on the heap.
-At this point the adversary calls the trusted code with the remainder of the stack capability as illustrated in Figure~\ref{fig:stack-base-abuse-b}.
-At some point the trusted code calls the adversary again leaving a second stack frame on the stack an giving the adversary the rest.
-At this point, the adversary has access to the stack capability passed in the second call performed by the trusted code as well as the stack capability stored away after the first call (Figure~\ref{fig:stack-base-abuse-c}).
-Now the adversary has access to a stack capability for part of the stack adjacent to the first stack frame of the trusted caller.
-The adversary can use this stack capability to return from the first call without ever returning from the second call thus breaking WBCF (Figure~\ref{fig:stack-base-abuse-d}).
-In this scenario, the issue arises because we do not check whether the entire token was returned to us.
-We could do this by checking whether the base address\footnote{The stack grows downwards in the address space} of the token returned to us correspond to the base address of the token we provided in the call.
-In the scenario we just sketched, we would be alerted to an attempt to break WBCF as the base address of the token returned to us in Figure~\ref{fig:stack-base-abuse-d} does not correspond to the base address of the token we passed to the adversary in Figure~\ref{fig:stack-base-abuse-a}.
+At this point, the caller checks that the return token is adjacent to the stack capability for the caller's local stack frame and they have the means to do so.
+However, this does not make sure that the caller's stack frame is on top of the call stack.
+The issue is that stack frames may not be tightly packed leaving space between stack frames in memory.
+An adversarial callee may even intentionally leave a bit of space in memory above the caller's stack frame, so that they later can return out of order by returning the bit of the return token for the bit of memory left above the caller's stack frame.
+This is illustrated in Figure~\ref{fig:stk-base-abuse}: In Figure~\ref{fig:stack-base-abuse-a}, a trusted caller has called an adversarial callee.
+The adversary calls the trusted code back, but first they split the return token in two and store on the heap the part for the memory adjacent to the trusted caller's call frame (Figure~\ref{fig:stack-base-abuse-b}).
+The trusted caller calls the adversary back using the precautions we have described so far (Figure~\ref{fig:stack-base-abuse-c}).
+At this point (Figure~\ref{fig:stack-base-abuse-b})), the adversary has access to a partial return token adjacent to the trusted caller's first stack frame which allows the adversary to return from this call breaking WBCF.
+For the caller to be sure that there are no hidden stack frames above its own, they need to make sure that the return token is exactly the same as the one they passed to the callee.
+In StackTokens, the caller verifies the validity of the return token by checking whether the base address\footnote{The stack grows downwards in the address space} of a returned token corresponds to the base address of the return token they gave to the callee.
+In the scenario we just sketched, the caller would be alerted to the attempt to break WBCF when the base address check of the return token fails in Figure~\ref{fig:stack-base-abuse-d}.
 
 % Where do we get the stack pointer from, how can we know it is linear
 % The other attack.
-At this point, we have the means to check whether a token actually corresponds to the one that we passed away.
-So far, we have claimed that this can be used to make certain that it is our turn on some call stack, but in order to have WBCF all the well-behaved code must use the same call stack.
-In the case where we are invoked by some adversarial code, we have no way to be sure whether the stack capability passed to us stems from the same stack used to call other well-behaved code.
-For example, an adversary could call us with a callback and some linear capability as the stack capability.
-Assuming we choose to trust the stack, we use it for the necessary token and invoke the callback.
-Now, the adversary could take a completely different linear capability and call some well-behaved code (it could be us) with a callback.
-The same thing happens again: The callback is called, so a return token is generated and passed to the adversary.
-At this point, the adversary has a return token from passed in each call of the callback.
-Both of the return tokens are intact which means that the adversary can return from either callback.
-From a high-level perspective, the problem is that both well-behaved programs believe that they are on top of the call stack.
-They are both correct as the adversarial code has created two different call stacks.
+At this point, the caller is able to verify whether a return token is spendable which allows them to decide whether they have the topmost stack frame on a call stack.
+However, in order to have WBCF there should only be one call stack, so the caller should also be able to verify that they have the top stack frame on the call stack used by all well-behaved components.
+In case a trusted component did not start the execution on the machine, i.e.\ they were called by another component, then the trusted component has no way to be sure whether the stack capability passed to them corresponds to the one and only call stack.
+To illustrate how an adversarial component can break WBCF by using multiple different stack capabilities consider this example: An adversary calls a trusted component with a callback and some linear capability that they claim is the stack capability.
+The trusted component executes using the stack capability given to them and at some point they invoke the callback creating return tokens and so on.
+The adversary stores the return pair and return token and calls another trusted component but with a new callback and a new linear capability that they claim is the stack capability.
+Again, this trusted component also executes using the stack capability given to them and at some point they too invoke the callback taking all the precautions we have described so far.
+At this point, the adversary has everything they need to return from either of the two callbacks.
+Specifically, they could return from the first callback invocation before they have returned from the second which would break WBCF.
+From a high-level perspective, the problem is that both trusted components will be able to verify that they have the top stack frame on the call stack.
+They are both correct as the adversarial component has created two call stacks, one for each of the components.
 In order to solve this problem, the well-behaved code needs to somehow agree on the call stack.
-We do this by deciding on a global base address for the stack which is used for the entirety of the execution.
-In order to make sure that we are actually using the correct stack, we check that the base address of the stack capability we receive corresponds to the globally decided stack base address.
-This also means that on every return, it will be this address that we check for when we make sure that the entire token was returned to us.
+We do this by statically deciding on a global base address for the stack which is used for the entirety of the execution.
+A caller makes sure that they are using the correct stack by checking that the base address of the stack capability they receive corresponds to the global stack base address.
+This also means that on every return, the caller will check whether the return token's base address is equal to the global stack address.
 
 Having a globally decided stack address also solves another challenge.
-Namely, the stack capability has to be linear in order for us to use it as a token, so in principle we would have to check that this is the case whenever we receive a stack capability.
-This is, however, checked when we check that the stack capability governs the global stack base address.
-The stack capability needs to be linear for us to use it as a token, and if the stack base address is part of the stack, then it must be governed by a linear capability when execution begins. 
-Due to the non-duplicability of linear capability and the fact that they cannot become non-linear during execution, we know during execution that if we have a capability that governs the stack base address, then it must be linear.
+Namely, the stack capability has to be linear in order for a caller to use it as a token, so a caller has to make sure that a capability is in fact linear when it is proposed as the stack capability by an untrusted source.
+This is, however, implicitly checked when the caller checks that the stack capability governs the global stack base address.
+The reason is that the stack capability needs to start execution as a linear capability which means that the capability that governs the global stack base address to begin with is linear.
+Due to the non-duplicability of linear capability and the fact that they cannot become non-linear during execution, the caller knows that if they have a capability that governs the global stack base address, then it must be linear.
 
 % Return pointers/return seals
 The return pointer in the StackToken scheme is a pair of sealed capabilities where the code part of the pair is the old program counter and the data part is the stack capability for the local stack frame of the caller.
 Both of the capabilities in the pair are of course sealed with the same seal.
 % One seal per return point
-All call points need to be associated with a unique seal that is only used to seal the capabilities in the return pair for that call point.
-We refer to the seals used to create return pairs as return seals.
-The return seal is what associates the stack frame on the call stack with a call in a program, so if we allowed return seals to be reused, it would be possible to return to a different call than the one that caused the stack frame to be pushed on the call stack which would break WBCF.
-For similar reasons, we cannot allow return seals to be used to seal a closure.
+All call points need to be associated with a unique seal (a return seal) that is only used to seal the capabilities in the return pair for that particular call point.
+The return seal is what associates the stack frame on the call stack with a specific call point in a program, so if we allowed return seals to be reused, it would be possible to return to a different call point than the one that caused the stack frame to be pushed on the call stack which would break WBCF.
+For similar reasons, we cannot allow return seals to be used to seal closures.
 % Don't be stupid
 Return seals should never be leaked to adversarial code as this would allow them to unseal the local stack frame of a caller breaking LSE.
-This goes for direct leaks, such as leaving a seal in a register or writing it to adversarial memory, as well as indirect leaks, where a capability for reading a return seal from memory is leaked (either directly or indirectly).
+This goes for direct leaks, such as leaving a seal in a register or writing it to adversarial memory, as well as indirect leaks, where a capability for reading a return seal (either directly or indirectly) from memory is leaked.
 
 % Note about them vs us, we do nothing that they couldn't do
-In the description of StackToken, we have described it in terms of ``them vs us''.
-This may create the impression of an asymmetric calling convention that allows us to protect us against some adversary, but what if the adversary does not trust us and want to guarantee LSE and WBCF?
-The answer is simple: We have made no assumptions that the adversary cannot make, and we put no restrictions on the adversary that we do not follow, so they can employ StackTokens to get the exact same guarantees as us!
+In the description of the StackToken calling scheme, it has sometimes been in terms of us ``them vs us''.
+This may have created the impression of an asymmetric calling convention that places a special status on trusted components allowing them to protect themselves against adversaries.
+However, StackTokens is a modular calling scheme no restriction is put on adversarial components that we do not expect trusted components to meet.
+This means that any component can ensure WBCF and LSE by employing StackTokens.
 
 % Summary of CC
-In the previous section, we have described our proposed calling convention, StackTokens.
+In the this section, we have described our proposed calling convention, StackTokens.
 In this paragraph we summarize it:
 \begin{description}
 \item[Check the base address of the stack capability before and after calls] 
@@ -588,6 +586,7 @@ In this paragraph we summarize it:
 \item explain how fully abstract overlay semantics could form one pass of a verified secure compiler.
 \item Performance?  Implementability of linear caps?
 \item Sharing stack references accross component boundaries is supported
+\item Other notions of well-bracketedness (specifically one would be to allow different stacks)
 \end{itemize}
 
 \section{Related Work}
