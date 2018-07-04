@@ -260,10 +260,10 @@ This independent result could then be composed with our result to obtain securit
 \multicolumn{3}{l}{    \arraycolsep=0pt
       \com{r} \in  \tRegName \hspace{2.5cm}   \com{\rn} \defbnf \com{r} \mid \nats
 }\\
-\Instr &\defbnf & \tfail \mid \thalt \mid \tjmp{\com{r}} \mid \tjnz{\com{r}}{\com{\rn}} \mid \tisptr{\com{r}}{\com{r}} \mid \tgeta{\com{r}}{\com{r}} \mid \tgetb{\com{r}}{\com{r}} \mid \tgete{\com{r}}{\com{r}}\mid\tgetp{\com{r}}{\com{r}} \mid\\
-      & &    \tgetlin{\com{r}}{\com{r}} \mid \tmove{\com{r}}{\com{\rn}} \mid \tstore{\com{r}}{\com{r}} \mid \tload{\com{r}}{\com{r}} \mid \tcca{\com{r}}{\com{\rn}} \mid \trestrict{\com{r}}{\com{\rn}} \mid \tlt{\com{r}}{\com{\rn}}{\com{\rn}} \mid \\
-  & & \tplus{\com{r}}{\com{\rn}}{\com{\rn}} \mid \tminus{\com{r}}{\com{\rn}}{\com{\rn}} \mid \tsetatob{\com{r}} \mid \txjmp{\com{r}}{\com{r}} \mid \tcseal{\com{r}}{\com{r}} \mid \tsplit{\com{r}}{\com{r}}{\com{r}}{\com{\rn}} \mid\\ 
-      & & \tsplice{\com{r}}{\com{r}}{\com{r}} 
+  \Instr &\defbnf & \tjmp{\com{r}} \mid \tjnz{\com{r}}{\com{\rn}} \mid \tmove{\com{r}}{\com{\rn}} \mid \tload{\com{r}}{\com{r}} \mid \tstore{\com{r}}{\com{r}} \mid \tplus{\com{r}}{\com{\rn}}{\com{\rn}} \mid \tminus{\com{r}}{\com{\rn}}{\com{\rn}} \mid\\
+         & & \tlt{\com{r}}{\com{\rn}}{\com{\rn}} \mid \tisptr{\com{r}}{\com{r}} \mid\tgetp{\com{r}}{\com{r}} \mid \tgetlin{\com{r}}{\com{r}} \mid \tgetb{\com{r}}{\com{r}} \mid \tgete{\com{r}}{\com{r}} \mid \tgeta{\com{r}}{\com{r}}  \mid \\
+  & & \tcca{\com{r}}{\com{n\rn}} \mid \tsetatob{\com{r}} \mid \trestrict{\com{r}}{\com{\rn}} \mid \tcseal{\com{r}}{\com{r}} \mid \txjmp{\com{r}}{\com{r}} \mid  \tsplit{\com{r}}{\com{r}}{\com{r}}{\com{\rn}} \mid\\ 
+      & & \tsplice{\com{r}}{\com{r}}{\com{r}} \mid \tfail \mid \thalt 
 \end{array}
 \]
   \caption{The syntax of our capbility machine with seals and linera capbilities.}
@@ -277,6 +277,20 @@ We will later introduce a capability machine similar to the one in this section,
 In order to avoid details uninteresting to the focus of this work, \trgcm{} assumes an infinite address and unbounded integers.
 \lau{Do we have a good reason to assume an infinite address space for this work?
   We do not model malloc, so we do not need to worry about what happens when malloc runs out of memory.}
+
+%%% Capabilities
+The concept of a capability is the cornerstone of any capability machine.
+In its simplest form, a capability is a permission and a range of authority.
+The permission dictates the operations the capability can be used for, and the range of authority specifies the range of memory it can act upon.
+% Permissions and Range of authority
+The capabilities of \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (as defined in Figure~\ref{fig:target-syntax} along with the rest of the syntax of \trgcm{}) where $\var{perm}$ is the permission and $[\var{base},\var{end}]$ is the range of authority.
+\trgcm{} only has memory capabilities, and we limit them to a number of sensible permissions making the available permissions: read-write-execute ($\rwx$), read-write ($\rw$), read-execute ($\rx$), read-only ($\ro$), and null-permission ($\noperm$).
+We define the preorder $\le$ on permissions as illustrated in Figure~\ref{fig:perm-hier}.
+% Pointer and linearity
+In addition to the two basic things, the capabilities also have a current address $\addr$ and a linearity $\lin$. The linearity of a capability can either be $\linear$ or $\normal$ where $\normal$ corresponds to a traditional capability.
+% What is linear capabilities, split/splice
+A linear capability is a capability with no alias that cannot be duplicated.
+This is enforced dynamically on the capability machine, so when a linear capability is moved between registers or stored to memory, the source register is cleared, and when a linear capability is read from memory, the source address is cleared. We will see this later in this section when we get to the operational semantics.
 
 \begin{wrapfigure}{r}{0.33\linewidth}
   \centering
@@ -302,16 +316,6 @@ In order to avoid details uninteresting to the focus of this work, \trgcm{} assu
   \caption{Permission hierarchy}
   \label{fig:perm-hier}
 \end{wrapfigure}
-%%% Capabilities
-The concept of a capability is the cornerstone of any capability machine.
-In its simplest form, a capability is a permission and a range of authority.
-The permission dictates the operations the capability can be used for, and the range of authority specifies the range of memory it can act upon.
-% Permissions and Range of authority
-The capabilities of \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (as defined in Figure~\ref{fig:target-syntax} along with the rest of the syntax of \trgcm{}) where $\var{perm}$ is the permission and $[\var{base},\var{end}]$ is the range of authority.
-\trgcm{} only has memory capabilities, and we limit them to a number of sensible permissions making the available permissions: read-write-execute ($\rwx$), read-write ($\rw$), read-execute ($\rx$), read-only ($\ro$), and null-permission ($\noperm$).
-We define the preorder $\le$ on permissions as illustrated in Figure~\ref{fig:perm-hier}.
-% Pointer and linearity
-In addition to the two basic things, the capabilities also have a current address $\addr$ and a linearity $\lin$. The linearity of a capability can either be $\linear$ or $\normal$ where $\normal$ corresponds to a traditional capability. We will describe linear capabilities in detail when we get to the operational semantics of \trgcm{}.
 
 %%% Seals
 Any reasonable capability machine needs a way to setup boundaries between security domains as well as a way to cross the boundaries in a way where each domain retains their authority.
@@ -327,29 +331,13 @@ The system native tokens on \trgcm{} are the sealables and the sealed capabiliti
 
 %%% Domains
 The words on \trgcm{} are the system native tokens in $\Cap$ and data which is represented by $\ints$.
-We assume a finite set $\RegName$ of register names that at least contains $\{\pcreg , \rretd , \rretc , \rstk , \rdata , \rtmp{1} , \rtmp{2}\}$, and we define register files as a function from register names to words.
+We assume a finite set $\RegName$ of register names that at least contains registers $\pcreg$, $\rretd$, $\rretc$, $\rstk$, $\rdata$, $\rtmp{1}$, and $\rtmp{2}$, and we define register files as a function from register names to words.
 A memory is a full memory and a memory segment is part of a memory.
 Both are defined as functions from addresses, defined as the natural numbers, to words, but the memory segment functions only need to be partial.
 $\trgcm{}$ has two terminated configurations $\halted$ and $\failed$ that respectively signify a successful execution and an execution with an attempt to break the capability machine guarantees.
 An executable configuration is a register file and memory pair. 
 
-% syntax (instructions)
-% opsem
-% move w/ lin
-% load w/ lin
-% cseal
-% xjmp
-% split/splice
-
-
-% Components ...
-% write xor exec
-% contents
-% linking
-
-
-
-\begin{figure}[h]
+\begin{figure}[p]
   \centering
   \[
     \begin{array}{l}
@@ -418,7 +406,37 @@ An executable configuration is a register file and memory pair.
 \caption{An excerpt of the operational semantics of our capability machine with sealing and linear capabilities.}
   \label{fig:target-op-sem}
 \end{figure}
-\FloatBarrier
+% syntax (instructions)
+\trgcm{}'s instruction set is somewhat basic with the instructions one expects on most low-level machine as well as capability machine specific instructions.
+The instructions that can be considered standard are: unconditional and a conditional jump (\texttt{jmp} and \texttt{jnz}), copy between registers (\texttt{move}), instructions that load from memory and store to memory (\texttt{load} and \texttt{store}), and arithmetic operations (\texttt{plus}, \texttt{minus}, and \texttt{lt}).
+The simplest of the capability machine specific instructions simply inspect system native tokens or project one of their fields.
+These are \texttt{gettype} (for getting the type of a system token) and \texttt{getp}, \texttt{getl}, \texttt{getb}, \texttt{gete}, and \texttt{geta} (for projecting permission, linearity, base, end, and current address(/seal), respectively).
+There are two instructions for manipulating the current address(/seal) of a capability(/set of seals): \texttt{cca} changes the current address(/seal) of a capability(/set of seals) by some offset, and \texttt{seta2b} set the current address(/seal) of a capability(/set of seals) to the base address(/seal).
+The \texttt{restrict} instruction reduces the permission of a capability according to the permission order $\le$.
+Generally speaking, a capability machine needs an instruction for reducing the range of authority of an capability.
+Because \trgcm{} has linear capabilities the instruction for this splits the capability in two rather than reducing the range of authority (instruction \texttt{split}).
+\trgcm{} also has an instruction that does the inverse of this, so a linear capability, or any capability for that matter, that has been split can be restored (\texttt{splice}).
+\trgcm{} has instructions for sealing sealables (\texttt{cseal}) and unsealing pairs of sealed capabilities (\texttt{xjmp}).
+Finally, \trgcm{} has instructions to signal whether an execution was successful or not (\texttt{halt} and \texttt{fail}).
+
+An representative excerpt of the operational semantics is shown in Figure~\ref{fig:target-op-sem}.
+% opsem
+% move w/ lin
+% load w/ lin
+% cseal
+% xjmp
+% split/splice
+\todo[inline]{Write this.}
+
+% Components ...
+% write xor exec
+% contents
+% linking
+\todo[inline]{Write this.}
+
+Some simplifications has been made in this presentation of \trgcm{}. We refer to the accompanying technical report\citep{technical_report} for all details.
+
+%\FloatBarrier
 % \begin{itemize}
 % \item present our \emph{target language} and its operational semantics (excerpts)
 % \item mention roughly what components look like
@@ -503,11 +521,6 @@ The figure illustrates how the adversarial code uses the return pair from the fi
 % Informally explain how we prevent this using linear capabilities
 As the examples illustrate, the standard memory and object-like capabilities (sealed capabilities) do not provide sufficient guarantees to enforce LSE and WBCF.
 The two properties can be enforced with a calling convention that utilizes the guarantees of linear capabilities.
-% What is linear capabilities, split/splice
-A linear capability is a capability with no alias that cannot be duplicated.
-This is enforced dynamically on the capability machine, so when a linear capability is moved between registers or stored to memory, the source register is cleared, and when a linear capability is read from memory, the source address is cleared.
-A capability machine with linear capabilities also needs special instructions to split and splice.
-Split and splice do exactly what their names suggest: Split splits a capability into two capabilities with the same permissions and with ranges that are disjointed and sum up to the range of the original capability, and splice does the inverse.
 
 % Stack capability linear
 The linear capabilities are put to use by requiring the stack capability to be linear.
