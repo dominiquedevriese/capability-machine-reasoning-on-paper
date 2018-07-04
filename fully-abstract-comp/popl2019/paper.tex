@@ -47,12 +47,22 @@
                         %% http://ctan.org/pkg/subcaption
 \usepackage{wrapfig}
 
+\usepackage{placeins}
+
 \usepackage{todonotes}
 
 \input{preamble-illu}
 
 \input{../preamble}
-
+% Paper specific redefinitions of commands
+\renewcommand{\MemSeg}{\shareddom{MemSeg}}
+\renewcommand{\Reg}{\shareddom{RegFile}}
+\renewcommand{\RegName}{\shareddom{RegName}}
+\renewcommand{\decInstr}[1]{\plainfun{decode}{#1}}
+\renewcommand{\updPcAddr}[1]{\plainfun{updPc}{#1}}
+\renewcommand{\linCons}[1]{\plainfun{linClear}{#1}}
+\renewcommand{\nonExec}[1]{\plainfun{nonExec}{#1}}
+\newcommand{\xjmpres}[1]{\plainfun{xjmpRes}{#1}}
 
 \begin{document}
 
@@ -218,8 +228,120 @@ This independent result could then be composed with our result to obtain securit
 %   National Science Foundation.
 % \end{acks}
 
+\section{A Capability Machine with Sealing and Linear Capabilities}
+\label{sec:cap-mach-w-seal-and-lin}
+\begin{itemize}
+\item present our \emph{target language} and its operational semantics (excerpts)
+\item mention roughly what components look like
+\end{itemize}
+\begin{figure}[htb]
+  \centering
+  \[
+  \arraycolsep=1.4pt
+  \begin{array}{rrcl l rrcl}
+   \addrbnf,\basebnf \in & \Addr & \defeq & \nats & \phantom{mak} & \sealbasebnf, \sigma \in & \Seal & \defeq & \nats\\
+    \permbnf \in& \Perm & \defbnf & \rwx \mid \rx \mid \rw \mid \ro \mid \noperm & & &\linbnf & \defbnf & \linear \mid \normal\\
+    &\aendbnf & \in & \Addr \cup \{\infty \} & & &\sealendbnf & \in & \Seal \cup \{\infty \}\\
+    \scbnf \in &\SealableCaps&\defbnf & \multicolumn{6}{l}{((\permbnf,\linbnf),\basebnf,\aendbnf,\addrbnf) \mid \seal{\sealbasebnf,\sealendbnf,\sigma}}\\
+    \cbnf \in&\Caps& \defbnf &  \SealableCaps \mid \sealed{\sigma,\scbnf} & & w \in &\Word & \defeq & \ints \uplus \Caps\\ 
+    \rbnf \in& \RegName & \defbnf & \multicolumn{6}{l}{\pcreg \mid \rretd \mid \rretc \mid \rstk \mid \rdata \mid \rtmp{1} \mid \rtmp{2} \mid \dots} \\
+    &\Reg & \defeq & \RegName \fun \Word & & &\Mem & \defeq & \Addr \fun \Word\\
+    &\MemSeg & \defeq & \Addr \parfun \Word & & \Phi \in & \ExecConf & \defeq & \Mem \times \Reg\\
+    &\Conf & \defeq & \multicolumn{6}{l}{\ExecConf \cup \{\failed\} \cup \{\halted\} }
+  \end{array}
+\]
+\[
+  \arraycolsep=1.4pt
+\begin{array}{rcl}
+\multicolumn{3}{l}{    \arraycolsep=0pt
+      \com{r} \in  \tRegName \hspace{2.5cm}   \com{\rn} \defbnf \com{r} \mid \nats
+}\\
+\Instr &\defbnf & \tfail \mid \thalt \mid \tjmp{\com{r}} \mid \tjnz{\com{r}}{\com{\rn}} \mid \tisptr{\com{r}}{\com{r}} \mid \tgeta{\com{r}}{\com{r}} \mid \tgetb{\com{r}}{\com{r}} \mid \tgete{\com{r}}{\com{r}}\mid\tgetp{\com{r}}{\com{r}} \mid\\
+      & &    \tgetlin{\com{r}}{\com{r}} \mid \tmove{\com{r}}{\com{\rn}} \mid \tstore{\com{r}}{\com{r}} \mid \tload{\com{r}}{\com{r}} \mid \tcca{\com{r}}{\com{\rn}} \mid \trestrict{\com{r}}{\com{\rn}} \mid \tlt{\com{r}}{\com{\rn}}{\com{\rn}} \mid \\
+  & & \tplus{\com{r}}{\com{\rn}}{\com{\rn}} \mid \tminus{\com{r}}{\com{\rn}}{\com{\rn}} \mid \tsetatob{\com{r}} \mid \txjmp{\com{r}}{\com{r}} \mid \tcseal{\com{r}}{\com{r}} \mid \tsplit{\com{r}}{\com{r}}{\com{r}}{\com{\rn}} \mid\\ 
+      & & \tsplice{\com{r}}{\com{r}}{\com{r}} 
+\end{array}
+\]
+  \caption{The syntax of our capbility machine with seals and linera capbilities.}
+  \label{fig:target-syntax}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \[
+    \Phi \step
+  \begin{cases}
+    \sem{\decInstr{\Phi.\mem(\aaddr)}}(\Phi) &
+    \arraycolsep=0pt
+      \begin{array}[t]{l}
+        \text{if }\Phi(\pcreg) = ((\perm,\_),\baddr,\eaddr,\aaddr) \wedge
+        \baddr \le \aaddr \le \eaddr \wedge \perm \in \{\rwx,\rx\}
+      \end{array} \\
+      \failed & \totherwise
+  \end{cases}
+\]
+\[
+  \updPcAddr{\Phi} =
+  \begin{cases}
+    \Phi\updReg{\pcreg}{w} & \Phi(\pcreg) = ((\perm,\lin),\baddr,\eaddr,\aaddr) \wedge w = ((\perm,\lin),\baddr,\eaddr,\aaddr+1)\\
+    \Phi  & \totherwise
+  \end{cases}
+\]
+\[
+  \linCons{w} =
+  \begin{cases}
+    0 & \isLinear{w} \\
+    w & \totherwise
+  \end{cases}
+\] 
+\[
+  \xjmpres{c_1,c_2,\Phi} =
+  \begin{cases}
+    \Phi\updReg{\pcreg}{c_1}\updReg{\rdata}{c_2} & \nonExec{c_2} \\
+    \failed & \totherwise
+  \end{cases}
+\]
+  \begin{tabular}{|>{$}c<{$}|>{$}p{3.4cm}<{$}|>{\raggedright\arraybackslash}p{7cm}|}
+    \hline
+    i \in \Instr                                 & \sem{i}(\Phi) & Conditions\\
+    \hline
+    \halt                                        & \halted & \\
+    \hline
+    \fail                                        & \failed & \\
+    \hline
+    \move{r}{\rn}                                & \updPcAddr{\Phi\updReg{r}{\rn}} & $\rn \in \ints$\\
+    \hline
+    \move{r}{\rn}                                & \updPcAddr{\Phi\updReg{\rn,r}{w_1,w_2}} & $\rn \in \RegName$ and $w_1 = \Phi(\rn)$ and $w_2 = \linCons{\rn}$ \\
+    \hline
+    \load{r_1}{r_2}                              & \updPcAddr{\Phi\updReg{r_1}{w_1}\update{\mem.\aaddr}{w_\aaddr}} & $\Phi(r_2) = ((\perm,\_),\baddr,\eaddr,\aaddr)$ and $\baddr \le \aaddr \le \eaddr$ and $\perm \in \{\rwx,\rw,\rx,\ro\}$ and $w_1 = \Phi.\mem(\aaddr)$ and $w_a = \linCons{w_1}$ and $\isLinear{w_1} \Rightarrow \perm \in \{\rwx,\rw\}$\\
+    \hline
+    \store{r_1}{r_2}                             & \updPcAddr{\Phi\updReg{r_2}{w_2}\update{\mem.\aaddr}{\Phi(r_2)}} & $\Phi(r_1) = ((\perm,\_),\baddr,\eaddr,\aaddr)$ and $\perm \in \{\rwx,\rw\}$ and $\baddr \le \aaddr \le \eaddr$ and $w_2 = \linCons{\Phi(r_2)}$\\
+    \hline
+    \geta{r_1}{r_2}                              & \updPcAddr{\Phi\updReg{r_1}{w}} & If $\Phi(r_2) = ((\_,\_),\_,\_,\aaddr)$ or $\Phi(r_2) = \seal{\_,\_,\aaddr}$, then $w = \aaddr$ and otherwise $w = -1$\\
+    \hline
+    \jmp{r}    &\Phi\updReg{r,\pcreg}{w,\Phi(r)} & $w = \linCons{\Phi(r)}$\\
+    \hline
+    \xjmp{r_1}{r_2}                              & \Phi' & $\Phi(r_1) = \sealed{\sigma,c_1}$ and $\Phi(r_2) = \sealed{\sigma,c_2}$ and $w_1 = \linCons{c_1}$ and $w_2 = \linCons{c_2}$ and $\Phi' = \xjmpres{c_1,c_2,\Phi\updReg{r_1,r_2}{w_1,w_2}}$  \\
+    \hline
+    \cca{r}{\rn}                                 &\updPcAddr{\Phi\updReg{r}{w}} & $\Phi(\rn) = n \in \ints$ and either $\Phi(r) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ or $\Phi(r) = (\sigma_\baddr,\sigma_\eaddr,\sigma)$ and $w = ((\perm,\lin),\baddr,\eaddr,\aaddr + n)$ or $w = (\sigma_\baddr,\sigma_\eaddr,\sigma+n)$, respectively \\
+    \hline
+    \tsplit{r_1}{r_2}{r_3}{\rn}                  & \updPcAddr{\Phi\updReg{r_3,r_1,r_2}{w,c_1,c_2}} & $\Phi(r_3) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ and $\Phi(\rn) = n \in \nats$ and $\baddr \le n < \eaddr$ and $c_1 = ((\perm,\lin),\baddr,n,\aaddr)$ and $c_2 = ((\perm,\lin),n+1,\eaddr,\aaddr)$ and $w = \linCons{\Phi(r_1)}$\\
+    \hline
+    \splice{r_1}{r_2}{r_3}                       & \updPcAddr{\Phi\updReg{r_2,r_3,r_1}{w_2,w_3,c}}& $\Phi(r_2) = ((\perm,\lin),\baddr,n,\_)$ and $\Phi(r_3) = ((\perm,\lin),n+1,\eaddr,\aaddr)$ and $\baddr \le n < \eaddr$ and $c = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ and $w_2,w_3 = \linCons{\Phi(r_2),\Phi(r_3)}$\\
+    \hline
+    \cseal{r_1}{r_2}                             & \Phi\updReg{r_1}{\vsc} & $\Phi(r_1) \in \SealableCaps$ and $\Phi(r_2) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$ and $\sigma_\baddr \le \sigma \le \sigma_\eaddr$ and $\vsc = \sealed{\sigma,\Phi(r_1)}$ \\
+    \hline
+    \multicolumn{3}{|c|}{\dots} \\
+    \hline
+    \_                                           & \failed & \totherwise \\
+    \hline
+  \end{tabular}
+\caption{An excerpt of the operational semantics of our capability machine with sealing and linear capabilities.}
+  \label{fig:target-op-sem}
+\end{figure}
+\FloatBarrier
 \section{Linear Stack and Return Capabilities}
-\todo[inline]{Make sealed capabilities more clear by greying out.}
+\todo[inline]{Make sealed capabilities more clear in figures.}
 \begin{figure}
   \centering
   \begin{subfigure}{0.4\linewidth}
@@ -558,21 +680,46 @@ In this paragraph we summarize it:
 \end{figure}
 
 
-\begin{itemize}
-\item informally explain how an adversary may try to abuse stack and return caps
-\item informally explain how we prevent this using linear capabilities
-\item use the tikz pictures from the PriSC presentation to explain all of this
-\end{itemize}
-
-\section{A Capability Machine with Sealing and Linear Capabilities}
-\label{sec:capab-mach-with}
-\begin{itemize}
-\item present our \emph{target language} and its operational semantics (excerpts)
-\item mention roughly what components look like
-\end{itemize}
+% \begin{itemize}
+% \item informally explain how an adversary may try to abuse stack and return caps
+% \item informally explain how we prevent this using linear capabilities
+% \item use the tikz pictures from the PriSC presentation to explain all of this
+% \end{itemize}
 
 \section{Formulating Security with a Fully Abstract Overlay Semantics}
 \label{sec:form-secur-with}
+\begin{figure}[htb]
+  \centering
+  \[
+    \arraycolsep=1.4pt
+    \begin{array}{rcl}
+      \src{\SealableCaps} & \defbnf& \SealableCaps \mid \src{\stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}} \mid \src{\retptrd(\basebnf,\aendbnf)}\\
+                          & &  \mid \src{\retptrc(\basebnf,\aendbnf,\addrbnf)}\\
+      \multicolumn{3}{c}{
+      \begin{array}{lcrclcr}
+        \src{\StkFrame} & \defeq & \src{\Addr \times \MemSeg} & \phantom{skipskipsip} & \src{\Stack} & \defeq & \src{ \StkFrame^*}
+      \end{array}
+                                                                                                                }\\
+      \src{\ExecConf} & \defeq & \Mem \times \Reg \; \src{\times \; \Stack \times \MemSeg} \\
+    \end{array}
+  \] 
+\[
+  \begin{array}{rcl}
+    \offpc,\offsigma & \in & \nats \\
+    \src{\Instr} & \defbnf &  \Instr \mid \scall{\offpc,\offsigma}{r}{r}
+  \end{array}
+\]
+  \caption{The syntax of the capability machine with a built-in stack.}
+  \label{fig:src-syntax}
+\end{figure}
+
+\begin{figure}[htb]
+  \centering
+  \label{fig:src-op-sem}
+  \caption{An excerpt of the operational semantics of the capability machine with a built-in stack.}
+\end{figure}
+
+
 \begin{itemize}
 \item present our source language, its operational semantics (excerpts)
 \item mention our assumption of reasonability
@@ -604,7 +751,7 @@ In this section, we discuss related work on securely enforcing control flow corr
 We do not repeat the work we discussed in Section~\ref{sec:introduction}.
 
 Capability machines originate with \citet{dennis_programming_1966} and we refer to \citet{levy_capability-based_1984} and \citet{watson_cheri:_2015} for an overview of previous work.
-The capability machine formalized in Section~\ref{sec:capab-mach-with} is modeled after CHERI~\citep{watson_cheri:_2015,woodruff_cheri_2014}.
+The capability machine formalized in Section~\ref{sec:cap-mach-w-seal-and-lin} is modeled after CHERI~\citep{watson_cheri:_2015,woodruff_cheri_2014}.
 This is a recent and relatively mature capability machine, which combines capabilities with a virtual memory approach, in the interest of backwards compatibility and gradual adoption.
 For simplicity, we have omitted features of CHERI that were not needed for modelling StackTokens (e.g.\ local capabilities, virtual memory).
 
