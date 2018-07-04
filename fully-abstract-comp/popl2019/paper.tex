@@ -63,9 +63,16 @@
 \renewcommand{\updPcAddr}[1]{\plainfun{updPc}{#1}}
 \renewcommand{\linCons}[1]{\plainfun{linClear}{#1}}
 \renewcommand{\nonExec}[1]{\plainfun{nonExec}{#1}}
+\renewcommand{\perm}{\var{p}}
+\renewcommand{\SealableCaps}{\shareddom{Sealables}}
+\renewcommand{\Cap}{\shareddom{NatTok}}
+
 \newcommand{\xjmpres}[1]{\plainfun{xjmpRes}{#1}}
 
 \newcommand{\stktokens}{\textsc{StackTokens}}
+
+\newcommand{\trgcm}{\textsc{LCM}}
+\newcommand{\srccm}{\textsc{SLCM}}
 
 \begin{document}
 
@@ -233,43 +240,17 @@ This independent result could then be composed with our result to obtain securit
 
 \section{A Capability Machine with Sealing and Linear Capabilities}
 \label{sec:cap-mach-w-seal-and-lin}
-% Brief intro to section and this cap machine:
-% Cap machine inspired by CHERI, but with linear capabilities
-
-%%% Capabilities
-
-% Permissions
-% Range of authority
-% Pointer
-% Linearity
-
-%%% Seals
-
-%%% Domains
-
-% syntax (instructions)
-% opsem
-% move w/ lin
-% load w/ lin
-% split/splice
-
-% Components ...
-% write xor exec
-% contents
-% linking
-
-
-\begin{figure}[htb]
+\begin{figure}[tb]
   \centering
   \[
   \arraycolsep=1.4pt
   \begin{array}{rrcl l rrcl}
    \addrbnf,\basebnf \in & \Addr & \defeq & \nats & \phantom{mak} & \sealbasebnf, \sigma \in & \Seal & \defeq & \nats\\
+    \aendbnf \in & \Addr \cup \{\infty \} & & & & \sealendbnf \in & \Seal \cup \{\infty \}& &\\
     \permbnf \in& \Perm & \defbnf & \rwx \mid \rx \mid \rw \mid \ro \mid \noperm & & &\linbnf & \defbnf & \linear \mid \normal\\
-    &\aendbnf & \in & \Addr \cup \{\infty \} & & &\sealendbnf & \in & \Seal \cup \{\infty \}\\
-    \scbnf \in &\SealableCaps&\defbnf & \multicolumn{6}{l}{((\permbnf,\linbnf),\basebnf,\aendbnf,\addrbnf) \mid \seal{\sealbasebnf,\sealendbnf,\sigma}}\\
-    \cbnf \in&\Caps& \defbnf &  \SealableCaps \mid \sealed{\sigma,\scbnf} & & w \in &\Word & \defeq & \ints \uplus \Caps\\ 
-    \rbnf \in& \RegName & \defbnf & \multicolumn{6}{l}{\pcreg \mid \rretd \mid \rretc \mid \rstk \mid \rdata \mid \rtmp{1} \mid \rtmp{2} \mid \dots} \\
+    \vsc \in &\SealableCaps&\defbnf & \multicolumn{6}{l}{((\permbnf,\linbnf),\basebnf,\aendbnf,\addrbnf) \mid \seal{\sealbasebnf,\sealendbnf,\sigma}}\\
+    c \in&\Caps& \defbnf &  \SealableCaps \mid \sealed{\sigma,\scbnf} & & w \in &\Word & \defeq & \ints \uplus \Caps\\ 
+    r \in& \RegName & \defbnf & \multicolumn{6}{l}{\pcreg \mid \rretd \mid \rretc \mid \rstk \mid \rdata \mid \rtmp{1} \mid \rtmp{2} \mid \dots} \\
     &\Reg & \defeq & \RegName \fun \Word & & &\Mem & \defeq & \Addr \fun \Word\\
     &\MemSeg & \defeq & \Addr \parfun \Word & & \Phi \in & \ExecConf & \defeq & \Mem \times \Reg\\
     &\Conf & \defeq & \multicolumn{6}{l}{\ExecConf \cup \{\failed\} \cup \{\halted\} }
@@ -290,6 +271,85 @@ This independent result could then be composed with our result to obtain securit
   \caption{The syntax of our capbility machine with seals and linera capbilities.}
   \label{fig:target-syntax}
 \end{figure}
+% Brief intro to section and this cap machine:
+% Cap machine inspired by CHERI, but with linear capabilities
+In this section, we introduce a simple but representative capability machine with linear capabilities.
+We will later introduce a capability machine similar to the one in this section, so to easily distinguish the two, we will call this one \trgcm{} (Linear Capability Machine).
+\trgcm{} is mainly inspired by CHERI~\citep{watson_cheri:_2015} with linear capabilities as the main exception.
+In order to avoid details uninteresting to the focus of this work, \trgcm{} assumes an infinite address and unbounded integers.
+\lau{Do we have a good reason to assume an infinite address space for this work?
+  We do not model malloc, so we do not need to worry about what happens when malloc runs out of memory.}
+
+\begin{wrapfigure}{r}{0.33\linewidth}
+  \centering
+  \begin{tikzpicture}[main node/.style={}]
+    \node[main node] (rwx) {$\rwx$};
+    \node[main node] (rx) [below right of=rwx] {$\rx$};
+
+    \node[main node] (rw) [below left of=rwx,] {$\rw$};
+    \node[main node] (r) [below right of=rw] {$\readonly$};
+    \node[main node] (0) [below of=r] {$\noperm$};
+
+    \path[every node/.style={font=\sffamily\small}]
+
+    (rw) edge (r)
+    (r) edge (0)
+
+    (rwx) edge (rx)
+
+    (rw) edge (rwx)
+    (r) edge (rx);
+  \end{tikzpicture}
+
+  \caption{Permission hierarchy}
+  \label{fig:perm-hier}
+\end{wrapfigure}
+%%% Capabilities
+The concept of a capability is the cornerstone of any capability machine.
+In its simplest form, a capability is a permission and a range of authority.
+The permission dictates the operations the capability can be used for, and the range of authority specifies the range of memory it can act upon.
+% Permissions and Range of authority
+The capabilities of \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (as defined in Figure~\ref{fig:target-syntax} along with the rest of the syntax of \trgcm{}) where $\var{perm}$ is the permission and $[\var{base},\var{end}]$ is the range of authority.
+\trgcm{} only has memory capabilities, and we limit them to a number of sensible permissions making the available permissions: read-write-execute ($\rwx$), read-write ($\rw$), read-execute ($\rx$), read-only ($\ro$), and null-permission ($\noperm$).
+We define the preorder $\le$ on permissions as illustrated in Figure~\ref{fig:perm-hier}.
+% Pointer and linearity
+In addition to the two basic things, the capabilities also have a current address $\addr$ and a linearity $\lin$. The linearity of a capability can either be $\linear$ or $\normal$ where $\normal$ corresponds to a traditional capability. We will describe linear capabilities in detail when we get to the operational semantics of \trgcm{}.
+
+%%% Seals
+Any reasonable capability machine needs a way to setup boundaries between security domains as well as a way to cross the boundaries in a way where each domain retains their authority.
+%The M-Machine~\citep{Dally1997Memo59} inspired capability machine in \citet{skorstengaard_reasoning_2017} uses enter-capabilities to achieve this.
+On \trgcm{} we have sealed capabilities to achieve this.
+Syntactically, sealed capabilities add two things to the capability machine: Sets of seals $\seal{\sigma_\var{base},\sigma_\var{end},\sigma}$ and sealed capabilities $\sealed{\sigma,\vsc}$.
+% seals
+A set of seals consists of a range of available seals $[\sigma_\var{base},\sigma_\var{end}]$ and the current seal $\sigma$ that is represented by a natural number.
+% sealed caps
+A sealed capability consists of a sealable $\vsc$ and the seal $\sigma$ it has been sealed with.
+The sealables are sets of seals and capabilities, and we refer to the set of them as $\SealableCaps$.
+The system native tokens on \trgcm{} are the sealables and the sealed capabilities and we refer to this set as $\Cap$.
+
+%%% Domains
+The words on \trgcm{} are the system native tokens in $\Cap$ and data which is represented by $\ints$.
+We assume a finite set $\RegName$ of register names that at least contains $\{\pcreg , \rretd , \rretc , \rstk , \rdata , \rtmp{1} , \rtmp{2}\}$, and we define register files as a function from register names to words.
+A memory is a full memory and a memory segment is part of a memory.
+Both are defined as functions from addresses, defined as the natural numbers, to words, but the memory segment functions only need to be partial.
+$\trgcm{}$ has two terminated configurations $\halted$ and $\failed$ that respectively signify a successful execution and an execution with an attempt to break the capability machine guarantees.
+An executable configuration is a register file and memory pair. 
+
+% syntax (instructions)
+% opsem
+% move w/ lin
+% load w/ lin
+% cseal
+% xjmp
+% split/splice
+
+
+% Components ...
+% write xor exec
+% contents
+% linking
+
+
 
 \begin{figure}[h]
   \centering
