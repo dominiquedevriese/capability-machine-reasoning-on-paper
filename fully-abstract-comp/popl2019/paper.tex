@@ -65,10 +65,12 @@
 \renewcommand{\nonExec}[1]{\plainfun{nonExec}{#1}}
 \newcommand{\xjmpres}[1]{\plainfun{xjmpRes}{#1}}
 
+\newcommand{\stktokens}{\textsc{StackTokens}}
+
 \begin{document}
 
 %% Title information
-\title{StackTokens: Enforcing Well-bracketed Control Flow and Stack Encapsulation using Linear Capabilities}
+\title{\stktokens{}: Enforcing Well-bracketed Control Flow and Stack Encapsulation using Linear Capabilities}
 % \titlenote{with title note}
 % \subtitle{Fully abstract overlay semantics}
 % \subtitlenote{with subtitle note}
@@ -109,7 +111,7 @@
 \email{birkedal@cs.au.dk}
 
 \begin{abstract}
-  We propose and study StackTokens: a new calling convention that provably enforces well-bracketed control flow and local state encapsulation on a capability machine.
+  We propose and study \stktokens{}: a new calling convention that provably enforces well-bracketed control flow and local state encapsulation on a capability machine.
   The calling convention is based on linear capabilities, a type of capabilities that are prevented from being duplicated by the hardware.
   In addition to designing and formalising this new calling convention, we also contribute a new way to formalise and prove that it effectively enforces well-bracketed control flow and local state encapsulation, using what we call a fully abstract overlay semantics.
 \end{abstract}
@@ -188,7 +190,7 @@ For example, CHERI offers a form of {\itshape local} capabilities that, briefly,
 % KJAA: 'Boundary crossing' is new here.
 However, a problem with this approach is that revoking the local stack and return capabilities on every boundary crossing requires clearing the entire unused part of the stack, a potentially expensive operation.
 
-In this work, we propose and study StackTokens: an alternative calling convention that enforces WBCF and LSE with a single shared stack.
+In this work, we propose and study \stktokens{}: an alternative calling convention that enforces WBCF and LSE with a single shared stack.
 Instead of CHERI's local capabilities, it builds on {\itshape linear} capabilities; a new form of capabilities that has not been previously described in the published literature.\footnote{Although they are mentioned here and there by different people.}
 % KJAA: Perhaps make it clear by who and when/where?
 These capabilities are non-duplicable, enforced by the hardware.
@@ -341,6 +343,10 @@ This independent result could then be composed with our result to obtain securit
   \label{fig:target-op-sem}
 \end{figure}
 \FloatBarrier
+% \begin{itemize}
+% \item present our \emph{target language} and its operational semantics (excerpts)
+% \item mention roughly what components look like
+% \end{itemize}
 \section{Linear Stack and Return Capabilities}
 \todo[inline]{Make sealed capabilities more clear in figures.}
 \begin{figure}
@@ -397,7 +403,7 @@ This independent result could then be composed with our result to obtain securit
   \label{fig:stack-ret-ptr-abuse}
 \end{figure}
 
-Our StackTokens calling convention is based on a traditional single stack, shared between all components.
+Our \stktokens{} calling convention is based on a traditional single stack, shared between all components.
 As we are on a capability machine, it is natural to add some extra protection to stack and return pointers.
 First, we replace stack pointers with stack capabilities.
 When a new stack frame is created, the caller provisions it with a stack capability, restricted to the appropriate range, i.e.\ it does not cover the caller's stack frame.
@@ -450,7 +456,7 @@ On return the callee has to give back the stack capability they were given on in
 When the caller receives a stack capability back on return, they need to check that this token is actually spendable, i.e.\ check whether their stack frame is on top of the call stack.
 They do this by attempting to restore the stack capability from before the call by splicing the return token with the stack capability for the local stack frame which at this point has been unsealed again.
 If the splice is successful, then the caller knows that the two capabilities are adjacent. On the other hand, if the splice fails, then they are alerted to the fact that their stack frame may not be the topmost.
-StackTokens uses this approach, and as illustrated in Figure~\ref{fig:ret-ptr-abuse-prev} it prevents the issue in Figure~\ref{fig:ret-ptr-abuse} as the adversary does not return a spendable token when they return.
+\stktokens{} uses this approach, and as illustrated in Figure~\ref{fig:ret-ptr-abuse-prev} it prevents the issue in Figure~\ref{fig:ret-ptr-abuse} as the adversary does not return a spendable token when they return.
 \begin{figure}
   \centering
   \begin{subfigure}{0.4\linewidth}
@@ -515,9 +521,9 @@ StackTokens uses this approach, and as illustrated in Figure~\ref{fig:ret-ptr-ab
 % Non-empty trusted stack frames.
 In order for a call to have a presence on the call stack, its stack frame must be non-empty.
 If we could have empty stack frames on the call stack, then it would be impossible to tell whether the topmost non-empty stack frame has an empty stack frame on top of it.
-Non-empty stack frames come naturally in traditional C-like calling convention as they keep track of old stack pointers and old program counters on the stack, but in StackTokens these things are part of the return pair which means that a caller with no local data may only need an empty stack frame.
-This means that a caller using StackTokens needs to take care that their stack frame is non-empty in order to reserve their spot in the return order.
-There is also a more practical reason for a StackTokens caller to make sure their stack frame is non-empty: They need a bit of the stack capability in order to perform the splice that verifies the validity of the return token.
+Non-empty stack frames come naturally in traditional C-like calling convention as they keep track of old stack pointers and old program counters on the stack, but in \stktokens{} these things are part of the return pair which means that a caller with no local data may only need an empty stack frame.
+This means that a caller using \stktokens{} needs to take care that their stack frame is non-empty in order to reserve their spot in the return order.
+There is also a more practical reason for a \stktokens{} caller to make sure their stack frame is non-empty: They need a bit of the stack capability in order to perform the splice that verifies the validity of the return token.
 
 % known stack base
 % + more
@@ -530,7 +536,7 @@ The adversary calls the trusted code back, but first they split the return token
 The trusted caller calls the adversary back using the precautions we have described so far (Figure~\ref{fig:stack-base-abuse-c}).
 At this point (Figure~\ref{fig:stack-base-abuse-b})), the adversary has access to a partial return token adjacent to the trusted caller's first stack frame which allows the adversary to return from this call breaking WBCF.
 For the caller to be sure that there are no hidden stack frames above its own, they need to make sure that the return token is exactly the same as the one they passed to the callee.
-In StackTokens, the caller verifies the validity of the return token by checking whether the base address\footnote{The stack grows downwards in the address space} of a returned token corresponds to the base address of the return token they gave to the callee.
+In \stktokens{}, the caller verifies the validity of the return token by checking whether the base address\footnote{The stack grows downwards in the address space} of a returned token corresponds to the base address of the return token they gave to the callee.
 In the scenario we just sketched, the caller would be alerted to the attempt to break WBCF when the base address check of the return token fails in Figure~\ref{fig:stack-base-abuse-d}.
 
 % Where do we get the stack pointer from, how can we know it is linear
@@ -572,12 +578,12 @@ This goes for direct leaks, such as leaving a seal in a register or writing it t
 % Note about them vs us, we do nothing that they couldn't do
 In the description of the StackToken calling scheme, it has sometimes been in terms of ``them vs us''.
 This may have created the impression of an asymmetric calling convention that places a special status on trusted components allowing them to protect themselves against adversaries.
-However, StackTokens is a modular calling scheme no restriction is put on adversarial components that we do not expect trusted components to meet.
-This means that any component can ensure WBCF and LSE by employing StackTokens.
-% KJAA: ^-- Assuming that there is a global stack address capability, no? Can I "suddenly" begin to impose StackTokens?
+However, \stktokens{} is a modular calling scheme no restriction is put on adversarial components that we do not expect trusted components to meet.
+This means that any component can ensure WBCF and LSE by employing \stktokens{}.
+% KJAA: ^-- Assuming that there is a global stack address capability, no? Can I "suddenly" begin to impose \stktokens{}?
 
 % Summary of CC
-In the this section, we have described our proposed calling convention, StackTokens.
+In the this section, we have described our proposed calling convention, \stktokens{}.
 In this paragraph we summarize it:
 \begin{description}
 \item[Check the base address of the stack capability before and after calls] 
@@ -754,12 +760,12 @@ We do not repeat the work we discussed in Section~\ref{sec:introduction}.
 Capability machines originate with \citet{dennis_programming_1966} and we refer to \citet{levy_capability-based_1984} and \citet{watson_cheri:_2015} for an overview of previous work.
 The capability machine formalized in Section~\ref{sec:cap-mach-w-seal-and-lin} is modeled after CHERI~\citep{watson_cheri:_2015,woodruff_cheri_2014}.
 This is a recent and relatively mature capability machine, which combines capabilities with a virtual memory approach, in the interest of backwards compatibility and gradual adoption.
-For simplicity, we have omitted features of CHERI that were not needed for modelling StackTokens (e.g.\ local capabilities, virtual memory).
+For simplicity, we have omitted features of CHERI that were not needed for modelling \stktokens{} (e.g.\ local capabilities, virtual memory).
 
 Plenty of other papers enforce well-bracketed control flow at a low level, but most are restricted to preventing particular types of attacks and enforce only partial correctness of control flow.
 This includes particularly the line of work on \emph{control-flow integrity}~\citep{abadi_control-flow_2005}.
 This technique prevents certain classes of attacks by sanitizing addresses before direct and indirect jumps based on static information about a program's control graph and a shadow stack.
-Contrary to StackTokens, CFI can be implemented on commodity hardware rather than capability machines.
+Contrary to \stktokens{}, CFI can be implemented on commodity hardware rather than capability machines.
 However, its attacker model is different and its security goals are weaker.
 They assume an attacker that is not able to execute code, but can overwrite arbitrary data at any time during execution (to model buffer overflows).
 In terms of security goals, the technique does not enforce local stack encapsulation.
