@@ -135,26 +135,29 @@
 \section{Introduction}
 \label{sec:introduction}
 Secure compilers preserve source-language (security-relevant) properties even when the compiled code interacts with arbitrary target-language components.
-Generally, properties that hold in the source language but not in the target language, need to be somehow enforced by the compiler.
+Generally, properties that hold in the source language but not in the target language need to be somehow enforced by the compiler.
 Two properties that hold in many high-level source languages, but not in the assembly languages they are compiled to, are well-bracketed control flow and encapsulation of local state.
 
 Well-bracketed control flow (WBCF) expresses that invoked functions must either return to their callers, invoke other functions themselves or diverge, and generally holds in programming languages that do not offer a primitive form of continuations. 
-At the assembly level, this is not so obvious, as invoked functions get direct access to return pointers, that they are supposed to jump to a single time, at the end of their execution, but there is no guarantee that untrusted assembly code respects this intended usage.
-Particularly, a function may invoke return pointers from other stack frames than its own: either frames higher in the call stack or ones that no longer exist as they have already returned before. 
+At the assembly level, this is not so obvious.
+Invoked functions get direct access to return pointers that they are supposed to jump to a single time at the end of their execution.
+There is, however, no guarantee that untrusted assembly code respects this intended usage.
+Particularly, a function may invoke return pointers from other stack frames than its own: either frames higher in the call stack or ones that no longer exist as they have already returned. 
 
 Local state encapsulation (LSE) is the guarantee that when a function invokes another function, its local variables (saved on its stack frame) will not have been read or modified when the invoked function returns.
 At the assembly level, this property is also far from obvious.
 The calling function's local variables are stored on the stack during the invocation, and functions are not supposed to touch stack frames other than their own.
 However, untrusted assembly code is free to ignore this requirement and read or overwrite the local state of other stack frames.
-
+% KJAA: Tror der er et bedre ord en obvious. Tror ikke man ville sige''This property is obvious`', med mindre man mener at egenskaben i sig selv er enkel. Maaske "immeadiate"?
 To enforce these properties, target language security primitives are needed that can be used to prevent untrusted code from misbehaving, without imposing too much overhead on well-behaved code.
-The virtual-memory based security primitives on commodity processors do not seem sufficiently fine-grained to efficiently support this.
+The virtual memory based security primitives on commodity processors do not seem sufficiently fine-grained to efficiently support this.
 More suitable security primitives are offered by a type of CPUs known as capability machines \citep{levy_capability-based_1984,watson_cheri:_2015}.
 These processors use tagged memory to enforce a strict separation between integers and {\itshape capabilities}: pointers that carry authority.
 Capabilities come in different flavours.
 Memory capabilities allow reading from and writing to a block of memory.
 Additionally, capability machines offer some form of {\itshape object capabilities} that represent low-level encapsulated closures, i.e. a piece of code coupled with private state that it gains access to upon invocation.
 The concrete mechanics of object capabilities varies between different capability machines.
+% KJAA: This 'sealed' and 'common seal' business is unclear to me.
 On a recent capability machine called CHERI, for example, they take the form of pairs of capabilities sealed with a common seal that represent the code and data parts of the closure.
 The pair is opaque, but is transparently unsealed by the hardware upon invocation~\citep{watson_capability_2015}.
 
@@ -162,32 +165,35 @@ To enforce WBCF and LSE on a capability machine, there are essentially two appro
 A first approach uses separate stacks for distrusting components, and a central, trusted stack manager component that mediates cross-component invocations.
 This idea has been applied in CheriBSD (an operating system built on CHERI)~\citep{watson_capability_2015}, but it is not without downsides.
 First, it scales poorly to large amounts of distrusting components, because of the need to reserve separate stack space for all components.
-Also, in the presence of higher-order values (e.g. function pointers, objects etc.), the stack manager needs to be able to decide which component a higher-order value belongs to, in order to provide it the right stack pointer upon invocation and it is not clear how this can be done efficiently in the presence of large amounts of components.
+Also, in the presence of higher-order values (e.g. function pointers, objects etc.), the stack manager needs to be able to decide which component a higher-order value belongs to in order to provide it the right stack pointer upon invocation.
+It is not clear how this can be done efficiently in the presence of large amounts of components.
 Finally, this approach does not allow passing stack references between components.
 
 A more scalable approach retains a single stack that is shared between components.
-Enforcing WBCF and LSE in this approach, requires a way to temporarily provide stack and return capabilities to an untrusted component and revoke them after it returns.
+Enforcing WBCF and LSE in this approach requires a way to temporarily provide stack and return capabilities to an untrusted component, and to revoke them after it returns.
 While capability revocation is expensive in general, some capability machines offer restricted forms of revocation that can be implemented efficiently.
 For example, CHERI offers a form of {\itshape local} capabilities that, briefly, can only be stored in registers or on the stack, but not in other parts of memory.
-\citet{skorstengaard_reasoning_2017} has demonstrated that by making the stack and return pointer local, and a number of security checks and measures, the two properties can be guaranteed.
+\citet{skorstengaard_reasoning_2017} has demonstrated that by making the stack and return pointer local, and by introducing a number of security checks and measures, the two properties can be guaranteed.
+% KJAA: 'Boundary crossing' is new here.
 However, a problem with this approach is that revoking the local stack and return capabilities on every boundary crossing requires clearing the entire unused part of the stack, a potentially expensive operation.
 
 In this work, we propose and study StackTokens: an alternative calling convention that enforces WBCF and LSE with a single shared stack.
-Instead of CHERI's local capabilities, it builds on {\itshape linear} capabilities; a new form of capabilities that has not been previously described in the published literature.\footnote{Although they are mentioned here and there by different people.} 
-These capabilities are enforced by the hardware to be non-duplicable.
+Instead of CHERI's local capabilities, it builds on {\itshape linear} capabilities; a new form of capabilities that has not been previously described in the published literature.\footnote{Although they are mentioned here and there by different people.}
+% KJAA: Perhaps make it clear by who and when/where?
+These capabilities are non-duplicable, enforced by the hardware.
 We propose to make stack and return pointers linear and require components to hand them out in cross-component invocations and to return them in returns.
-The non-duplicability of linear capabilities, together with some security checks, then allows us to guarantee WBCF and LSE, without large overhead on boundary crossings and particularly no need for clearing large blocks of memory.
+The non-duplicability of linear capabilities together with some security checks allow us to guarantee WBCF and LSE without large overhead on boundary crossings, particularly without the need for clearing large blocks of memory.
 
 A second contribution of this work is the way in which we formulate these two properties, using a technique we call {\itshape fully abstract overlay semantics}.
 Formulations in previous work are either partial and not suitable for reasoning~\cite{abadi_control-flow_2005} or lacked evidence of generality~\cite{skorstengaard_reasoning_2017}.
 Our new formulation starts from the premise that security results for a calling convention should be reusable as part of a larger proof of a secure compiler.
-To accomodate this, we define a second operational semantics for our target language, which has a native well-bracketed stack and primitive ways to do calls and returns.
+To accomodate this, we define a second operational semantics for our target language, with a native well-bracketed stack and primitive ways to do calls and returns.
 This well-behaved semantics guarantees WBCF and LSE natively for components using our calling convention.
-As such, these components can be sure that they will only ever interact with well-behaved other components that respect our desirable properties.
-To express security of our calling convention, we then show that considering the same components in the original semantics, does not give adversaries additional ways to interact with them. 
+As such, these components can be sure that they will only ever interact with other well-behaved components that respect our desired properties.
+To express security of our calling convention, we then show that considering the same components in the original semantics does not give adversaries additional ways to interact with them. 
 More formally, we show that mapping a component in the well-behaved semantics to the same component in the original semantics is fully abstract~\cite{abadi_protection_1999}, i.e. that components are indistinguishable to arbitrary adversaries in the well-behaved language iff they are indistinguishable to arbitrary adversaries in the original language.
 
-This approach expresses what it means to enforce our desirable properties, in a general way and makes it clear that we can support a very general class of programs.
+This approach expresses what it means to enforce our desirable properties in a general way, and makes it clear that we can support a very general class of programs.
 Additionally, formulating security of a calling convention in this way makes it potentially reusable in a larger security proof of a full compiler.
 The idea is that security of such a compiler could be verified by proving fully abstract compilation with respect to the well-behaved semantics of the target language, so that the proof can rely on native well-bracketedness and local stack frame encapsulation.
 This independent result could then be composed with our result to obtain security of the compiler targeting the real target language, by transitivity of full abstraction.
@@ -273,10 +279,11 @@ As we are on a capability machine, it is natural to add some extra protection to
 First, we replace stack pointers with stack capabilities.
 When a new stack frame is created, the caller provisions it with a stack capability, restricted to the appropriate range, i.e.\ it does not cover the caller's stack frame.
 Return pointers, on the other hand, are replaced by a pair of sealed return capabilities.
+% KJAA: Again with the sealed pair. Again, this idea is unclear.
 They form an opaque closure that the callee can only jump to, and the caller's data becomes available to the caller's return code. 
 
 %informally explain how an adversary may try to abuse stack and return caps
-While the above adds extra protection, it is important to understand that the above is not sufficient for enforcing WBCF and LSE.
+While the above adds extra protection, it is important to understand that it is not sufficient for enforcing WBCF and LSE.
 While adversaries only get access to capabilities that they are allowed to use during the stack frame, they have ways to store these capabilities and use them when they are no longer allowed to do so.
 Figure~\ref{fig:stack-ret-ptr-abuse} illustrates two examples of this.
 In both examples our component and some adversarial component have been taking turns calling each other, so the stack now contains four stack frames alternating between ours and theirs.
@@ -285,7 +292,7 @@ However, restricting the stack capability does not help when we in the first cal
 Generally speaking, we have no reason to ever trust a stack capability received from a component we do not trust as that stack capability may have been duplicated and stored for later use.
 In the figure on the right (Figure~\ref{fig:ret-ptr-abuse}), we have given the adversary two pairs of sealed return capabilities, one in each of the two calls to the adversarial component.
 The adversary may have stored the pair of sealed return capabilities from the first call in order to use it in the second call where they are not allowed to use it.
-The figure illustrates how the adversarial code uses the return pair from the first call to return from the second call an thus breaks WBCF.
+The figure illustrates how the adversarial code uses the return pair from the first call to return from the second call and thus break WBCF.
 
 \todo[inline]{If target cap. machine is introduced before this section, then revisit/delete this section.}
 % Informally explain how we prevent this using linear capabilities
@@ -299,7 +306,7 @@ Split and splice do exactly what their names suggest: Split splits a capability 
 
 % Stack capability linear
 The linear capabilities are put to use by requiring the stack capability to be linear.
-On call, the caller splits the stack capability in two, so they have a capability for their local stack frame and a capability for the unused part of the stack.
+On call, the caller splits the stack capability in two, such that they have a capability for their local stack frame and a capability for the unused part of the stack.
 The stack capability for their local stack frame is sealed and used as the data part of the sealed return pair, and the stack capability for the remainder of the stack is given to the callee.
 % Prevention of left attack non-aliasing of linear capabilities - token like (ensuring LSE)
 Because the stack capability is linear the caller knows that the capability for their local stack frame cannot have an alias.
@@ -405,15 +412,16 @@ In the scenario we just sketched, the caller would be alerted to the attempt to 
 
 % Where do we get the stack pointer from, how can we know it is linear
 % The other attack.
+% KJAA: It is unclear to me what 'at this point' refers to.
 At this point, the caller is able to verify whether a return token is spendable which allows them to decide whether they have the topmost stack frame on a call stack.
 However, in order to have WBCF there should only be one call stack, so the caller should also be able to verify that they have the top stack frame on the call stack used by all well-behaved components.
 In case a trusted component did not start the execution on the machine, i.e.\ they were called by another component, then the trusted component has no way to be sure whether the stack capability passed to them corresponds to the one and only call stack.
 To illustrate how an adversarial component can break WBCF by using multiple different stack capabilities consider this example: An adversary calls a trusted component with a callback and some linear capability that they claim is the stack capability.
-The trusted component executes using the stack capability given to them and at some point they invoke the callback creating return tokens and so on.
+The trusted component executes using the stack capability given to them and at some point they invoke the callback, creating return tokens and so on.
 The adversary stores the return pair and return token and calls another trusted component but with a new callback and a new linear capability that they claim is the stack capability.
-Again, this trusted component also executes using the stack capability given to them and at some point they too invoke the callback taking all the precautions we have described so far.
+Again, this trusted component also executes using the stack capability given to them and at some point they too invoke the callback, taking all the precautions we have described so far.
 At this point, the adversary has everything they need to return from either of the two callbacks.
-Specifically, they could return from the first callback invocation before they have returned from the second which would break WBCF.
+Specifically, they could return from the first callback invocation before they have returned from the second, breaking WBCF.
 From a high-level perspective, the problem is that both trusted components will be able to verify that they have the top stack frame on the call stack.
 They are both correct as the adversarial component has created two call stacks, one for each of the components.
 In order to solve this problem, the well-behaved code needs to somehow agree on the call stack.
@@ -428,7 +436,7 @@ The reason is that the stack capability needs to start execution as a linear cap
 Due to the non-duplicability of linear capability and the fact that they cannot become non-linear during execution, the caller knows that if they have a capability that governs the global stack base address, then it must be linear.
 
 % Return pointers/return seals
-The return pointer in the StackToken scheme is a pair of sealed capabilities where the code part of the pair is the old program counter and the data part is the stack capability for the local stack frame of the caller.
+The return pointer in the StackToken scheme is a pair of sealed capabilities where the code part of the pair is the old program counter, and the data part is the stack capability for the local stack frame of the caller.
 Both of the capabilities in the pair are of course sealed with the same seal.
 % One seal per return point
 All call points need to be associated with a unique seal (a return seal) that is only used to seal the capabilities in the return pair for that particular call point.
@@ -439,10 +447,11 @@ Return seals should never be leaked to adversarial code as this would allow them
 This goes for direct leaks, such as leaving a seal in a register or writing it to adversarial memory, as well as indirect leaks, where a capability for reading a return seal (either directly or indirectly) from memory is leaked.
 
 % Note about them vs us, we do nothing that they couldn't do
-In the description of the StackToken calling scheme, it has sometimes been in terms of us ``them vs us''.
+In the description of the StackToken calling scheme, it has sometimes been in terms of ``them vs us''.
 This may have created the impression of an asymmetric calling convention that places a special status on trusted components allowing them to protect themselves against adversaries.
 However, StackTokens is a modular calling scheme no restriction is put on adversarial components that we do not expect trusted components to meet.
 This means that any component can ensure WBCF and LSE by employing StackTokens.
+% KJAA: ^-- Assuming that there is a global stack address capability, no? Can I "suddenly" begin to impose StackTokens?
 
 % Summary of CC
 In the this section, we have described our proposed calling convention, StackTokens.
