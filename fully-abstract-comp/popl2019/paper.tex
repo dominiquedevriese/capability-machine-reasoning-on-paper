@@ -419,22 +419,164 @@ Because \trgcm{} has linear capabilities the instruction for this splits the cap
 \trgcm{} has instructions for sealing sealables (\texttt{cseal}) and unsealing pairs of sealed capabilities (\texttt{xjmp}).
 Finally, \trgcm{} has instructions to signal whether an execution was successful or not (\texttt{halt} and \texttt{fail}).
 
-An representative excerpt of the operational semantics is shown in Figure~\ref{fig:target-op-sem}.
 % opsem
+The operational semantics of \trgcm{} is displayed in Figure~\ref{fig:target-op-sem}.
+The operational semantics is defined in terms of a step relation that executes the next instruction in an executable configuration $\Phi$ which results in a new executable configuration or one of the two terminated configurations.
+The executed instruction is determined by the capability in $\pcreg$ register, i.e.\ $\Phi(\pcreg)$ (we write $\Phi(r)$ to mean $\Phi.\reg(r)$).
+In order for the machine to take a step, the capability in the $\pcreg$ must have a permission that allows execution, and the current address of the capability must be within the range of addresses where the capability can operate.
+If both things are satisfied, then the word pointed to by the capability is decoded to an instruction which is interpreted relatively to $\Phi$.
+The interpretation of some of the instructions are also displayed in Figure~\ref{fig:target-op-sem}.
+In order to step through a program in memory, most of the interpretations use the function $\updPcAddr{}$ which simply updates the capability in the $\pcreg$ to point to the next memory address.
+The instructions that stop execution or change the flow of execution do not use $\updPcAddr{}$.
+For instance, the \texttt{halt} and \texttt{fail} instructions are simply interpreted as the $\halted$ and $\failed$ configurations, respectively, and they do not use $\updPcAddr{}$.
+
 % move w/ lin
-% load w/ lin
+The \texttt{move} instruction simply moves a word from one register to another.
+It is, however, complicated slightly by the presence of the non-duplicable linear capabilities.
+This means that when a linear capability is moved, the source register should be cleared.
+To take care of this and prevent duplicating the operational semantics, we use the function $\linCons{}$ that returns $0$ for linear capabilities and is the identity for all other words.
+When the \texttt{move} instruction is performed, the source register $r_2$ is overwritten with $\linCons{\Phi(r_2)}$ which clears the register if the contents was linear and leaves it unchanged otherwise.
+
+% load w/ lin (and store)
+The \texttt{store} and \texttt{load} instructions are fairly standard: They require a capability with permission to either write or read depending on the operation, they check that the capability points within the range of authority, and they clear the source of a linear capability transfer.
+Linear capabilities introduce one complication for \texttt{load} as it needs to clear the loaded memory address when it contains a linear capability in order to not duplicate the capability.
+Clearing a memory address corresponds to writing $0$ to the memory, but in order to write to memory we need to provide a capability with write-permission.
+This means that to load a linear capability from memory, we have to use a capability with read and write permission.
+
+% geta, cca
+The instructions \texttt{geta} and \texttt{cca} are fairly simple: \texttt{geta} projects the current address or current seal from a capability or a set of seals, respectively, and it returns the error value $-1$ for data and sealed capabilities.
+The \texttt{cca} instruction changes the current address or seal of a capability or set of seals, respectively, by a given offset.
+By making an in-place update, the instruction does not need to take special care in order to maintain linearity.
+The \texttt{jmp} instruction is a fairly simple jump that just sets the $\pcreg$-register.
+
+%% Sealing
+The operational side of the sealing in \trgcm{} consists of two instructions: \texttt{cseal} for sealing a capability and \texttt{xjmp} for unsealing a pair of capabilities.
 % cseal
+Given a sealable $\vsc$ and a set of seals where the current seal $\sigma$ is within the range of available seals, the \texttt{cseal} instruction seals $\vsc$ with $\sigma$.
 % xjmp
+Apart from dealing with linearity, \texttt{xjmp} takes a pair of sealed capabilities unseals them and put one in the $\pcreg$ register and the other in the $\rdata$ register, but only if they are sealed with the same seal and the data capability (the capability placed in $\rdata$) is non-executable.
+A pair of sealed capabilities can be seen as a closure where the code capability (the capability placed in $\pcreg$) is the program and the data capability is the local environment of the closure.
+Because of the opacity of sealed capability, the creator of the closure can be sure that execution will start where the code capability points and only in an environment with the related data, i.e.\ sealed with the same seal.
+Some care should be taken when sealing as reuse of the same seal for multiple closures would make it possible to jump to the code of one capability with the environment of another.
+% xjmp to unseal
+\trgcm{} does not have an instruction for unsealing single sealed capabilities directly, but most sealed capabilities can be achieved unsealed using \texttt{xjmp} and a set of seals with the seal used to seal the sealed capability.
+
 % split/splice
-\todo[inline]{Write this.}
+Instructions for reducing the authority of capabilities are commonplace on capability machines as they allow us to limit what a capability can do before it is passed away.
+For normal capabilities, reduction of authority can be done without actually giving up any authority if the capability is duplicated first.
+With linear capabilities authority cannot be preserved in this fashion as they are non-duplicable.
+In order to make a lossless reduction of the range of authority, \trgcm{} provides special hardware support in the form of \texttt{split} and \texttt{splice}.
+The \texttt{split} instruction takes a capability with range of authority $[\var{base},\var{end}]$ and an address $n$ and creates two new capabilities one with $[\var{base},n]$ as its range of authority and the other with $[n+1,\var{end}]$ as it range of authority.
+Everything else, i.e.\ permission, linearity and current address, is copied without change to the new capabilities.
+With \texttt{split} we can reduce the range of authority of a linear capability without losing any authority as we retain it in the other capability.
+However, if we only have \texttt{split}, then in some sense splitting a capability is not completely lossless as we may have authority over the same range of addresses, but we have that authority in two capabilities rather than just one.
+In order to make up for this, we have a \texttt{splice} instruction that essentially does the inverse of \texttt{split}.
+Namely given two capabilities with adjacent ranges of authority and the same permissions and linearity, it splices them together into one capability.
+The two instructions work in the same way for seal sets.
+We do not provide special support for lossless reduction of capability permissions, but this could probably be achieved with more fine-grained permissions.
+This would also allow linear capabilities to have aliases, but only by linear capabilities with disjointed permissions.
 
-% Components ...
+
+At this time, the executable configuration is our only way to specify the state of the capability machine.
+We would, however, much prefer a notion of a program that only describe the essential parts of an entity on the machine and only later instrument the program with whatever necessary to make it into an executable configuration.
+In later sections, we describe different entities on the capability machine that interact with each other.
+In order for them to interact, we need to be able to link them together and to this end, we introduce a notion of a component.
+A component is basically a program with open ends in the form of imports.
+A component also have exports allowing other programs to link with them.
+We define the notion of a component in Figure~\ref{fig:target-component-and-linking}.
+% Structure
+A base component $\comp_0$ consists of the following: a code memory segment, a data memory segment, a list of imported symbols, a list of exported symbols, two lists specifying the available seals seals\footnote{We will return to the seals in later sections.}, and a set of all the linear addresses.
+The import list specifies where in memory imports should be placed, and imports are matched to exports via their symbols.
+The exports are words associated with a symbol.
+%base = library
+A base component can be seen as library implementations because it does not specify a main entry point of execution.
+Components are either a library component or a base component with a main in the form of a pair of sealed capabilities which can be seen as a program that still needs to be linked with libraries.
+% Linking .
+Components are combined into new components by linking them together.
+Libraries can be linked together and incomplete programs can be linked with libraries, but two incomplete programs cannot be linked with each other.
+Two components can be linked when their memories, seals, and linear addresses disjointed.
+They are combined by taking the union of each of their constituents.
+For every import that is satisfied by an export of the other component, in the sense that they have the same symbol, the data memory is updated to have the exported word on the imported address.
+The satisfied imports are removed from the import list in the resulting linked component and the exports are updated to be the exports of the two components.
+Linking is defined in Figure~\ref{fig:target-component-and-linking}.
+
+% Programs
+We can now define the notion of a program as well as a context.
+\begin{definition}[Programs and Contexts]
+  We define a \emph{program} to be a component $(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})$ with an empty import list.
+
+  A \emph{context} for a component $\var{comp}$ is another component $\var{comp}'$ such that $\var{comp} \bowtie \var{comp}'$ is a program.
+\end{definition}
+% Getting an executable from a component - postpone this to later, but mention:
 % write xor exec
-% contents
-% linking
-\todo[inline]{Write this.}
+In Section~\ref{sec:form-secur-with}, we will get back to what a program is instrumented with in order to create an executable configuration. 
+We will, however, at this point mention that all programs will be instrumented with the Write-XOR-Execute,\todo{Do we have a reference for this?} i.e.\ there will only be read-execute capabilities for the code and read-write capabilities for the data.
+%Further, we will only consider a specific class of well-formed components, but we will get back to this.
 
-Some simplifications has been made in this presentation of \trgcm{}. We refer to the accompanying technical report\citep{technical_report} for all details.
+\begin{figure}[htb]
+  \centering
+  \[
+    \begin{array}{rl c rl c rl}
+    s &\in \Symbol & \phantom{make} &
+    \mathrm{import} &\mathrel{::=} a \mapsfrom s & \phantom{make} &
+    \mathrm{export} &\mathrel{::=} s \mapsto w\\
+    \var{comp}_0 & \multicolumn{7}{l}{\mathrel{::=} (\mscode,\msdata,\overline{\mathrm{import}},\overline{\mathrm{export}},\sigrets,\sigcloss,A_\linear)}\\
+    \var{comp} & \multicolumn{7}{l}{\mathrel{::=} \var{comp}_0 \mid  (\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})}
+  \end{array}
+\]
+\begin{mathpar}
+  \inference{
+    \var{comp}_1 = (\mscode[1], \msdata[1], \overline{\var{import}_1}, \overline{\var{export}_1}, \sigrets[1], \sigcloss[1],A_{\linear,1})\\
+    \var{comp}_2 = (\mscode[2], \msdata[2], \overline{\var{import}_2}, \overline{\var{export}_2}, \sigrets[2], \sigcloss[2],A_{\linear,2})\\
+    \var{comp}_3 = (\mscode[3], \msdata[3], \overline{\var{import}_3}, \overline{\var{export}_3}, \sigrets[3], \sigcloss[3],A_{\linear,3})\\
+    \mscode[3] = \mscode[1] \uplus \mscode[2] \\
+    \msdata[3] = (\msdata[1] \uplus \msdata[2])[a \mapsto w \mid (a \mapsfrom s) \in (\overline{\var{import}_1} \cup \overline{\var{import}_2}), (s \mapsto w) \in \overline{\var{export}}_3] \\
+    \overline{\var{export}_3} = \overline{\var{export}_1} \cup \overline{\var{export}_2}&
+    \overline{\var{import}_3} = \{ a \mapsfrom s \in (\overline{\var{import}_1} \cup \overline{\var{import}_2}) \mid s \mapsto \_ \not\in \overline{\var{export}_3} \}\\
+    \sigrets[3] = \sigrets[1] \uplus \sigrets[2] &
+    \sigcloss[3] = \sigcloss[1] \uplus \sigcloss[2] &
+    A_{\linear,3} = A_{\linear,1} \uplus A_{\linear,2}\\
+    \dom(\mscode[3]) \mathrel{\#} \dom(\msdata[3]) & \sigrets[3] \mathrel{\#} \sigcloss[3]
+  } {
+    \var{comp}_3 = \var{comp}_1 \bowtie \var{comp}_2
+  }
+  \and
+  \inference{
+    \var{comp}_0'' = \var{comp}_0 \bowtie \var{comp}_0'
+  }{
+    (\var{comp}_0'',c_{\mathrm{main},c}, c_{\mathrm{main},d}) = \var{comp}_0 \bowtie (\var{comp}_0',c_{\mathrm{main},c}, c_{\mathrm{main},d}) = (\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d}) \bowtie \var{comp}_0'
+  }
+\end{mathpar}
+% \begin{definition}[Initial execution configuration]
+%   \begin{mathpar}
+%     \inference{
+%       c_{\mathrm{main},c} = \sealed{\sigma_1, c_{\mathrm{main},c}'} &
+%       c_{\mathrm{main},d} = \sealed{\sigma_2, c_{\mathrm{main},d}'} &
+%       \sigma_1 = \sigma_2\\
+%       \nonExec{c_{\mathrm{main},d}'}&
+%       \reg(\pcreg) = c_{\mathrm{main},c}' & 
+%       \reg(\rdata) = c_{\mathrm{main},d}' \\
+%       \src{\reg(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\eaddr_\stk}} & 
+%       \trg{\reg(\rstk) = ((\rw,\linear),\baddr_\stk,\eaddr_\stk,\eaddr_\stk)} \\
+%       \reg(\RegName \setminus \{\pcreg,\rdata,\rstk\}) = 0\\
+%       \range{\ms_\stk} = \{0\}&
+%       \mem = \mscode \uplus \msdata \trg{\;\uplus\; \ms_\stk} \\
+%       [\baddr_\stk,\eaddr_\stk] = \dom(\ms_\stk ) \mathrel{\#} (\dom(\mscode) \cup \dom(\msdata)) &
+%       \overline{\var{import}} = \emptyset
+%     }{
+%       ((\mscode, \msdata, \overline{\var{import}}, \overline{\var{export}}, \sigrets, \sigcloss,A_\linear),  c_{\mathrm{main},c}, c_{\mathrm{main},d}) \rightsquigarrow (\mem, \reg\src{, \emptyset, \ms_\stk})
+%     }
+%   \end{mathpar}
+% \end{definition}
+% \begin{definition}[Plugging a program into a context]
+%   When $\var{comp'}$ is a context for component $\var{comp}$ and $\var{comp}' \bowtie \var{comp} \rightsquigarrow \Phi$, 
+%   then we write $\plug{\var{comp'}}{\var{comp}}$ for the execution configuration $\Phi$.
+% \end{definition}
+  \caption{Components and linking of components}
+  \label{fig:target-component-and-linking}
+\end{figure}
+
+Some simplifications has been made in this presentation of \trgcm{} in this section. We refer to the accompanying technical report\citep{technical_report} for all details.
 
 %\FloatBarrier
 % \begin{itemize}
