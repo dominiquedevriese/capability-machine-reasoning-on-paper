@@ -827,15 +827,15 @@ This means that any component can ensure WBCF and LSE by employing \stktokens{}.
 % KJAA: ^-- Assuming that there is a global stack address capability, no? Can I "suddenly" begin to impose \stktokens{}?
 
 % Summary of CC
-In the this section, we have described our proposed calling convention, \stktokens{}.
-In this paragraph we summarize it:
-\begin{description}
-\item[Check the base address of the stack capability before and after calls] 
-\item[Make sure that local stack frames are non-empty]
-\item[Create token and data return capability on call] split the stack capability in two to get a stack capability for you local stack frame and a stack capability for the unused part of the stack. The stack capability for your local stack frame is sealed and used for the data part of the return pair.
-\item[Create code return capability on call] Seal the old program pointer.
-\item[Reasonable use of seals] return seals are only used to seal old program pointers, all return seals are only used for one call site, and return seals are not leaked.
-\end{description}
+In the this section, we have described our proposed calling convention, \stktokens{}. The measures taken are:
+\begin{enumerate}
+\item \label{item:check-stkb} Check the base address of the stack capability before and after calls
+\item \label{item:non-empty-sf} Make sure that local stack frames are non-empty
+\item \label{item:return-data} Create token and data return capability on call split the stack capability in two to get a stack capability for you local stack frame and a stack capability for the unused part of the stack. The stack capability for your local stack frame is sealed and used for the data part of the return pair.
+\item \label{item:return-code} Create code return capability on call Seal the old program pointer.
+\item Reasonable use of seals return seals are only used to seal old program pointers, all return seals are only used for one call site, and return seals are not leaked.
+\end{enumerate}
+Item~\ref{item:check-stkb}-\ref{item:return-code} of \stktokens{} are captured by the code in Figure~\ref{fig:call-code} with the exception of checking stack base before calls. We do not include this, because it only needs to happen once between two calls which means that the check after a call suffices if the base of the stack pointer is not changed subsequently.
 
 \begin{figure}
   \centering
@@ -928,6 +928,27 @@ In this paragraph we summarize it:
   \end{subfigure}
   \caption{}
   \label{fig:stk-base-abuse}
+\end{figure}
+
+\begin{figure}[htb]
+  \centering
+{\footnotesize
+\[
+  \begin{array}{r >{$}p{3.5cm}<{$} l >{$}p{3.5cm}<{$} l l}
+    1: & \tmove{\rtmp{1}}{42} & 10: &\tcseal{\rretd}{\rtmp{1}} & 19: &\tcca{\rtmp{2}}{5} \\
+    2: &\tstore{\rstk}{\rtmp{1}} & 11: &\tmove{\rretc}{\pcreg} & 20: &\tjnz{\rtmp{2}}{\rtmp{1}}\\
+    3: &\tcca{\rstk}{(-1)} & 12: & \tcca{\rretc}{5} & 21: &\tcca{\rtmp{2}}{1} \\
+    4: &\tgeta{\rtmp{1}}{\rstk} & 13: & \tcseal{\rretc}{\rtmp{1}} & 22: &   \tjmp{\rtmp{2}} \\
+    5: &\tsplit{\rstk}{\rretd}{\rstk}{\rtmp{1}} & 14: & \tmove{\rtmp{1}}{0} & 23: &    \tfail \\
+    6: &\tmove{\rtmp{1}}{\pcreg} & 15: & \txjmp{r_1}{r_2} & 24: &   \tsplice{\rstk}{\rstk}{\rdata} \\
+    7: &\tcca{\rtmp{1}}{(\offpc - 5)} & 16: & \tgetb{\rtmp{1}}{\rstk} & 25: &    \tcca{\rstk}{1}\\
+    8: &\tload{\rtmp{1}}{\rtmp{1}} & 17: &\tminus{\rtmp{1}}{\rtmp{1}}{\stkb} & 26: &    \tmove{\rtmp{2}}{0} \\
+    9: &\tcca{\rtmp{1}}{\offsigma} & 18: &\tmove{\rtmp{2}}{\pcreg} & &
+  \end{array}
+\]
+}
+  \caption{The instructions that constitutes a call. The variable $\offpc$ is the offset from the first instruction of the call to the set of seals it uses. The variable $\offsigma$ is the offset in the set of seals. The constant $\stkb$ is the globally agreed on stack base. There are a number of ``magic'' numbers in the code: line 1: $42$, garbage data to ensure a non-empty stack. Line 7: $-5$, offset to the first instruction (from the point the capability was moved out of the $\pcreg$-register). Line 12: $5$, offset to the return address. Line 19: $5$, offset to fail. Line 21: offset to address after fail.}
+  \label{fig:call-code}
 \end{figure}
 
 
