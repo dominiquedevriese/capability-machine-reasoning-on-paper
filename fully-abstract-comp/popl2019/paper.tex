@@ -599,6 +599,7 @@ Some simplifications has been made in this presentation of \trgcm{} in this sect
 % \item mention roughly what components look like
 % \end{itemize}
 \section{Linear Stack and Return Capabilities}
+\label{sec:stktokens-explained}
 In this section, we introduce our calling convention \stktokens{} that insures LSE and WBCF.
 We will gradually explain each of the security measures \stktokens{} take and motivate them with the attacks they prevent.
 
@@ -1159,42 +1160,152 @@ In this case, the top stack frame is popped from the stack and added to the free
   \label{fig:source-op-sem}
 \end{figure}
 \subsection{Well-formedness and reasonability}
-
 % Well-formed components
+% \begin{figure}[htb]
+%   \centering
+%   \begin{mathpar}
+%   \inference{
+%     \dom(\mscode) = [\baddr,\eaddr]&
+%     [\baddr-1,\eaddr+1] \mathrel{\#} \dom(\msdata)\\
+%     \mspad = [\baddr-1\mapsto 0] \uplus [\eaddr+1 \mapsto 0]\\
+%     \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode \\
+%     \exists A_\mathrm{own} : \dom(\msdata) \rightarrow \powerset{\dom(\msdata)} & \dom(\msdata) = A_{\mathrm{non-linear}} \uplus A_\linear \\
+%     A_\linear = \biguplus_{a \in \dom(\msdata)} A_{\mathrm{own}}(a) \\
+%     \forall a \in \dom(\msdata)\ldotp \dom(\mscode),A_{\mathrm{own}}(a),A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \msdata(a)\\
+%     \overline{\var{export}} = \overline{s_{\mathrm{export}} \mapsto w_{\mathrm{export}}} & \overline{\var{import}} = \overline{a_{\mathrm{import}} \mapsfrom s_{\mathrm{import}}}& \{\overline{a_{\mathrm{import}}}\} \subseteq \dom(\msdata)\\
+%     \overline{\dom(\mscode), A_{\mathrm{non-linear}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-export}} w_{\mathrm{export}}}\\
+%     \overline{s_{\mathrm{import}}} \mathrel{\#} \overline{s_{\mathrm{export}}} & (\dom(\mscode) \subseteq \ta) \vee (\dom(\mscode) \mathrel{\#} \ta \wedge \sigrets = \emptyset)&
+%     \dom(\msdata) \mathrel{\#} \ta
+%   }{
+%     \vdash (\mscode\uplus \mspad,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
+%   }
+%   \and
+%   \inference{
+%     \comp_0 = (\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)\\
+%     \vdash \comp_0 & (\_ \mapsto c_{\mathrm{main},c}), (\_ \mapsto c_{\mathrm{main},d}) \in \overline{\var{export}}
+%   }{
+%     \vdash (\comp_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})
+%   }
+% \end{mathpar}
+%   \caption{Exceprt of well-formedness judgement}
+%   \label{fig:well-formedness}
+% \end{figure}
+% Well-formedness highlights:
+% Main exported
+% Code memory:
+% - Only instructions and seals
+% - calls associated with return seals unique return seal
+% - only uses seals specified for components
+% - (No linear access)
+% Data memory:
+% - Data
+% - Capabilities fora data memory (linearity respected)
+% - Sealed caps sealed with clos seal
+% Exports
+% - Any Word valid in data memory or
+% - Sealed capability for code (sealed with clos seal)
+% Imports
+% - Address must be in data memory
+The judgement $\wdjud[\ta]{\comp}$ specifies what components are well formed, i.e.\ satisfy the syntactic requirements necessary to be able to rely on system guarantees.
+For space reasons, we just describe the main points of the judgement and refer to the technical report~\citep{technical_report} for the formal definition.
+For components with a main pair, the main pair must come from the export and the remainder of the component must be well-formed.
+As a reminder, a base component looks like this: $(\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)$.
+The return seals $\sigrets$ are the seals supposed to be used for return seals and the closure seals $\sigcloss$ all the other seals.
+If this is not a trusted component, i.e.\ the domain of the code memory $\mscode$ is disjointed from the set of trusted addresses $\ta$, then there should be no return seals.
+The code memory must only contain set of seals specified by $\sigrets$ and $\sigclos$ and instruction in the form of integers.
+When a sequence of instructions in the code memory corresponds to a call (Figure~\ref{fig:call-code}), then it must have access to a return seal used by no other call.
+The data memory $\msdata$ may contain data, capabilities, and sealed capabilities.
+The capabilities in the data memory must be for the data memory itself, which allow them to form predetermined data structures.
+They can at most have a read-write permission in order to respect Write-XOR-Execute.
+They also need to respect linearity which means that the linear capability cannot have any aliases and it must be for a range of the predetermined linear addresses $A_\linear$.
+The sealed capabilities must use a closure seal and they can seal anything that can reside in data memory.
+The exports $\overline{\var{export}}$ can be anything non-linear allowed to reside in data memory or a sealed capability for the code memory sealed with one of the closure seals.
+Finally, the addresses of the imports $\overline{\var{import}}$ must be addresses in the data memory.
 
-% Reasonability 
-\todo[inline]{Write about well-formed components and reasonability}
+% Reasonability
+The static guarantees given by $\wdjud[\ta]{\comp}$ makes sure that components initially have the measures to use \stktokens{}, but it does not prevent a component from doing something silly that undermines \stktokens{}.
+So in order for \stktokens{} to provide any guarantees for a component, we expect it to not shoot itself in the foot and of course perform the stack check not captured by the call code (Figure~\ref{fig:call-code}).
+We more precisely expect four things of a reasonable component: (1) it checks the stack base address before performing a call.
+As explained in Section~\ref{sec:stktokens-explained}, we do not include this check in the call code as it often would be redundant.
+(2) it uses the return seals only for calls and the closure seals in an appropriate way which means that they should only be used to seal executable capabilities for code that behaves reasonably or non-executable things the do not undermine the security mechanisms \stktokens{} rely on.
+(3) it does not leak return and closure seals or means to get them.
+For instance, this means that sets of seals with return or closure seals cannot be left in registers when transferring control to another module, and it also means that non-sealed capabilities or capabilities sealed with an untrusted seal for code memory cannot be transferred.
+(4) it does not store return and closure seals or means to get them.
+This allow us to safely share capabilities for data memory as they cannot contain seal we do not want to give up.
+The reasonability definition has also been left out for space reasons but can be found in the technical report~\citep{technical_report}.
+
+% \begin{definition}[Reasonable configuration]
+%   \label{def:reasonable-conf}
+%   We say that an execution configuration $\Phi$ is reasonable up to $n$ steps with $(\ta,\stkb,\gsigrets,\gsigcloss)$ 
+%   iff for $n' \leq n$:
+%   \begin{itemize}
+%   \item \emph{Guarantee stack base address before call...}
+%   \item \emph{Use return seals only for calls, use closure seals appropriately...}
+%   \item \emph{Don't store private stuff...} If $\src{\Phi}$ points to $\src{\tstore{r_1}{r_2}}$ in $\ta$, then
+
+%     Then $n' = 0$ or $\Phi.\reg(r_2)$ is reasonable in memory $\Phi.\mem$ up to $n' -1$ steps.
+%   \item \emph{Don't leak private stuff...}
+%   \end{itemize}
+% \end{definition}
+% Reasonable configuration
+% Reasonable component
 
 
 \subsection{Full abstraction}
+
+
+% How a program is lifted to an executable configuration
+Given a program as defined in Definition~\ref{def:program-and-context}, we want to be able to execute it which means that we have to lift it to an executable configuration.
+When we lift a program to an executable configuration, we need to provide it a stack in order for \stktokens{} to work.
+The relation $(\comp_0, c_{\mathrm{main},c}, c_{\mathrm{main},d}) \rightsquigarrow \Phi$ lifts a component with a main to an executable configuration.
+It works almost the same on \trgcm{} and \srccm{}.
+On both machines a stack that contains all zeroes is added.
+On \trgcm{} it is added as part of the memory along with the data and code memory.
+On \srccm{} it is added as the free stack in the configuration, and the initial stack is empty as no calls have been made.
+The component needs access to the stack, so a stack pointer is added to the register file in $\rstk$.
+On \trgcm{} this is just a linear read-write capability, but on \srccm{} it is the representation of a stack pointer.
+The entry point of the program is specified by main, so the two capabilities are unsealed (they must have the same seal) and placed in the $\pcreg$ and $\rdata$ registers.
+The remainder of the registers contain zero.
+
+We are now ready to define plugging of components into contexts followed by contextual equivalence:
+%The remaining defintions
+\begin{definition}[Plugging a component into a context]
+  When $\var{comp'}$ is a context for component $\var{comp}$ and $\var{comp}' \bowtie \var{comp} \rightsquigarrow \Phi$, 
+  then we write $\plug{\var{comp'}}{\var{comp}}$ for the execution configuration $\Phi$.
+\end{definition}
+\begin{definition}[\trgcm{} and \srccm{} contextual equivalence]
+  \label{def:contextual-equivalence}
+  ~
+  \begin{description}
+  \item[On \srccm{}], we define that $\src{\comp_1 \sconeq \comp_2}$ iff
+  \begin{equation*}
+    \forall \src{\context} \ldotp  \wdjud[\emptyset]{\src{\context}} \Rightarrow \src{\plug{\context}{\comp_1} \sterm{\ta[,1],\stkb_1}} \Leftrightarrow \src{\plug{\context}{\comp_2} \sterm{\ta[,2],\stkb_2}}
+  \end{equation*}
+  with $\src{\ta[,i]} = \src{\dom(\comp_i.\mscode)}$.
+  \item[On \trgcm{}], we define that $\trg{\comp_1 \tconeq \comp_2}$ iff
+  \begin{equation*}
+    \forall \trg{\context} \ldotp \wdjud[\emptyset]{\trg{\context}} \Rightarrow \trg{\plug{\context}{\comp_1} \term} \Leftrightarrow \trg{\plug{\context}{\comp_2} \term}
+  \end{equation*}
+\end{description}
+\end{definition}
+With the above defined, we are almost ready to state our full-abstraction, and all that remains is the compiler we claim to be fully-abstract.
+We only care about the well-formed components, and they sport none of the new syntactic constructs \srccm{} adds to \trgcm{}.
+This means that the compilation from \srccm{} components to \trgcm{} components is simply the identity function.
 % Full abstraction thm
-\begin{definition}[Source language contextual equivalence]
-  In the source language, we define that $\src{\var{comp}_1 \sconeq \var{comp}_2}$ iff
-  \begin{equation*}
-    \forall \src{\context} \ldotp \vdash \src{\context} \Rightarrow \src{\plug{\context}{\var{comp}_1} \sterm{\ta[,1],\stkb_1}} \Leftrightarrow \src{\plug{\context}{\var{comp}_2} \sterm{\ta[,2],\stkb_2}}
-  \end{equation*}
-  with $\src{\ta[,i]} = \src{\dom(\var{comp}_i.\mscode)}$.
-  \dominique{and stkbase?}
-\end{definition}
-
-\begin{definition}[Target language contextual equivalence]
-  In the target language, we define that $\trg{\var{comp}_1 \tconeq \var{comp}_2}$ iff
-  \begin{equation*}
-    \forall \trg{\context} \ldotp \vdash \trg{\context} \Rightarrow \trg{\plug{\context}{\var{comp}_1} \term} \Leftrightarrow \trg{\plug{\context}{\var{comp}_2} \term}
-  \end{equation*}
-\end{definition}
-
 \begin{theorem}
   \label{thm:full-abstraction}
-  For reasonable, well-formed components $\var{comp}_1$ and $\var{comp}_2$, we have
+  For reasonable, well-formed components $\comp_1$ and $\comp_2$, we have
   \begin{gather*}
-    \src{\var{comp}_1} \sconeq \src{\var{comp}_2}\\
+    \src{\comp_1} \sconeq \src{\comp_2}\\
     \Updownarrow\\
-    \comp{\src{\var{comp}_1}} \tconeq \comp{\src{\var{comp}_2}}
+    \src{\comp_1} \tconeq \src{\comp_2}
   \end{gather*}
 \end{theorem}
+Readers unfamiliar with full-abstraction may wonder why Theorem~\ref{thm:full-abstraction} proves that \stktokens{} guarantee LSE and WBCF.
+\todo[inline]{Write this, i.e.\ explain why full-abstractness prove LSE and WBCF.}
 
-
+% What does it actually mean?
+% Relies on LSE and WBCF of \srccm - which is obvious from the operational semantics (or defines what it means here?).
 
 
 
