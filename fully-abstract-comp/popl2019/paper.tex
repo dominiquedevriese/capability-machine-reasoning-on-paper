@@ -278,7 +278,7 @@ This independent result could then be composed with our result to obtain securit
 % Brief intro to section and this cap machine:
 % Cap machine inspired by CHERI, but with linear capabilities
 In this section, we introduce a simple but representative capability machine with linear capabilities.
-We will later introduce a capability machine similar to the one in this section, so to easily distinguish the two, we will call this one \trgcm{} (Linear Capability Machine).
+We will later introduce a capability machine similar to the one in this section, so to easily distinguish the two, we call this one \trgcm{} (Linear Capability Machine).
 \trgcm{} is mainly inspired by CHERI~\citep{watson_cheri:_2015} with linear capabilities as the main exception.
 In order to avoid details uninteresting to the focus of this work, \trgcm{} assumes an infinite address space and unbounded integers.
 \lau{Do we have a good reason to assume an infinite address space for this work?
@@ -289,14 +289,16 @@ The concept of a capability is the cornerstone of any capability machine.
 In its simplest form, a capability is a permission and a range of authority.
 The permission dictates the operations the capability can be used for, and the range of authority specifies the range of memory it can act upon.
 % Permissions and Range of authority
-The capabilities of \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (as defined in Figure~\ref{fig:target-syntax} along with the rest of the syntax of \trgcm{}) where $\var{perm}$ is the permission and $[\var{base},\var{end}]$ is the range of authority.
+The capabilities of \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (as defined in Figure~\ref{fig:target-syntax} along with the rest of the syntax of \trgcm{}). Here $\var{perm}$ is the permission, and $[\var{base},\var{end}]$ is the range of authority.
 \trgcm{} only has memory capabilities, and we limit them to a number of sensible permissions making the available permissions: read-write-execute ($\rwx$), read-write ($\rw$), read-execute ($\rx$), read-only ($\ro$), and null-permission ($\noperm$).
 We define the preorder $\le$ on permissions as illustrated in Figure~\ref{fig:perm-hier}.
 % Pointer and linearity
-In addition to the two basic things, the capabilities also have a current address $\addr$ and a linearity $\lin$. The linearity of a capability can either be $\linear$ or $\normal$ where $\normal$ corresponds to a traditional capability.
+In addition to the two basic things, the capabilities also have a current address $\var{addr}$ and a linearity $\var{lin}$. The linearity of a capability can either be $\linear$ or $\normal$ where $\normal$ corresponds to a traditional capability.
 % What is linear capabilities, split/splice
-A linear capability is a capability with no alias that cannot be duplicated.
-This is enforced dynamically on the capability machine, so when a linear capability is moved between registers or stored to memory, the source register is cleared, and when a linear capability is read from memory, the source address is cleared. We will see this later in this section when we get to the operational semantics.
+A linear capability is a capability that cannot be duplicated.
+This is enforced dynamically on the capability machine, so when a linear capability is moved between registers or stored to memory, the source register is cleared, and when a linear capability is read from memory, the source address is cleared.
+We will see this later in this section when we get to the operational semantics.
+The non-duplicability of linear capabilities means that a linear capability cannot suddenly be aliased if it wasn't to begin with.
 
 \begin{wrapfigure}{r}{0.33\linewidth}
   \centering
@@ -329,19 +331,19 @@ Any reasonable capability machine needs a way to setup boundaries between securi
 On \trgcm{} we have sealed capabilities to achieve this.
 Syntactically, sealed capabilities add two things to the capability machine: Sets of seals $\seal{\sigma_\var{base},\sigma_\var{end},\sigma}$ and sealed capabilities $\sealed{\sigma,\vsc}$.
 % seals
-A set of seals consists of a range of available seals $[\sigma_\var{base},\sigma_\var{end}]$ and the current seal $\sigma$ that is represented by a natural number.
+A set of seals consists of a range of available seals $[\sigma_\var{base},\sigma_\var{end}]$ and the current seal $\sigma$ which is represented by a natural number.
 % sealed caps
 A sealed capability consists of a sealable $\vsc$ and the seal $\sigma$ it has been sealed with.
-The sealables are sets of seals and capabilities, and we refer to the set of them as $\SealableCaps$.
-The system native tokens on \trgcm{} are the sealables and the sealed capabilities and we refer to this set as $\Cap$.
+The sealables are the sets of seals and the capabilities, and we refer to the set of them as $\SealableCaps$.
+The system native tokens $\Cap$ on \trgcm{} are the sealables and the sealed capabilities.
 
 %%% Domains
 The words on \trgcm{} are the system native tokens in $\Cap$ and data which is represented by $\ints$.
-We assume a finite set $\RegName$ of register names that at least contains registers $\pcreg$, $\rretd$, $\rretc$, $\rstk$, $\rdata$, $\rtmp{1}$, and $\rtmp{2}$, and we define register files as a function from register names to words.
-A memory is a full memory and a memory segment is part of a memory.
-Both are defined as functions from addresses, defined as the natural numbers, to words, but the memory segment functions only need to be partial.
-$\trgcm{}$ has two terminated configurations $\halted$ and $\failed$ that respectively signify a successful execution and an execution with an attempt to break the capability machine guarantees.
-An executable configuration is a register file and memory pair. 
+We assume a finite set of register names $\RegName$ that at least contains register names $\pcreg$, $\rretd$, $\rretc$, $\rstk$, $\rdata$, $\rtmp{1}$, and $\rtmp{2}$, and we define register files as functions from register names to words.
+We have a notion of a complete memory where all memory addresses contains a word and a memory segment that need not contain words on all addresses.
+Both are represented as functions from addresses, defined as the natural numbers, to words, but the memory segment functions only need to be partial.
+$\trgcm{}$ has two terminated configurations $\halted$ and $\failed$ that respectively signify a successful execution and an execution where something went wrong, e.g.\ an attempt to break the capability machine guarantees.
+An executable configuration is a register file and memory pair.
 
 \begin{figure}[p]
   \centering
@@ -382,7 +384,7 @@ An executable configuration is a register file and memory pair.
   \end{cases}
   \end{array}
 \]
-  \begin{tabular}{|>{$}c<{$}|>{$}p{3.4cm}<{$}|>{\raggedright\arraybackslash}p{7cm}|}
+  \begin{tabular}{|>{$}c<{$}|>{$}p{3.7cm}<{$}|>{\raggedright\arraybackslash}p{6.8cm}|}
     \hline
     i \in \Instr                                 & \sem{i}(\Phi) & Conditions\\
     \hline
@@ -392,11 +394,11 @@ An executable configuration is a register file and memory pair.
     % \hline
     % \move{r}{\rn}                                & \updPcAddr{\Phi\updReg{r}{\rn}} & $\rn \in \ints$\\
     \hline
-    \move{r}{\rn}                                & \updPcAddr{\Phi\updReg{\rn,r}{w_1,w_2}} & $\rn \in \RegName$ and $w_1 = \Phi(\rn)$ and $w_2 = \linCons{\rn}$ \\
+    \move{r}{\rn}                                & \updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{\rn}{w_2}\\ & \updReg{r}{w_1})\endarray & $\rn \in \RegName$ and $w_1 = \Phi(\rn)$ and $w_2 = \linCons{\rn}$ \\
     \hline
-    \load{r_1}{r_2}                              & \updPcAddr{\Phi\updReg{r_1}{w_1}\update{\mem.\aaddr}{w_\aaddr}} & $\Phi(r_2) = ((\perm,\_),\baddr,\eaddr,\aaddr)$ and $\baddr \le \aaddr \le \eaddr$ and $\perm \in \{\rwx,\rw,\rx,\ro\}$ and $w_1 = \Phi.\mem(\aaddr)$ and $w_a = \linCons{w_1}$ and $\isLinear{w_1} \Rightarrow \perm \in \{\rwx,\rw\}$\\
+    \load{r_1}{r_2}                              & \updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_1}{w_1}\\ &\update{\mem.\aaddr}{w_\aaddr})\endarray & $\Phi(r_2) = ((\perm,\_),\baddr,\eaddr,\aaddr)$ and $\baddr \le \aaddr \le \eaddr$ and $\perm \in \{\rwx,\rw,\rx,\ro\}$ and $w_1 = \Phi.\mem(\aaddr)$ and $\isLinear{w_1} \Rightarrow \perm \in \{\rwx,\rw\}$ and $w_a = \linCons{w_1}$\\
     \hline
-    \store{r_1}{r_2}                             & \updPcAddr{\Phi\updReg{r_2}{w_2}\update{\mem.\aaddr}{\Phi(r_2)}} & $\Phi(r_1) = ((\perm,\_),\baddr,\eaddr,\aaddr)$ and $\perm \in \{\rwx,\rw\}$ and $\baddr \le \aaddr \le \eaddr$ and $w_2 = \linCons{\Phi(r_2)}$\\
+    \store{r_1}{r_2}                             & \updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_2}{w_2}\\ & \update{\mem.\aaddr}{\Phi(r_2)})\endarray & $\Phi(r_1) = ((\perm,\_),\baddr,\eaddr,\aaddr)$ and $\perm \in \{\rwx,\rw\}$ and $\baddr \le \aaddr \le \eaddr$ and $w_2 = \linCons{\Phi(r_2)}$\\
     \hline
     \geta{r_1}{r_2}                              & \updPcAddr{\Phi\updReg{r_1}{w}} & If $\Phi(r_2) = ((\_,\_),\_,\_,\aaddr)$ or $\Phi(r_2) = \seal{\_,\_,\aaddr}$, then $w = \aaddr$ and otherwise $w = -1$\\
     \hline
@@ -406,9 +408,9 @@ An executable configuration is a register file and memory pair.
     \hline
     \xjmp{r_1}{r_2}                              & \Phi' & $\Phi(r_1) = \sealed{\sigma,c_1}$ and $\Phi(r_2) = \sealed{\sigma,c_2}$ and $w_1 = \linCons{c_1}$ and $w_2 = \linCons{c_2}$ and $\Phi' = \xjmpres{c_1,c_2,\Phi\updReg{r_1,r_2}{w_1,w_2}}$  \\
     \hline
-    \tsplit{r_1}{r_2}{r_3}{\rn}                  & \updPcAddr{\Phi\updReg{r_3,r_1,r_2}{w,c_1,c_2}} & $\Phi(r_3) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ and $\Phi(\rn) = n \in \nats$ and $\baddr \le n < \eaddr$ and $c_1 = ((\perm,\lin),\baddr,n,\aaddr)$ and $c_2 = ((\perm,\lin),n+1,\eaddr,\aaddr)$ and $w = \linCons{\Phi(r_1)}$\\
+    \tsplit{r_1}{r_2}{r_3}{\rn}                  & \updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_3}{w}\\ &\updReg{r_1}{c_1}\\ &\updReg{r_2}{c_2})\endarray & $\Phi(r_3) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ and $\Phi(\rn) = n \in \nats$ and $\baddr \le n < \eaddr$ and $c_1 = ((\perm,\lin),\baddr,n,\aaddr)$ and $c_2 = ((\perm,\lin),n+1,\eaddr,\aaddr)$ and $w = \linCons{\Phi(r_1)}$\\
     \hline
-    \splice{r_1}{r_2}{r_3}                       & \updPcAddr{\Phi\updReg{r_2,r_3,r_1}{w_2,w_3,c}}& $\Phi(r_2) = ((\perm,\lin),\baddr,n,\_)$ and $\Phi(r_3) = ((\perm,\lin),n+1,\eaddr,\aaddr)$ and $\baddr \le n < \eaddr$ and $c = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ and $w_2,w_3 = \linCons{\Phi(r_2),\Phi(r_3)}$\\
+    \splice{r_1}{r_2}{r_3}                       & \updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_2}{w_2}\\ &\updReg{r_3}{w_3}\\ &\updReg{r_1}{c})\endarray& $\Phi(r_2) = ((\perm,\lin),\baddr,n,\_)$ and $\Phi(r_3) = ((\perm,\lin),n+1,\eaddr,\aaddr)$ and $\baddr \le n < \eaddr$ and $c = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ and $w_2,w_3 = \linCons{\Phi(r_2),\Phi(r_3)}$\\
     \hline
     \cseal{r_1}{r_2}                             & \updPcAddr{\Phi\updReg{r_1}{\vsc}} & $\Phi(r_1) \in \SealableCaps$ and $\Phi(r_2) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$ and $\sigma_\baddr \le \sigma \le \sigma_\eaddr$ and $\vsc = \sealed{\sigma,\Phi(r_1)}$ \\
     \hline
@@ -417,29 +419,29 @@ An executable configuration is a register file and memory pair.
     \_                                           & \failed & \totherwise \\
     \hline
   \end{tabular}
-\caption{An excerpt of the operational semantics of our capability machine with sealing and linear capabilities.}
+\caption{An excerpt of the operational semantics of \trgcm{}}
   \label{fig:target-op-sem}
 \end{figure}
 % syntax (instructions)
 \trgcm{}'s instruction set is somewhat basic with the instructions one expects on most low-level machine as well as capability machine specific instructions.
 The instructions that can be considered standard are: unconditional and a conditional jump (\texttt{jmp} and \texttt{jnz}), copy between registers (\texttt{move}), instructions that load from memory and store to memory (\texttt{load} and \texttt{store}), and arithmetic operations (\texttt{plus}, \texttt{minus}, and \texttt{lt}).
-The simplest of the capability machine specific instructions simply inspect system native tokens or project one of their fields.
+The simplest of the capability machine specific instructions simply inspect the type of system native tokens or project one of their fields.
 These are \texttt{gettype} (for getting the type of a system token) and \texttt{getp}, \texttt{getl}, \texttt{getb}, \texttt{gete}, and \texttt{geta} (for projecting permission, linearity, base, end, and current address(/seal), respectively).
-There are two instructions for manipulating the current address(/seal) of a capability(/set of seals): \texttt{cca} changes the current address(/seal) of a capability(/set of seals) by some offset, and \texttt{seta2b} set the current address(/seal) of a capability(/set of seals) to the base address(/seal).
+There are two instructions for manipulating the current address(/seal) of a capability(/set of seals): \texttt{cca} changes the current address(/seal) of a capability(/set of seals) by some offset, and \texttt{seta2b} sets the current address(/seal) of a capability(/set of seals) to the base address(/seal).
 The \texttt{restrict} instruction reduces the permission of a capability according to the permission order $\le$.
-Generally speaking, a capability machine needs an instruction for reducing the range of authority of an capability.
-Because \trgcm{} has linear capabilities the instruction for this splits the capability in two rather than reducing the range of authority (instruction \texttt{split}).
-\trgcm{} also has an instruction that does the inverse of this, so a linear capability, or any capability for that matter, that has been split can be restored (\texttt{splice}).
-\trgcm{} has instructions for sealing sealables (\texttt{cseal}) and unsealing pairs of sealed capabilities (\texttt{xjmp}, see below).
+Generally speaking, a capability machine needs an instruction for reducing the range of authority of a capability.
+Because \trgcm{} has linear capabilities, the instruction for this splits the capability in two rather than reducing the range of authority (\texttt{split}).
+\trgcm{} also has an instruction that does the inverse of splitting, so a linear capability, or any capability for that matter, that has been split can be restored (\texttt{splice}).
+\trgcm{} has instructions for sealing sealables (\texttt{cseal}) and unsealing pairs of sealed capabilities by crossing security boundaries (\texttt{xjmp}, see below).
 Finally, \trgcm{} has instructions to signal whether an execution was successful or not (\texttt{halt} and \texttt{fail}).
 
 % opsem
 The operational semantics of \trgcm{} is displayed in Figure~\ref{fig:target-op-sem}.
 The operational semantics is defined in terms of a step relation that executes the next instruction in an executable configuration $\Phi$ which results in a new executable configuration or one of the two terminated configurations.
 The executed instruction is determined by the capability in $\pcreg$ register, i.e.\ $\Phi(\pcreg)$ (we write $\Phi(r)$ to mean $\Phi.\reg(r)$).
-In order for the machine to take a step, the capability in the $\pcreg$ must have a permission that allows execution, and the current address of the capability must be within the range of addresses where the capability can operate.
+In order for the machine to take a step, the capability in the $\pcreg$ must have a permission that allows execution, and the current address of the capability must be within the capability's range of authority.
 If both things are satisfied, then the word pointed to by the capability is decoded to an instruction which is interpreted relatively to $\Phi$.
-The interpretation of some of the instructions are also displayed in Figure~\ref{fig:target-op-sem}.
+The interpretation of some of the instructions are displayed in Figure~\ref{fig:target-op-sem}.
 In order to step through a program in memory, most of the interpretations use the function $\updPcAddr{}$ which simply updates the capability in the $\pcreg$ to point to the next memory address.
 The instructions that stop execution or change the flow of execution do not use $\updPcAddr{}$.
 For instance, the \texttt{halt} and \texttt{fail} instructions are simply interpreted as the $\halted$ and $\failed$ configurations, respectively, and they do not use $\updPcAddr{}$.
@@ -447,20 +449,24 @@ For instance, the \texttt{halt} and \texttt{fail} instructions are simply interp
 % move w/ lin
 The \texttt{move} instruction simply moves a word from one register to another.
 It is, however, complicated slightly by the presence of the non-duplicable linear capabilities.
-This means that when a linear capability is moved, the source register should be cleared.
-To take care of this and prevent duplicating the operational semantics, we use the function $\linCons{}$ that returns $0$ for linear capabilities and is the identity for all other words.
-When the \texttt{move} instruction is performed, the source register $r_2$ is overwritten with $\linCons{\Phi(r_2)}$ which clears the register if the contents was linear and leaves it unchanged otherwise.
+When a linear capability is moved, the source register must be cleared, so the capability is not duplicated.
+This is done uniformly in the semantics using two approaches.
+In the first one, we use the function $\linCons{}$ that returns $0$ for linear capabilities and is the identity for all other words.
+When a word $w$ that can possibly be a linear capability is transferred on the machine, then the source of $w$ is overwritten with $\linCons{w}$ which clears the source if $w$ was linear and leaves it unchanged otherwise.
+In the case of \texttt{move}, the source register $r_2$ is overwritten with $\linCons{\Phi(r_2)}$.
+We see the other approach later.
 
 % load w/ lin (and store)
 The \texttt{store} and \texttt{load} instructions are fairly standard: They require a capability with permission to either write or read depending on the operation, they check that the capability points within the range of authority, and they clear the source of a linear capability transfer.
-Linear capabilities introduce one complication for \texttt{load} as it needs to clear the loaded memory address when it contains a linear capability in order to not duplicate the capability.
+Linear capabilities introduce one extra complication for \texttt{load} as it needs to clear the loaded memory address when it contains a linear capability in order to not duplicate the capability.
 Clearing a memory address corresponds to writing $0$ to the memory, but in order to write to memory we need to provide a capability with write-permission.
 This means that to load a linear capability from memory, we have to use a capability with read and write permission.
 
 % geta, cca
 The instructions \texttt{geta} and \texttt{cca} are fairly simple: \texttt{geta} projects the current address or current seal from a capability or a set of seals, respectively, and it returns the error value $-1$ for data and sealed capabilities.
 The \texttt{cca} instruction changes the current address or seal of a capability or set of seals, respectively, by a given offset.
-By making an in-place update, the instruction does not need to take special care in order to maintain linearity.
+It handles linearity by updating the capability in-place, i.e.\ the source register is used as the target register.
+This is the second approach we use to uniformly handle linearity.
 The \texttt{jmp} instruction is a fairly simple jump that just sets the $\pcreg$-register.
 
 %% Sealing
@@ -471,19 +477,21 @@ Given a sealable $\vsc$ and a set of seals where the current seal $\sigma$ is wi
 Apart from dealing with linearity, \texttt{xjmp} takes a pair of sealed capabilities unseals them and put one in the $\pcreg$ register and the other in the $\rdata$ register, but only if they are sealed with the same seal and the data capability (the capability placed in $\rdata$) is non-executable.
 A pair of sealed capabilities can be seen as a closure where the code capability (the capability placed in $\pcreg$) is the program and the data capability is the local environment of the closure.
 Because of the opacity of sealed capability, the creator of the closure can be sure that execution will start where the code capability points and only in an environment with the related data, i.e.\ sealed with the same seal.
+This also makes \texttt{xjmp} the mechanism on \trgcm{} that transfers control between security domains.
+The opaque sealed capabilities encapsulate a security domain's local state and authority, and it only becomes accessible again when control is transferred to the security domain.
 Some care should be taken when sealing as reuse of the same seal for multiple closures would make it possible to jump to the code of one capability with the environment of another.
 % xjmp to unseal
 \trgcm{} does not have an instruction for unsealing single sealed capabilities directly (using the seal that was used to do the sealing), but it can be (partially) simulated using \texttt{xjmp}.
 
 % split/splice
 Instructions for reducing the authority of capabilities are commonplace on capability machines as they allow us to limit what a capability can do before it is passed away.
-For normal capabilities, reduction of authority can be done without actually giving up any authority if the capability is duplicated first.
+For normal capabilities, reduction of authority can be done without actually giving up any authority by duplicating the capability first.
 With linear capabilities authority cannot be preserved in this fashion as they are non-duplicable.
 In order to make a lossless reduction of the range of authority, \trgcm{} provides special hardware support in the form of \texttt{split} and \texttt{splice}.
-The \texttt{split} instruction takes a capability with range of authority $[\var{base},\var{end}]$ and an address $n$ and creates two new capabilities one with $[\var{base},n]$ as its range of authority and the other with $[n+1,\var{end}]$ as it range of authority.
+The \texttt{split} instruction takes a capability with range of authority $[\var{base},\var{end}]$ and an address $n$ and creates two new capabilities one with $[\var{base},n]$ as its range of authority and the other with $[n+1,\var{end}]$ as its range of authority.
 Everything else, i.e.\ permission, linearity and current address, is copied without change to the new capabilities.
-With \texttt{split} we can reduce the range of authority of a linear capability without losing any authority as we retain it in the other capability.
-However, if we only have \texttt{split}, then in some sense splitting a capability is not completely lossless as we may have authority over the same range of addresses, but we have that authority in two capabilities rather than just one.
+With \texttt{split}, we can reduce the range of authority of a linear capability without losing any authority as we retain it in the second capability.
+However, if we only have \texttt{split}, then in some sense splitting a capability is not completely lossless as we may have authority over the same range of addresses after a \texttt{split}, but we have that authority in two capabilities rather than just one.
 In order to make up for this, we have a \texttt{splice} instruction that essentially does the inverse of \texttt{split}.
 Namely given two capabilities with adjacent ranges of authority and the same permissions and linearity, it splices them together into one capability.
 The two instructions work in the same way for seal sets.
@@ -492,19 +500,19 @@ This would also allow linear capabilities to have aliases, but only by linear ca
 
 
 At this time, the executable configuration is our only way to specify the state of the capability machine.
-We would, however, much prefer a notion of a program that only describe the essential parts of an entity on the machine and only later instrument the program with whatever necessary to make it into an executable configuration.
+We would, however, much prefer a notion of programs that only describes the essential parts of an entity on the machine and only later instrument the program to make it into an executable configuration.
 In later sections, we describe different entities on the capability machine that interact with each other.
-In order for them to interact, we need to be able to link them together and to this end, we introduce a notion of a component.
-A component is basically a program with open ends in the form of imports.
-A component also has exports allowing other programs to link with it.
+In order for them to interact, we need to be able to link them together, and to this end we introduce a notion of components.
+A component is basically a program with open ends in the form of imports that need to be satisfied.
+A component also has exports allowing other components to link with it.
 We define the notion of a component in Figure~\ref{fig:target-component-and-linking}.
 % Structure
-A base component $\comp_0$ consists of the following: a code memory segment, a data memory segment, a list of imported symbols, a list of exported symbols, two lists specifying the available seals\footnote{We will return to the seals in later sections.}, and a set of all the linear addresses.
+A base component $\comp_0$ consists of the following: a code memory segment, a data memory segment, a list of imported symbols, a list of exported symbols, two lists specifying the available seals\footnote{We will return to the seals in Section~\ref{sec:form-secur-with}.}, and a set of all the linear addresses.
 The import list specifies where in memory imports should be placed, and imports are matched to exports via their symbols.
-The exports are words associated with a symbol.
+The exports are words each associated with a symbol.
 %base = library
 A base component can be seen as library implementations because it does not specify a main entry point of execution.
-Components are either a library component or a base component with a main in the form of a pair of sealed capabilities which can be seen as a program that still needs to be linked with libraries.
+A component is either a library component or a base component with a main in the form of a pair of sealed capabilities which can be seen as a program that still needs to be linked with libraries.
 % Linking .
 Components are combined into new components by linking them together.
 Libraries can be linked together and incomplete programs can be linked with libraries, but two incomplete programs cannot be linked with each other.
@@ -512,7 +520,7 @@ Two components can be linked when their memories, seals, and linear addresses di
 They are combined by taking the union of each of their constituents.
 For every import that is satisfied by an export of the other component, in the sense that they have the same symbol, the data memory is updated to have the exported word on the imported address.
 The satisfied imports are removed from the import list in the resulting linked component and the exports are updated to be the exports of the two components.
-In Figure~\ref{fig:target-component-and-linking}, $\bowtie$ defines linking.
+Components and linking are defined in Figure~\ref{fig:target-component-and-linking}.
 \todo[inline]{Add better separation between component and linking in figure.}
 
 % Programs
@@ -525,8 +533,8 @@ We can now define the notion of a program as well as a context.
 \end{definition}
 % Getting an executable from a component - postpone this to later, but mention:
 % write xor exec
-In Section~\ref{sec:form-secur-with}, we will get back to what a program is instrumented with in order to create an executable configuration. \todo[inline]{Make sure we got back to this!}
-We will, however, at this point mention that all programs will be instrumented with the Write-XOR-Execute,\todo[inline]{Do we have a reference for this?} i.e.\ there will only be read-execute capabilities for the code and read-write capabilities for the data.
+In Section~\ref{sec:form-secur-with}, we will get back to how a program is instrumented to create an executable configuration.
+We will, however, at this point mention that all programs will be instrumented as Write-XOR-Execute,\todo[inline]{Do we have a reference for this?} i.e.\ there will only be read-execute capabilities for the code and read-write capabilities for the data.
 %Further, we will only consider a specific class of well-formed components, but we will get back to this.
 
 Some simplifications has been made in this presentation of \trgcm{} in this section. We refer to the accompanying technical report\citep{technical_report} for all details.
@@ -541,6 +549,7 @@ Some simplifications has been made in this presentation of \trgcm{} in this sect
     \comp & \multicolumn{7}{l}{\mathrel{::=} \comp_0 \mid  (\comp_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})}
   \end{array}
 \]
+\vspace{0.75cm}
 \begin{mathpar}
   \inference{
     \comp_1 = (\mscode[1], \msdata[1], \overline{\var{import}_1}, \overline{\var{export}_1}, \sigrets[1], \sigcloss[1],A_{\linear,1})\\
