@@ -853,7 +853,7 @@ In the this section, we have described our proposed calling convention, \stktoke
 \item \label{item:return-code} Create code return capability on call Seal the old program pointer.
 \item Reasonable use of seals return seals are only used to seal old program pointers, all return seals are only used for one call site, and return seals are not leaked.
 \end{enumerate}
-Item~\ref{item:check-stkb}-\ref{item:return-code} of \stktokens{} are captured by the code in Figure~\ref{fig:call-code} with the exception of checking stack base before calls. We do not include this, because it only needs to happen once between two calls which means that the check after a call suffices if the base of the stack pointer is not changed subsequently.
+Item~\ref{item:check-stkb}-\ref{item:return-code} are captured by the code in Figure~\ref{fig:call-code} with the exception of checking stack base before calls. We do not include this check because it only needs to happen once between two calls which means that the check after a call suffices if the base of the stack pointer is not changed subsequently.
 
 \begin{figure}
   \centering
@@ -987,29 +987,30 @@ Item~\ref{item:check-stkb}-\ref{item:return-code} of \stktokens{} are captured b
 \section{Formulating Security with a Fully Abstract Overlay Semantics}
 \label{sec:form-secur-with}
 A central contribution of this paper is to prove that \stktokens{} actually guarantees LSE and WBCF.
-Our proof uses a novel approach called full abstract overlay semantics.
+Our proof uses a novel approach we call fully abstract overlay semantics.
 In this approach, we first define an overlay semantics for \trgcm{} which has LSE and WBCF by construction.
 An overlay semantics is basically a different view on an existing semantics.
-For instance, it may have new syntactic constructs and have special semantics for these things, but they will correspond to something on the underlying machine.
-In the overlay semantics we are about to define for \trgcm{}, there is an explicit stack pointer construct on the machine, but on the underlying semantics the stack pointer corresponds directly to a linear capability for the part of memory the overlay semantics has deemed to be the stack.
-When we have defined the overlay semantics, we prove full-abstractness for a compilation from the overlay semantics to the underlying semantics. 
-Generally speaking, the compilation from an overlay semantics to an underlying semantics should be straightforward as it is really just a different view on the same thing. 
-In this case, the compilation even turns out to be the identity function!
+For instance, it may have new syntactic constructs and have special semantics for these things, but they correspond to something on the underlying machine.
+In the overlay semantics we are about to define for \trgcm{}, an explicit stack pointer construct is part of the new view.
+The stack pointer construct in the overlay corresponds directly to a linear capability in the underlying semantics, and it will have authority over the part of memory that the overlay views as the stack.
+When we have defined the overlay semantics, we prove full-abstractness for a compilation from the overlay semantics to the underlying semantics.
+Generally speaking, the compilation from an overlay semantics to an underlying semantics should be straightforward as the overlay semantics merely put a new view on the underlying semantics.
+In our case, the compilation even turns out to be the identity function!
 
 % protection against others purpose of cc
 We can not show that \stktokens{} guarantee much if the security mechanisms of the capability machine are undermined by a poorly configured machine, e.g.\ the same seal is present in different components or the stack capability have aliases.
 It is also possible to for a caller to undermine the security mechanisms during execution.
 For example, the caller could give the return seal for a call to the callee.
-\stktokens{} do not protect a component against itself as the component is assumed to be reasonable. 
-In this section, we define a well-formedness judgement for the syntactic requirements on components as well as a reasonability condition that must be satisfied for \stktokens{} to work.
+\stktokens{} do not protect a component against itself as the component is assumed to behave reasonably.
+In this section, we define a well-formedness judgement for the syntactic requirements on components as well as a reasonability condition that semantically disallows components from unsafe behavior.
 
-\begin{figure}[htb]
+\begin{figure}[b]
   \centering
   \[
     \arraycolsep=1.4pt
     \begin{array}{rcl}
-      \src{\SealableCaps} & \defbnf& \SealableCaps \mid \src{\stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}} \mid \src{\retptrd(\basebnf,\aendbnf)}\\
-                          & &  \mid \src{\retptrc(\basebnf,\aendbnf,\addrbnf)}\\
+      \src{\SealableCaps} & \defbnf& \SealableCaps \mid \src{\stkptr{\permbnf,\basebnf,\aendbnf,\addrbnf}} \mid\\
+                          & &   \src{\retptrd(\basebnf,\aendbnf)} \mid \src{\retptrc(\basebnf,\aendbnf,\addrbnf)}\\
       \multicolumn{3}{c}{
       \begin{array}{lcrclcr}
         \src{\StkFrame} & \defeq & \src{\Addr \times \MemSeg} & \phantom{skipskipsip} & \src{\Stack} & \defeq & \src{ \StkFrame^*}
@@ -1024,7 +1025,10 @@ In this section, we define a well-formedness judgement for the syntactic require
     \src{\Instr} & \defbnf &  \Instr \mid \scall{\offpc,\offsigma}{r}{r}
   \end{array}
 \]
-  \caption{The syntax of \srccm{} with everything new in the overlay semantics in blue. The overlay semantics adds stack pointers, return pointers, and a built-in stack.}
+\caption{The syntax of \srccm{}.
+  \srccm{} extends \trgcm{} by adding stack pointers, return pointers, and a built-in stack.
+  Everything specific to the overlay semantics is written in blue.
+}
   \label{fig:source-syntax}
 \end{figure}
 
@@ -1032,9 +1036,9 @@ In this section, we define a well-formedness judgement for the syntactic require
 % Describe the things added to the syntax
 The overlay semantics we define for \trgcm{} (\srccm{}) views part of the memory as a built-in stack (Figure~\ref{fig:source-syntax}).
 % Built-in stack
-To this end, it adds a stack and a free stack memory to the executable configurations of \trgcm{}.
-The stack is a list with all the stack frames that are currently inaccessible because they belong to other calls.
-A stack frame contains the stack memory it encapsulates as well as the program point it is supposed to return to.
+To this end, it adds a call stack and a free stack memory to the executable configurations of \trgcm{}.
+The call stack is a list with all the stack frames that are currently inaccessible because they belong to other calls.
+A stack frame contains encapsulated stack memory as well as the program point execution is supposed to return to.
 The free stack memory is the part of the stack that has not been claimed by a call and thus can be used at this point of time.
 % Stack pointer
 In order to distinguish capabilities for the stack from the capabilities for the rest of the memory, \srccm{} adds stack pointers.
@@ -1042,34 +1046,51 @@ A stack pointer has a permission, range of authority, and current address, just 
 % Return pointers
 The final syntactic constructs added by \srccm{} are the code and data return pointers.
 The data return pointer corresponds to some stack pointer (which in turn corresponds to a linear capability), and the code return pointer corresponds to some capability with read-execute permission.
-Syntactically, the return capabilities contain just enough information to reconstruct what they correspond to.
-They are generated by calls from the capabilities they correspond to, and they are turned back to the capabilities they correspond to upon return (we explain the additions to the operational semantics later).
-Even though they both correspond to capabilities with read permission neither can be used for reading. 
-Say, we allowed reads through a data return pointer, then that would correspond to reading from some stack frame that should be encapsulated at this point which we of course cannot allow.
+Syntactically, the return capabilities contain just enough information to reconstruct what they correspond to on the underlying machine.
+Return pointers are generated by calls from the capabilities they correspond to, and they are turned back to the capabilities they correspond to upon return.
+Even though the return pointers both correspond to capabilities with read permission, neither can be used for reading. 
+Say, we allowed reads through a data return pointer, then that would correspond to reading from some stack memory that is encapsulated in a stack frame which would break LSE.
 
-The opaque nature of the return pointers is reflected in the interpretation of the instructions that are on both \trgcm{} and \srccm{} as none of the capability manipulation instructions on \srccm{} work on them.
+The opaque nature of the return pointers is reflected in the interpretation of the instructions common to both \trgcm{} and \srccm{} as \srccm{} does not add special interpretation for them.
 Stack pointers, on the other hand, need to behave just like capabilities, so \srccm{} adds new cases for them in the semantics, e.g.\ \texttt{cca} can now also change the current address of a stack pointer as displayed in Figure~\ref{fig:source-op-sem}.
-Similarly, \texttt{load} and \texttt{store} work on the free part of the stack when working with a stack pointer.
-A store attempted with a stack capability that points to an address outside the free stack results in the $\failed$ configuration because that action is inconsistent with the view the overlay semantics provide on the underlying machine.
+Similarly, \texttt{load} and \texttt{store} work on the free part of the stack when provided with a stack pointer.
+A store attempted with a stack capability that points to an address outside the free stack results in the $\failed$ configuration because that action is inconsistent with the view the overlay semantics has on the underlying machine.
 In other words, it should not be possible to have something else than a stack pointer for that part of memory.
 
 % Back to high-level view
 In \stktokens{} the base address of the memory $\stkb$ used for the stack is agreed upon upfront.
-As \srccm{}'s view adds the stack, it needs to know the base address during execution.
+As \srccm{}'s view builds-in the stack, it needs to know the base address during execution.
 From the perspective of a well-behaved component, other components can do whatever they want for their calls and local state as long as they cannot break WBCF and LSE for the well-behaved component.
-Due to this, \srccm{} carries a set of trusted addresses $\ta$ which can perform calls in order to push a stack frame to the built-in stack.
+Due to this, \srccm{} has a set of trusted addresses $\ta$ that are allowed to perform machine calls that push stack frames to the call stack.
+To make these constants available during execution, they are passed around in the \trgcm{} step relation.
 Apart from the step relation of \trgcm{}, \srccm{} has one overlay step that takes precedence over the others.
 This step is shown in Figure~\ref{fig:source-op-sem}, and it is different from the others in the sense that it interprets a sequence of instructions rather than one.
-The sequence of instructions have to correspond to a call, i.e.\ the instructions in Figure~\ref{fig:call-code} ($\scall[i]{\offpc,\offsigma}{r_1}{r_2}$ corresponds to the $i$'th instruction in the figure and $\calllen$ is $26$ the number of instructions).
-Calls are only executed when the well-behaved component executes, so the addresses where the call resides must be in $\ta$, and the executing capability of course must have the authority to execute the call.
+The sequence of instructions have to correspond to a call, i.e.\ the instructions in Figure~\ref{fig:call-code} ({\footnotesize $\scall[i]{\offpc,\offsigma}{r_1}{r_2}$} corresponds to the $i$'th instruction in the figure and $\calllen$ is $26$, i.e.\ the number of instructions).
+Calls are only executed when the well-behaved component executes, so the addresses where the call resides must be in $\ta$, and the executing capability must have the authority to execute the call.
 
 % Call/return
-The interpretation of a call is also shown in Figure~\ref{fig:source-op-sem}, and while it does a fair bit of bookkeeping, it essentially does the following: Given there is a stack pointer in the stack register, $42$ is pushed to the stack to insure that the stack frame will be non-empty. Based on the stack pointer, a stack pointer for the callee is created (this corresponds to the return token of \stktokens{}) as well as a return pointer which governs the private part of the stack, i.e.\ addresses $[\aaddr_\stk,\eaddr_\stk]$ which is $42$ and everything (conceptually) below on the stack. A new stack frame is pushed to the stack. The stack frame consists of local stack (addresses $[\aaddr_\stk,\eaddr_\stk]$) as well as the address where execution is supposed to continue on return. The return address in the stack frame is an important piece of meta data as it connects the stack frame to the return point and thus allows us on return to check whether we returned to the right place. The return pointers are sealed with the seal dictated by $\offpc$ and $\offsigma$ and placed in registers, so the callee can use them to return. Finally, control is transferred in the same fashion \texttt{xjmp} does it.
+The interpretation of a call is also shown in Figure~\ref{fig:source-op-sem}, and it may look daunting due to a fair bit of bookkeeping, but it essentially does the following: Given a stack pointer in the stack register, $42$ is pushed to the stack to insure that the stack frame will be non-empty.
+Based on the stack pointer in $\rstk$, a stack pointer for the callee is created (this corresponds to the return token of \stktokens{}) as well as a return pointer which governs the private part of the stack, i.e.\ addresses $[\aaddr_\stk,\eaddr_\stk]$ which is $42$ and everything (conceptually) below on the stack.
+A new stack frame is pushed to the stack.
+The stack frame consists of the local stack (addresses $[\baddr_\stk,\aaddr_\stk-1]$) as well as the address where execution is supposed to continue on return.
+The return address in the stack frame is an important piece of meta data as it connects the stack frame to the return point and thus allows us on return to check whether we returned to the right place.
+The return pointers are sealed with the seal dictated by $\offpc$ and $\offsigma$ and placed in registers $\rretc$ and $\rretd$, so the callee can use them to return.
+Finally, control is transferred in the same fashion \texttt{xjmp} does it.
 
-The return pair can only be used to return with, and as they only live on \srccm in sealed capabilities, it is only natural that \texttt{xjmp} takes care of returning.
-To this end, we add to the semantics of \texttt{xjmp} by redefining $\xjmpres$.
+The return pair can only be used to return with.
+They only exists on \srccm{} in sealed capabilities, so it is only natural that \texttt{xjmp} takes care of returning.
+To this end, we update the semantics of \texttt{xjmp} by redefining $\xjmpres{}$.
 The function remains the same except when $c_1$ and $c_2$ are code and data return pointers, respectively.
-In this case, the top stack frame is popped from the stack and added to the free stack, and the execution continues at the return point with a stack pointer for the free stack, but only if the code return pointer actually points to the correct return address, the base of the returned stack pointer is $\stkb$, and the returned stack pointer is adjacent to the data return pointer (which corresponds to checking the validity of the return token in \stktokens{}).
+In this case, the top stack frame is popped from the stack and added to the free stack.
+The execution continues at the return point with a stack pointer in $\rstk$ for the free stack that now includes the memory of the popped stack frame.
+However, the execution only continues if the code return pointer actually points to the correct return address, the base of the returned stack pointer is $\stkb$, and the returned stack pointer is adjacent to the data return pointer (which corresponds to checking the validity of the return token in \stktokens{}).
+
+By inspecting the operational semantics of \srccm{}, we can see that it does not allow reads from stack frames on the call stack which means that it insures LSE.
+Further, the built-in call and returns make sure that a stack frame is pushed on call, and a return is to the address in the topmost stack frame on the call stack which means that we have WBCF.
+In other words by inspection of the operational semantics, \srccm{} has LSE and WBCF.
+It is important to point this out as \stktokens{} guarantee exactly the LSE and WBCF we have on \srccm{}.
+
+
 
 \begin{figure}[htb]
   \centering
@@ -1217,31 +1238,35 @@ In this case, the top stack frame is popped from the stack and added to the free
 % - Address must be in data memory
 The judgement $\wdjud[\ta]{\comp}$ specifies what components are well formed, i.e.\ satisfy the syntactic requirements necessary to be able to rely on system guarantees.
 For space reasons, we just describe the main points of the judgement and refer to the technical report~\citep{technical_report} for the formal definition.
-For components with a main pair, the main pair must come from the export and the remainder of the component must be well-formed.
+For components with a main pair, the main pair must come from the exports and the remainder of the component must be well-formed.
 As a reminder, a base component looks like this: $(\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)$.
-The return seals $\sigrets$ are the seals supposed to be used for return seals and the closure seals $\sigcloss$ all the other seals.
-If this is not a trusted component, i.e.\ the domain of the code memory $\mscode$ is disjointed from the set of trusted addresses $\ta$, then there should be no return seals.
-The code memory must only contain set of seals specified by $\sigrets$ and $\sigclos$ and instruction in the form of integers.
-When a sequence of instructions in the code memory corresponds to a call (Figure~\ref{fig:call-code}), then it must have access to a return seal used by no other call.
+The return seals $\sigrets$ are the seals supposed to be used to seal return pointers and the closure seals $\sigcloss$ all the other seals in a component .
+If a component is not trusted, i.e.\ the domain of the code memory $\mscode$ is disjointed from the set of trusted addresses $\ta$, then there should be no return seals.
+The code memory may contain sets of seals, but only the seals in $\sigrets$ and $\sigclos$.
+Other than that, code memory only contains instructions in the for of integers.
+When a sequence of instructions in the code memory corresponds to a call (Figure~\ref{fig:call-code}), it must have access to the return seal specified by that call.
+The return seal also needs to be unique to that call, so no other call can specify the same seal.
 The data memory $\msdata$ may contain data, capabilities, and sealed capabilities.
-The capabilities in the data memory must be for the data memory itself, which allow them to form predetermined data structures.
-They can at most have a read-write permission in order to respect Write-XOR-Execute.
-They also need to respect linearity which means that the linear capability cannot have any aliases and it must be for a range of the predetermined linear addresses $A_\linear$.
-The sealed capabilities must use a closure seal and they can seal anything that can reside in data memory.
+The capabilities in the data memory can only have authority over the data memory itself.
+By allowing this, a component can be constructed with predetermined data structures.
+In order to respect Write-XOR-Execute, the capabilities can at most have a read-write permission.
+The capabilities also need to respect linearity which means that a linear capability cannot have any aliases, and it must be for a range of the predetermined linear addresses $A_\linear$.
+The sealed capabilities must be sealed with a closure seal, and the sealable can be anything that is allowed to reside in data memory.
 The exports $\overline{\var{export}}$ can be anything non-linear allowed to reside in data memory or a sealed capability for the code memory sealed with one of the closure seals.
 Finally, the addresses of the imports $\overline{\var{import}}$ must be addresses in the data memory.
 
 % Reasonability
-The static guarantees given by $\wdjud[\ta]{\comp}$ makes sure that components initially have the measures to use \stktokens{}, but it does not prevent a component from doing something silly that undermines \stktokens{}.
-So in order for \stktokens{} to provide any guarantees for a component, we expect it to not shoot itself in the foot and of course perform the stack check not captured by the call code (Figure~\ref{fig:call-code}).
-We more precisely expect four things of a reasonable component: (1) it checks the stack base address before performing a call.
+The static guarantees given by $\wdjud[\ta]{\comp}$ makes sure that components initially don't undermine the security measures needed for \stktokens{}, but it does not prevent a component from doing something silly during execution that undermines \stktokens{}.
+In order for \stktokens{} to provide any guarantees for a component, we expect it to not shoot itself in the foot and of course perform the necessary stack check not captured by the call code (Figure~\ref{fig:call-code}).
+We more precisely expect four things of a reasonable component: (1) It checks the stack base address before performing a call.
 As explained in Section~\ref{sec:stktokens-explained}, we do not include this check in the call code as it often would be redundant.
-(2) it uses the return seals only for calls and the closure seals in an appropriate way which means that they should only be used to seal executable capabilities for code that behaves reasonably or non-executable things the do not undermine the security mechanisms \stktokens{} rely on.
-(3) it does not leak return and closure seals or means to get them.
-For instance, this means that sets of seals with return or closure seals cannot be left in registers when transferring control to another module, and it also means that non-sealed capabilities or capabilities sealed with an untrusted seal for code memory cannot be transferred.
-(4) it does not store return and closure seals or means to get them.
-This allow us to safely share capabilities for data memory as they cannot contain seal we do not want to give up.
-The reasonability definition has also been left out for space reasons but can be found in the technical report~\citep{technical_report}.
+(2) It uses the return seals only for calls and the closure seals in an appropriate way which means that they should only be used to seal executable capabilities for code that behaves reasonably or non-executable things that do not undermine the security mechanisms \stktokens{} relies on.
+(3) It does not leak return and closure seals or means to retrieve them.
+This means that sets of seals with return or closure seals cannot be left in registers when transferring control to another module.
+There are also indirect ways to leak seals such as leaking a capability for code memory or leaking a capability for code memory sealed with an unknown seal.
+(4) It does not store return and closure seals or means to get them.
+By disallowing this, we make sure that data memory always can be safely shared as it does not contain seals or means to get them to begin with.
+The reasonability definition has also been left out for space reasons, and we refer to the technical report~\citep{technical_report} for full definitions.
 
 % \begin{definition}[Reasonable configuration]
 %   \label{def:reasonable-conf}
@@ -1261,7 +1286,7 @@ The reasonability definition has also been left out for space reasons but can be
 
 
 \subsection{Full abstraction}
-
+All that is left before we state the full-abstraction theorem is to define how programs are lifted to executable configurations and contextual equivalence for each of the two capability machines we have defined.
 
 % How a program is lifted to an executable configuration
 Given a program as defined in Definition~\ref{def:program-and-context}, we want to be able to execute it which means that we have to lift it to an executable configuration.
@@ -1276,7 +1301,7 @@ On \trgcm{} this is just a linear read-write capability, but on \srccm{} it is t
 The entry point of the program is specified by main, so the two capabilities are unsealed (they must have the same seal) and placed in the $\pcreg$ and $\rdata$ registers.
 The remainder of the registers contain zero.
 
-We are now ready to define plugging of components into contexts followed by contextual equivalence:
+Contextual equivalence roughly says that two components behave the same no matter what context we plug them into.
 %The remaining defintions
 \begin{definition}[Plugging a component into a context]
   When $\var{comp'}$ is a context for component $\var{comp}$ and $\var{comp}' \bowtie \var{comp} \rightsquigarrow \Phi$, 
@@ -1296,6 +1321,7 @@ We are now ready to define plugging of components into contexts followed by cont
     \forall \trg{\context} \ldotp \wdjud[\emptyset]{\trg{\context}} \Rightarrow \trg{\plug{\context}{\comp_1} \term} \Leftrightarrow \trg{\plug{\context}{\comp_2} \term}
   \end{equation*}
 \end{description}
+where $\Phi\sterm[i]{\src{\ta,\stkb}} \text{ iff } \Phi \nstep[i]{\src{\ta,\stkb}} \halted \quad$ and $\quad \Phi\sterm{\src{\ta,\stkb}} \defeq \exists i \ldotp \sterm[i]{\src{\ta,\stkb}}$
 \end{definition}
 With the above defined, we are almost ready to state our full-abstraction, and all that remains is the compiler we claim to be fully-abstract.
 We only care about the well-formed components, and they sport none of the new syntactic constructs \srccm{} adds to \trgcm{}.
@@ -1310,11 +1336,13 @@ This means that the compilation from \srccm{} components to \trgcm{} components 
     \src{\comp_1} \tconeq \src{\comp_2}
   \end{gather*}
 \end{theorem}
-Readers unfamiliar with full-abstraction may wonder why Theorem~\ref{thm:full-abstraction} proves that \stktokens{} guarantee LSE and WBCF.
-\todo[inline]{Write this, i.e.\ explain why full-abstractness prove LSE and WBCF.}
-
-% What does it actually mean?
-% Relies on LSE and WBCF of \srccm - which is obvious from the operational semantics (or defines what it means here?).
+Readers unfamiliar with fully-abstract compilation may wonder why Theorem~\ref{thm:full-abstraction} proves that \stktokens{} guarantees LSE and WBCF.
+Generally speaking, behavioral equivalences are preserved and reflected by fully-abstract compilers.
+This means that any property the source language has must somehow be there after compilation whether or not it is a property of the target language.
+If the source language has a property that the target language doesn't have, then a compiled source program must use the available target language features to emulate the source language property in a way that it behaviorally matches exactly.
+In our case, LSE and WBCF was built into the semantics of \srccm{}, but they are not properties of \trgcm{}.
+In order to enforce these properties, components on \trgcm{} use \stktokens{}.
+Theorem~\ref{thm:full-abstraction} proves that \stktokens{} enforces these properties in a way that behaviorally matches \srccm{} which means that it enforces LSE and WBCF.
 
 
 
