@@ -1356,13 +1356,13 @@ Theorem~\ref{thm:full-abstraction} proves that \stktokens{} enforces these prope
 
 \section{Proving full abstraction}
 \label{sec:fa-proof}
-
-\begin{itemize}
-\item Logical relation
-\item FTLR
-\item Sketch high-level structure of the proof
-\end{itemize}
-
+\todo[inline]{Write small introduction. Maybe something about the difficulty of full-abstraction proofs (with references?) but mention that this is easier than some other cases (reference approximate back translation?) because back translation is trivial.}
+% \begin{itemize}
+% \item Logical relation
+% \item FTLR
+% \item Sketch high-level structure of the proof
+% \end{itemize}
+\todo[inline]{Describe figure here or save it for proof sketch subsection?}
 \begin{figure}
   \centering
   \begin{tikzpicture}[scale=0.8,every node/.style={scale=.9}]
@@ -1400,7 +1400,267 @@ Theorem~\ref{thm:full-abstraction} proves that \stktokens{} enforces these prope
   \caption{Proving one direction of fully abstract compilation (contextual equivalence preservation).}
 \end{figure}
 
-\begin{theorem}[FTLR]
+
+
+\subsection{Logical relation}
+\label{subsec:worlds}
+The corner stone of the full-abstraction proof is a cross language, step-indexed, Kripke logical relation.
+\todo[inline]{write a bit more introduction}
+
+Due to space considerations, we cannot give a comprehensive walk through of the logical relation used for the full-abstraction proof.
+We refer to~\citet{skorstengaard_reasoning_2017} for a more comprehensive walk through of a logical relation for a capability machine and refer to the technical report~\citep{technical_report} for the details of the logical relation used here.
+The main differences between the logical relation defined here and the one by~\citet{skorstengaard_reasoning_2017} are: this is a binary, cross-language logical relation, the worlds are significantly different
+\begin{theorem}
+  \label{thm:recursive-domain-eq}
+  There exists a c.o.f.e.\ $\Wor$ and preorder $\future$ such that $(\Wor,\future)$ and there exists an isomorphism $\xi$ such that
+  \[
+    \xi : \Wor \cong \blater (\Worldh \times \Worlds \times \Worldfs)
+  \]
+  and for $\hat{W},\hat{W}' \in \Wor$
+  \[
+    \hat{W'} \future \hat{W}\text{ iff }\xi(\hat{W'}) \future \xi(\hat{W})
+  \]
+\end{theorem}
+
+Where $\Worlds$, $\Worldh$, and $\Worldfs$ are defined as follows
+\[
+  \Worldh = \RegionName \parfun (\Regions + \Regionh)
+\]
+and
+\[
+  \Worlds = \RegionName \parfun (\Regions \times \Addr)
+\]
+and
+\[
+  \Worldfs = \RegionName \parfun \Regions
+\]
+where $\RegionName = \nats$.
+\begin{multline*}
+  \Regionh = 
+  \{\pure \} \times (\Wor \monnefun \URel{\MemSeg^2}) \times \\
+  (\Seal \parfun \Wor \monnefun \URel{\SealableCaps \times \SealableCaps})
+\end{multline*}
+and
+\[
+  \Regions = \left\{
+  \begin{array}{l}
+    \{\spatial \} \times (\Wor \monnefun \URel{\MemSeg^2}) \uplus \\
+    \{\spatialo \} \times (\Wor \monnefun \URel{\MemSeg^2})\uplus \\ 
+    \{\revoked\}
+  \end{array} \right.
+\]
+% Describe purepart \oplus and \uplus
+
+
+\begin{multline*}
+  \lrexj(W) =
+  \\\left\{\begin{array}{l}
+      \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} | \\
+      \quad \forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk}, W_\lrrs , W_\lrm \ldotp \\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\}) (W_\lrrs ) \tand \memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \tand \\
+      \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)} \tand \Phi_T = (\ms_T,\reg_T) \tand W \oplus W_\lrrs \oplus W_\lrm \text{ is defined }\\
+      \qquad\Rightarrow \exists \Phi_S',\Phi_T'\ldotp \Phi_S' = \xjumpResult{v_{c,S}}{v_{d,S}}{\Phi_S} \tand\\
+      \quad\qquad\Phi_T' = \xjumpResult{v_{c,T}}{v_{d,T}}{\Phi_T}\tand\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro
+    \end{array}
+    \right\}
+  \end{multline*}
+
+
+  \begin{multline*}
+    \lre(W)= \\
+    \left\{ \begin{array}{l}
+      \npair{\stpair[.]{v_{c,S}}{v_{c,T}}} | \\
+      \quad\forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk}, W_\lrrs , W_\lrm \ldotp \\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrrs ) \tand \memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \tand\\
+      \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)} \tand \Phi_S' = \Phi_S \updReg{\pcreg}{v_{c,S}} \tand\\
+      \qquad\Phi_T = (\ms_T,\reg_T) \tand \Phi_T' = \Phi_T\updReg{\pcreg}{v_{c,T}} \tand W \oplus W_\lrrs \oplus W_\lrm\\
+      \qquad\Rightarrow\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro
+    \end{array}
+    \right\}
+  \end{multline*}
+\[
+  \lrol =\{ \npair{\left(\src{\Phi_S},\Phi_T\right)} \mid
+  \forall i \leq n \ldotp
+    \src{\Phi_S \sterm[i]{\ta,\stkb}} \Rightarrow \Phi_T \trg{\term} \}
+\]
+\[
+  \lror = \{ \npair{\left(\src{\Phi_S},\Phi_T\right)} \mid
+  \forall i \leq n \ldotp 
+    \Phi_T \trg{\term[i]} \Rightarrow \src{\Phi_S \sterm{\ta,\stkb}} \}
+\]
+
+
+\begin{multline*}
+  \lrv[\gc=(\ta,\stkb,\gsigrets,\gsigcloss)](W) = \\
+  \begin{array}[t]{l}
+%   \left\{ \npair{\stpair[.]{i}{i}} \;\middle|\; i \in \ints \right\}\cup \\
+%
+    \left\{
+    \begin{array}{l}
+      \npair{\left(\src{\sealed{\sigma,\vsc_S}}, \sealed{\sigma,\vsc_T} \right)} \; | \; \isLinear{\src{\vsc_S}} \text{ iff } \isLinear{\vsc_T} \tand \\
+      \quad\exists r \in \dom(\pwheap), \sigrets,\sigcloss,\mscode \ldotp \pwheap(r) = (\pure,\_,H_\sigma) \tand \\
+      \qquad H_\sigma \; \sigma \nequal H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; \gc \; \sigma \tand \\
+      \qquad \npair[n']{\stpair[.]{\vsc_S}{\vsc_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W) \text{ for all $n' < n$}\tand\\
+      \qquad (\nonLinear{\src{\vsc_S}} \Rightarrow \\ \qquad\quad\forall W' \future \purePart{W}, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \\
+      \qquad \qquad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o))
+      % \quad (\isLinear{\src{\vsc_S}} \Rightarrow \\
+      % \qquad\forall W' \future W, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \\
+      % \qquad \quad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o)) \wedge \\
+    \end{array}
+    \right\}\cup\\
+    \left\{
+    \begin{array}{l}
+    \npair{\left(\src{\seal{\sigma_\baddr,\sigma_\eaddr,\sigma}}, \seal{\sigma_\baddr,\sigma_\eaddr,\sigma} \right)}\; | \; [\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\gsigrets \cup \gsigcloss) \tand\\
+      \quad\forall \sigma' \in [\sigma_\baddr,\sigma_\eaddr] \ldotp \exists r \in \dom(\pwheap) \ldotp \\
+      \quad \pwheap(r) = (\pure,\_,H_\sigma) \tand H_\sigma \; \sigma' \nequal (\lrv \circ \xi)
+    \end{array}
+    \right\} \cup \\
+    \left\{
+    \begin{array}{l}
+      \npair{\left(\src{\stkptr{\perm,\baddr,\eaddr,\aaddr}}, ((\perm,\linear),\baddr,\eaddr,\aaddr) \right)} \; | \;
+        \perm \not\in \{\rx,\rwx\} \tand \\
+        % \perm = \noperm & \Rightarrow & \npair{(\linear,\baddr,\eaddr)} \in
+        % \lrp(W) \wedge \\
+        \quad\perm \in \{\ro,\rw\} \Rightarrow \npair{[\baddr,\eaddr]} \in \stackReadCond{W} \tand \\
+        \quad\perm = \rw  \Rightarrow \npair{[\baddr,\eaddr]} \in \stackWriteCond{W}
+    \end{array}
+    \right\} \cup \\ \dots
+%
+    % \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{((\perm,\lin),\baddr,\eaddr,\aaddr)},\\ ((\perm,\lin),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\; 
+    % \begin{array}{l}
+    %   [b,e] \mathrel{\#} \ta \tand\\
+    %   \begin{array}{r l l }
+    %     % \perm = \noperm & \Rightarrow & \npair{(\lin,\baddr,\eaddr)} \in
+    %     % \lrp(W) \wedge \\
+    %     \perm \in \readAllowed{} &\Rightarrow& \npair{[\baddr,\eaddr]} \in \readCond{\lin,W} \wedge\\
+    %     \perm \in \writeAllowed{} &\Rightarrow& \npair{[\baddr,\eaddr]} \in \writeCond{\lin,W} \wedge\\
+    %     % we are excluding rwx pointers.
+    %     \perm \neq \rwx \wedge \\
+    %     % \perm = \rwx &\Rightarrow&
+    %     % \array[t]{l}\npair{(\{\rwx,\rx\},\baddr,\eaddr)} \in \execCond{\lin,W}
+    %     % \wedge \\
+    %     % \npair{(\baddr,\eaddr)} \in \xReadCond{\lin,W} \endarray\\
+    %     \perm = \rx &\Rightarrow& \array[t]{l}\npair{[\baddr,\eaddr]} \in \execCond{W} \wedge\\
+    %     \npair{[\baddr,\eaddr]} \in \xReadCond{W} \wedge \\
+    %     \lin = \normal \\ \endarray
+    %   \end{array}
+    % \end{array}
+    % \right\}
+  \end{array}
+\end{multline*}
+
+
+\begin{multline*}
+  \lrvtrusted[\square,\gc=(\ta,\stkb,\gsigrets,\gsigcloss)](W) = \lrv(W)\cup \\
+  \begin{array}[t]{l}
+    \left\{ \begin{array}{l} \npair{\left(\src{\seal{\sigma_\baddr,\sigma_\eaddr,\sigma}}, \seal{\sigma_\baddr,\sigma_\eaddr,\sigma} \right)} 
+    \; | \; \exists r \in \dom(\pwheap) \ldotp \\
+              \quad \pwheap(r) \nequal \codereg{\sigrets,\sigcloss,\code,\gc} \tand \dom(\code) \subseteq \ta \\
+              \quad \tand [\sigma_\baddr,\sigma_\eaddr] \subseteq (\sigrets\cup\sigcloss) \tand \sigrets \subseteq \gsigrets \tand \sigcloss \subseteq \gsigcloss
+    \end{array}
+    \right\} \cup \\
+    \left\{
+    \begin{array}{l}
+      \npair{\left(\src{((\perm,\normal),\baddr,\eaddr,\aaddr)},((\perm,\normal),\baddr,\eaddr,\aaddr) \right)} \; |  \\
+      \quad \perm \sqsubseteq \rx \tand 
+       [\baddr,\eaddr] \subseteq \ta \tand 
+       \npair{[\baddr,\eaddr]} \in \xReadCond[\square,\gc]{W} 
+    \end{array}
+    \right\}
+  \end{array}
+\end{multline*}
+
+
+
+\begin{multline*}
+  \stackWriteCond{W} =\\
+  \left\{
+    \begin{array}{l}\npair{A} \mid 
+      \exists S \subseteq \addressable{\linear, \pwfree} \ldotp  \exists R : S \fun \powerset{\nats} \\
+      \quad \biguplus_{r\in S} R(r) \supseteq A \tand \forall r \in S \ldotp |R(r)| = 1  \tand \\
+      \quad \forall r \in S \ldotp \pwfree(r).H \nsupeq \stdreg{R(r),\gc}{\pur}.H \tand \pwfree(r) \text{ is address-stratified}
+    \end{array}
+  \right\}
+\end{multline*}
+\[
+  \xReadCond{W} = \left\{ \npair{A} \middle|
+    \begin{array}{l}
+      \exists r \in \addressable{\normal, \pwheap} \ldotp \\
+       \pwheap(r) \nequal \codereg{\_,\_,\code,\gc}\tand
+       \dom(\code) \supseteq A 
+    \end{array}
+  \right\}
+\]
+
+\[
+  \codereg{\sigrets,\sigcloss,\code,\gc} \defeq (\pure,
+H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; \gc,
+H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
+\]
+
+\todo[inline]{$H^\mathrm{code}$ not that interesting, cut for space.}
+\begin{multline*}
+  H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; (\ta,\_,\gsigrets,\gsigcloss) \; \hat{W} =\\
+  \left\{
+    \begin{array}{l}
+      \npair{(\code \uplus \mspad, \code \uplus \mspad)} \mid
+      \dom(\code) = [\baddr,\eaddr] \tand  \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \code \tand\\
+      ([\baddr - 1, \eaddr + 1] \subseteq \ta \tand
+      \sigrets \subseteq \gsigrets \tand \sigcloss \subseteq \gsigcloss \wedge \trust = \trusted) \tor \\
+      \quad ([\baddr-1,\eaddr+1]\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted) \tand \\
+%      \mspad = [\baddr-1 \mapsto 0] \uplus [\eaddr + 1 \mapsto 0]\wedge\\
+      \forall a \in \dom(\code)\ldotp \npair{(\code(a),\code(a))} \in \lrvg{\trust}(\purePart{\xi(\hat{W})})
+    \end{array}
+  \right\}
+\end{multline*}
+
+
+\begin{multline*}
+  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; (\ta,\stkb) \; \sigma \; \hat{W}= \\
+  \begin{array}[t]{l}
+\left\{
+    \begin{array}{l}
+      \npair{\left(\retptrc(\baddr,\eaddr,\aaddr'+\calllen),((\rx,\normal),\baddr,\eaddr,\aaddr)\right)} \mid 
+        \sigrets \subseteq \gsigrets \tand \\
+        \quad\dom(\code) \subseteq \ta \tand 
+        \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
+        \quad\aaddr = \aaddr' + \retoffset \tand \code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand\\
+        \quad \sigma = \sigma_b + \offsigma \in \sigrets \tand
+        \lbrack \aaddr',\aaddr' + \calllen -1 \rbrack \subseteq \lbrack \baddr, \eaddr \rbrack
+    \end{array}
+      \right\} \cup \\
+\left\{
+    \begin{array}{l}
+      \npair{(\retptrd(\baddr,\eaddr),((\rw,\linear),\baddr,\eaddr,\baddr-1))} \mid
+        \sigrets \subseteq \gsigrets \tand 
+        \dom(\code) \subseteq \ta \tand\\
+        \quad \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]},\ms_S,\ms_T \ldotp\\
+        \qquad\pwpriv[\xi(\hat{W})](r).H \nequal (\stareg[(\ms_S,\ms_T),(\ta,\stkb)]{\spao,\square}, \aaddr'+\calllen) \tand \\
+        \qquad \dom(\ms_S) = \dom(\ms_T) = [\baddr,\eaddr] \tand\\
+        \qquad \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
+        \qquad \code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand \sigma = \sigma_b + \offsigma \in \sigrets
+    \end{array}
+    \right\} \\
+  \end{array}\\
+    \text{ if } \sigma \in \sigrets\\
+\end{multline*}
+and
+\begin{multline*}
+  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \;
+  (\ta,\stkb) \; \sigma \; \hat{W}= \\
+  \left\{
+    \begin{array}{l}
+ \npair{(\vsc, \vsc' )} \mid
+        (\dom(\code) \mathrel{\#} \ta \tand \npair{(\vsc,\vsc')} \in \lrv \; \xi(\hat{W})) \tor\\
+        (\dom(\code) \subseteq \ta \tand \sigcloss \subseteq \gsigcloss \tand \sigrets \subseteq \gsigrets \tand \\
+         \quad((\exec{\vsc} \wedge \npair{(\vsc,\vsc')} \in \lrvtrusted \; \xi(\hat{W})) \vee\\
+         \quad\ (\nonExec{\vsc} \wedge\npair{(\vsc,\vsc')} \in \lrv \; \xi(\hat{W}))))
+    \end{array}
+  \right\}\\
+  \text{ if } \sigma \in \sigcloss
+\end{multline*}
+
+\begin{lemma}[FTLR]
   \label{thm:ftlr}
   For all $n,W,\lin,\baddr,\eaddr,\aaddr$,
   If
@@ -1423,7 +1683,32 @@ Theorem~\ref{thm:full-abstraction} proves that \stktokens{} enforces these prope
     \npair{\left(\arraycolsep=0pt\array{l}((\rx,\normal),\baddr,\eaddr,\aaddr),\\
       ((\rx,\normal),\baddr,\eaddr,\aaddr)\endarray\right)} \in \lre(W)
   \]
-\end{theorem}
+\end{lemma}
+
+
+\subsection{Component logical relation}
+
+
+\begin{multline*}
+  \lrcomp(W) =\\
+  \left\{\begin{aligned}
+      &\npair{\var{comp},\var{comp}} \;\mid \;\\
+      &\qquad\var{comp} = (\mscode,\msdata,\overline{a_{\mathrm{import}} \mapsfrom s_{\mathrm{import}}},\overline{s_{\mathrm{export}} \mapsto w_{\mathrm{export}}},\sigrets,\sigcloss) \tand \\
+      &\qquad\text{For all } W' \future W \ldotp \\
+      &\qquad\quad\text{If } \overline{\npair[n']{(w_{\mathrm{import}},w_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$}\\
+      &\qquad\quad\text{and } \msdata' = \msdata{}[\overline{a_{\mathrm{import}} \mapsto w_{\mathrm{import}}}] \\
+      &\qquad\quad\text{then } \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata', \mscode\uplus\msdata')} \in \lrheap(\pwheap)(W') \tand\\
+      &\qquad\quad\overline{\npair{(w_{\mathrm{export}},w_{\mathrm{export}})}} \in \lrv(\purePart{W'})
+    \end{aligned}
+  \right\}\\
+\cup \left\{
+    \begin{multlined}
+      \npair{(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d}),(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})} \;\mid \;\\
+      \npair{(\var{comp}_0,\var{comp}_0)} \in \lrcomp(W) \tand
+      \{(\_ \mapsto c_{\mathrm{main},c}),(\_ \mapsto c_{\mathrm{main},d})\} \subseteq \overline{w_{\mathrm{export}}}
+    \end{multlined}
+  \right\} 
+\end{multline*}
 
 \begin{lemma}[FTLR for components]
   \label{lem:ftlr-comps}
@@ -1445,36 +1730,107 @@ Theorem~\ref{thm:full-abstraction} proves that \stktokens{} enforces these prope
     \dom(\pwpriv)=\emptyset$
   \end{itemize}
 \end{lemma}
-
-\begin{lemma}[Adequacy of execution configuration LR]
-  \label{lem:adequacy}
-  If
-  \begin{itemize}
-  \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\preceq,\gc](W)$
-  \item $i \leq n$
-  \item $\Phi_S \sterm[i]{\gc}$
-  \end{itemize}
-  then $\Phi_T\term$.
-
-  Also, if
-  \begin{itemize}
-  \item $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\succeq,\gc](W)$
-  \item $i \leq n$
-  \item $\Phi_T \term[i]$,
-  \end{itemize}
-  then $\Phi_S\sterm{\gc}$.
-\end{lemma}
-
 \begin{lemma}[Compatibility lemma for context plugging]
   \label{lem:compat-context-plug}
   If $\npair{\stpair{C}{C}}\in\lrcomp(W_1)$ and $\npair{\stpair{P}{P}} \in \lrcomp(W_2)$, then
   $\npair[n']{(\plug{C_S}{P_S},\plug{C_T}{P_T})} \in \lrec(W_1 \uplus W_2)$, for all $n' < n$.
 \end{lemma}
-\subsection{Logical Relation}
 
-\subsection{Component Logical Relation}
 
-\subsection{Context Logical Relation}
+\subsection{Executable configuration logical relation}
+
+\begin{multline*}
+  \lrec[\square,\gc = (\ta,\stkb)](W) = \\
+\left\{
+  \begin{array}{l}
+     \npair{\left(
+    (\ms_S,\reg_S,\stk,\ms_\stk),
+    (\ms_T,\reg_T)\right)} \mid \\
+    \quad \exists W_M,W_R,W_\pcreg \ldotp W = W_M \oplus W_R \oplus W_\pcreg \tand\\
+    \qquad \npair{( (\reg_S(\pcreg),\reg_S(\rdata)), (\reg_T(\pcreg),\reg_T(\rdata)) )} \in \lrexj(W_\pcreg) \tand \\
+    \qquad \reg_S(\pcreg) \neq \retptrc(\_) \tand
+    \reg_S(\rdata) \neq \retptrd(\_) \tand \\
+    \qquad \nonExec{\reg_S(\rdata)} \tand  
+     \nonExec{\reg_T(\rdata)} \tand \\
+    \qquad \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W_M} \tand \npair{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\})(W_R)
+  \end{array}
+\right\}
+\end{multline*}
+\begin{lemma}[Adequacy of execution configuration LR]
+  \label{lem:adequacy}
+  If $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\preceq,\gc](W)$ and
+ $i \leq n$ and
+and $\Phi_S \sterm[i]{\gc}$,
+  then $\Phi_T\term$.
+
+  Also, if
+ $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\succeq,\gc](W)$ and
+ $i \leq n$
+and $\Phi_T \term[i]$,
+  then $\Phi_S\sterm{\gc}$.
+\end{lemma}
+
+\subsection{Proof sketch}
+\begin{proof}[Proof of Theorem~\ref{thm:full-abstraction}]~
+  % \item Consider first the upward arrow.
+  %   Assume $\src{\var{comp}_1} \tconeq \src{\var{comp}_2}$.
+
+  %   Take a $\src{\context}$ such that $\vdash \src{\context}$, take $\src{\ta[,i]}
+  %   = \src{\dom(\var{comp}_i.\mscode)}$, $\gsigrets_i = \var{comp}_i.\sigrets$ and
+  %   $\gsigcloss_i = \var{comp}_i.\sigcloss$, $\gc_i = (\ta[,i],\stkb_i,\gsigrets_i,\gsigcloss_i)$ and we will prove that
+  %   $\src{\plug{\context}{\var{comp}_1} \sterm{\gc_1}} \Leftrightarrow
+  %   \src{\plug{\context}{\var{comp}_2} \sterm{\gc_2}}$.
+
+  %   By symmetry, we can assume w.l.o.g. that $\src{\plug{\context}{\var{comp}_1} \sterm{\gc_1}}$ and prove that $\src{\plug{\context}{\var{comp}_2} \sterm{\gc_2}}$.
+  %   Note that this implies that $\src{\context}$ is a valid context for both $\src{\var{comp}_1}$ and $\src{\var{comp}_2}$.
+
+  %   First, we show that also $\plug{\context}{\var{comp}_1} \trg{\term}$.
+  %   Take $n$ the amount of steps in the termination of $\src{\plug{\context}{\var{comp}_1} \sterm{\gc_1}}$.
+  %   It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n+1]{(\var{comp}_1,\var{comp}_1)} \in \lrcomp[\preceq,\gc_1](W_1)$ for some $W_1$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
+  %   It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n+1]{(\context,\context)} \in \lrcomp[\preceq,\gc_1](W_1')$ for some $W_1'$ that we can choose such that $W_1 \uplus W_1'$ is defined.
+  %   Lemma~\ref{lem:compat-context-plug} then tells us that $\npair{(\plug{\context}{\var{comp}_1}, \plug{\context}{\var{comp}_1})} \in \lrec[\preceq,\gc_1](W_1\uplus W_1')$
+  %   Together with $\src{\plug{\context}{\var{comp}_1} \sterm[n]{\gc_1}}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_1} \trg{\term}$.
+
+  %   It follows from $\src{\var{comp}_1} \tconeq \src{\var{comp}_2}$ that also $\plug{\context}{\var{comp}_2} \trg{\term}$.
+
+  %   It now remains to show that also $\src{\plug{\context}{\var{comp}_2} \sterm{\gc_2}}$.
+  %   Take $n'$ the amount of steps in the termination of $\plug{\context}{\var{comp}_2} \trg{\term}$.
+  %   It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n'+1]{(\var{comp}_2,\var{comp}_2)} \in \lrcomp[\succeq,\gc_2](W_2)$ for some $W_2$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
+  %   It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n'+1]{(\context,\context)} \in \lrcomp[\succeq,\gc_2](W_2')$ for some $W_2'$ that we can choose such that $W_2 \uplus W_2'$ is defined.
+  %   Lemma~\ref{lem:compat-context-plug} then tells us that $\npair[n']{(\plug{\context}{\var{comp}_2}, \plug{\context}{\var{comp}_2})} \in \lrec[\succeq,\gc_2](W_2\uplus W_2')$
+  %   Together with $\plug{\context}{\var{comp}_2} \trg{\term[n']}$, Lemma~\ref{lem:adequacy} then tells us that $\src{\plug{\context}{\var{comp}_2} \sterm{\gc_2}}$, concluding this direction of the proof.
+
+  First consider the right arrow:
+
+    Assume $\src{\var{comp}_1} \sconeq \src{\var{comp}_2}$. Take $\src{\ta[,i]} = \src{\dom(\var{comp}_i.\mscode)}$, $\gsigrets_i = \var{comp}_i.\sigrets$ and $\gsigcloss_i = \var{comp}_i.\sigcloss$, $\gc_i = (\ta[,i],\stkb_i,\gsigrets_i,\gsigcloss_i)$.
+%
+    Take a $\trg{\context}$ such that $\vdash \trg{\context}$ and we will prove that
+    $\trg{\plug{\context}{\var{comp}_1} \term} \Leftrightarrow
+    \trg{\plug{\context}{\var{comp}_2} \term}$.
+%
+    By symmetry, we can assume w.l.o.g. that $\trg{\plug{\context}{\var{comp}_1} \term}$ and prove that $\trg{\plug{\context}{\var{comp}_2} \term}$.
+    Note that this implies that $\trg{\context}$ is a valid context for both $\trg{\var{comp}_1}$ and $\trg{\var{comp}_2}$.
+%
+    First, we show that also $\plug{\context}{\var{comp}_1} \src{\sterm{\gc_1}}$.
+    Take $n$ the amount of steps in the termination of $\plug{\context}{\var{comp}_1} \trg{\term}$.
+    It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n+1]{(\var{comp}_1,\var{comp}_1)} \in \lrcomp[\succeq,\gc_1](W_1)$ for some $W_1$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
+    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n+1]{(\context,\context)} \in \lrcomp[\succeq,\gc_1](W_1')$ for some $W_1'$ that we can choose such that $W_1 \uplus W_1'$ is defined.
+    Lemma~\ref{lem:compat-context-plug} then tells us that $\npair{(\plug{\context}{\var{comp}_1}, \plug{\context}{\var{comp}_1})} \in \lrec[\succeq,\gc_1](W_1\uplus W_1')$
+    Together with $\plug{\context}{\var{comp}_1} \trg{\term[n]}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_1} \src{\sterm{\gc_1}}$.
+%
+    It follows from $\src{\var{comp}_1} \sconeq \src{\var{comp}_2}$ that also $\plug{\context}{\var{comp}_2} \src{\sterm{\gc_2}}$.
+%
+    It now remains to show that also $\plug{\context}{\var{comp}_2} \trg{\term}$.
+    Take $n'$ the amount of steps in the termination of $\plug{\context}{\var{comp}_2} \src{\sterm{\gc_2}}$.
+    It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n'+1]{(\var{comp}_2,\var{comp}_2)} \in \lrcomp[\preceq,\gc_2](W_2)$ for some $W_2$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
+    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n'+1]{(\context,\context)} \in \lrcomp[\preceq,\gc_2](W_2')$ for some $W_2'$ that we can choose such that $W_2 \uplus W_2'$ is defined.
+    Lemma~\ref{lem:compat-context-plug} then tells us that $\npair[n']{(\plug{\context}{\var{comp}_2}, \plug{\context}{\var{comp}_2})} \in \lrec[\preceq,\gc_2](W_2\uplus W_2')$
+    Together with $\plug{\context}{\var{comp}_2} \trg{\term[n']}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_2} \trg{\term}$, concluding the second direction of the proof.
+
+ The left arrow is proven in a similar manner.
+  \end{itemize}
+\end{proof}
+
 
 \section{Discussion}
 \label{sec:discussion}
