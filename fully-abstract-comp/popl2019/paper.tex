@@ -1453,10 +1453,34 @@ Readers unfamiliar with full-abstraction may wonder why Theorem~\ref{thm:full-ab
 \begin{itemize}
 \item mention that tail calls are supported through xjmp
 \item explain how fully abstract overlay semantics could form one pass of a verified secure compiler.
-\item Performance?  Implementability of linear caps?
 \item Sharing stack references accross component boundaries is supported
 \item Other notions of well-bracketedness (specifically one would be to allow different stacks)
 \end{itemize}
+
+\subsection{Practical applicability}
+We believe there are good arguments for practical applicability of \stktokens{}.
+The strong security guarantees are proven in a way that is reusable as part of a bigger proof of compiler security.
+Its costs are
+\begin{itemize}
+\item a constant and limited amount of checks on every boundary crossing.
+\item possibly a small memory overhead because every stack frame must be of non-zero length
+\end{itemize}
+The main caveat is that we rely on the assumption that capability machines like CHERI can be extended with linear capabilities in an efficient way.
+
+Although this assumption can only be discharged by demonstrating an actual implementation with efficiency measurements, the following notes are based on private discussions with people from the CHERI team, as well as our own thoughts on the matter.
+As we understand it, the main problems to solve for adding linear capabilities to a capability machine like CHERI are related to the move semantics for instructions like $\tmove{}$, $\tstore{}$ and $\tload{}$.
+Processor optimizations like pipelining and out-of-order execution rely on being able to accurately predict the registers and memory that an instruction will write to and read from.
+Our instructions are a bit clumsy from this point-of-view because, for example, $\tmove{}$ or $\tstore{}$ will zero the source register resp. memory location if the value being written is linear.
+A solution for this problem could be to add separate instructions for moving, storing and loading linear registers, at the cost of additional opcode space.
+Adding splice and split will also consume some opcode space.
+
+Another problem is caused by the move semantics for $\tload{}$ in the presence of multiple hardware threads.
+In this setting, zeroing out the source memory location must happen atomically to avoid race conditions where two hardware threads end up reading the same linear capability to their registers.
+This means that a $\tload{}$ of a linear capability will need to behave like an atomic operation, similar to a compare-and-swap instruction.
+This is in principle not a problem except that a compare-and-swap is significantly slower than a regular $\tload{}$ (on the order of 10x slower or more).
+When using \stktokens{}, loads of linear capabilities normally happen only when a thread has stored its return data capability on the stack and loads it back from there after a return.
+Because the stack is a region of memory with very high thread affinity (no other hardware thread should access it, in principle), and which is accessed quite often, we are hopeful that well-engineered caching could reduce the high overhead of atomic loads of linear capabilities.
+If such memory could be (usually) kept exclusively locked in a cache close to the processor, the overhead of atomic loads in \stktokens{} might be significantly less than $\tload$'s worst-case...
 
 \section{Related Work}
 
