@@ -1405,14 +1405,11 @@ Theorem~\ref{thm:full-abstraction} proves that \stktokens{} enforces these prope
 
 \subsection{Logical relation}
 \label{subsec:worlds}
-The corner stone of the full-abstraction proof is a cross language, step-indexed, Kripke logical relation.
-\todo[inline]{write a bit more introduction}
-
-Due to space considerations, we cannot give a comprehensive walk through of the logical relation used for the full-abstraction proof.
-We refer to~\citet{skorstengaard_reasoning_2017} for a more comprehensive walk through of a logical relation for a capability machine and refer to the technical report~\citep{technical_report} for the details of the logical relation used here.
-The main differences between the logical relation defined here and the one by~\citet{skorstengaard_reasoning_2017} are: this is a binary, cross-language logical relation, the worlds are significantly different
-
-For the sake of presentation, we will sometimes omit describing details, such as step indexing, that are important for the correctness but not so interesting.
+The backbone of the full-abstraction proof is a cross language, step-indexed, Kripke logical relation.
+\todo[inline]{write a bit more introduction that informally tells the purpose of this logical relation in relation to the full proof.}
+Unfortunately due to space considerations, we cannot give a comprehensive description of it.
+Instead we highlight the parts specific to the logical relation we have used and refer to the technical report~\citep{technical_report} for the details and to~\citet{skorstengaard_reasoning_2017} for a more comprehensible description of a logical relation for a capability machine.
+Finally, for the sake of presentation, we will sometimes omit describing details, such as step indexing, that are important for the correctness but otherwise not interesting.
 
 \subsubsection{Worlds}
 Generally speaking, worlds are used in a logical relation to model the memory of a language.
@@ -1429,7 +1426,7 @@ If a spatial region is owned by the register-file relation, then it still has to
 To capture this, we define a relation $W_1 \oplus W_2$ that requires $W_1$ and $W_2$ to be the same except for the ownership which has to be disjoint. We also define $W_1 \uplus W_2$ which joins together two worlds with disjoint regions.
 In a sense, linear capabilities are revocable, so the sub-worlds that allow spatial regions must also have a $\revoked$ region to model revocation.
 Finally, the $\pure$ region also contains a seal interpretation function.
-The seal interpretation function is world indexed, and it specifies what sealables a given seal can be used to seal.
+The seal interpretation is a world-indexed function that specifies the sealables a seal can be used to seal.
 We split the regions in two categories ($\Wor$ given below):
 \begin{multline*}
   \Regionh = 
@@ -1462,53 +1459,52 @@ The worlds $\World$ are defined as $(\Worldh \times \Worlds \times \Worldfs)$ an
   and for $\hat{W},\hat{W}' \in \Wor: \quad  \hat{W'} \future \hat{W}\text{ iff }\xi(\hat{W'}) \future \xi(\hat{W})$
 \end{lemma}
 The future world relation $\future$ is fairly standard as it is extensional and requires regions to stay the same with the exception that $\spatial$ regions can become $\spatialo$ or $\revoked$ in a future world.
-% \begin{multline*}
-%   \lrexj(W) =
-%   \\\left\{\begin{array}{l}
-%       \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} | \\
-%       \quad \forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk}, W_\lrrs , W_\lrm \ldotp \\
-%       \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\}) (W_\lrrs ) \tand \memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \tand \\
-%       \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)} \tand \Phi_T = (\ms_T,\reg_T) \tand W \oplus W_\lrrs \oplus W_\lrm \text{ is defined }\\
-%       \qquad\Rightarrow \exists \Phi_S',\Phi_T'\ldotp \Phi_S' = \xjumpResult{v_{c,S}}{v_{d,S}}{\Phi_S} \tand\\
-%       \quad\qquad\Phi_T' = \xjumpResult{v_{c,T}}{v_{d,T}}{\Phi_T}\tand\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro
-%     \end{array}
-%     \right\}
-% \end{multline*}
 
 \subsubsection{Code region}
+The code region is a central region to the logical relation used to model the code memory of a component.
+It is especially interesting because it specifies what the return and closure seals in a component can be used to seal.
+The code region is defined as follows:
 \[
-  \codereg{\sigrets,\sigcloss,\code,\gc} \defeq (\pure,
-H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; \gc,
-H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
+  \codereg{\sigrets,\sigcloss,\mscode,\gc} \defeq (\pure,
+  H^\mathrm{code,\square} \; \sigrets \; \sigcloss \; \mscode \; \gc,
+  H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \mscode \; \gc)
 \]
+It is a $\pure$ region which makes it persistent in future worlds.
+The memory relation $H^\mathrm{code,\square} \; (\dots)$ is very selective and only accepts the pair $(\mscode,\mscode)$ and only on the following conditions: The code memory $\mscode$ must be well-formed according to $\vdash$.
+Further, all the words contained in $\mscode$ must be non-linear and in the value relation, but as we will see later we have two value relations, a trusted and an untrusted, and the value relation used depends on whether $\mscode$ is trusted.
+For now it suffices to know that the untrusted value relation contains everything that untrusted code can safely have.
+The trusted value relation includes everything that is in the untrusted value relation, but also the things that are not safe to pass away in a call, e.g.\ return seals.
+If the addresses of $\mscode$ are in $\ta$, then the trusted value relation is used, and if $\mscode$ is disjoint with $\ta$, then the untrusted value relation is used.
+Further, if $\ta$ is untrusted, then $\sigrets$ has to be empty which means that $\mscode$ cannot contain return seals.
 
-\todo[inline]{Describe $H^\mathrm{code}$}
+% \todo[inline]{Describe $H^\mathrm{code}$}
 % \begin{multline*}
-%   H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; (\ta,\_,\gsigrets,\gsigcloss) \; \hat{W} =\\
+%   H^\mathrm{code} \; \sigrets \; \sigcloss \; \mscode \; (\ta,\_,\gsigrets,\gsigcloss) \; \hat{W} =\\
 %   \left\{
 %     \begin{array}{l}
-%       \npair{(\code \uplus \mspad, \code \uplus \mspad)} \mid
-%       \dom(\code) = [\baddr,\eaddr] \tand  \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \code \tand\\
+%       \npair{(\mscode \uplus \mspad, \mscode \uplus \mspad)} \mid
+%       \dom(\mscode) = [\baddr,\eaddr] \tand  \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode \tand\\
 %       ([\baddr - 1, \eaddr + 1] \subseteq \ta \tand
 %       \sigrets \subseteq \gsigrets \tand \sigcloss \subseteq \gsigcloss \wedge \trust = \trusted) \tor \\
 %       \quad ([\baddr-1,\eaddr+1]\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted) \tand \\
 % %      \mspad = [\baddr-1 \mapsto 0] \uplus [\eaddr + 1 \mapsto 0]\wedge\\
-%       \forall a \in \dom(\code)\ldotp \npair{(\code(a),\code(a))} \in \lrvg{\trust}(\purePart{\xi(\hat{W})})
+%       \forall a \in \dom(\mscode)\ldotp \npair{(\mscode(a),\mscode(a))} \in \lrvg{\trust}(\purePart{\xi(\hat{W})})
 %     \end{array}
 %   \right\}
 % \end{multline*}
 
+\todo[inline]{Describe $H^\mathrm{code,\square}_\sigma$}
 
 \begin{multline*}
-  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; (\ta,\stkb) \; \sigma \; \hat{W}= \\
+  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; (\ta,\stkb) \; \sigma \; \hat{W}= \\
   \begin{array}[t]{l}
 \left\{
     \begin{array}{l}
       \npair{\left(\retptrc(\baddr,\eaddr,\aaddr'+\calllen),((\rx,\normal),\baddr,\eaddr,\aaddr)\right)} \mid 
         \sigrets \subseteq \gsigrets \tand \\
-        \quad\dom(\code) \subseteq \ta \tand 
-        \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
-        \quad\aaddr = \aaddr' + \retoffset \tand \code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand\\
+        \quad\dom(\mscode) \subseteq \ta \tand 
+        \decInstr{\mscode([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
+        \quad\aaddr = \aaddr' + \retoffset \tand \mscode(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand\\
         \quad \sigma = \sigma_b + \offsigma \in \sigrets \tand
         \lbrack \aaddr',\aaddr' + \calllen -1 \rbrack \subseteq \lbrack \baddr, \eaddr \rbrack
     \end{array}
@@ -1517,47 +1513,66 @@ H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
     \begin{array}{l}
       \npair{(\retptrd(\baddr,\eaddr),((\rw,\linear),\baddr,\eaddr,\baddr-1))} \mid
         \sigrets \subseteq \gsigrets \tand 
-        \dom(\code) \subseteq \ta \tand\\
+        \dom(\mscode) \subseteq \ta \tand\\
         \quad \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]},\ms_S,\ms_T \ldotp\\
         \qquad\pwpriv[\xi(\hat{W})](r).H \nequal (\stareg[(\ms_S,\ms_T),(\ta,\stkb)]{\spao,\square}, \aaddr'+\calllen) \tand \\
         \qquad \dom(\ms_S) = \dom(\ms_T) = [\baddr,\eaddr] \tand\\
-        \qquad \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
-        \qquad \code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand \sigma = \sigma_b + \offsigma \in \sigrets
+        \qquad \decInstr{\mscode([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
+        \qquad \mscode(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand \sigma = \sigma_b + \offsigma \in \sigrets
     \end{array}
     \right\} \\
   \end{array}\\
     \text{ if } \sigma \in \sigrets\\
 \end{multline*}
-and
-\begin{multline*}
-  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \;
-  (\ta,\stkb) \; \sigma \; \hat{W}= \\
-  \left\{
-    \begin{array}{l}
- \npair{(\vsc, \vsc' )} \mid
-        (\dom(\code) \mathrel{\#} \ta \tand \npair{(\vsc,\vsc')} \in \lrv \; \xi(\hat{W})) \tor\\
-        (\dom(\code) \subseteq \ta \tand \sigcloss \subseteq \gsigcloss \tand \sigrets \subseteq \gsigrets \tand \\
-         \quad((\exec{\vsc} \wedge \npair{(\vsc,\vsc')} \in \lrvtrusted \; \xi(\hat{W})) \vee\\
-         \quad\ (\nonExec{\vsc} \wedge\npair{(\vsc,\vsc')} \in \lrv \; \xi(\hat{W}))))
-    \end{array}
-  \right\}\\
-  \text{ if } \sigma \in \sigcloss
-\end{multline*}
+We leave out the formal definition of $H^\mathrm{code,\square}_\sigma \; (\dots)$ for $\sigma \in \sigcloss$ and provide an informal description.
+What closure seals can be used for depends on whether the code is trusted.
+If the code is untrusted, i.e.\ $\dom(\mscode) \# \ta$, then the seal can be used for everything in the untrusted value relation can be sealed which correspond to everything the code has access to.
+On the other hand, if the code is trusted, then it depends on whether the sealable in question is executable.
+If it is executable, then it can be in the trusted value relation because we want to allow sealing of capabilities for the trusted code; but if it isn't executable, then the sealable has to be in the untrusted value relation.
+
+% and
+% \begin{multline*}
+%   H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \;
+%   (\ta,\stkb) \; \sigma \; \hat{W}= \\
+%   \left\{
+%     \begin{array}{l}
+%  \npair{(\vsc, \vsc' )} \mid
+%         (\dom(\mscode) \mathrel{\#} \ta \tand \npair{(\vsc,\vsc')} \in \lrv \; \xi(\hat{W})) \tor\\
+%         (\dom(\mscode) \subseteq \ta \tand \sigcloss \subseteq \gsigcloss \tand \sigrets \subseteq \gsigrets \tand \\
+%          \quad((\exec{\vsc} \wedge \npair{(\vsc,\vsc')} \in \lrvtrusted \; \xi(\hat{W})) \vee\\
+%          \quad\ (\nonExec{\vsc} \wedge\npair{(\vsc,\vsc')} \in \lrv \; \xi(\hat{W}))))
+%     \end{array}
+%   \right\}\\
+%   \text{ if } \sigma \in \sigcloss
+% \end{multline*}
 
 
 \subsubsection{Expression relations}
-  \begin{multline*}
-    \lre(W)= \\
-    \left\{ \begin{array}{l}
-      \npair{\stpair[.]{v_{c,S}}{v_{c,T}}} | \\
-      \quad\forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk}, W_\lrrs , W_\lrm \ldotp \\
-      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrrs ) \tand \memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \tand\\
-      \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)} \tand \Phi_S' = \Phi_S \updReg{\pcreg}{v_{c,S}} \tand\\
-      \qquad\Phi_T = (\ms_T,\reg_T) \tand \Phi_T' = \Phi_T\updReg{\pcreg}{v_{c,T}} \tand W \oplus W_\lrrs \oplus W_\lrm\\
-      \qquad\Rightarrow\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro
+\begin{multline*}
+  \lrexj(W) =
+  \\\left\{\begin{array}{l}
+      \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} | \\
+      \quad \forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk}, W_\lrrs , W_\lrm \ldotp \\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\}) (W_\lrrs ) \tand \memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \tand \\
+      \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)} \tand \Phi_T = (\ms_T,\reg_T) \tand W \oplus W_\lrrs \oplus W_\lrm \text{ is defined }\\
+      \qquad\Rightarrow \exists \Phi_S',\Phi_T'\ldotp \Phi_S' = \xjumpResult{v_{c,S}}{v_{d,S}}{\Phi_S} \tand\\
+      \quad\qquad\Phi_T' = \xjumpResult{v_{c,T}}{v_{d,T}}{\Phi_T}\tand\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro
     \end{array}
     \right\}
-  \end{multline*}
+\end{multline*}
+
+  % \begin{multline*}
+  %   \lre(W)= \\
+  %   \left\{ \begin{array}{l}
+  %     \npair{\stpair[.]{v_{c,S}}{v_{c,T}}} | \\
+  %     \quad\forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk}, W_\lrrs , W_\lrm \ldotp \\
+  %     \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrrs ) \tand \memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \tand\\
+  %     \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)} \tand \Phi_S' = \Phi_S \updReg{\pcreg}{v_{c,S}} \tand\\
+  %     \qquad\Phi_T = (\ms_T,\reg_T) \tand \Phi_T' = \Phi_T\updReg{\pcreg}{v_{c,T}} \tand W \oplus W_\lrrs \oplus W_\lrm\\
+  %     \qquad\Rightarrow\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro
+  %   \end{array}
+  %   \right\}
+  % \end{multline*}
 \[
   \lrol =\{ \npair{\left(\src{\Phi_S},\Phi_T\right)} \mid
   \forall i \leq n \ldotp
@@ -1570,6 +1585,8 @@ and
 \]
 
 \subsubsection{Value relations}
+  \todo[inline]{Do we cut the sealed case of the untrusted value relation?}
+
 \begin{multline*}
   \lrv[\gc=(\ta,\stkb,\gsigrets,\gsigcloss)](W) = \\
   \begin{array}[t]{l}
