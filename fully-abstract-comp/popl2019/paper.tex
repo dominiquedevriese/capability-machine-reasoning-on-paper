@@ -222,6 +222,8 @@ As such, these components can be sure that they will only ever interact with oth
 To express security of our calling convention, we then show that considering the same components in the original semantics does not give adversaries additional ways to interact with them. 
 More formally, we show that mapping a component in the well-behaved semantics to the same component in the original semantics is fully abstract~\cite{abadi_protection_1999}, i.e. that components are indistinguishable to arbitrary adversaries in the well-behaved language iff they are indistinguishable to arbitrary adversaries in the original language.
 
+\todo[inline]{In the below, Lars would like to be more precise about the ``in a general way'' below.
+  e.g., by contrasting it to our earlier work where the WBCF and LSE properties were only proved via specific examples.}
 This approach expresses what it means to enforce our desirable properties in a general way, and makes it clear that we can support a very general class of programs.
 Additionally, formulating security of a calling convention in this way makes it potentially reusable in a larger security proof of a full compiler.
 The idea is that security of such a compiler could be verified by proving fully abstract compilation with respect to the well-behaved semantics of the target language, so that the proof can rely on native well-bracketedness and local stack frame encapsulation.
@@ -845,7 +847,7 @@ The reason is that the stack capability needs to start execution as a linear cap
 Due to the non-duplicability of linear capability and the fact that they cannot become non-linear during execution, the caller knows that if they have a capability that governs the global stack base address, then it must be linear.
 
 % Return pointers/return seals
-The return pointer in the StackToken scheme is a pair of sealed capabilities where the code part of the pair is the old program counter, and the data part is the stack capability for the local stack frame of the caller.
+The return pointer in the \stktokens{} scheme is a pair of sealed capabilities where the code part of the pair is the old program counter, and the data part is the stack capability for the local stack frame of the caller.
 Both of the capabilities in the pair are of course sealed with the same seal.
 % One seal per return point
 All call points need to be associated with a unique seal (a return seal) that is only used to seal the capabilities in the return pair for that particular call point.
@@ -856,7 +858,7 @@ Return seals should never be leaked to adversarial code as this would allow them
 This goes for direct leaks, such as leaving a seal in a register or writing it to adversarial memory, as well as indirect leaks, where a capability for reading a return seal (either directly or indirectly) from memory is leaked.
 
 % Note about them vs us, we do nothing that they couldn't do
-In the description of the StackToken calling scheme, it has sometimes been in terms of ``them vs us''.
+In the description of the \stktokens{} calling scheme, it has sometimes been in terms of ``them vs us''.
 This may have created the impression of an asymmetric calling convention that places a special status on trusted components allowing them to protect themselves against adversaries.
 However, \stktokens{} is a modular calling scheme: no restriction is put on adversarial components that we do not expect trusted components to meet.
 This means that any component can ensure WBCF and LSE by employing \stktokens{}.
@@ -1145,7 +1147,7 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
     \hline
     \multicolumn{3}{|c|}{\dots\text{ (the operational semantics of \trgcm)}} \\
     \hline
-    \store{r_1}{r_2}                             & \srcalt{\var{updPc}} \sourcecolor\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_2}{w_2}\\ &\update{\ms_\stk.\aaddr}{\Phi(r_2)})\endarray  & \srcalt{$\Phi(r_1) = \stkptr{(\perm,\baddr,\eaddr,\aaddr} $ and $\perm \in \{\rwx,\rw\}$ and $\baddr \le \aaddr \le \eaddr$ and $w_2 = \linCons{\Phi(r_2)}$ and $\aaddr \in \dom(\ms_\stk)$}\\
+    \store{r_1}{r_2}                             & \srcalt{\var{updPc}} \sourcecolor\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_2}{w_2}\\ &\update{\ms_\stk.\aaddr}{\Phi(r_2)})\endarray  & \srcalt{$\Phi(r_1) = \stkptr{\perm,\baddr,\eaddr,\aaddr}$ and $\perm \in \{\rwx,\rw\}$ and $\baddr \le \aaddr \le \eaddr$ and $w_2 = \linCons{\Phi(r_2)}$ and $\aaddr \in \dom(\ms_\stk)$}\\
     \hline
     \cca{r}{\rn}                                 &\srcalt{\updPcAddr{\Phi\updReg{r}{w}}} &  \srcalt{$\Phi(\rn) = n \in \ints$ and $\Phi(r) = \stkptr{\perm,\baddr,\eaddr,\aaddr}$ and $w = \stkptr{\perm,\baddr,\eaddr,\aaddr+n}$} \\
     \hline
@@ -1525,9 +1527,7 @@ Further, if $\ta$ is untrusted, then $\sigrets$ has to be empty which means that
 %   \right\}
 % \end{multline*}
 
-\todo[inline]{Describe $H^\mathrm{code,\square}_\sigma$}
-
-the seal interpretation function $h^\mathrm{code,\square}_\sigma \; (\dots)$ in the code region dictates the return seals and closure seals can be used to seal.
+The seal interpretation function $H^\mathrm{code,\square}_\sigma \; (\dots)$ in the code region dictates the return seals and closure seals can be used to seal.
 the return seals can only be used to seal return pointers, but only when they actually represent meaning full returns.
 for instance, a code return pointer should actually be associated with a trusted call, i.e.\ it should point to the address just after a call.
 the corresponding capability on \trgcm{} should point to the address just after the \texttt{xjmp} in the call code (figure~\ref{fig:call-code}) as it needs to do a couple of things to complete the call safely.
@@ -1631,6 +1631,7 @@ The final part relates to the call stack $\stk$ which means that it can be furth
 The partition must be done in a way that preserves the order of the stack frames in $\stk$.
 % , so the top stack frame relates to a part of memory where all the other parts are above in the address space, the second stack frame relates to a part of memory where all the other parts are above in the address space with the exception of the topmost part, and so on.
 % Further, all stack frames should be in addresses above $\stkb$.
+The seal interpretation functions are in the pure regions, so the heap relation ($\lrheap$) also makes sure that only one seal interpretation function has an interpretation for each seal.
 \extend{Write about the particulars of the three memory satisfaction: heap relation makes sure only one interpretation for each seal. Free stack $\stkb$}
 The \texttt{xjmp} expression relation requires register files and memories related under different worlds, namely $W_\lrrs$ and $W_\lrm$, that are related with $\oplus$.
 This means that the two worlds have the same regions, but distribute the ownership of partial regions between them.
@@ -1652,33 +1653,17 @@ The fact that the observation relation is split into two parts means that we rea
 
 
 \subsubsection{Value relations}
-  \todo[inline]{Do we cut the sealed case of the untrusted value relation?}
+The purpose of the value relations is two fold: It relates the words on \srccm{} to the words they correspond to on \trgcm{}, and it defines what pairs of words are safe, i.e.\ are unable to break the guarantees of the capability machines including the LSE and WBCF guaranteed by \srccm{}.
+As previously explained, we try to ensure LSE and WBCF for some trusted code of which we require certain things like treating return seals in a reasonable way.
+This means that it is safe to give return seals to trusted code.
+At the same time, we have some code that we do not trust, and given a return seal it may try to abuse it to break LSE and WBCF for the trusted code.
+This means that there is a difference between what is safe to give to the trusted code and the untrusted code which we capture by having a trusted and untrusted value relation.
 
 \begin{multline*}
   \lrv[\gc=(\ta,\stkb,\gsigrets,\gsigcloss)](W) = \\
   \begin{array}[t]{l}
 %   \left\{ \npair{\stpair[.]{i}{i}} \;\middle|\; i \in \ints \right\}\cup \\
 %
-    \left\{
-    \begin{array}{l}
-      \npair{\left(\src{\sealed{\sigma,\vsc_S}}, \sealed{\sigma,\vsc_T} \right)} \; | \; \isLinear{\src{\vsc_S}} \text{ iff } \isLinear{\vsc_T} \tand \\
-      \quad\exists r \in \dom(\pwheap), \sigrets,\sigcloss,\mscode \ldotp \pwheap(r) = (\pure,\_,H_\sigma) \tand \\
-      \qquad H_\sigma \; \sigma \nequal H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; \gc \; \sigma \tand \\
-      \qquad \npair[n']{\stpair[.]{\vsc_S}{\vsc_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W) \text{ for all $n' < n$}\tand\\
-      \qquad (\nonLinear{\src{\vsc_S}} \Rightarrow \\ \qquad\quad\forall W' \future \purePart{W}, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \\
-      \qquad \qquad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o))
-      % \quad (\isLinear{\src{\vsc_S}} \Rightarrow \\
-      % \qquad\forall W' \future W, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \\
-      % \qquad \quad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o)) \wedge \\
-    \end{array}
-    \right\}\cup\\
-    \left\{
-    \begin{array}{l}
-    \npair{\left(\src{\seal{\sigma_\baddr,\sigma_\eaddr,\sigma}}, \seal{\sigma_\baddr,\sigma_\eaddr,\sigma} \right)}\; | \; [\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\gsigrets \cup \gsigcloss) \tand\\
-      \quad\forall \sigma' \in [\sigma_\baddr,\sigma_\eaddr] \ldotp \exists r \in \dom(\pwheap) \ldotp \\
-      \quad \pwheap(r) = (\pure,\_,H_\sigma) \tand H_\sigma \; \sigma' \nequal (\lrv \circ \xi)
-    \end{array}
-    \right\} \cup \\
     \left\{
     \begin{array}{l}
       \npair{\left(\src{\stkptr{\perm,\baddr,\eaddr,\aaddr}}, ((\perm,\linear),\baddr,\eaddr,\aaddr) \right)} \; | \;
@@ -1688,7 +1673,29 @@ The fact that the observation relation is split into two parts means that we rea
         \quad\perm \in \{\ro,\rw\} \Rightarrow \npair{[\baddr,\eaddr]} \in \stackReadCond{W} \tand \\
         \quad\perm = \rw  \Rightarrow \npair{[\baddr,\eaddr]} \in \stackWriteCond{W}
     \end{array}
-    \right\} \cup \\ \dots
+    \right\} \cup \\
+%
+    \left\{
+    \begin{array}{l}
+    \npair{\left(\src{\seal{\sigma_\baddr,\sigma_\eaddr,\sigma}}, \seal{\sigma_\baddr,\sigma_\eaddr,\sigma} \right)}\; | \; [\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\gsigrets \cup \gsigcloss) \tand\\
+      \quad\forall \sigma' \in [\sigma_\baddr,\sigma_\eaddr] \ldotp \exists r \in \dom(\pwheap) \ldotp \\
+      \quad \pwheap(r) = (\pure,\_,H_\sigma) \tand H_\sigma \; \sigma' \nequal (\lrv \circ \xi)
+    \end{array}
+    \right\} \cup \\
+        \left\{
+    \begin{array}{l}
+      \npair{\left(\src{\sealed{\sigma,\vsc_S}}, \sealed{\sigma,\vsc_T} \right)} \; | \; \isLinear{\src{\vsc_S}} \text{ iff } \isLinear{\vsc_T} \tand \\
+      \quad\exists r \in \dom(\pwheap), \sigrets,\sigcloss,\mscode \ldotp \pwheap(r) = (\pure,\_,H_\sigma) \tand \\
+      \qquad H_\sigma \; \sigma \nequal H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; \gc \; \sigma \tand \\
+      \qquad \npair[n']{\stpair[.]{\vsc_S}{\vsc_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W) \text{ for all $n' < n$}\tand\\
+      \qquad (\nonLinear{\src{\vsc_S}} \Rightarrow \\
+      \qquad\quad\forall W' \future \purePart{W}, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \\
+      \qquad \qquad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o)) \tand \dots
+      % \quad (\isLinear{\src{\vsc_S}} \Rightarrow \\
+      % \qquad\forall W' \future W, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \\
+      % \qquad \quad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o)) \wedge \\
+    \end{array}
+    \right\}\cup \dots
 %
     % \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{((\perm,\lin),\baddr,\eaddr,\aaddr)},\\ ((\perm,\lin),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\; 
     % \begin{array}{l}
@@ -1712,14 +1719,44 @@ The fact that the observation relation is split into two parts means that we rea
     % \right\}
   \end{array}
 \end{multline*}
+A stack pointers is related to a linear capability with the same (non-executable) permission, range of authority, and current address.
+In addition depending on the permission, a read and write condition needs to be satisfied.
+Intuitively, the read condition guarantees that the capability can only be used to read safe values, i.e.\ values in $\mathcal{V}_\untrusted$.
+Similarly the write condition says that the capabilities can at least be used to write the safe values.
+These two properties are expressed by picking out the regions from the world that govern the memory the stack pointer gives access to.
+The free stack is modelled by the free stack world, so the regions must come from that part of the world.
+Further, stack pointers are linear, so the regions they depend on must be addressable which means that they must be owned by that free stack world.
+% The write condition is called $\stackWriteCond{}$
+% \begin{multline*}
+%   \stackWriteCond{W} =\\
+%   \left\{
+%     \begin{array}{l}\npair{A} \mid 
+%       \exists S \subseteq \addressable{\linear, \pwfree} \ldotp  \exists R : S \fun \powerset{\nats} \\
+%       \quad \biguplus_{r\in S} R(r) \supseteq A \tand \forall r \in S \ldotp |R(r)| = 1  \tand \\
+%       \quad \forall r \in S \ldotp \pwfree(r).H \nsupeq \stdreg{R(r),\gc}{\pur}.H \tand \pwfree(r) \text{ is address-stratified}
+%     \end{array}
+%   \right\}
+% \end{multline*}
 
+The untrusted value relation also relates sets of seals that are syntactically identical and that are disjoint from the return and closure seals of interest ($\gsigrets$ and $\gsigcloss$). 
+Further, the seals should only be used to seal words from the untrusted value relation, so the seal interpretation function for each of the seals must be the untrusted value relation.
 
+The untrusted value relation also needs to include sealed capabilities in order to allow return pairs and closures to be given to untrusted code.
+The sealed capabilities should of course be sealed with the same seal, and the seal interpretation function for that seal should be equal to the one of the code region.
+Aside from this, the pair of sealables sealed by the seal should satisfy two things: (1) they should be in the seal interpretation function for that seal and (2) in any possible future\footnote{The $\purePart{}$ function strips away all ownership from a world. A non-linear capability should not depend on linear things, so we take any future of $\purePart{W}$.}, it should be safe to jump to the sealable pair when they are paired with sealables permitted by the seal interpretation function for that seal, so the quadruple must be in the $\mathcal{E}_\mathrm{xjmp}$ relation.
+
+We have left out the part of the untrusted value relation that relates memory capabilities and integers (they are related when they are equal).
+The conditions for related memory capabilities are almost the same as for stack pointers.
+The main difference is that the conditions depend on the heap part of the world rather than the free stack.
+Further, memory capabilities can be executable which needs extra care to ensure security which we will see in the trusted value relation.
+
+The trusted value relation includes everything that the untrusted value relation contains and a few extra things.
 \begin{multline*}
   \lrvtrusted[\square,\gc=(\ta,\stkb,\gsigrets,\gsigcloss)](W) = \lrv(W)\cup \\
   \begin{array}[t]{l}
     \left\{ \begin{array}{l} \npair{\left(\src{\seal{\sigma_\baddr,\sigma_\eaddr,\sigma}}, \seal{\sigma_\baddr,\sigma_\eaddr,\sigma} \right)} 
     \; | \; \exists r \in \dom(\pwheap) \ldotp \\
-              \quad \pwheap(r) \nequal \codereg{\sigrets,\sigcloss,\code,\gc} \tand \dom(\code) \subseteq \ta \\
+              \quad \pwheap(r) \nequal \codereg{\sigrets,\sigcloss,\mscode,\gc} \tand \dom(\mscode) \subseteq \ta \\
               \quad \tand [\sigma_\baddr,\sigma_\eaddr] \subseteq (\sigrets\cup\sigcloss) \tand \sigrets \subseteq \gsigrets \tand \sigcloss \subseteq \gsigcloss
     \end{array}
     \right\} \cup \\
@@ -1733,30 +1770,22 @@ The fact that the observation relation is split into two parts means that we rea
     \right\}
   \end{array}
 \end{multline*}
+A side from the sets of seals in the untrusted value relation, sets of return and closure seals are in the trusted value relation when they belong to some trusted code.
+This means that in the heap part of the world there must be a code region that has the seals in question, and the code should be in $\ta$.
 
-
-
-\begin{multline*}
-  \stackWriteCond{W} =\\
-  \left\{
-    \begin{array}{l}\npair{A} \mid 
-      \exists S \subseteq \addressable{\linear, \pwfree} \ldotp  \exists R : S \fun \powerset{\nats} \\
-      \quad \biguplus_{r\in S} R(r) \supseteq A \tand \forall r \in S \ldotp |R(r)| = 1  \tand \\
-      \quad \forall r \in S \ldotp \pwfree(r).H \nsupeq \stdreg{R(r),\gc}{\pur}.H \tand \pwfree(r) \text{ is address-stratified}
-    \end{array}
-  \right\}
-\end{multline*}
+The trusted value relation also contains executable capabilities for the trusted code.
+Generally for executable code capabilities, the $\xReadCond{}$ should hold which requires there to be a code region that governs the piece of code memory that the capability has authority over.
 \[
   \xReadCond{W} = \left\{ \npair{A} \middle|
     \begin{array}{l}
       \exists r \in \addressable{\normal, \pwheap} \ldotp \\
-       \pwheap(r) \nequal \codereg{\_,\_,\code,\gc}\tand
-       \dom(\code) \supseteq A 
+       \pwheap(r) \nequal \codereg{\_,\_,\mscode,\gc}\tand
+       \dom(\mscode) \supseteq A 
     \end{array}
   \right\}
 \]
 
-
+With the logical relation defined, we are ready to state the fundamental theorem of logical relations (FTLR).
 \begin{lemma}[FTLR]
   \label{thm:ftlr}
   For all $n,W,\lin,\baddr,\eaddr,\aaddr$,
@@ -1769,31 +1798,37 @@ then
       ((\rx,\normal),\baddr,\eaddr,\aaddr)\right)} \in \lre(W)
   \]
 \end{lemma}
-
+It roughly says that any executable capability used for execution in a safe environment won't break the capability machine guarantees.
+This is, however, only true for syntactically well-formed code, which the $\xReadCond{}$ ensures, and for trusted code the semantic reasonability condition must also be satisfied by the code.
+The proof of the FTLR is done by a nested induction that categorises and considers each possible step the two executions can take.
+While the lemma is not used directly in the proof sketch we present in Section~\ref{subsec:proof-sketch}, it is detrimental to the proof of the lemmas we use in it.
 
 \subsection{Component logical relation}
+The component relation $\mathcal{C}(W)$ basically lifts the logical relation we have presented above to components.
+The component relation relates a component $(\mscode,\msdata,\overline{\mathrm{import}},\overline{\mathrm{export}},\sigrets,\sigcloss)$ to itself when two conditions are satisfied.
+First, when words that relate to them selves in the untrusted value relation are used to satisfy the imports, i.e.\ the words are placed on the import addresses in $\msdata$, and this data memory is combined with the code memory $\mscode$, then it forms a safe heap, i.e.\ it is in the $\mathcal{H}$ relation.
+Second, the exports should always be safe to use which means that they must be in the untrusted value relation in any future world.
 
-
-\begin{multline*}
-  \lrcomp(W) =\\
-  \left\{\begin{aligned}
-      &\npair{\var{comp},\var{comp}} \;\mid \;\\
-      &\qquad\var{comp} = (\mscode,\msdata,\overline{a_{\mathrm{import}} \mapsfrom s_{\mathrm{import}}},\overline{s_{\mathrm{export}} \mapsto w_{\mathrm{export}}},\sigrets,\sigcloss) \tand \\
-      &\qquad\text{For all } W' \future W \ldotp \\
-      &\qquad\quad\text{If } \overline{\npair[n']{(w_{\mathrm{import}},w_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$}\\
-      &\qquad\quad\text{and } \msdata' = \msdata{}[\overline{a_{\mathrm{import}} \mapsto w_{\mathrm{import}}}] \\
-      &\qquad\quad\text{then } \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata', \mscode\uplus\msdata')} \in \lrheap(\pwheap)(W') \tand\\
-      &\qquad\quad\overline{\npair{(w_{\mathrm{export}},w_{\mathrm{export}})}} \in \lrv(\purePart{W'})
-    \end{aligned}
-  \right\}\\
-\cup \left\{
-    \begin{multlined}
-      \npair{(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d}),(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})} \;\mid \;\\
-      \npair{(\var{comp}_0,\var{comp}_0)} \in \lrcomp(W) \tand
-      \{(\_ \mapsto c_{\mathrm{main},c}),(\_ \mapsto c_{\mathrm{main},d})\} \subseteq \overline{w_{\mathrm{export}}}
-    \end{multlined}
-  \right\} 
-\end{multline*}
+% \begin{multline*}
+%   \lrcomp(W) =\\
+%   \left\{\begin{aligned}
+%       &\npair{\var{comp},\var{comp}} \;\mid \;\\
+%       &\qquad\var{comp} = (\mscode,\msdata,\overline{a_{\mathrm{import}} \mapsfrom s_{\mathrm{import}}},\overline{s_{\mathrm{export}} \mapsto w_{\mathrm{export}}},\sigrets,\sigcloss) \tand \\
+%       &\qquad\text{For all } W' \future W \ldotp \\
+%       &\qquad\quad\text{If } \overline{\npair[n']{(w_{\mathrm{import}},w_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$}\\
+%       &\qquad\quad\text{and } \msdata' = \msdata{}[\overline{a_{\mathrm{import}} \mapsto w_{\mathrm{import}}}] \\
+%       &\qquad\quad\text{then } \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata', \mscode\uplus\msdata')} \in \lrheap(\pwheap)(W') \tand\\
+%       &\qquad\quad\overline{\npair{(w_{\mathrm{export}},w_{\mathrm{export}})}} \in \lrv(\purePart{W'})
+%     \end{aligned}
+%   \right\}\\
+% \cup \left\{
+%     \begin{multlined}
+%       \npair{(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d}),(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})} \;\mid \;\\
+%       \npair{(\var{comp}_0,\var{comp}_0)} \in \lrcomp(W) \tand
+%       \{(\_ \mapsto c_{\mathrm{main},c}),(\_ \mapsto c_{\mathrm{main},d})\} \subseteq \overline{w_{\mathrm{export}}}
+%     \end{multlined}
+%   \right\} 
+% \end{multline*}
 
 \begin{lemma}[FTLR for components]
   \label{lem:ftlr-comps}
@@ -1856,6 +1891,7 @@ and $\Phi_T \term[i]$,
 \end{lemma}
 
 \subsection{Proof sketch}
+\label{subsec:proof-sketch}
 \begin{proof}[Proof of Theorem~\ref{thm:full-abstraction}]
   \todo[inline]{Rewrite}
   % \item Consider first the upward arrow.
