@@ -1332,6 +1332,7 @@ The remainder of the registers contain zero.
 Contextual equivalence roughly says that two components behave the same no matter what context we plug them into.
 %The remaining defintions
 \begin{definition}[Plugging a component into a context]
+  \label{def:comp-context-plugging}
   When $\var{comp'}$ is a context for component $\var{comp}$ and $\var{comp}' \bowtie \var{comp} \rightsquigarrow \Phi$, 
   then we write $\plug{\var{comp'}}{\var{comp}}$ for the execution configuration $\Phi$.
 \end{definition}
@@ -1389,48 +1390,10 @@ Theorem~\ref{thm:full-abstraction} proves that \stktokens{} enforces these prope
 % \item FTLR
 % \item Sketch high-level structure of the proof
 % \end{itemize}
-\todo[inline]{Describe figure here or save it for proof sketch subsection?}
-\begin{figure}
-  \centering
-  \begin{tikzpicture}[scale=0.8,every node/.style={scale=.9}]
-    % \draw[help lines,yellow] (0,0) grid (10,7);
-    \node at (5,4.7) { ${\src{\comp_1}\mathrel{\sconeq} \src{\comp_2}}$ };
-
-    \node at (3.4,4) { ${\plug{\trg{\context}}{\src{\comp_1}} \sterm[]{\gc}{}}$ };
-    \node at (5,4) { $\mathrel{\Rightarrow}$ };
-    \node at (6.6,4) { ${\plug{\trg{\context}}{\src{\comp_2}} \sterm[]{\gc}{}}$ };
-
-    \node at (4.35,2.8) { (1) };
-    \node at (5,3.6) { (2) };
-    \node at (5.65,2.8) { (3) };
-
-    \draw[out=100,in=260,double,-implies,double equal sign distance] (4,2.6) to (4,3.4);
-
-    \draw[out=280,in=80,double,-implies,double equal sign distance] (6,3.4) to (6,2.6);
-
-    \node[align=left] at (8.2,3) { $ {\trg{\context}} \cong \trg{\context}$ \\
-      $ {\src{\comp_2}} \cong {\src{\comp_2}}$};
-    \node[align=left] at (1.8,3) { $ {\trg{\context}} \cong \trg{\context}$ \\
-      $ {\src{\comp_1}} \cong {\src{\comp_1}}$};
-    % \node at (9,2.7) { $e  {\src{C_1}} \cong \src{C_1}} : tau$ };
-    % \node at (8.7,3.3) { $ {\trg{\context}} \cong \trg{\context} :{\emptyset},tau \ra e,{\cdots}$ };
-    % \node at (.8,3) { $e  {\src{C_1}} \cong {\src{C_1}} : tau$ };
-
-    \node at (3.4,2) { ${\plug{\trg{\context}}{\src{\comp_1}} \term[]{}}$ };
-    \node at (5,2.1) { $\overset{?}{\Rightarrow}$ };
-    \node at (6.6,2) { ${\plug{\trg{\context}}{\src{\comp_2}} \term[]{}}$ };
-
-    \node at (5,1.3) { ${\src{\comp_1}}\mathrel{\overset{?}{\tconeq}}{\src{\comp_2}}$ };
-
-    \draw[out=-90,in=90,double,-implies,double equal sign distance] (0,5) to node[sloped, yshift =.7em]{\small Contextual equivalence preservation} (0,1);
-  \end{tikzpicture}
-  \caption{Proving one direction of fully abstract compilation (contextual equivalence preservation).}
-\end{figure}
-
 
 
 \subsection{Logical relation}
-\label{subsec:worlds}
+\label{subsec:logical-relation}
 The backbone of the full-abstraction proof is a cross language, step-indexed, Kripke logical relation.
 \todo[inline]{write a bit more introduction that informally tells the purpose of this logical relation in relation to the full proof.}
 Unfortunately due to space considerations, we cannot give a comprehensive description of it.
@@ -1438,6 +1401,7 @@ Instead we highlight the parts specific to the logical relation we have used and
 Finally, for the sake of presentation, we will sometimes omit describing details, such as step indexing, that are important for the correctness but otherwise not interesting.
 
 \subsubsection{Worlds}
+\label{subsec:worlds}
 Generally speaking, worlds are used in a logical relation to model the memory of a language.
 \srccm{} has three kinds of memory, the heap, the call stack, and the free stack, and our worlds should model this by being triples of sub-worlds.
 All of the sub-worlds are partial maps from region names $\RegionName$ (modelled as natural numbers) to some regions that depend on the kind of sub-world.
@@ -1795,12 +1759,17 @@ This is, however, only true for syntactically well-formed code, which the $\xRea
 The proof of the FTLR is done by a nested induction that categorises and considers each possible step the two executions can take.
 While the lemma is not used directly in the proof sketch we present in Section~\ref{subsec:proof-sketch}, it is detrimental to the proof of the lemmas we use in it.
 
-\subsection{Component logical relation}
-The component relation $\mathcal{C}(W)$ basically lifts the logical relation we have presented above to components.
-The component relation relates a component $(\mscode,\msdata,\overline{\mathrm{import}},\overline{\mathrm{export}},\sigrets,\sigcloss)$ to itself when two conditions are satisfied.
-First, when words that relate to them selves in the untrusted value relation are used to satisfy the imports, i.e.\ the words are placed on the import addresses in $\msdata$, and this data memory is combined with the code memory $\mscode$, then it forms a safe heap, i.e.\ it is in the $\mathcal{H}$ relation.
-Second, the exports should always be safe to use which means that they must be in the untrusted value relation in any future world.
-
+\subsection{Full abstraction proof sketch}
+\label{subsec:proof-sketch}
+The logical relation presented in Section~\ref{subsec:logical-relation} is lifted to a component relation $\mathcal{C}$ (we will also use $\cong$ to denote this relation) and an executable configuration relation $\mathcal{EC}$ in a straight forward.
+The component relation relates components to them self which makes sense as well-formed components should contain no \srccm{} specific constructs.
+We prove a number of lemmas about the relations.
+The first is a FTLR for components that says (1) all well-formed untrusted components are related to themselves in the component relation, and (2)  all well-formed and reasonable trusted components are related to themselves in the component relation.
+% \subsection{Component logical relation}
+% The component relation $\mathcal{C}(W)$ basically lifts the logical relation we have presented above to components.
+% The component relation relates a component $(\mscode,\msdata,\overline{\mathrm{import}},\overline{\mathrm{export}},\sigrets,\sigcloss)$ to itself when two conditions are satisfied.
+% First, when words that relate to them selves in the untrusted value relation are used to satisfy the imports, i.e.\ the words are placed on the import addresses in $\msdata$, and this data memory is combined with the code memory $\mscode$, then it forms a safe heap, i.e.\ it is in the $\mathcal{H}$ relation.
+% Second, the exports should always be safe to use which means that they must be in the untrusted value relation in any future world.
 % \begin{multline*}
 %   \lrcomp(W) =\\
 %   \left\{\begin{aligned}
@@ -1821,54 +1790,47 @@ Second, the exports should always be safe to use which means that they must be i
 %     \end{multlined}
 %   \right\} 
 % \end{multline*}
-
 \begin{lemma}[FTLR for components]
   \label{lem:ftlr-comps}
   If
   \begin{itemize}
-  \item $\gc = (\ta,\stkb,\gsigrets,\gsigcloss)$
   \item $\comp$ is a well-formed component, i.e. $\wdjud{\comp}$
   \item One of the following holds:
     \begin{itemize}
-    \item $\dom(\comp.\mscode) \subseteq \ta$ and $\comp$ is a reasonable component (see Section~\ref{sec:reasonability})
+    \item $\dom(\comp.\mscode) \subseteq \ta$ and $\comp$ is a reasonable component
     \item $\dom(\comp.\mscode) \mathrel{\#} \ta$
     \end{itemize}
   \end{itemize}
   Then there exists a $W$ such that
-  \begin{itemize}
-  \item $\npair{(\comp,\comp)} \in \lrcomp(W)$
-  \item $\dom(\pwheap)$ can be chosen to not include any finite set of region names 
-  \item $\dom(\pwfree) =
-    \dom(\pwpriv)=\emptyset$
-  \end{itemize}
+  $\npair{(\comp,\comp)} \in \lrcomp(W)$
 \end{lemma}
+The next is a compatibility lemma for plugging that says that given a context and component each related to itself in the component relation, then plugging the context with the component will give an executable configuration in the executable configuration relation.
 \begin{lemma}[Compatibility lemma for context plugging]
   \label{lem:compat-context-plug}
   If $\npair{\stpair{C}{C}}\in\lrcomp(W_1)$ and $\npair{\stpair{P}{P}} \in \lrcomp(W_2)$, then
   $\npair[n']{(\plug{C_S}{P_S},\plug{C_T}{P_T})} \in \lrec(W_1 \uplus W_2)$, for all $n' < n$.
 \end{lemma}
-
-
-\subsection{Executable configuration logical relation}
-
-\begin{multline*}
-  \lrec[\square,\gc = (\ta,\stkb)](W) = \\
-\left\{
-  \begin{array}{l}
-     \npair{\left(
-    (\ms_S,\reg_S,\stk,\ms_\stk),
-    (\ms_T,\reg_T)\right)} \mid \\
-    \quad \exists W_M,W_R,W_\pcreg \ldotp W = W_M \oplus W_R \oplus W_\pcreg \tand\\
-    \qquad \npair{( (\reg_S(\pcreg),\reg_S(\rdata)), (\reg_T(\pcreg),\reg_T(\rdata)) )} \in \lrexj(W_\pcreg) \tand \\
-    \qquad \reg_S(\pcreg) \neq \retptrc(\_) \tand
-    \reg_S(\rdata) \neq \retptrd(\_) \tand \\
-    \qquad \nonExec{\reg_S(\rdata)} \tand  
-     \nonExec{\reg_T(\rdata)} \tand \\
-    \qquad \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W_M} \tand \npair{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\})(W_R)
-  \end{array}
-\right\}
-\end{multline*}
-\begin{lemma}[Adequacy of execution configuration LR]
+Finally, we have an adequacy lemma for the execution configuration relation.
+This lemma says that if an \srccm{} configuration approximates a \trgcm{} configuration, and the \trgcm{} configuration terminates, then so does the \srccm{} configuration.
+The symmetric case is also true.
+% \begin{multline*}
+%   \lrec[\square,\gc = (\ta,\stkb)](W) = \\
+% \left\{
+%   \begin{array}{l}
+%      \npair{\left(
+%     (\ms_S,\reg_S,\stk,\ms_\stk),
+%     (\ms_T,\reg_T)\right)} \mid \\
+%     \quad \exists W_M,W_R,W_\pcreg \ldotp W = W_M \oplus W_R \oplus W_\pcreg \tand\\
+%     \qquad \npair{( (\reg_S(\pcreg),\reg_S(\rdata)), (\reg_T(\pcreg),\reg_T(\rdata)) )} \in \lrexj(W_\pcreg) \tand \\
+%     \qquad \reg_S(\pcreg) \neq \retptrc(\_) \tand
+%     \reg_S(\rdata) \neq \retptrd(\_) \tand \\
+%     \qquad \nonExec{\reg_S(\rdata)} \tand  
+%      \nonExec{\reg_T(\rdata)} \tand \\
+%     \qquad \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W_M} \tand \npair{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\})(W_R)
+%   \end{array}
+% \right\}
+% \end{multline*}
+\begin{lemma}[Adequacy of execution configuration logical relation]
   \label{lem:adequacy}
   If $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\preceq,\gc](W)$ and
  $i \leq n$ and
@@ -1881,11 +1843,60 @@ and $\Phi_S \sterm[i]{\gc}$,
 and $\Phi_T \term[i]$,
   then $\Phi_S\sterm{\gc}$.
 \end{lemma}
-
-\subsection{Proof sketch}
-\label{subsec:proof-sketch}
+We use these three lemmas to prove Theorem~\ref{thm:full-abstraction}
 \begin{proof}[Proof of Theorem~\ref{thm:full-abstraction}]
-  \todo[inline]{Rewrite}
+  The proof of both directions are very similar, so we only show the right direction.
+  W.l.o.g.\ it suffices to show one direction of the contextual equivalence, so we assume ${\plug{\trg{\context}}{\src{\comp_1}} \term[]{}}$.
+  The proof is sketched in Figure~\ref{fig:fa-proof-sketch}.
+  By the statement of Theorem~\ref{thm:full-abstraction}, we may assume that $\comp_1$ and $\comp_2$ are well-formed and reasonable.
+  Further, by $\tconeq$ the context $\context$ must be well-formed.
+  We prove arrow (1) in the figure by using the mentioned assumption about $\comp_1$ and $\context$ along with Lemma~\ref{lem:ftlr-comps}, \ref{lem:compat-context-plug}, and \ref{lem:adequacy}.
+  Now we know that ${\plug{\trg{\context}}{\src{\comp_1}} \sterm[]{\gc}{}}$, so by the assumption that $\comp_1$ and $\comp_2$ are contextually equivalent on \srccm{} we get ${\plug{\trg{\context}}{\src{\comp_2}} \sterm[]{\gc}{}}$ which proves arrow (2) in the figure.
+  To prove arrow (3), we again apply Lemma~\ref{lem:ftlr-comps}, \ref{lem:compat-context-plug}, and \ref{lem:adequacy}; but this time, we use that $\comp_2$ is well-formed and reasonable and that $\context$ is well-formed.
+\end{proof}
+
+\begin{figure}
+  \centering
+  \begin{tikzpicture}[scale=0.8,every node/.style={scale=.9}]
+    % \draw[help lines,yellow] (0,0) grid (10,7);
+    \node at (5,4.7) { ${\src{\comp_1}\mathrel{\sconeq} \src{\comp_2}}$ };
+
+    \node at (3.4,4) { ${\plug{\trg{\context}}{\src{\comp_1}} \sterm[]{\gc}{}}$ };
+    \node at (5,4) { $\mathrel{\Rightarrow}$ };
+    \node at (6.6,4) { ${\plug{\trg{\context}}{\src{\comp_2}} \sterm[]{\gc}{}}$ };
+
+    \node at (4.35,2.8) { (1) };
+    \node at (5,3.6) { (2) };
+    \node at (5.65,2.8) { (3) };
+
+    \draw[out=100,in=260,double,-implies,double equal sign distance] (4,2.6) to (4,3.4);
+
+    \draw[out=280,in=80,double,-implies,double equal sign distance] (6,3.4) to (6,2.6);
+
+    \node[align=left] at (8.2,3) { $ {\trg{\context}} \cong \trg{\context}$ \\
+      $ {\src{\comp_2}} \cong {\src{\comp_2}}$};
+    \node[align=left] at (1.8,3) { $ {\trg{\context}} \cong \trg{\context}$ \\
+      $ {\src{\comp_1}} \cong {\src{\comp_1}}$};
+    % \node at (9,2.7) { $e  {\src{C_1}} \cong \src{C_1}} : tau$ };
+    % \node at (8.7,3.3) { $ {\trg{\context}} \cong \trg{\context} :{\emptyset},tau \ra e,{\cdots}$ };
+    % \node at (.8,3) { $e  {\src{C_1}} \cong {\src{C_1}} : tau$ };
+
+    \node at (3.4,2) { ${\plug{\trg{\context}}{\src{\comp_1}} \term[]{}}$ };
+    \node at (5,2.1) { $\overset{?}{\Rightarrow}$ };
+    \node at (6.6,2) { ${\plug{\trg{\context}}{\src{\comp_2}} \term[]{}}$ };
+
+    \node at (5,1.3) { ${\src{\comp_1}}\mathrel{\overset{?}{\tconeq}}{\src{\comp_2}}$ };
+
+    \draw[out=-90,in=90,double,-implies,double equal sign distance] (0,5) to node[sloped, yshift =.7em]{\small Contextual equivalence preservation} (0,1);
+  \end{tikzpicture}
+  \caption{Proving one direction of fully abstract compilation (contextual equivalence preservation).}
+  \label{fig:fa-proof-sketch}
+\end{figure}
+
+
+% \subsection{Proof sketch}
+% \label{subsec:proof-sketch}
+% \begin{proof}[Proof of Theorem~\ref{thm:full-abstraction}]
   % \item Consider first the upward arrow.
   %   Assume $\src{\var{comp}_1} \tconeq \src{\var{comp}_2}$.
 
@@ -1914,35 +1925,35 @@ and $\Phi_T \term[i]$,
   %   Lemma~\ref{lem:compat-context-plug} then tells us that $\npair[n']{(\plug{\context}{\var{comp}_2}, \plug{\context}{\var{comp}_2})} \in \lrec[\succeq,\gc_2](W_2\uplus W_2')$
   %   Together with $\plug{\context}{\var{comp}_2} \trg{\term[n']}$, Lemma~\ref{lem:adequacy} then tells us that $\src{\plug{\context}{\var{comp}_2} \sterm{\gc_2}}$, concluding this direction of the proof.
 
-  First consider the right arrow:
+%   First consider the right arrow:
 
-    Assume $\src{\var{comp}_1} \sconeq \src{\var{comp}_2}$. Take $\src{\ta[,i]} = \src{\dom(\var{comp}_i.\mscode)}$, $\gsigrets_i = \var{comp}_i.\sigrets$ and $\gsigcloss_i = \var{comp}_i.\sigcloss$, $\gc_i = (\ta[,i],\stkb_i,\gsigrets_i,\gsigcloss_i)$.
-%
-    Take a $\trg{\context}$ such that $\vdash \trg{\context}$ and we will prove that
-    $\trg{\plug{\context}{\var{comp}_1} \term} \Leftrightarrow
-    \trg{\plug{\context}{\var{comp}_2} \term}$.
-%
-    By symmetry, we can assume w.l.o.g. that $\trg{\plug{\context}{\var{comp}_1} \term}$ and prove that $\trg{\plug{\context}{\var{comp}_2} \term}$.
-    Note that this implies that $\trg{\context}$ is a valid context for both $\trg{\var{comp}_1}$ and $\trg{\var{comp}_2}$.
-%
-    First, we show that also $\plug{\context}{\var{comp}_1} \src{\sterm{\gc_1}}$.
-    Take $n$ the amount of steps in the termination of $\plug{\context}{\var{comp}_1} \trg{\term}$.
-    It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n+1]{(\var{comp}_1,\var{comp}_1)} \in \lrcomp[\succeq,\gc_1](W_1)$ for some $W_1$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
-    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n+1]{(\context,\context)} \in \lrcomp[\succeq,\gc_1](W_1')$ for some $W_1'$ that we can choose such that $W_1 \uplus W_1'$ is defined.
-    Lemma~\ref{lem:compat-context-plug} then tells us that $\npair{(\plug{\context}{\var{comp}_1}, \plug{\context}{\var{comp}_1})} \in \lrec[\succeq,\gc_1](W_1\uplus W_1')$
-    Together with $\plug{\context}{\var{comp}_1} \trg{\term[n]}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_1} \src{\sterm{\gc_1}}$.
-%
-    It follows from $\src{\var{comp}_1} \sconeq \src{\var{comp}_2}$ that also $\plug{\context}{\var{comp}_2} \src{\sterm{\gc_2}}$.
-%
-    It now remains to show that also $\plug{\context}{\var{comp}_2} \trg{\term}$.
-    Take $n'$ the amount of steps in the termination of $\plug{\context}{\var{comp}_2} \src{\sterm{\gc_2}}$.
-    It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n'+1]{(\var{comp}_2,\var{comp}_2)} \in \lrcomp[\preceq,\gc_2](W_2)$ for some $W_2$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
-    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n'+1]{(\context,\context)} \in \lrcomp[\preceq,\gc_2](W_2')$ for some $W_2'$ that we can choose such that $W_2 \uplus W_2'$ is defined.
-    Lemma~\ref{lem:compat-context-plug} then tells us that $\npair[n']{(\plug{\context}{\var{comp}_2}, \plug{\context}{\var{comp}_2})} \in \lrec[\preceq,\gc_2](W_2\uplus W_2')$
-    Together with $\plug{\context}{\var{comp}_2} \trg{\term[n']}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_2} \trg{\term}$, concluding the second direction of the proof.
+%     Assume $\src{\var{comp}_1} \sconeq \src{\var{comp}_2}$. Take $\src{\ta[,i]} = \src{\dom(\var{comp}_i.\mscode)}$, $\gsigrets_i = \var{comp}_i.\sigrets$ and $\gsigcloss_i = \var{comp}_i.\sigcloss$, $\gc_i = (\ta[,i],\stkb_i,\gsigrets_i,\gsigcloss_i)$.
+% %
+%     Take a $\trg{\context}$ such that $\vdash \trg{\context}$ and we will prove that
+%     $\trg{\plug{\context}{\var{comp}_1} \term} \Leftrightarrow
+%     \trg{\plug{\context}{\var{comp}_2} \term}$.
+% %
+%     By symmetry, we can assume w.l.o.g. that $\trg{\plug{\context}{\var{comp}_1} \term}$ and prove that $\trg{\plug{\context}{\var{comp}_2} \term}$.
+%     Note that this implies that $\trg{\context}$ is a valid context for both $\trg{\var{comp}_1}$ and $\trg{\var{comp}_2}$.
+% %
+%     First, we show that also $\plug{\context}{\var{comp}_1} \src{\sterm{\gc_1}}$.
+%     Take $n$ the amount of steps in the termination of $\plug{\context}{\var{comp}_1} \trg{\term}$.
+%     It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n+1]{(\var{comp}_1,\var{comp}_1)} \in \lrcomp[\succeq,\gc_1](W_1)$ for some $W_1$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
+%     It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n+1]{(\context,\context)} \in \lrcomp[\succeq,\gc_1](W_1')$ for some $W_1'$ that we can choose such that $W_1 \uplus W_1'$ is defined.
+%     Lemma~\ref{lem:compat-context-plug} then tells us that $\npair{(\plug{\context}{\var{comp}_1}, \plug{\context}{\var{comp}_1})} \in \lrec[\succeq,\gc_1](W_1\uplus W_1')$
+%     Together with $\plug{\context}{\var{comp}_1} \trg{\term[n]}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_1} \src{\sterm{\gc_1}}$.
+% %
+%     It follows from $\src{\var{comp}_1} \sconeq \src{\var{comp}_2}$ that also $\plug{\context}{\var{comp}_2} \src{\sterm{\gc_2}}$.
+% %
+%     It now remains to show that also $\plug{\context}{\var{comp}_2} \trg{\term}$.
+%     Take $n'$ the amount of steps in the termination of $\plug{\context}{\var{comp}_2} \src{\sterm{\gc_2}}$.
+%     It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n'+1]{(\var{comp}_2,\var{comp}_2)} \in \lrcomp[\preceq,\gc_2](W_2)$ for some $W_2$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
+%     It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n'+1]{(\context,\context)} \in \lrcomp[\preceq,\gc_2](W_2')$ for some $W_2'$ that we can choose such that $W_2 \uplus W_2'$ is defined.
+%     Lemma~\ref{lem:compat-context-plug} then tells us that $\npair[n']{(\plug{\context}{\var{comp}_2}, \plug{\context}{\var{comp}_2})} \in \lrec[\preceq,\gc_2](W_2\uplus W_2')$
+%     Together with $\plug{\context}{\var{comp}_2} \trg{\term[n']}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_2} \trg{\term}$, concluding the second direction of the proof.
 
- The left arrow is proven in a similar manner.
-\end{proof}
+%  The left arrow is proven in a similar manner.
+% \end{proof}
 
 
 \section{Discussion}
