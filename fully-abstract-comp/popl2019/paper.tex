@@ -71,6 +71,7 @@
 \renewcommand{\comp}{\var{comp}}
 \renewcommand{\memSatStack}[3][n]{\npair[#1]{#2} \in \typesetlr{S}(#3)}
 \renewcommand{\memSatFStack}[3][n]{\npair[#1]{#2} \in \typesetlt{F}(#3)}
+\renewcommand{\Worlds}{\World_{\mathrm{call\ stack}}}
 
 
 \newcommand{\xjmpres}[1]{\plainfun{xjmpRes}{#1}}
@@ -79,6 +80,7 @@
 
 \newcommand{\trgcm}{\textsc{LCM}}
 \newcommand{\srccm}{\textsc{oLCM}}
+\newcommand{\extend}[1]{}
 
 \begin{document}
 
@@ -225,9 +227,20 @@ Additionally, formulating security of a calling convention in this way makes it 
 The idea is that security of such a compiler could be verified by proving fully abstract compilation with respect to the well-behaved semantics of the target language, so that the proof can rely on native well-bracketedness and local stack frame encapsulation.
 This independent result could then be composed with our result to obtain security of the compiler targeting the real target language, by transitivity of full abstraction.
 
-\todo[inline]{Add itemized contributions}
 
-\paragraph{Outline} Blabla
+\todo[inline]{Add itemized contributions (see comments). Outline?}
+% The main contributions of this paper are (1) \stktokens{} a calling convention that uses linear capabilities to provably secure local state encapsulation and well-bracketed control flow, and (2) a novel proof technique that we call fully-abstract overlay semantics.
+
+% Presents the first formal model of a capability machine with linear capabilities (Section 2)
+% Presents a calling convention called \stktokens{} that provably guarantee local state encapsulation and well-bracketed control flow (Section 3)
+% Presents a novel proof technique that we call fully-abstract overlay semantics. (Section 4-5)
+
+% \begin{itemize}
+% \item 
+% \end{itemize}
+
+
+%\paragraph{Outline} Blabla
 
 % \begin{acks}                            %% acks environment is optional
 %                                         %% contents suppressed with 'anonymous'
@@ -1340,6 +1353,7 @@ With the above defined, we are almost ready to state our full-abstraction, and a
 We only care about the well-formed components, and they sport none of the new syntactic constructs \srccm{} adds to \trgcm{}.
 This means that the compilation from \srccm{} components to \trgcm{} components is simply the identity function.
 % Full abstraction thm
+\todo[inline]{Look at coloring in these theorems. Why are all components and contexts blue?}
 \begin{theorem}
   \label{thm:full-abstraction}
   For reasonable, well-formed components $\comp_1$ and $\comp_2$, we have
@@ -1479,7 +1493,7 @@ The code region is defined as follows:
   H^\mathrm{code,\square} \; \sigrets \; \sigcloss \; \mscode \; \gc,
   H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \mscode \; \gc)
 \]
-It is a $\pure$ region which makes it persistent in future worlds.
+The code region is $\pure$ which makes it persistent in future worlds and reflects the fact that it is addressed by normal capabilities.
 The memory relation $H^\mathrm{code,\square} \; (\dots)$ is very selective and only accepts the pair $(\mscode,\mscode)$ and only on the following conditions: The code memory $\mscode$ must be well-formed according to $\vdash$.
 Further, all the words contained in $\mscode$ must be non-linear and in the value relation, but as we will see later we have two value relations, a trusted and an untrusted, and the value relation used depends on whether $\mscode$ is trusted.
 For now it suffices to know that the untrusted value relation contains everything that untrusted code can safely have.
@@ -1505,8 +1519,20 @@ Further, if $\ta$ is untrusted, then $\sigrets$ has to be empty which means that
 
 \todo[inline]{Describe $H^\mathrm{code,\square}_\sigma$}
 
+the seal interpretation function $h^\mathrm{code,\square}_\sigma \; (\dots)$ in the code region dictates the return seals and closure seals can be used to seal.
+the return seals can only be used to seal return pointers, but only when they actually represent meaning full returns.
+for instance, a code return pointer should actually be associated with a trusted call, i.e.\ it should point to the address just after a call.
+the corresponding capability on \trgcm{} should point to the address just after the \texttt{xjmp} in the call code (figure~\ref{fig:call-code}) as it needs to do a couple of things to complete the call safely.
+further, the call they are associated with has to be the call that uses the seal in question.
+the code return pointer is not linear which means that it can be reused which is fine as it can only be used to return from the same call.
+on the other hand, the data return pointers are linear which is what prevents reuse of a return pair.
+multiple nested calls from the same trusted call will result in multiple stack frames that are each sealed with the same return seal.
+the seal interpretation function should allow a data return pointer for any of those pointers, so it simply requires that there exists a region $\stareg[(\ms_S,\ms_T),(\ta,\stkb)]{\spao,\square}$ (a region that only accepts $(\ms_S,\ms_T)$ and requires the contents to be in the untrusted value relation) in the part of the world that governs the call stack.
+The data return pointer should point to that stack frame.
+A region in the world for the call stack is also associated with a return address, and it should be the return address of the call that uses the return seal in question.
+\todo[inline]{Consider writing something about how this relates to prove? We have to show that there is a stack frame, but we can rely on it when we receive a capability with the correct seal.}
 \begin{multline*}
-  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; (\ta,\stkb) \; \sigma \; \hat{W}= \\
+  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; (\ta,\stkb,\gsigrets,\gsigcloss) \; \sigma \; \hat{W}= \\
   \begin{array}[t]{l}
 \left\{
     \begin{array}{l}
@@ -1532,7 +1558,7 @@ Further, if $\ta$ is untrusted, then $\sigrets$ has to be empty which means that
     \end{array}
     \right\} \\
   \end{array}\\
-    \text{ if } \sigma \in \sigrets\\
+    \text{ if } \sigma \in \sigrets
 \end{multline*}
 We leave out the formal definition of $H^\mathrm{code,\square}_\sigma \; (\dots)$ for $\sigma \in \sigcloss$ and provide an informal description.
 What closure seals can be used for depends on whether the code is trusted.
@@ -1557,20 +1583,12 @@ If it is executable, then it can be in the trusted value relation because we wan
 % \end{multline*}
 
 
-\subsubsection{Expression relations}
-\begin{multline*}
-  \lrexj(W) =
-  \\\left\{\begin{array}{l}
-      \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} | \\
-      \quad \forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk}, W_\lrrs , W_\lrm \ldotp \\
-      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\}) (W_\lrrs ) \tand \memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \tand \\
-      \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)} \tand \Phi_T = (\ms_T,\reg_T) \tand W \oplus W_\lrrs \oplus W_\lrm \text{ is defined }\\
-      \qquad\Rightarrow \exists \Phi_S',\Phi_T'\ldotp \Phi_S' = \xjumpResult{v_{c,S}}{v_{d,S}}{\Phi_S} \tand\\
-      \quad\qquad\Phi_T' = \xjumpResult{v_{c,T}}{v_{d,T}}{\Phi_T}\tand\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro
-    \end{array}
-    \right\}
-\end{multline*}
-
+\subsubsection{Expression relations and friends}
+The expression relation $\mathcal{E}$ in this logical relation contains pairs of capabilities that can safely be used for execution with respect to the give world.
+That is when capabilities are plugged into configurations with related register files  and related memory relative to the world, then the executions observably behave the same way.
+% the other expression relation
+With sealed capabilities in the mix, we will also need to be able to say something similar to the above but with a specific data capability in the register file.
+To this end, we have the \texttt{xjmp}-expression relation $\mathcal{E}_{\mathrm{xjmp}}$ that relates two pairs of capabilities and requires that they are safe to use for the \texttt{xjmp} instruction.
   % \begin{multline*}
   %   \lre(W)= \\
   %   \left\{ \begin{array}{l}
@@ -1583,16 +1601,47 @@ If it is executable, then it can be in the trusted value relation because we wan
   %   \end{array}
   %   \right\}
   % \end{multline*}
-\[
-  \lrol =\{ \npair{\left(\src{\Phi_S},\Phi_T\right)} \mid
+\begin{multline*}
+  \lrexj(W) =
+  \\\left\{\begin{array}{l}
+      \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} | \\
+      \quad \forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk}, W_\lrrs , W_\lrm \ldotp \\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\}) (W_\lrrs ) \tand \memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \tand \\
+      \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)} \tand \Phi_T = (\ms_T,\reg_T) \tand W \oplus W_\lrrs \oplus W_\lrm \text{ is defined }\\
+      \qquad\Rightarrow \exists \Phi_S',\Phi_T'\ldotp \Phi_S' = \src{\var{xjmpRes}}(v_{c,S},v_{d,S},\Phi_S) \tand\\
+      \quad\qquad\Phi_T' = \xjmpres{v_{c,T},v_{d,T},\Phi_T}\tand\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro
+    \end{array}
+    \right\}
+\end{multline*}
+% register file relation
+The register-files relation $\lrr(\{\rdata\}) (W_\lrrs )$ relates register files when their registers, with register $\rdata$ and $\pcreg$ as the exception, contain words related in the untrusted value relation.
+% memory relation
+A memory on \trgcm{} $\ms_T$ is related to a heap, call stack and free stack on \srccm{} if the following is possible: $\ms_T$ can be split in three disjoint parts.
+One part relates to $\ms_S$ with respect to the heap world in the standard way, i.e.\ the two memories can be partitioned, so they satisfy all the regions of the heap world.
+The second part should relate to the free stack $\ms_\stk$ also in the standard way, but with respect to the free stack world.
+The final part relates to the call stack $\stk$ which means that it can be further split into parts that each are related to one of the stack frames of $\stk$ with respect to the call stack world.
+The partition must be done in a way that preserves the order of the stack frames in $\stk$.
+% , so the top stack frame relates to a part of memory where all the other parts are above in the address space, the second stack frame relates to a part of memory where all the other parts are above in the address space with the exception of the topmost part, and so on.
+% Further, all stack frames should be in addresses above $\stkb$.
+\extend{Write about the particulars of the three memory satisfaction: heap relation makes sure only one interpretation for each seal. Free stack $\stkb$}
+The \texttt{xjmp} expression relation requires register files and memories related under different worlds, namely $W_\lrrs$ and $W_\lrm$, that are related with $\oplus$.
+This means that the two worlds have the same regions, but distribute the ownership of partial regions between them.
+By doing so, they make sure that for any part of memory only one of them can have a linear capability it.
+The two pairs of capabilities related by $\lrexj$ are plugged into their respective configurations using the $\xjmpres{}$ function, so it corresponds to how an $\texttt{xjmp}$ would insert them.
+% observation relation
+Finally, the observably accepted behaviour is defined by the observation relation $\lro$.
+\begin{align*}
+  \lro[\preceq,(\ta,\stkb,\_,\_)] ={}&\{ \npair{\left(\src{\Phi_S},\Phi_T\right)} \mid
   \forall i \leq n \ldotp
-    \src{\Phi_S \sterm[i]{\ta,\stkb}} \Rightarrow \Phi_T \trg{\term} \}
-\]
-\[
-  \lror = \{ \npair{\left(\src{\Phi_S},\Phi_T\right)} \mid
+    \src{\Phi_S \sterm[i]{\ta,\stkb}} \Rightarrow \Phi_T \trg{\term} \}\\
+  \lro[\succeq,(\ta,\stkb,\_,\_)] ={}& \{ \npair{\left(\src{\Phi_S},\Phi_T\right)} \mid
   \forall i \leq n \ldotp 
     \Phi_T \trg{\term[i]} \Rightarrow \src{\Phi_S \sterm{\ta,\stkb}} \}
-\]
+\end{align*}
+The only observable behavior of the capability machines is termination. 
+This means that the observation relations say that if one configuration terminates successfully, then the other one must terminate successfully as well.
+The fact that the observation relation is split into two parts means that we really have a logical approximation where one machine approximates the behavior of the other machine.
+
 
 \subsubsection{Value relations}
   \todo[inline]{Do we cut the sealed case of the untrusted value relation?}
@@ -1703,25 +1752,13 @@ If it is executable, then it can be in the trusted value relation because we wan
 \begin{lemma}[FTLR]
   \label{thm:ftlr}
   For all $n,W,\lin,\baddr,\eaddr,\aaddr$,
-  If
-  \begin{itemize}
-  \item $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$
-  \end{itemize}
-  and one of the following sets of requirements holds:
-  \begin{itemize}
-  \item \begin{itemize}
-    \item $[\baddr,\eaddr] \subseteq \ta$
-    \item $({((\rx,\normal),\baddr,\eaddr,\aaddr)}$ behaves reasonably up to $n$ steps.
-    \end{itemize}
-  \item
-    \begin{itemize}
-    \item $[\baddr,\eaddr] \mathrel{\#} \ta$
-    \end{itemize}
-  \end{itemize}
-  Then
+  If $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$
+  and either $[\baddr,\eaddr] \subseteq \ta$ and $({((\rx,\normal),\baddr,\eaddr,\aaddr)}$ behaves reasonably up to $n$ steps or
+$[\baddr,\eaddr] \mathrel{\#} \ta$,
+then 
   \[
-    \npair{\left(\arraycolsep=0pt\array{l}((\rx,\normal),\baddr,\eaddr,\aaddr),\\
-      ((\rx,\normal),\baddr,\eaddr,\aaddr)\endarray\right)} \in \lre(W)
+    \npair{\left(((\rx,\normal),\baddr,\eaddr,\aaddr),
+      ((\rx,\normal),\baddr,\eaddr,\aaddr)\right)} \in \lre(W)
   \]
 \end{lemma}
 
