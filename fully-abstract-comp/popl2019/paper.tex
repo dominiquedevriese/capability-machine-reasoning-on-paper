@@ -1475,7 +1475,7 @@ The code region is defined as follows:
   H^\mathrm{code,\square} \; \sigrets \; \sigcloss \; \mscode \; \gc,
   H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \mscode \; \gc)
 \]
-It is a $\pure$ region which makes it persistent in future worlds.
+The code region is $\pure$ which makes it persistent in future worlds and reflects the fact that it is addressed by normal capabilities.
 The memory relation $H^\mathrm{code,\square} \; (\dots)$ is very selective and only accepts the pair $(\mscode,\mscode)$ and only on the following conditions: The code memory $\mscode$ must be well-formed according to $\vdash$.
 Further, all the words contained in $\mscode$ must be non-linear and in the value relation, but as we will see later we have two value relations, a trusted and an untrusted, and the value relation used depends on whether $\mscode$ is trusted.
 For now it suffices to know that the untrusted value relation contains everything that untrusted code can safely have.
@@ -1501,8 +1501,20 @@ Further, if $\ta$ is untrusted, then $\sigrets$ has to be empty which means that
 
 \todo[inline]{Describe $H^\mathrm{code,\square}_\sigma$}
 
+the seal interpretation function $h^\mathrm{code,\square}_\sigma \; (\dots)$ in the code region dictates the return seals and closure seals can be used to seal.
+the return seals can only be used to seal return pointers, but only when they actually represent meaning full returns.
+for instance, a code return pointer should actually be associated with a trusted call, i.e.\ it should point to the address just after a call.
+the corresponding capability on \trgcm{} should point to the address just after the \texttt{xjmp} in the call code (figure~\ref{fig:call-code}) as it needs to do a couple of things to complete the call safely.
+further, the call they are associated with has to be the call that uses the seal in question.
+the code return pointer is not linear which means that it can be reused which is fine as it can only be used to return from the same call.
+on the other hand, the data return pointers are linear which is what prevents reuse of a return pair.
+multiple nested calls from the same trusted call will result in multiple stack frames that are each sealed with the same return seal.
+the seal interpretation function should allow a data return pointer for any of those pointers, so it simply requires that there exists a region $\stareg[(\ms_S,\ms_T),(\ta,\stkb)]{\spao,\square}$ (a region that only accepts $(\ms_S,\ms_T)$ and requires the contents to be in the untrusted value relation) in the part of the world that governs the call stack.
+The data return pointer should point to that stack frame.
+A region in the world for the call stack is also associated with a return address, and it should be the return address of the call that uses the return seal in question.
+\todo[inline]{Consider writing something about how this relates to prove? We have to show that there is a stack frame, but we can rely on it when we receive a capability with the correct seal.}
 \begin{multline*}
-  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; (\ta,\stkb) \; \sigma \; \hat{W}= \\
+  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; (\ta,\stkb,\gsigrets,\gsigcloss) \; \sigma \; \hat{W}= \\
   \begin{array}[t]{l}
 \left\{
     \begin{array}{l}
@@ -1528,7 +1540,7 @@ Further, if $\ta$ is untrusted, then $\sigrets$ has to be empty which means that
     \end{array}
     \right\} \\
   \end{array}\\
-    \text{ if } \sigma \in \sigrets\\
+    \text{ if } \sigma \in \sigrets
 \end{multline*}
 We leave out the formal definition of $H^\mathrm{code,\square}_\sigma \; (\dots)$ for $\sigma \in \sigcloss$ and provide an informal description.
 What closure seals can be used for depends on whether the code is trusted.
