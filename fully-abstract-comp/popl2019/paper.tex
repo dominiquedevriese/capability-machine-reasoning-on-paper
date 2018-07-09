@@ -1008,21 +1008,27 @@ Item~\ref{item:check-stkb}-\ref{item:return-code} are captured by the code in Fi
 \label{sec:form-secur-with}
 A central contribution of this paper is to prove that \stktokens{} actually guarantees LSE and WBCF.
 Our proof uses a novel approach we call fully abstract overlay semantics.
-In this approach, we first define an overlay semantics for \trgcm{} which has LSE and WBCF by construction.
-An overlay semantics is basically a different view on an existing semantics.
-For instance, it may have new syntactic constructs and have special semantics for these things, but they correspond to something on the underlying machine.
-In the overlay semantics we are about to define for \trgcm{}, an explicit stack pointer construct is part of the new view.
-The stack pointer construct in the overlay corresponds directly to a linear capability in the underlying semantics, and it will have authority over the part of memory that the overlay views as the stack.
-When we have defined the overlay semantics, we prove full-abstractness for a compilation from the overlay semantics to the underlying semantics.
-Generally speaking, the compilation from an overlay semantics to an underlying semantics should be straightforward as the overlay semantics merely put a new view on the underlying semantics.
-In our case, the compilation even turns out to be the identity function!
+The idea is to define a second operational semantics for programs in our target language.
+This second semantics uses a different abstract machine and different run-time values, but it executes in lock-step with the original semantics and there is a very close correspondence between the state of both machines.
 
-% protection against others purpose of cc
-We can not show that \stktokens{} guarantee much if the security mechanisms of the capability machine are undermined by a poorly configured machine, e.g.\ the same seal is present in different components or the stack capability have aliases.
-It is also possible to for a caller to undermine the security mechanisms during execution.
-For example, the caller could give the return seal for a call to the callee.
-\stktokens{} do not protect a component against itself as the component is assumed to behave reasonably.
-In this section, we define a well-formedness judgement for the syntactic requirements on components as well as a reasonability condition that semantically disallows components from unsafe behavior.
+The main difference between the two semantics, is that the new one satisfies LSE and WBCF by construction: the abstract machine comes with a built-in stack, inactive stack frames are unaddressable and well-bracketed control flow is built-in to the abstract machine.
+Important run-time values like return capabilities and stack pointers are represented by special syntactic tokens that interact with the abstract machine's stack, but during execution, there remains a close, structural correspondence to the actual regular capabilities that they represent.
+For example, stack capabilities in the overlay semantics correspond directly to linear capabilities in the underlying semantics, and they have authority over the part of memory that the overlay views as the stack.
+
+The fact that \stktokens{} enforces LSE and WBCF is formulated as the theorem about the function that maps components in the well-behaved overlay semantics to the underlying components in the regular semantics.
+The theorem states that this function consitutes a fully abstract compiler, a well-known property from the field of secure compilation~\cite{abadi_protection_1999}.
+Intuitively, the theorem states that if a trusted component interacts with (potentially malicious) components in the regular semantics, then these components have no more expressive power than the corresponding components in the well-behaved overlay semantics.
+In other words, they cannot do anything that doesn't correspond to something that a well-behaved component, respecting LSE and WBCF, can also do.
+More formally, our full-abstraction result states that two trusted components are indistinguishable to arbitrary other components in the regular semantics iff they are indistinguishable to arbitrary other components in the overlay semantics.
+
+Our formal results are complicated by the fact that they only hold for well-behaved components that respect the basic rules of the calling convention, and also on a sane initial configuration of the system.
+For example, the system should be setup such that seals that components use for constructing return pointers should not be shared with other components.
+We envision distributing seals as a job for the linker, so this means our results depend on a linker to do this properly.
+As another example, a seal that is used to construct a return pointer, can be used again to construct other return pointers for the same return point, but a different seal must be used for others.
+Such seals should also never be passed to other components.
+Such requirements are easy to satisfy: components should request sufficient seals from the linker, use a different one for every place in the code where they make a call to another component, and make sure to clear them from registers before every call.
+The general pattern is that $\stktokens{}$ only protects components that do not shoot themselves in the foot by violating a few basic rules.
+In this section, we define a well-formedness judgement for the syntactic requirements on components as well as a reasonability condition that semantically disallows components to do certain unsafe things.
 
 \begin{figure}[b]
   \centering
