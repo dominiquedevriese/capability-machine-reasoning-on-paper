@@ -71,6 +71,7 @@
 \renewcommand{\comp}{\var{comp}}
 \renewcommand{\memSatStack}[3][n]{\npair[#1]{#2} \in \typesetlr{S}(#3)}
 \renewcommand{\memSatFStack}[3][n]{\npair[#1]{#2} \in \typesetlt{F}(#3)}
+\renewcommand{\Worlds}{\World_{\mathrm{call\ stack}}}
 
 
 \newcommand{\xjmpres}[1]{\plainfun{xjmpRes}{#1}}
@@ -79,6 +80,7 @@
 
 \newcommand{\trgcm}{\textsc{LCM}}
 \newcommand{\srccm}{\textsc{oLCM}}
+\newcommand{\extend}[1]{}
 
 \begin{document}
 
@@ -1577,20 +1579,12 @@ If it is executable, then it can be in the trusted value relation because we wan
 % \end{multline*}
 
 
-\subsubsection{Expression relations}
-\begin{multline*}
-  \lrexj(W) =
-  \\\left\{\begin{array}{l}
-      \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} | \\
-      \quad \forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk}, W_\lrrs , W_\lrm \ldotp \\
-      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\}) (W_\lrrs ) \tand \memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \tand \\
-      \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)} \tand \Phi_T = (\ms_T,\reg_T) \tand W \oplus W_\lrrs \oplus W_\lrm \text{ is defined }\\
-      \qquad\Rightarrow \exists \Phi_S',\Phi_T'\ldotp \Phi_S' = \xjumpResult{v_{c,S}}{v_{d,S}}{\Phi_S} \tand\\
-      \quad\qquad\Phi_T' = \xjumpResult{v_{c,T}}{v_{d,T}}{\Phi_T}\tand\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro
-    \end{array}
-    \right\}
-\end{multline*}
-
+\subsubsection{Expression relations and friends}
+The expression relation $\mathcal{E}$ in this logical relation contains pairs of capabilities that can safely be used for execution with respect to the give world.
+That is when capabilities are plugged into configurations with related register files  and related memory relative to the world, then the executions observably behave the same way.
+% the other expression relation
+With sealed capabilities in the mix, we will also need to be able to say something similar to the above but with a specific data capability in the register file.
+To this end, we have the \texttt{xjmp}-expression relation $\mathcal{E}_{\mathrm{xjmp}}$ that relates two pairs of capabilities and requires that they are safe to use for the \texttt{xjmp} instruction.
   % \begin{multline*}
   %   \lre(W)= \\
   %   \left\{ \begin{array}{l}
@@ -1603,16 +1597,47 @@ If it is executable, then it can be in the trusted value relation because we wan
   %   \end{array}
   %   \right\}
   % \end{multline*}
-\[
-  \lrol =\{ \npair{\left(\src{\Phi_S},\Phi_T\right)} \mid
+\begin{multline*}
+  \lrexj(W) =
+  \\\left\{\begin{array}{l}
+      \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} | \\
+      \quad \forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk}, W_\lrrs , W_\lrm \ldotp \\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\}) (W_\lrrs ) \tand \memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \tand \\
+      \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)} \tand \Phi_T = (\ms_T,\reg_T) \tand W \oplus W_\lrrs \oplus W_\lrm \text{ is defined }\\
+      \qquad\Rightarrow \exists \Phi_S',\Phi_T'\ldotp \Phi_S' = \src{\var{xjmpRes}}(v_{c,S},v_{d,S},\Phi_S) \tand\\
+      \quad\qquad\Phi_T' = \xjmpres{v_{c,T},v_{d,T},\Phi_T}\tand\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro
+    \end{array}
+    \right\}
+\end{multline*}
+% register file relation
+The register-files relation $\lrr(\{\rdata\}) (W_\lrrs )$ relates register files when their registers, with register $\rdata$ and $\pcreg$ as the exception, contain words related in the untrusted value relation.
+% memory relation
+A memory on \trgcm{} $\ms_T$ is related to a heap, call stack and free stack on \srccm{} if the following is possible: $\ms_T$ can be split in three disjoint parts.
+One part relates to $\ms_S$ with respect to the heap world in the standard way, i.e.\ the two memories can be partitioned, so they satisfy all the regions of the heap world.
+The second part should relate to the free stack $\ms_\stk$ also in the standard way, but with respect to the free stack world.
+The final part relates to the call stack $\stk$ which means that it can be further split into parts that each are related to one of the stack frames of $\stk$ with respect to the call stack world.
+The partition must be done in a way that preserves the order of the stack frames in $\stk$.
+% , so the top stack frame relates to a part of memory where all the other parts are above in the address space, the second stack frame relates to a part of memory where all the other parts are above in the address space with the exception of the topmost part, and so on.
+% Further, all stack frames should be in addresses above $\stkb$.
+\extend{Write about the particulars of the three memory satisfaction: heap relation makes sure only one interpretation for each seal. Free stack $\stkb$}
+The \texttt{xjmp} expression relation requires register files and memories related under different worlds, namely $W_\lrrs$ and $W_\lrm$, that are related with $\oplus$.
+This means that the two worlds have the same regions, but distribute the ownership of partial regions between them.
+By doing so, they make sure that for any part of memory only one of them can have a linear capability it.
+The two pairs of capabilities related by $\lrexj$ are plugged into their respective configurations using the $\xjmpres{}$ function, so it corresponds to how an $\texttt{xjmp}$ would insert them.
+% observation relation
+Finally, the observably accepted behaviour is defined by the observation relation $\lro$.
+\begin{align*}
+  \lro[\preceq,(\ta,\stkb,\_,\_)] ={}&\{ \npair{\left(\src{\Phi_S},\Phi_T\right)} \mid
   \forall i \leq n \ldotp
-    \src{\Phi_S \sterm[i]{\ta,\stkb}} \Rightarrow \Phi_T \trg{\term} \}
-\]
-\[
-  \lror = \{ \npair{\left(\src{\Phi_S},\Phi_T\right)} \mid
+    \src{\Phi_S \sterm[i]{\ta,\stkb}} \Rightarrow \Phi_T \trg{\term} \}\\
+  \lro[\succeq,(\ta,\stkb,\_,\_)] ={}& \{ \npair{\left(\src{\Phi_S},\Phi_T\right)} \mid
   \forall i \leq n \ldotp 
     \Phi_T \trg{\term[i]} \Rightarrow \src{\Phi_S \sterm{\ta,\stkb}} \}
-\]
+\end{align*}
+The only observable behavior of the capability machines is termination. 
+This means that the observation relations say that if one configuration terminates successfully, then the other one must terminate successfully as well.
+The fact that the observation relation is split into two parts means that we really have a logical approximation where one machine approximates the behavior of the other machine.
+
 
 \subsubsection{Value relations}
   \todo[inline]{Do we cut the sealed case of the untrusted value relation?}
