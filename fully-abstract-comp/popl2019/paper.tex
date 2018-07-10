@@ -813,33 +813,32 @@ The adversary calls the trusted code back, but first they split the return token
 The trusted caller calls the adversary back using the precautions we have described so far (Figure~\ref{fig:stack-base-abuse-c}).
 At this point (Figure~\ref{fig:stack-base-abuse-b})), the adversary has access to a partial return token adjacent to the trusted caller's first stack frame which allows the adversary to return from this call breaking WBCF.
 For the caller to be sure that there are no hidden stack frames above its own, they need to make sure that the return token is exactly the same as the one they passed to the callee.
-In \stktokens{}, the caller verifies the validity of the return token by checking whether the base address\footnote{The stack grows downwards in the address space} of a returned token corresponds to the base address of the return token they gave to the callee.
+In \stktokens{}, the base address of the stack is fixed as a compile-time constant.
+The caller verifies the validity of the return token by checking whether the base address\footnote{The stack grows downwards in the address space} of a returned token corresponds to this fixed base address, as it was for the return token they gave to the callee.
 In the scenario we just sketched, the caller would be alerted to the attempt to break WBCF when the base address check of the return token fails in Figure~\ref{fig:stack-base-abuse-d}.
 
 % Where do we get the stack pointer from, how can we know it is linear
 % The other attack.
 % KJAA: It is unclear to me what 'at this point' refers to.
-At this point, the caller is able to verify whether a return token is spendable which allows them to decide whether they have the topmost stack frame on a call stack.
-However, in order to have WBCF there should only be one call stack, so the caller should also be able to verify that they have the top stack frame on the call stack used by all well-behaved components.
-In case a trusted component did not start the execution on the machine, i.e.\ they were called by another component, then the trusted component has no way to be sure whether the stack capability passed to them corresponds to the one and only call stack.
-To illustrate how an adversarial component can break WBCF by using multiple different stack capabilities consider this example: An adversary calls a trusted component with a callback and some linear capability that they claim is the stack capability.
-The trusted component executes using the stack capability given to them and at some point they invoke the callback, creating return tokens and so on.
-The adversary stores the return pair and return token and calls another trusted component but with a new callback and a new linear capability that they claim is the stack capability.
-Again, this trusted component also executes using the stack capability given to them and at some point they too invoke the callback, taking all the precautions we have described so far.
-At this point, the adversary has everything they need to return from either of the two callbacks.
-Specifically, they could return from the first callback invocation before they have returned from the second, breaking WBCF.
-From a high-level perspective, the problem is that both trusted components will be able to verify that they have the top stack frame on the call stack.
-They are both correct as the adversarial component has created two call stacks, one for each of the components.
-In order to solve this problem, the well-behaved code needs to somehow agree on the call stack.
-We do this by statically deciding on a global base address for the stack which is used for the entirety of the execution.
-A caller makes sure that they are using the correct stack by checking that the base address of the stack capability they receive corresponds to the global stack base address.
-This also means that on every return, the caller will check whether the return token's base address is equal to the global stack address.
+% At this point, the caller is able to verify whether a return token is spendable which allows them to decide whether they have the topmost stack frame on a call stack.
+% However, in order to have WBCF there should only be one call stack, so the caller should also be able to verify that they have the top stack frame on the call stack used by all well-behaved components.
+% In case a trusted component did not start the execution on the machine, i.e.\ they were called by another component, then the trusted component has no way to be sure whether the stack capability passed to them corresponds to the one and only call stack.
+% To illustrate how an adversarial component can break WBCF by using multiple different stack capabilities consider this example: An adversary calls a trusted component with a callback and some linear capability that they claim is the stack capability.
+% The trusted component executes using the stack capability given to them and at some point they invoke the callback, creating return tokens and so on.
+% The adversary stores the return pair and return token and calls another trusted component but with a new callback and a new linear capability that they claim is the stack capability.
+% Again, this trusted component also executes using the stack capability given to them and at some point they too invoke the callback, taking all the precautions we have described so far.
+% At this point, the adversary has everything they need to return from either of the two callbacks.
+% Specifically, they could return from the first callback invocation before they have returned from the second, breaking WBCF.
+% From a high-level perspective, the problem is that both trusted components will be able to verify that they have the top stack frame on the call stack.
+% They are both correct as the adversarial component has created two call stacks, one for each of the components.
+% In order to solve this problem, the well-behaved code needs to somehow agree on the call stack.
+% We do this by statically deciding on a global base address for the stack which is used for the entirety of the execution.
+% A caller makes sure that they are using the correct stack by checking that the base address of the stack capability they receive corresponds to the global stack base address.
+% This also means that on every return, the caller will check whether the return token's base address is equal to the global stack address.
 
-Having a globally decided stack address also solves another challenge.
-Namely, the stack capability has to be linear in order for a caller to use it as a token, so a caller has to make sure that a capability is in fact linear when it is proposed as the stack capability by an untrusted source.
-This is, however, implicitly checked when the caller checks that the stack capability governs the global stack base address.
-The reason is that the stack capability needs to start execution as a linear capability which means that the capability that governs the global stack base address to begin with is linear.
-Due to the non-duplicability of linear capability and the fact that they cannot become non-linear during execution, the caller knows that if they have a capability that governs the global stack base address, then it must be linear.
+In \stktokens{} we ensure that at the start of execution, the stack memory is only referenced by a single, linear stack capability.
+Because of this, we can assert validity of the return token simply by checking its base address and splicing it with the caller's stack frame.
+There is no need to check linearity, because we know that only linear capabilities to this memory exist.
 
 % Return pointers/return seals
 The return pointer in the \stktokens{} scheme is a pair of sealed capabilities where the code part of the pair is the old program counter, and the data part is the stack capability for the local stack frame of the caller.
