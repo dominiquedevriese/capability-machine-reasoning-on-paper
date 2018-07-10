@@ -1619,12 +1619,39 @@ It is the physical location of a stack frame that determines its order in the ca
 
 \subsubsection{Value relations}
 The purpose of the value relations is two fold: It relates the words on \srccm{} to the words they correspond to on \trgcm{}, and it defines what pairs of words are safe, i.e.\ are unable to break the guarantees of the capability machines including the LSE and WBCF guaranteed by \srccm{}.
-As previously explained, we try to ensure LSE and WBCF for some trusted code of which we require certain things like treating return seals in a reasonable way.
-This means that it is safe to give return seals to trusted code.
-At the same time, we have some code that we do not trust, and given a return seal it may try to abuse it to break LSE and WBCF for the trusted code.
+As previously explained, we try to ensure LSE and WBCF for some trusted code that we expect to behave reasonable, e.g.\ by treating return seals in a reasonable way.
+This means that it is safe to give return seals to trusted code; but at the same time, we have some code that we do not trust and that we want to guarantee LSE and WBCF against.
 This means that there is a difference between what is safe to give to the trusted code and the untrusted code which we capture by having a trusted and untrusted value relation.
+The two value relations are sketched in Figure~\ref{fig:value-relation}.
 
-\begin{align*}
+The untrusted value relation relates words that can safely be given to untrusted code.
+Data is always safe, and a piece of data relates to itself.
+A stack pointers is related to a linear capability with the same (non-executable) permission, range of authority, and current address.
+The stack pointer should only be able to produce safe words, so a stack pointer with read permission can only produce safe words, i.e.\ words in $\mathcal{V}_\untrusted$, and a stack pointer with write permission can at least write safe words.
+Regions model the contents of memory, so to determine safety of a stack pointer there must be an appropriate spatially owned region in the free stack part of the world.
+Syntactically equal memory capabilities are related in a similar way to stack capabilities when they have read-write permission.
+The difference is that memory capabilities point to the heap rather than the free stack, so the regions they depend on are picked from the heap sub-world.
+An executable memory capability should always point to code which means that there should be a code region governing the memory it points to.
+The trusted return seals and closure seals cannot be given safely to untrusted code, so a set of seal is only in the untrusted value relation when it is disjoint from those, and they may only be used to seal things in $\mathcal{V}_\untrusted$.
+% The write condition is called $\stackWriteCond{}$
+% \begin{multline*}
+%   \stackWriteCond{W} =\\
+%   \left\{
+%     \begin{array}{l}\npair{A} \mid 
+%       \exists S \subseteq \addressable{\linear, \pwfree} \ldotp  \exists R : S \fun \powerset{\nats} \\
+%       \quad \biguplus_{r\in S} R(r) \supseteq A \tand \forall r \in S \ldotp |R(r)| = 1  \tand \\
+%       \quad \forall r \in S \ldotp \pwfree(r).H \nsupeq \stdreg{R(r),\gc}{\pur}.H \tand \pwfree(r) \text{ is address-stratified}
+%     \end{array}
+%   \right\}
+% \end{multline*}
+When a piece of untrusted code is called, it is passed a return pair consisting of two sealed capabilities.
+Calling untrusted code should be safe, so sealed capabilities must be related in the untrusted value relation.
+The seal interpretation function decides what a seal can be used for, so for a pair $(\src{\sealed{\sigma,\vsc_S}}, \sealed{\sigma,\vsc_T})$ to be in the untrusted value relation, $(\vsc_S,\vsc_T)$ must be in the seal interpretation function for $\sigma$.
+Further, it should be safe to use the sealed capability, i.e.\ jump to it with \texttt{xjmp}, which is exactly what $\mathcal{E}_{\mathrm{xjmp}}$ expresses, so when paired up with another pair from the seal interpretation function for $\sigma$ the quadruple must be in $\mathcal{E}_{\mathrm{xjmp}}$.
+
+\begin{figure}[htb]
+  \centering
+  \begin{align*}
   \lrv(W) ={} & \left\{ \npair{\stpair[.]{i}{i}} \;\middle|\; i \in \ints \right\}\cup \\ &
 %
     \left\{
@@ -1681,43 +1708,8 @@ This means that there is a difference between what is safe to give to the truste
     %     \lin = \normal \\ \endarray
     %   \end{array}
     % \end{array}
-     \right\}
+     \right\} \\
 %  \end{array}
-\end{align*}
-A stack pointers is related to a linear capability with the same (non-executable) permission, range of authority, and current address.
-In addition depending on the permission, a read and write condition needs to be satisfied.
-Intuitively, the read condition guarantees that the capability can only be used to read safe values, i.e.\ values in $\mathcal{V}_\untrusted$.
-Similarly the write condition says that the capabilities can at least be used to write the safe values.
-These two properties are expressed by picking out the regions from the world that govern the memory the stack pointer gives access to.
-The free stack is modelled by the free stack world, so the regions must come from that part of the world.
-Further, stack pointers are linear, so the regions they depend on must be addressable which means that they must be owned by that free stack world.
-% The write condition is called $\stackWriteCond{}$
-% \begin{multline*}
-%   \stackWriteCond{W} =\\
-%   \left\{
-%     \begin{array}{l}\npair{A} \mid 
-%       \exists S \subseteq \addressable{\linear, \pwfree} \ldotp  \exists R : S \fun \powerset{\nats} \\
-%       \quad \biguplus_{r\in S} R(r) \supseteq A \tand \forall r \in S \ldotp |R(r)| = 1  \tand \\
-%       \quad \forall r \in S \ldotp \pwfree(r).H \nsupeq \stdreg{R(r),\gc}{\pur}.H \tand \pwfree(r) \text{ is address-stratified}
-%     \end{array}
-%   \right\}
-% \end{multline*}
-
-The untrusted value relation also relates sets of seals that are syntactically identical and that are disjoint from the return and closure seals of interest ($\gsigrets$ and $\gsigcloss$). 
-Further, the seals should only be used to seal words from the untrusted value relation, so the seal interpretation function for each of the seals must be the untrusted value relation.
-
-The untrusted value relation also needs to include sealed capabilities in order to allow return pairs and closures to be given to untrusted code.
-The sealed capabilities should of course be sealed with the same seal, and the seal interpretation function for that seal should be equal to the one of the code region.
-Aside from this, the pair of sealables sealed by the seal should satisfy two things: (1) they should be in the seal interpretation function for that seal and (2) in any possible future\footnote{The $\purePart{}$ function strips away all ownership from a world. A non-linear capability should not depend on linear things, so we take any future of $\purePart{W}$.}, it should be safe to jump to the sealable pair when they are paired with sealables permitted by the seal interpretation function for that seal, so the quadruple must be in the $\mathcal{E}_\mathrm{xjmp}$ relation.
-
-We have left out the part of the untrusted value relation that relates memory capabilities and integers (they are related when they are equal).
-The conditions for related memory capabilities are almost the same as for stack pointers.
-The main difference is that the conditions depend on the heap part of the world rather than the free stack.
-Further, memory capabilities can be executable which needs extra care to ensure security which we will see in the trusted value relation.
-
-The trusted value relation includes everything that the untrusted value relation contains and a few extra things.
-
-\begin{align*}
   \lrvtrusted(W) ={} & \lrv(W)\cup \\
 %  \begin{array}[t]{l}
     &\left\{
@@ -1739,11 +1731,14 @@ The trusted value relation includes everything that the untrusted value relation
     \right\}
 %  \end{array}
 \end{align*}
-A side from the sets of seals in the untrusted value relation, sets of return and closure seals are in the trusted value relation when they belong to some trusted code.
-This means that in the heap part of the world there must be a code region that has the seals in question, and the code should be in $\ta$.
+\caption{Sketches of the trusted and untrusted value relation.}
+\label{fig:value-relation}
+\end{figure}
 
-The trusted value relation also contains executable capabilities for the trusted code.
-Generally for executable code capabilities, the $\xReadCond{}$ should hold which requires there to be a code region that governs the piece of code memory that the capability has authority over.
+The trusted value relation includes everything that the untrusted value relation contains and a few extra things.
+The trusted code uses the return seals and the closure seals in its program, and it does so in a responsible way which is why sets of seals with trusted return seals and closure seals are in the trusted value relation.
+In order for trusted code to even execute, it needs to use an executable memory capability for the trusted code, so such capabilities are in the untrusted value relation.\footnote{Note that code capabilities for trusted code is not allowed in the untrusted value relation as it could be used to read return seals that are not in the untrusted value relation.}
+
 % \[
 %   \xReadCond{W} = \left\{ \npair{A} \middle|
 %     \begin{array}{l}
@@ -1754,9 +1749,10 @@ Generally for executable code capabilities, the $\xReadCond{}$ should hold which
 %   \right\}
 % \]
 
-\todo[inline]{Write some intuition about monotonicity, owned spatial regions and revoked regions}
+\extend{Write some intuition about monotonicity, owned spatial regions and revoked regions}
 
-With the logical relation defined, we are ready to state the fundamental theorem of logical relations (FTLR).
+\subsubsection{Fundamental theorem}
+With the logical relation defined, we state the fundamental theorem of logical relations (FTLR).
 \begin{lemma}[FTLR]
   \label{thm:ftlr}
   For all $n,W,\lin,\baddr,\eaddr,\aaddr$,
