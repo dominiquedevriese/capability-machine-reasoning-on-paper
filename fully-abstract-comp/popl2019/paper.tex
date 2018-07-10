@@ -1437,21 +1437,21 @@ The world for the heap can contain every kind of region because it can be addres
 The call stack and free stack is only addressable by linear capabilities, so their sub-worlds only allow regions from $\Regions$.
 Regions in $\Worlds$ correspond to a stack frame, so they are paired with an address which models the return address.
 
-Define worlds as $\World = (\Worldh \times \Worlds \times \Worldfs)$. They are recursive as they contain world indexed relations\footnote{We have cheated in the presentation and included the solution to the circularity already.}. Recursive worlds are common in Kripke models, and we use the method of \citet{Birkedal:2011:SKM:1926385.1926401,Birkedal_taste_2014} to construct them.
-\begin{lemma}
-  \label{thm:recursive-domain-eq}
-  There exists a c.o.f.e.\ $\Wor$ and preorder $\future$ such that $(\Wor,\future)$ is a preordered c.o.f.e.\and there exists an isomorphism $\xi$ such that
-  \[
-    \xi : \Wor \cong \blater (\Worldh \times \Worlds \times \Worldfs)
-  \]
-  and for $\hat{W},\hat{W}' \in \Wor: \quad  \hat{W'} \future \hat{W}\text{ iff }\xi(\hat{W'}) \future \xi(\hat{W})$
-\end{lemma}
+Define worlds as $\World = (\Worldh \times \Worlds \times \Worldfs)$. They are recursive as they contain world indexed relations. Recursive worlds are common in Kripke models, and we use the method of \citet{Birkedal:2011:SKM:1926385.1926401,Birkedal_taste_2014} to construct $\Wor$ which solves the circularity\footnote{We have cheated in the presentation and included the solution to the circularity already.}.
+% \begin{lemma}
+%   \label{thm:recursive-domain-eq}
+%   There exists a c.o.f.e.\ $\Wor$ and preorder $\future$ such that $(\Wor,\future)$ is a preordered c.o.f.e.\and there exists an isomorphism $\xi$ such that
+%   \[
+%     \xi : \Wor \cong \blater (\Worldh \times \Worlds \times \Worldfs)
+%   \]
+%   and for $\hat{W},\hat{W}' \in \Wor: \quad  \hat{W'} \future \hat{W}\text{ iff }\xi(\hat{W'}) \future \xi(\hat{W})$
+% \end{lemma}
 The future world relation $\future$ is fairly standard.
-It is extensional and requires regions to stay the same in future worlds except $\spatial$ regions can become $\spatialo$ or $\revoked$.
+It is extensional and requires regions to stay the same type in future worlds except $\spatial$ regions can become $\spatialo$ or $\revoked$.
 
 \subsubsection{Code region}
-The code region is a central region to the logical relation used to model the code memory of a component.
-It is especially interesting because it specifies what the return and closure seals in a component can be used to seal.
+The code region is a central region to the logical relation that models the code memory of a component.
+It is especially interesting because its seal interpretation function specifies what the return and closure seals in a component can seal.
 The code region is defined as follows:
 \[
   \codereg{\sigrets,\sigcloss,\mscode,\gc} \defeq (\pure,
@@ -1459,12 +1459,10 @@ The code region is defined as follows:
   H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \mscode \; \gc)
 \]
 The code region is $\pure$ which makes it persistent in future worlds and reflects the fact that it is addressed by normal capabilities.
-The memory relation $H^\mathrm{code,\square} \; (\dots)$ is very selective and only accepts the pair $(\mscode,\mscode)$ and only on the following conditions: The code memory $\mscode$ must be well-formed according to $\vdash$.
-Further, all the words contained in $\mscode$ must be non-linear and in the value relation, but as we will see later we have two value relations, a trusted and an untrusted, and the value relation used depends on whether $\mscode$ is trusted.
-For now it suffices to know that the untrusted value relation contains everything that untrusted code can safely have.
-The trusted value relation includes everything that is in the untrusted value relation, but also the things that are not safe to pass away in a call, e.g.\ return seals.
-If the addresses of $\mscode$ are in $\ta$, then the trusted value relation is used, and if $\mscode$ is disjoint with $\ta$, then the untrusted value relation is used.
-Further, if $\ta$ is untrusted, then $\sigrets$ has to be empty which means that $\mscode$ cannot contain return seals.
+The memory relation $H^\mathrm{code,\square} \; (\dots)$ only relates $\mscode$ to itself which corresponds with our component setup where code memory is read-only.
+$H^\mathrm{code,\square} \; (\dots)$ requires $\mscode$ to be well-formed and that its contents is non-linear and in the value relation.
+As we will see later, we have two value relations, a trusted and an untrusted, and the value relation used depends on whether the code region governs trusted or untrusted code.
+For now it suffices to know that the untrusted value relation contains everything that untrusted code can safely have, and the trusted value relation includes everything that is in the untrusted value relation, but also the things that are not safe to pass away in a call, e.g.\ return seals.
 
 % \todo[inline]{Describe $H^\mathrm{code}$}
 % \begin{multline*}
@@ -1482,52 +1480,52 @@ Further, if $\ta$ is untrusted, then $\sigrets$ has to be empty which means that
 %   \right\}
 % \end{multline*}
 
-The seal interpretation function $H^\mathrm{code,\square}_\sigma \; (\dots)$ in the code region dictates the return seals and closure seals can be used to seal.
-the return seals can only be used to seal return pointers, but only when they actually represent meaning full returns.
-for instance, a code return pointer should actually be associated with a trusted call, i.e.\ it should point to the address just after a call.
-the corresponding capability on \trgcm{} should point to the address just after the \texttt{xjmp} in the call code (figure~\ref{fig:call-code}) as it needs to do a couple of things to complete the call safely.
-further, the call they are associated with has to be the call that uses the seal in question.
-the code return pointer is not linear which means that it can be reused which is fine as it can only be used to return from the same call.
-on the other hand, the data return pointers are linear which is what prevents reuse of a return pair.
-multiple nested calls from the same trusted call will result in multiple stack frames that are each sealed with the same return seal.
-the seal interpretation function should allow a data return pointer for any of those pointers, so it simply requires that there exists a region $\stareg[(\ms_S,\ms_T),(\ta,\stkb)]{\spao,\square}$ (a region that only accepts $(\ms_S,\ms_T)$ and requires the contents to be in the untrusted value relation) in the part of the world that governs the call stack.
-The data return pointer should point to that stack frame.
-A region in the world for the call stack is also associated with a return address, and it should be the return address of the call that uses the return seal in question.
-\todo[inline]{Consider writing something about how this relates to prove? We have to show that there is a stack frame, but we can rely on it when we receive a capability with the correct seal.}
+The seal interpretation function $H^\mathrm{code,\square}_\sigma \; (\dots)$ dictates what the return seals $\sigrets$ and closure seals $\sigclos$ can seal.
+The return seals can only be used to seal return pointers that corresponds to the return from an call in the code of the region.
+Code return pointers must point to the first address after a call, and the call must be associated with the return seal in question.
+The corresponding capability on \trgcm{} should point to the address just after the \texttt{xjmp} in the call code (figure~\ref{fig:call-code}) as it needs to perform the safety checks that are built into the call on \srccm{}.
+The code return pointer corresponds to a normal capability which means that it can be reused but always to return from the same call.
+Because of this, the code pointer is not associated with any specific call frame as it can be used by any data return pointer generated from the same call point.
+Reuse of return pairs is prevented by the data return pointer being linear, so the seal interpretation function related data return pointers to linear capabilities.
+It also requires the data return pointer to correspond to one of the stack frames on the call stack.
+Which is expressed by requiring the existence of a spatially owned region in $\Worlds$ that governs memory corresponding to the return pointers range of authority.
+It must be spatially owned, so it is permitted to address it.
+A region in $\Worlds$ is also associated with a return address, and it should be the return address of the call that uses the return seal in question.
 \begin{multline*}
-  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; (\ta,\stkb,\gsigrets,\gsigcloss) \; \sigma \; \hat{W}= \\
+  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; \; \sigma \; \hat{W}= \\
   \begin{array}[t]{l}
 \left\{
     \begin{array}{l}
-      \npair{\left(\retptrc(\baddr,\eaddr,\aaddr'+\calllen),((\rx,\normal),\baddr,\eaddr,\aaddr)\right)} \mid 
-        \sigrets \subseteq \gsigrets \tand \\
-        \quad\dom(\mscode) \subseteq \ta \tand 
-        \decInstr{\mscode([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
-        \quad\aaddr = \aaddr' + \retoffset \tand \mscode(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand\\
-        \quad \sigma = \sigma_b + \offsigma \in \sigrets \tand
-        \lbrack \aaddr',\aaddr' + \calllen -1 \rbrack \subseteq \lbrack \baddr, \eaddr \rbrack
+      \npair{\left(\retptrc(\baddr,\eaddr,\aaddr+\calllen),((\rx,\normal),\baddr,\eaddr,\aaddr+\mathrm{xjmp\_off}+1)\right)} \mid \dots
+    %     \sigrets \subseteq \gsigrets \tand \\
+    %     \quad\dom(\mscode) \subseteq \ta \tand 
+    %     \decInstr{\mscode([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
+    %     \quad\aaddr = \aaddr' + \retoffset \tand \mscode(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand\\
+    %     \quad \sigma = \sigma_b + \offsigma \in \sigrets \tand
+    %     \lbrack \aaddr',\aaddr' + \calllen -1 \rbrack \subseteq \lbrack \baddr, \eaddr \rbrack
     \end{array}
       \right\} \cup \\
 \left\{
     \begin{array}{l}
-      \npair{(\retptrd(\baddr,\eaddr),((\rw,\linear),\baddr,\eaddr,\baddr-1))} \mid
-        \sigrets \subseteq \gsigrets \tand 
-        \dom(\mscode) \subseteq \ta \tand\\
-        \quad \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]},\ms_S,\ms_T \ldotp\\
-        \qquad\pwpriv[\xi(\hat{W})](r).H \nequal (\stareg[(\ms_S,\ms_T),(\ta,\stkb)]{\spao,\square}, \aaddr'+\calllen) \tand \\
-        \qquad \dom(\ms_S) = \dom(\ms_T) = [\baddr,\eaddr] \tand\\
-        \qquad \decInstr{\mscode([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
-        \qquad \mscode(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand \sigma = \sigma_b + \offsigma \in \sigrets
+      \npair{(\retptrd(\baddr,\eaddr),((\rw,\linear),\baddr,\eaddr,\baddr-1))} \mid \dots
+        % \sigrets \subseteq \gsigrets \tand 
+        % \dom(\mscode) \subseteq \ta \tand\\
+        % \quad \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]},\ms_S,\ms_T \ldotp\\
+        % \qquad\pwpriv[\xi(\hat{W})](r).H \nequal (\stareg[(\ms_S,\ms_T),(\ta,\stkb)]{\spao,\square}, \aaddr'+\calllen) \tand \\
+        % \qquad \dom(\ms_S) = \dom(\ms_T) = [\baddr,\eaddr] \tand\\
+        % \qquad \decInstr{\mscode([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
+        % \qquad \mscode(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand \sigma = \sigma_b + \offsigma \in \sigrets
     \end{array}
     \right\} \\
   \end{array}\\
     \text{ if } \sigma \in \sigrets
 \end{multline*}
-We leave out the formal definition of $H^\mathrm{code,\square}_\sigma \; (\dots)$ for $\sigma \in \sigcloss$ and provide an informal description.
-What closure seals can be used for depends on whether the code is trusted.
-If the code is untrusted, i.e.\ $\dom(\mscode) \# \ta$, then the seal can be used for everything in the untrusted value relation can be sealed which correspond to everything the code has access to.
-On the other hand, if the code is trusted, then it depends on whether the sealable in question is executable.
-If it is executable, then it can be in the trusted value relation because we want to allow sealing of capabilities for the trusted code; but if it isn't executable, then the sealable has to be in the untrusted value relation.
+
+Unlike return seals, closure seals are allowed in both trusted and untrusted components, but we cannot allow them to use closure seals to seal the same things.
+If we allowed this, then a trusted component could seal a read-only capability for its code (i.e.\ access to return seals) with an untrusted closure seal and give it to the untrusted component which can unseal it with \texttt{xjmp}.
+The closure seals in untrusted code should therefore only be used to seal things from the untrusted value relation, i.e.\ things that are safe to transfer to an untrusted component.
+The trusted closure seals can by used to seal things from the untrusted value relation.
+This allows trusted seals to seal capabilities for the trusted code which is necessary in order to create a new closure.
 
 % and
 % \begin{multline*}
