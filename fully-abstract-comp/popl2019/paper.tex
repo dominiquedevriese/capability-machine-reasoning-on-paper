@@ -1284,7 +1284,7 @@ Finally, the addresses of the imports $\overline{\var{import}}$ must be addresse
 
 % Reasonability
 The static guarantees given by $\wdjud[\ta]{\comp}$ makes sure that components initially don't undermine the security measures needed for \stktokens{}, but it does not prevent a component from doing something silly during execution that undermines \stktokens{}.
-In order for \stktokens{} to provide any guarantees for a component, we expect it to not shoot itself in the foot and of course perform the necessary stack check not captured by the call code (Figure~\ref{fig:call-code}).
+In order for \stktokens{} to provide guarantees for a component, we expect it to not shoot itself in the foot and perform certain necessary checks not captured by the call code (Figure~\ref{fig:call-code}).
 We more precisely expect four things of a reasonable component: (1) It checks the stack base address before performing a call.
 As explained in Section~\ref{sec:stktokens-explained}, we do not include this check in the call code as it often would be redundant.
 (2) It uses the return seals only for calls and the closure seals in an appropriate way which means that they should only be used to seal executable capabilities for code that behaves reasonably or non-executable things that do not undermine the security mechanisms \stktokens{} relies on.
@@ -1313,20 +1313,17 @@ The reasonability definition has also been left out for space reasons, and we re
 
 
 \subsection{Full abstraction}
-All that is left before we state the full-abstraction theorem is to define how programs are lifted to executable configurations and contextual equivalence for each of the two capability machines we have defined.
+All that is left before we state the full-abstraction theorem is to define how components are combined with contexts and executed, so that we can define contextual equivalence.
 
 % How a program is lifted to an executable configuration
-Given a program as defined in Definition~\ref{def:program-and-context}, we want to be able to execute it, meaning we have to lift it to an executable configuration.
-When we lift a program to an executable configuration, we need to provide it a stack in order for \stktokens{} to work.
-The relation $(\comp_0, c_{\mathrm{main},c}, c_{\mathrm{main},d}) \rightsquigarrow \Phi$ lifts a component with a main to an executable configuration.
+Given a program $\var{comp}$, the judgement $\var{comp} \rightsquigarrow \Phi$ defines an initial execution configuration that can be executed.
 It works almost the same on \trgcm{} and \srccm{}.
-On both machines a stack that contains all zeroes is added.
-On \trgcm{} it is added as part of the memory along with the data and code memory.
-On \srccm{} it is added as the free stack in the configuration, and the initial stack is empty as no calls have been made.
+On both machines a stack containing all zeroes is added, as part of the regular memory on \trgcm{} and as the free stack on \srccm{}.
+On \srccm{}, the initial stack is empty as no calls have been made.
 The component needs access to the stack, so a stack pointer is added to the register file in $\rstk$.
 On \trgcm{} this is just a linear read-write capability, but on \srccm{} it is the representation of a stack pointer.
 The entry point of the program is specified by main, so the two capabilities are unsealed (they must have the same seal) and placed in the $\pcreg$ and $\rdata$ registers.
-The remainder of the registers contain zero.
+Other registers are set to zero.
 
 Contextual equivalence roughly says that two components behave the same no matter what context we plug them into.
 %The remaining defintions
@@ -1360,7 +1357,7 @@ This means that the compilation from \srccm{} components to \trgcm{} components 
   \label{thm:full-abstraction}
   For reasonable, well-formed components $\comp_1$ and $\comp_2$, we have
   \begin{gather*}
-    \src{\comp_1} \sconeq \src{\comp_2} \quad \Leftrightarrow \quad    \src{\comp_1} \tconeq \src{\comp_2}
+    \src{\comp_1} \sconeq \src{\comp_2} \quad \Leftrightarrow \quad    \src{\comp_1} \tconeq \src{\comp_2} \qedhere
   \end{gather*}
 \end{theorem}
 Readers unfamiliar with fully-abstract compilation may wonder why Theorem~\ref{thm:full-abstraction} proves that \stktokens{} guarantees LSE and WBCF.
@@ -1417,17 +1414,20 @@ In a sense, linear capabilities are revocable, so the sub-worlds that allow spat
 Finally, the $\pure$ region also contains a seal interpretation function.
 The seal interpretation is a world-indexed function that specifies the sealables a seal can be used to seal.
 We split the regions in two categories ($\Wor$ given below):
-\begin{multline*}
-  \Regionh = 
+
+\begin{align*}
+\Regionh &= 
+\left\{\begin{multlined}
   \{\pure \} \times (\Wor \monnefun \URel{\MemSeg^2}) \times \\
   (\Seal \parfun \Wor \monnefun \URel{\SealableCaps \times \SealableCaps})
-\end{multline*}
-\begin{multline*}
-  \Regions = 
+\end{multlined}\right.\\
+  \Regions &= 
+\left\{\begin{multlined}
     \{\spatial \} \times (\Wor \monnefun \URel{\MemSeg^2}) \cup \\
     \{\spatialo \} \times (\Wor \monnefun \URel{\MemSeg^2})\cup
     \{\revoked\}
-\end{multline*}
+\end{multlined}\right.
+\end{align*}
 and define the sub-worlds as follows:
 \begin{align*}
   \Worldh  &={} \RegionName \parfun (\Regions + \Regionh)\\
@@ -1750,7 +1750,7 @@ $[\baddr,\eaddr] \mathrel{\#} \ta$,
 then 
   \[
     \npair{\left(((\rx,\normal),\baddr,\eaddr,\aaddr),
-      ((\rx,\normal),\baddr,\eaddr,\aaddr)\right)} \in \lre(W)
+      ((\rx,\normal),\baddr,\eaddr,\aaddr)\right)} \in \lre(W) \qedhere
   \]
 \end{lemma}
 It roughly says that any executable capability used for execution in a safe environment won't break the capability machine guarantees.
@@ -1986,7 +1986,7 @@ This means that a \texttt{load} of a linear capability will need to behave like 
 This is in principle not a problem except that a compare-and-swap is significantly slower than a regular \texttt{load} (on the order of 10x slower or more).
 When using \stktokens{}, loads of linear capabilities normally happen only when a thread has stored its return data capability on the stack and loads it back from there after a return.
 Because the stack is a region of memory with very high thread affinity (no other hardware thread should access it, in principle), and which is accessed quite often, we are hopeful that well-engineered caching could reduce the high overhead of atomic loads of linear capabilities.
-If such memory could be (usually) kept exclusively locked in a cache close to the processor, the overhead of atomic loads in \stktokens{} might be significantly less than \texttt{load}'s worst-case...
+If such memory could be (usually) kept exclusively locked in a cache close to the processor, the overhead of atomic loads in \stktokens{} might be significantly less than \texttt{load}'s worst case.
 The processor could perhaps also (be told to) rely on the fact that race conditions should be impossible for loads from linear capabilities (which should in principle be non-aliased) and just use a non-atomic load in that case.
 
 \section{Related Work}
