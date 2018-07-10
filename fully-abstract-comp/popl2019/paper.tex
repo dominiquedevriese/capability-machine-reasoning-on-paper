@@ -467,36 +467,35 @@ It is, however, complicated slightly by the presence of the non-duplicable linea
 When a linear capability is moved, the source register must be cleared, so the capability is not duplicated.
 This is done uniformly in the semantics using two approaches.
 In the first one, we use the function $\linCons{}$ that returns $0$ for linear capabilities and is the identity for all other words.
-When a word $w$ that can possibly be a linear capability is transferred on the machine, then the source of $w$ is overwritten with $\linCons{w}$ which clears the source if $w$ was linear and leaves it unchanged otherwise.
+When a word $w$ is transferred on the machine, then the source of $w$ is overwritten with $\linCons{w}$ which clears the source if $w$ was linear and leaves it unchanged otherwise.
 In the case of \texttt{move}, the source register $r_2$ is overwritten with $\linCons{\Phi(r_2)}$.
 We see the other approach later.
 
 % load w/ lin (and store)
 The \texttt{store} and \texttt{load} instructions are fairly standard: They require a capability with permission to either write or read depending on the operation, they check that the capability points within the range of authority, and they clear the source of a linear capability transfer.
 Linear capabilities introduce one extra complication for \texttt{load} as it needs to clear the loaded memory address when it contains a linear capability in order to not duplicate the capability.
-Clearing a memory address corresponds to writing $0$ to the memory, but in order to write to memory we need to provide a capability with write-permission.
-This means that to load a linear capability from memory, we have to use a capability with read and write permission.
+In this case, we require that the memory capability used for loading also has write-permission.
 
 % geta, cca
-The instructions \texttt{geta} and \texttt{cca} are fairly simple: \texttt{geta} projects the current address or current seal from a capability or a set of seals, respectively, and it returns the error value $-1$ for data and sealed capabilities.
-The \texttt{cca} instruction changes the current address or seal of a capability or set of seals, respectively, by a given offset.
+The instruction \texttt{geta} projects the current address (or seal) from a capability (or set of seals), and returns $-1$ for data and sealed capabilities.
+\texttt{cca} changes the current address or seal of a capability or set of seals, respectively, by a given offset.
 It handles linearity by updating the capability in-place, i.e.\ the source register is used as the target register.
 This is the second approach we use to uniformly handle linearity.
-The \texttt{jmp} instruction is a fairly simple jump that just sets the $\pcreg$-register.
+The \texttt{jmp} instruction is a simple jump that just sets the $\pcreg$ register.
 
 %% Sealing
 The operational side of the sealing in \trgcm{} consists of two instructions: \texttt{cseal} for sealing a capability and \texttt{xjmp} for unsealing a pair of capabilities.
 % cseal
 Given a sealable $\vsc$ and a set of seals where the current seal $\sigma$ is within the range of available seals, the \texttt{cseal} instruction seals $\vsc$ with $\sigma$.
 % xjmp
-Apart from dealing with linearity, \texttt{xjmp} takes a pair of sealed capabilities unseals them and put one in the $\pcreg$ register and the other in the $\rdata$ register, but only if they are sealed with the same seal and the data capability (the capability placed in $\rdata$) is non-executable.
-A pair of sealed capabilities can be seen as a closure where the code capability (the capability placed in $\pcreg$) is the program and the data capability is the local environment of the closure.
+Apart from dealing with linearity, \texttt{xjmp} takes a pair of sealed capabilities, unseals them and puts one in the $\pcreg$ register and the other in the $\rdata$ register, but only if they are sealed with the same seal and the data capability (the one placed in $\rdata$) is non-executable.
+A pair of sealed capabilities can be seen as a closure where the code capability (the capability placed in $\pcreg$) is the program and the data capability is the local environment.
 Because of the opacity of sealed capability, the creator of the closure can be sure that execution will start where the code capability points and only in an environment with the related data, i.e.\ sealed with the same seal.
-This also makes \texttt{xjmp} the mechanism on \trgcm{} that transfers control between security domains.
-The opaque sealed capabilities encapsulate a security domain's local state and authority, and it only becomes accessible again when control is transferred to the security domain.
-Some care should be taken when sealing as reuse of the same seal for multiple closures would make it possible to jump to the code of one capability with the environment of another.
+This makes \texttt{xjmp} the mechanism on \trgcm{} that transfers control between security domains.
+Opaque sealed capabilities encapsulate a security domain's local state and authority, and it only becomes accessible again when control is transferred to the security domain.
+Some care should be taken for sealing because reusing the same seal for multiple closures makes it possible to jump to the code of one capability with the environment of another.
 % xjmp to unseal
-\trgcm{} does not have an instruction for unsealing single sealed capabilities directly (using the seal that was used to do the sealing), but it can be (partially) simulated using \texttt{xjmp}.
+\trgcm{} does not have an instruction for unsealing capabilities directly, but it can be (partially) simulated using \texttt{xjmp}.
 
 % split/splice
 Instructions for reducing the authority of capabilities are commonplace on capability machines as they allow us to limit what a capability can do before it is passed away.
@@ -506,13 +505,11 @@ In order to make a lossless reduction of the range of authority, \trgcm{} provid
 The \texttt{split} instruction takes a capability with range of authority $[\var{base},\var{end}]$ and an address $n$ and creates two new capabilities one with $[\var{base},n]$ as its range of authority and the other with $[n+1,\var{end}]$ as its range of authority.
 Everything else, i.e.\ permission, linearity and current address, is copied without change to the new capabilities.
 With \texttt{split}, we can reduce the range of authority of a linear capability without losing any authority as we retain it in the second capability.
-However, if we only have \texttt{split}, then in some sense splitting a capability is not completely lossless as we may have authority over the same range of addresses after a \texttt{split}, but we have that authority in two capabilities rather than just one.
-In order to make up for this, we have a \texttt{splice} instruction that essentially does the inverse of \texttt{split}.
-Namely given two capabilities with adjacent ranges of authority and the same permissions and linearity, it splices them together into one capability.
+The \texttt{splice} instruction essentially does the inverse of \texttt{split}.
+Given two capabilities with adjacent ranges of authority and the same permissions and linearity, \texttt{splice} splices them together into one capability.
 The two instructions work in the same way for seal sets.
 We do not provide special support for lossless reduction of capability permissions, but this could probably be achieved with more fine-grained permissions.
 This would also allow linear capabilities to have aliases, but only by linear capabilities with disjoint permissions.
-
 
 At this time, the executable configuration is our only way to specify the state of the capability machine.
 We would, however, much prefer a notion of programs that only describes the essential parts of an entity on the machine and only later instrument the program to make it into an executable configuration.
@@ -549,7 +546,7 @@ We can now define the notion of a program as well as a context.
 % Getting an executable from a component - postpone this to later, but mention:
 % write xor exec
 In Section~\ref{sec:form-secur-with}, we will get back to how a program is instrumented to create an executable configuration.
-We will, however, at this point mention that all programs will be instrumented as Write-XOR-Execute,\todo[inline]{Do we have a reference for this?} i.e.\ there will only be read-execute capabilities for the code and read-write capabilities for the data.
+% We will, however, at this point mention that all programs will be instrumented as Write-XOR-Execute,\todo[inline]{Do we have a reference for this?} i.e.\ there will only be read-execute capabilities for the code and read-write capabilities for the data.
 %Further, we will only consider a specific class of well-formed components, but we will get back to this.
 
 Some simplifications has been made in this presentation of \trgcm{} in this section. We refer to the accompanying technical report\citep{technical_report} for all details.
@@ -564,7 +561,7 @@ Some simplifications has been made in this presentation of \trgcm{} in this sect
     \comp & \multicolumn{7}{l}{\mathrel{::=} \comp_0 \mid  (\comp_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})}
   \end{array}
 \]
-\vspace{0.75cm}
+\vspace{0.5cm}
 \begin{mathpar}
   \inference{
     \comp_1 = (\mscode[1], \msdata[1], \overline{\var{import}_1}, \overline{\var{export}_1}, \sigrets[1], \sigcloss[1],A_{\linear,1})\\
@@ -624,7 +621,7 @@ Some simplifications has been made in this presentation of \trgcm{} in this sect
 % \end{itemize}
 \section{Linear Stack and Return Capabilities}
 \label{sec:stktokens-explained}
-In this section, we introduce our calling convention \stktokens{} that insures LSE and WBCF.
+In this section, we introduce our calling convention \stktokens{} that ensures LSE and WBCF.
 We will gradually explain each of the security measures \stktokens{} take and motivate them with the attacks they prevent.
 
 \begin{figure}
@@ -1093,7 +1090,7 @@ The sequence of instructions have to correspond to a call, i.e.\ the instruction
 Calls are only executed when the well-behaved component executes, so the addresses where the call resides must be in $\ta$, and the executing capability must have the authority to execute the call.
 
 % Call/return
-The interpretation of a call is also shown in Figure~\ref{fig:source-op-sem}, and it may look daunting due to a fair bit of bookkeeping, but it essentially does the following: Given a stack pointer in the stack register, $42$ is pushed to the stack to insure that the stack frame will be non-empty.
+The interpretation of a call is also shown in Figure~\ref{fig:source-op-sem}, and it may look daunting due to a fair bit of bookkeeping, but it essentially does the following: Given a stack pointer in the stack register, $42$ is pushed to the stack to ensure that the stack frame will be non-empty.
 Based on the stack pointer in $\rstk$, a stack pointer for the callee is created (this corresponds to the return token of \stktokens{}) as well as a return pointer which governs the private part of the stack, i.e.\ addresses $[\aaddr_\stk,\eaddr_\stk]$ which is $42$ and everything (conceptually) below on the stack.
 A new stack frame is pushed to the stack.
 The stack frame consists of the local stack (addresses $[\baddr_\stk,\aaddr_\stk-1]$) as well as the address where execution is supposed to continue on return.
