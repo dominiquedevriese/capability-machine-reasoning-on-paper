@@ -1117,7 +1117,7 @@ This means that a tail call should not reserve a slot in the return order by pus
 To perform a tail call, the caller simply transfers control to the callee using \texttt{xjmp}.
 The callee needs to return to the caller's caller, so the caller leaves the return pair they received for the callee to use.
 
-By inspecting the operational semantics of \srccm{}, we can see that it does not allow reads from stack frames on the call stack.
+By inspecting the operational semantics of \srccm{}, we can see that it does not allow reads from inactive stack frames on the call stack.
 Further, the built-in call and returns make sure that a stack frame is pushed on call, and a return is to the address in the topmost stack frame on the call stack.
 In other words by inspection of the operational semantics, \srccm{} guarantees LSE and WBCF.
 It is important to point this out as \stktokens{} guarantee exactly the LSE and WBCF we have on \srccm{}.
@@ -1400,59 +1400,59 @@ Theorem~\ref{thm:full-abstraction} proves that \stktokens{} enforces these prope
 \label{subsec:logical-relation}
 The backbone of the full-abstraction proof is a cross language, step-indexed, Kripke logical relation.
 \todo[inline]{write a bit more introduction that informally tells the purpose of this logical relation in relation to the full proof.}
-Unfortunately due to space considerations, we cannot give a comprehensive description of it.
-Instead we highlight the parts specific to the logical relation we have used and refer to the technical report~\citep{technical_report} for the details and to~\citet{skorstengaard_reasoning_2017} for a more comprehensible description of a logical relation for a capability machine.
-Finally, for the sake of presentation, we will sometimes omit describing details, such as step indexing, that are important for the correctness but otherwise not interesting.
+Unfortunately due to space considerations, we do not give a comprehensive description of it.
+Instead we highlight the parts specific to the logical relation we have used and refer to the technical report~\citep{technical_report} for the details and to~\citet{skorstengaard_reasoning_2017} for a more comprehensive description of a logical relation for a capability machine.
+Finally for the sake of presentation, we will sometimes omit describing details, such as step indexing, that are important for the correctness but otherwise not interesting.
 
 \subsubsection{Worlds}
 \label{subsec:worlds}
-Generally speaking, worlds are used in a logical relation to model the memory of a language.
-\srccm{} has three kinds of memory, the heap, the call stack, and the free stack, and our worlds should model this by being triples of sub-worlds.
-All of the sub-worlds are partial maps from region names $\RegionName$ (modelled as natural numbers) to some regions that depend on the kind of sub-world.
-where the regions differ for each of the sub-worlds.
-Generally, the regions consist of a world indexed relation that specifies the memories allowed by the region and a region type.
-The region type indicates how the region can be addressed which is important for linearity.
+Generally speaking, a world is used to model the memory of a language in a logical relation.
+\srccm{} has three kinds of memory, the heap, the call stack, and the free stack, and our worlds model this by being triples of sub-worlds.
+All of the sub-worlds are partial maps from region names $\RegionName$ (modelled as natural numbers) to regions where the regions differ for each of the sub-worlds based on what they model.
+Generally, the regions consist of a region type and a world indexed relation that specifies the memories allowed by the region.
+The region types models linearity as they indicate how the memory can be addressed.
 We have three types of regions: $\pure$, $\spatial$, and $\spatialo$.
 The $\pure$ regions can be addressed by normal capabilities, the $\spatialo$ regions by linear capabilities, and the $\spatial$ regions by nothing.
-The $\spatial$ region may seem odd as it not addressable, but all the relations in the logical relation are world indexed.
-If the register-file relation and the memory relation both have worlds with the same ownership, then they can both contain linear capabilities that address the same memory.
-If a spatial region is owned by the register-file relation, then it still has to be modelled in the memory which it can use a spatial region for.
-To capture this, we define a relation $W_1 \oplus W_2$ that requires $W_1$ and $W_2$ to be the same except for the ownership which has to be disjoint. We also define $W_1 \uplus W_2$ which joins together two worlds with disjoint regions.
-In a sense, linear capabilities are revocable, so the sub-worlds that allow spatial regions must also have a $\revoked$ region to model revocation.
+To prevent duplication of linear capabilities, two linear capabilities cannot address the same $\spatialo$, so ownership has to be distributed between worlds.
+To this end, we have the relation $W_1 \oplus W_2$ that requires $W_1$ and $W_2$ to be the same except for the ownership which has to be disjoint.
+%We define $W_1 \uplus W_2$ which joins together two worlds with disjoint regions.
+The unaddressable $\spatial$ region makes sure that the memory it represents is modelled.
+Linear capabilities can be seen as revocable which is modelled by the $\revoked$ region.
 Finally, the $\pure$ region also contains a seal interpretation function.
 The seal interpretation is a world-indexed function that specifies the sealables a seal can be used to seal.
-We split the regions in two categories ($\Wor$ given below):
+We split the regions in two categories:
 \begin{multline*}
   \Regionh = 
   \{\pure \} \times (\Wor \monnefun \URel{\MemSeg^2}) \times \\
   (\Seal \parfun \Wor \monnefun \URel{\SealableCaps \times \SealableCaps})
 \end{multline*}
-\begin{multline*}
-  \Regions = 
-    \{\spatial \} \times (\Wor \monnefun \URel{\MemSeg^2}) \cup \\
-    \{\spatialo \} \times (\Wor \monnefun \URel{\MemSeg^2})\cup
+\begin{align*}
+  \Regions ={} &
+    \{\spatial \} \times (\Wor \monnefun \URel{\MemSeg^2}) \cup{} \\
+    & \{\spatialo \} \times (\Wor \monnefun \URel{\MemSeg^2})\cup
     \{\revoked\}
-\end{multline*}
+\end{align*}
 and define the sub-worlds as follows:
 \begin{align*}
   \Worldh  &={} \RegionName \parfun (\Regions + \Regionh)\\
   \Worlds  &={} \RegionName \parfun (\Regions \times \Addr)\\
   \Worldfs &={} \RegionName \parfun \Regions
 \end{align*}
-The world for the memory can contain every kind of region because it is addressable by both normal and linear capabilities.
-The call stack and free stack should only be addressable by linear capabilities, so they only allow regions from $\Regions$.
+The world for the heap can contain every kind of region because it can be addressed by both normal and linear capabilities.
+The call stack and free stack is only addressable by linear capabilities, so their sub-worlds only allow regions from $\Regions$.
 Regions in $\Worlds$ correspond to a stack frame, so they are paired with an address which models the return address.
 
-The worlds $\World$ are defined as $(\Worldh \times \Worlds \times \Worldfs)$ and they are recursive as they contain world indexed relations\footnote{We have cheated in the presentation and included the solution to the circularity already.}. Recursive worlds are common in Kripke models, and we use the method of \citet{Birkedal:2011:SKM:1926385.1926401,Birkedal_taste_2014} to construct them in the lemma below.
+Define worlds as $\World = (\Worldh \times \Worlds \times \Worldfs)$. They are recursive as they contain world indexed relations\footnote{We have cheated in the presentation and included the solution to the circularity already.}. Recursive worlds are common in Kripke models, and we use the method of \citet{Birkedal:2011:SKM:1926385.1926401,Birkedal_taste_2014} to construct them.
 \begin{lemma}
   \label{thm:recursive-domain-eq}
-  There exists a c.o.f.e.\ $\Wor$ and preorder $\future$ such that $(\Wor,\future)$ and there exists an isomorphism $\xi$ such that
+  There exists a c.o.f.e.\ $\Wor$ and preorder $\future$ such that $(\Wor,\future)$ is a preordered c.o.f.e.\and there exists an isomorphism $\xi$ such that
   \[
     \xi : \Wor \cong \blater (\Worldh \times \Worlds \times \Worldfs)
   \]
   and for $\hat{W},\hat{W}' \in \Wor: \quad  \hat{W'} \future \hat{W}\text{ iff }\xi(\hat{W'}) \future \xi(\hat{W})$
 \end{lemma}
-The future world relation $\future$ is fairly standard as it is extensional and requires regions to stay the same with the exception that $\spatial$ regions can become $\spatialo$ or $\revoked$ in a future world.
+The future world relation $\future$ is fairly standard.
+It is extensional and requires regions to stay the same in future worlds except $\spatial$ regions can become $\spatialo$ or $\revoked$.
 
 \subsubsection{Code region}
 The code region is a central region to the logical relation used to model the code memory of a component.
@@ -1811,8 +1811,8 @@ The first is a FTLR for components that says (1) all well-formed untrusted compo
 The next is a compatibility lemma for plugging that says that given a context and component each related to itself in the component relation, then plugging the context with the component will give an executable configuration in the executable configuration relation.
 \begin{lemma}[Compatibility lemma for context plugging]
   \label{lem:compat-context-plug}
-  If $\npair{\stpair{C}{C}}\in\lrcomp(W_1)$ and $\npair{\stpair{P}{P}} \in \lrcomp(W_2)$, then
-  $\npair[n']{(\plug{C_S}{P_S},\plug{C_T}{P_T})} \in \lrec(W_1 \uplus W_2)$, for all $n' < n$.
+  If $\npair{\stpair{\context}{\context}}\in\lrcomp(W_1)$ and $\npair{\stpair{\comp}{\comp}} \in \lrcomp(W_2)$, then
+  $\npair[n']{(\plug{\context_S}{\comp_S},\plug{\context_T}{\comp_T})} \in \lrec(W_1 \uplus W_2)$, for all $n' < n$.
 \end{lemma}
 Finally, we have an adequacy lemma for the execution configuration relation.
 This lemma says that if an \srccm{} configuration approximates a \trgcm{} configuration, and the \trgcm{} configuration terminates, then so does the \srccm{} configuration.
@@ -1859,6 +1859,7 @@ We use these three lemmas to prove Theorem~\ref{thm:full-abstraction}
   To prove arrow (3), we again apply Lemma~\ref{lem:ftlr-comps}, \ref{lem:compat-context-plug}, and \ref{lem:adequacy}; but this time, we use that $\comp_2$ is well-formed and reasonable and that $\context$ is well-formed.
 \end{proof}
 
+\renewcommand{\comp}{C}
 \begin{figure}
   \centering
   \begin{tikzpicture}[scale=0.8,every node/.style={scale=.9}]
@@ -1877,9 +1878,9 @@ We use these three lemmas to prove Theorem~\ref{thm:full-abstraction}
 
     \draw[out=280,in=80,double,-implies,double equal sign distance] (6,3.4) to (6,2.6);
 
-    \node[align=left] at (8.2,3) { $ {\trg{\context}} \cong \trg{\context}$ \\
+    \node[align=center] at (8.2,3) { $ {\trg{\context}} \cong \trg{\context}$ \\
       $ {\src{\comp_2}} \cong {\src{\comp_2}}$};
-    \node[align=left] at (1.8,3) { $ {\trg{\context}} \cong \trg{\context}$ \\
+    \node[align=center] at (1.8,3) { $ {\trg{\context}} \cong \trg{\context}$ \\
       $ {\src{\comp_1}} \cong {\src{\comp_1}}$};
     % \node at (9,2.7) { $e  {\src{C_1}} \cong \src{C_1}} : tau$ };
     % \node at (8.7,3.3) { $ {\trg{\context}} \cong \trg{\context} :{\emptyset},tau \ra e,{\cdots}$ };
@@ -1962,12 +1963,18 @@ We use these three lemmas to prove Theorem~\ref{thm:full-abstraction}
 
 \section{Discussion}
 \label{sec:discussion}
-\begin{itemize}
-\item explain how fully abstract overlay semantics could form one pass of a verified secure compiler.
-\item Sharing stack references accross component boundaries is supported
-\item Other notions of well-bracketedness (specifically one would be to allow different stacks)
-\end{itemize}
+% \begin{itemize}
+% \item explain how fully abstract overlay semantics could form one pass of a verified secure compiler.
+% \item Sharing stack references accross component boundaries is supported
+% \item Other notions of well-bracketedness (specifically one would be to allow different stacks)
+% \end{itemize}
+\subsection{Full abstraction}
+% - Full abstraction proofs difficult
+% - Need to compile to a machine with enforcement mechanisms - capability machine an option
+% - Full abstraction proofs modular, so other full abstraction proofs could target \srccm{} and thus have more abstractions to work with than if \trgcm{} was the target.
 
+\subsection{Sharing the stack}
+% ?
 \subsection{Practical applicability}
 We believe there are good arguments for practical applicability of \stktokens{}.
 The strong security guarantees are proven in a way that is reusable as part of a bigger proof of compiler security.
