@@ -127,8 +127,8 @@
 
 \begin{abstract}
   We propose and study \stktokens{}: a new calling convention that provably enforces well-bracketed control flow and local state encapsulation on a capability machine.
-  The calling convention is based on linear capabilities, a type of capabilities that are prevented from being duplicated by the hardware.
-  In addition to designing and formalizing this new calling convention, we also contribute a new way to formalise and prove that it effectively enforces well-bracketed control flow and local state encapsulation, using what we call a fully abstract overlay semantics.
+  The calling convention is based on linear capabilities: a type of capabilities that are prevented from being duplicated by the hardware.
+  In addition to designing and formalizing this new calling convention, we also contribute a new way to formalise and prove that it effectively enforces well-bracketed control flow and local state encapsulation using what we call a fully abstract overlay semantics.
 \end{abstract}
 
 
@@ -162,12 +162,13 @@
 
 \section{Introduction}
 \label{sec:introduction}
+\todo[inline]{TODOS ENABLED!!!}
 Secure compilation is an active topic of research (e.g.~\citep{devriese_modular_2017,patrignani_hyper_2017,abate_good_components_2018,new_universal_embedding_2016,juglaret_beyond_2016}), but a real secure compiler is yet to be made.
 Secure compilers preserve source-language (security-relevant) properties even when the compiled code interacts with arbitrary target-language components.
 Generally, properties that hold in the source language but not in the target language need to be somehow enforced by the compiler.
 Two properties that hold in many high-level source languages, but not in the assembly languages they are compiled to, are well-bracketed control flow and encapsulation of local state.
 
-Well-bracketed control flow (WBCF) expresses that invoked functions must either return to their callers, invoke other functions themselves or diverge, and generally holds in programming languages that do not offer a primitive form of continuations. 
+Well-bracketed control flow (WBCF) expresses that invoked functions must either return to their callers, invoke other functions themselves, or diverge, and generally holds in programming languages that do not offer a primitive form of continuations. 
 At the assembly level, this property does not hold immediately. 
 Invoked functions get direct access to return pointers that they are supposed to jump to a single time at the end of their execution.
 There is, however, no guarantee that untrusted assembly code respects this intended usage.
@@ -177,7 +178,7 @@ Local state encapsulation (LSE) is the guarantee that when a function invokes an
 At the assembly level, this property also does not hold immediately.
 The calling function's local variables are stored on the stack during the invocation, and functions are not supposed to touch stack frames other than their own.
 However, untrusted assembly code is free to ignore this requirement and read or overwrite the local state of other stack frames.
-To enforce these properties, target language security primitives are needed that can be used to prevent untrusted code from misbehaving, without imposing too much overhead on well-behaved code.
+To enforce these properties, target language security primitives are needed that can be used to prevent untrusted code from misbehaving without imposing too much overhead on well-behaved code.
 The virtual-memory based security primitives on commodity processors do not seem sufficiently fine-grained to efficiently support this.
 More suitable security primitives are offered by a type of CPUs known as capability machines \citep{levy_capability-based_1984,watson_cheri:_2015}.
 These processors use tagged memory to enforce a strict separation between integers and {\itshape capabilities}: pointers that carry authority.
@@ -186,22 +187,22 @@ Memory capabilities allow reading from and writing to a block of memory.
 Additionally, capability machines offer some form of {\itshape object capabilities} that represent low-level encapsulated closures, i.e. a piece of code coupled with private state that it gains access to upon invocation.
 The concrete mechanics of object capabilities varies between different capability machines.
 % KJAA: This 'sealed' and 'common seal' business is unclear to me.
-On a recent capability machine called CHERI, for example, they take the form of pairs of capabilities that represent the code and data parts of the closure.
+For example, on a recent capability machine called CHERI they take the form of pairs of capabilities that represent the code and data parts of the closure.
 Each of the two capabilities are sealed with a common seal which make them opaque.
 The hardware transparently unseals the pair upon invocation~\citep{watson_capability_2015}.
 
 To enforce WBCF and LSE on a capability machine, there are essentially two approaches.
 A first approach uses separate stacks for distrusting components, and a central, trusted stack manager component that mediates cross-component invocations.
 This idea has been applied in CheriBSD (an operating system built on CHERI)~\citep{watson_capability_2015}, but it is not without downsides.
-First, it scales poorly to large amounts of distrusting components, because of the need to reserve separate stack space for all components.
-Also, in the presence of higher-order values (e.g. function pointers, objects etc.), the stack manager needs to be able to decide which component a higher-order value belongs to in order to provide it the right stack pointer upon invocation.
+First, it scales poorly to large amounts of distrusting components because of the need to reserve separate stack space for all components.
+Also in the presence of higher-order values (e.g. function pointers, objects etc.), the stack manager needs to be able to decide which component a higher-order value belongs to in order to provide it the right stack pointer upon invocation.
 It is not clear how this can be done efficiently in the presence of large amounts of components.
 Finally, this approach does not allow passing stack references between components.
 
 A more scalable approach retains a single stack that is shared between components.
-Enforcing WBCF and LSE in this approach requires a way to temporarily provide stack and return capabilities to an untrusted component, and to revoke them after it returns.
+Enforcing WBCF and LSE in this approach requires a way to temporarily provide stack and return capabilities to an untrusted component and to revoke them after it returns.
 While capability revocation is expensive in general, some capability machines offer restricted forms of revocation that can be implemented efficiently.
-For example, CHERI offers a form of {\itshape local} capabilities that, briefly, can only be stored in registers or on the stack, but not in other parts of memory.
+For example, CHERI offers a form of {\itshape local} capabilities that, briefly, can only be stored in registers or on the stack but not in other parts of memory.
 \citet{skorstengaard_reasoning_2017} has demonstrated that by making the stack and return pointer local, and by introducing a number of security checks and measures, the two properties can be guaranteed.
 % KJAA: 'Boundary crossing' is new here.
 However, a problem with this approach is that revoking the local stack and return capabilities on every security boundary crossing requires clearing the entire unused part of the stack, an operation that may be prohibitively expensive.
@@ -209,14 +210,14 @@ However, a problem with this approach is that revoking the local stack and retur
 In this work, we propose and study \stktokens{}: an alternative calling convention that enforces WBCF and LSE with a single shared stack.
 Instead of CHERI's local capabilities, it builds on {\itshape linear} capabilities; a new form of capabilities that has not been previously described in the published literature.\footnote{Although they have been mentioned in some technical documents.}
 % KJAA: Perhaps make it clear by who and when/where?
-These capabilities are non-duplicable, enforced by the hardware.
+These capabilities are non-duplicable enforced by the hardware.
 We propose to make stack and return pointers linear and require components to hand them out in cross-component invocations and to return them in returns.
-The non-duplicability of linear capabilities together with some security checks allow us to guarantee WBCF and LSE without large overhead on boundary crossings, particularly without the need for clearing large blocks of memory.
+The non-duplicability of linear capabilities together with some security checks allow us to guarantee WBCF and LSE without large overhead on boundary crossings particularly without the need for clearing large blocks of memory.
 
-A second contribution of this work is the way in which we formulate these two properties, using a technique we call {\itshape fully abstract overlay semantics}.
+A second contribution of this work is the way in which we formulate these two properties using a technique we call {\itshape fully abstract overlay semantics}.
 Formulations in previous work are either partial and not suitable for reasoning~\cite{abadi_control-flow_2005} or lacked evidence of generality~\cite{skorstengaard_reasoning_2017}.
 Our new formulation starts from the premise that security results for a calling convention should be reusable as part of a larger proof of a secure compiler.
-To accommodate this, we define a second operational semantics for our target language, with a native well-bracketed stack and primitive ways to do calls and returns.
+To accommodate this, we define a second operational semantics for our target language with a native well-bracketed call stack and primitive ways to do calls and returns.
 This well-behaved semantics guarantees WBCF and LSE natively for components using our calling convention.
 As such, these components can be sure that they will only ever interact with other well-behaved components that respect our desired properties.
 To express security of our calling convention, we then show that considering the same components in the original semantics does not give adversaries additional ways to interact with them. 
@@ -238,14 +239,14 @@ In this paper, we make the following contributions:
 \begin{itemize}
 \item We present \trgcm{}: A formalization of a simple CHERI-like capability machine with linear capabilities (Section~\ref{sec:cap-mach-w-seal-and-lin}).
 \item We present a new calling convention \stktokens{} that provably guarantees LSE and WBCF on \trgcm{} (Section~\ref{sec:stktokens-explained}).
-\item We present and use a novel proof technique called fully-abstract overlay semantics which we use to prove the properties of \stktokens{}. This includes:
+\item We present and use a novel proof technique called \textit{fully-abstract overlay semantics} which we use to prove the properties of \stktokens{}. This includes:
   \begin{itemize}
   \item defining \srccm{} an overlay semantics for \trgcm{} (Section~\ref{sec:form-secur-with}) and
-  \item proving a full-abstraction for a compiler from \srccm{} to \trgcm{} (Section~\ref{sec:fa-proof}) by
-  \item using and defining cross language, step-indexed, Kripke logical relation with recursive worlds (Section~\ref{sec:fa-proof}).
+  \item proving full-abstraction for a compiler from \srccm{} to \trgcm{} (Section~\ref{sec:fa-proof}) by
+  \item using and defining a cross language, step-indexed, Kripke logical relation with recursive worlds (Section~\ref{sec:fa-proof}).
 \end{itemize}
 \end{itemize}
-The technical report~\citep{technical_report} contains additional details and proofs that we left out.
+This paper is accompanied by a technical report~\citep{technical_report} with the elided details and proof.
 
 %\paragraph{Outline} Blabla
 
