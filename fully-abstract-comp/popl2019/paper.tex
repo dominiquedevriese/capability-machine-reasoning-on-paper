@@ -127,8 +127,8 @@
 
 \begin{abstract}
   We propose and study \stktokens{}: a new calling convention that provably enforces well-bracketed control flow and local state encapsulation on a capability machine.
-  The calling convention is based on linear capabilities, a type of capabilities that are prevented from being duplicated by the hardware.
-  In addition to designing and formalizing this new calling convention, we also contribute a new way to formalise and prove that it effectively enforces well-bracketed control flow and local state encapsulation, using what we call a fully abstract overlay semantics.
+  The calling convention is based on linear capabilities: a type of capabilities that are prevented from being duplicated by the hardware.
+  In addition to designing and formalizing this new calling convention, we also contribute a new way to formalise and prove that it effectively enforces well-bracketed control flow and local state encapsulation using what we call a fully abstract overlay semantics.
 \end{abstract}
 
 
@@ -162,6 +162,7 @@
 
 \section{Introduction}
 \label{sec:introduction}
+\todo[inline]{TODOS ENABLED!!!}
 Secure compilation is an active topic of research (e.g.~\citep{devriese_modular_2017,patrignani_hyper_2017,abate_good_components_2018,new_universal_embedding_2016,juglaret_beyond_2016}), but a real secure compiler is yet to be made.
 Secure compilers preserve source-language (security-relevant) properties even when the compiled code interacts with arbitrary target-language components.
 Generally, properties that hold in the source language but not in the target language need to be somehow enforced by the compiler.
@@ -177,7 +178,7 @@ Local state encapsulation (LSE) is the guarantee that when a function invokes an
 At the assembly level, this property also does not hold immediately.
 The calling function's local variables are stored on the stack during the invocation, and functions are not supposed to touch stack frames other than their own.
 However, untrusted assembly code is free to ignore this requirement and read or overwrite the local state of other stack frames.
-To enforce these properties, target language security primitives are needed that can be used to prevent untrusted code from misbehaving, without imposing too much overhead on well-behaved code.
+To enforce these properties, target language security primitives are needed that can be used to prevent untrusted code from misbehaving without imposing too much overhead on well-behaved code.
 The virtual-memory based security primitives on commodity processors do not seem sufficiently fine-grained to efficiently support this.
 More suitable security primitives are offered by a type of CPUs known as capability machines \citep{levy_capability-based_1984,watson_cheri:_2015}.
 These processors use tagged memory to enforce a strict separation between integers and {\itshape capabilities}: pointers that carry authority.
@@ -186,22 +187,22 @@ Memory capabilities allow reading from and writing to a block of memory.
 Additionally, capability machines offer some form of {\itshape object capabilities} that represent low-level encapsulated closures, i.e. a piece of code coupled with private state that it gains access to upon invocation.
 The concrete mechanics of object capabilities varies between different capability machines.
 % KJAA: This 'sealed' and 'common seal' business is unclear to me.
-On a recent capability machine called CHERI, for example, they take the form of pairs of capabilities that represent the code and data parts of the closure.
+For example, on a recent capability machine called CHERI they take the form of pairs of capabilities that represent the code and data parts of the closure.
 Each of the two capabilities are sealed with a common seal which make them opaque.
 The hardware transparently unseals the pair upon invocation~\citep{watson_capability_2015}.
 
 To enforce WBCF and LSE on a capability machine, there are essentially two approaches.
 A first approach uses separate stacks for distrusting components, and a central, trusted stack manager component that mediates cross-component invocations.
 This idea has been applied in CheriBSD (an operating system built on CHERI)~\citep{watson_capability_2015}, but it is not without downsides.
-First, it scales poorly to large amounts of distrusting components, because of the need to reserve separate stack space for all components.
-Also, in the presence of higher-order values (e.g. function pointers, objects etc.), the stack manager needs to be able to decide which component a higher-order value belongs to in order to provide it the right stack pointer upon invocation.
+First, it scales poorly to large amounts of distrusting components because of the need to reserve separate stack space for all components.
+Also in the presence of higher-order values (e.g. function pointers, objects etc.), the stack manager needs to be able to decide which component a higher-order value belongs to in order to provide it the right stack pointer upon invocation.
 It is not clear how this can be done efficiently in the presence of large amounts of components.
 Finally, this approach does not allow passing stack references between components.
 
-A more scalable approach retains a single stack that is shared between components.
-Enforcing WBCF and LSE in this approach requires a way to temporarily provide stack and return capabilities to an untrusted component, and to revoke them after it returns.
+A more scalable approach retains a single stack shared between components.
+Enforcing WBCF and LSE in this approach requires a way to temporarily provide stack and return capabilities to an untrusted component and to revoke them after it returns.
 While capability revocation is expensive in general, some capability machines offer restricted forms of revocation that can be implemented efficiently.
-For example, CHERI offers a form of {\itshape local} capabilities that, briefly, can only be stored in registers or on the stack, but not in other parts of memory.
+For example, CHERI offers a form of {\itshape local} capabilities that can only be stored in registers or on the stack but not in other parts of memory.
 \citet{skorstengaard_reasoning_2017} has demonstrated that by making the stack and return pointer local, and by introducing a number of security checks and measures, the two properties can be guaranteed.
 % KJAA: 'Boundary crossing' is new here.
 However, a problem with this approach is that revoking the local stack and return capabilities on every security boundary crossing requires clearing the entire unused part of the stack, an operation that may be prohibitively expensive.
@@ -209,27 +210,25 @@ However, a problem with this approach is that revoking the local stack and retur
 In this work, we propose and study \stktokens{}: an alternative calling convention that enforces WBCF and LSE with a single shared stack.
 Instead of CHERI's local capabilities, it builds on {\itshape linear} capabilities; a new form of capabilities that has not been previously described in the published literature.\footnote{Although they have been mentioned in some technical documents.}
 % KJAA: Perhaps make it clear by who and when/where?
-These capabilities are non-duplicable, enforced by the hardware.
+These capabilities are non-duplicable enforced by the hardware.
 We propose to make stack and return pointers linear and require components to hand them out in cross-component invocations and to return them in returns.
-The non-duplicability of linear capabilities together with some security checks allow us to guarantee WBCF and LSE without large overhead on boundary crossings, particularly without the need for clearing large blocks of memory.
+The non-duplicability of linear capabilities together with some security checks allow us to guarantee WBCF and LSE without large overhead on boundary crossings particularly without the need for clearing large blocks of memory.
 
-A second contribution of this work is the way in which we formulate these two properties, using a technique we call {\itshape fully abstract overlay semantics}.
+A second contribution of this work is the way in which we formulate these two properties using a technique we call {\itshape fully abstract overlay semantics}.
 Formulations in previous work are either partial and not suitable for reasoning~\cite{abadi_control-flow_2005} or lacked evidence of generality~\cite{skorstengaard_reasoning_2017}.
 Our new formulation starts from the premise that security results for a calling convention should be reusable as part of a larger proof of a secure compiler.
-To accommodate this, we define a second operational semantics for our target language, with a native well-bracketed stack and primitive ways to do calls and returns.
+To accommodate this, we define a second operational semantics for our target language with a native well-bracketed call stack and primitive ways to do calls and returns.
 This well-behaved semantics guarantees WBCF and LSE natively for components using our calling convention.
 As such, these components can be sure that they will only ever interact with other well-behaved components that respect our desired properties.
 To express security of our calling convention, we then show that considering the same components in the original semantics does not give adversaries additional ways to interact with them. 
 More formally, we show that mapping a component in the well-behaved semantics to the same component in the original semantics is fully abstract~\cite{abadi_protection_1999}, i.e. that components are indistinguishable to arbitrary adversaries in the well-behaved language iff they are indistinguishable to arbitrary adversaries in the original language.
 
-\todo[inline]{In the below, Lars would like to be more precise about the ``in a general way'' below.
-  e.g., by contrasting it to our earlier work where the WBCF and LSE properties were only proved via specific examples.}
-This approach expresses what it means to enforce our desirable properties in a general way, and makes it clear that we can support a very general class of programs.
+Compared to~\citet{skorstengaard_reasoning_2017} that prove LSE and WBCF for a handful of examples,
+this approach expresses what it means to enforce the desirable properties in a general way and makes it clear that we can support a very general class of programs.
 Additionally, formulating security of a calling convention in this way makes it potentially reusable in a larger security proof of a full compiler.
 The idea is that security of such a compiler could be verified by proving fully abstract compilation with respect to the well-behaved semantics of the target language, so that the proof can rely on native well-bracketedness and local stack frame encapsulation.
 This independent result could then be composed with our result to obtain security of the compiler targeting the real target language, by transitivity of full abstraction.
 
-%\todo[inline]{Add itemized contributions (see comments). Outline?}
 %The main contributions of this paper are (1) \stktokens{} a calling convention that uses linear capabilities to provably secure LSE and WBCF, and (2) a novel proof technique that we call fully-abstract overlay semantics which we apply to prove the properties of \stktokens{}.
 In this paper, we make the following contributions:
 % Presents the first formal model of a capability machine with linear capabilities (Section 2)
@@ -238,14 +237,14 @@ In this paper, we make the following contributions:
 \begin{itemize}
 \item We present \trgcm{}: A formalization of a simple CHERI-like capability machine with linear capabilities (Section~\ref{sec:cap-mach-w-seal-and-lin}).
 \item We present a new calling convention \stktokens{} that provably guarantees LSE and WBCF on \trgcm{} (Section~\ref{sec:stktokens-explained}).
-\item We present and use a novel proof technique called fully-abstract overlay semantics which we use to prove the properties of \stktokens{}. This includes:
+\item We present a new way to formalise these guarantees based on a novel technique called \textit{fully-abstract overlay semantics} and we prove the results. This includes:
   \begin{itemize}
-  \item defining \srccm{} an overlay semantics for \trgcm{} (Section~\ref{sec:form-secur-with}) and
-  \item proving a full-abstraction for a compiler from \srccm{} to \trgcm{} (Section~\ref{sec:fa-proof}) by
-  \item using and defining cross language, step-indexed, Kripke logical relation with recursive worlds (Section~\ref{sec:fa-proof}).
+  \item defining \srccm{}: an overlay semantics for \trgcm{} with built-in LSE and WBCF (Section~\ref{sec:form-secur-with})
+  \item proving full-abstraction for a compiler from \srccm{} to \trgcm{} (Section~\ref{sec:fa-proof}) by
+  \item using and defining a cross-language, step-indexed, Kripke logical relation with recursive worlds (Section~\ref{sec:fa-proof}).
+  \end{itemize}
 \end{itemize}
-\end{itemize}
-The technical report~\citep{technical_report} contains additional details and proofs that we left out.
+This paper is accompanied by a technical report~\citep{technical_report} with the elided details and proof.
 
 %\paragraph{Outline} Blabla
 
@@ -267,6 +266,65 @@ The technical report~\citep{technical_report} contains additional details and pr
 
 \section{A Capability Machine with Sealing and Linear Capabilities}
 \label{sec:cap-mach-w-seal-and-lin}
+% Brief intro to section and this cap machine:
+% Cap machine inspired by CHERI, but with linear capabilities
+\begin{wrapfigure}{r}{0.26\linewidth}
+  \centering
+  \begin{tikzpicture}[main node/.style={}]
+    \node[main node] (rwx) {$\rwx$};
+    \node[main node] (rx) [below right of=rwx] {$\rx$};
+
+    \node[main node] (rw) [below left of=rwx,] {$\rw$};
+    \node[main node] (r) [below right of=rw] {$\readonly$};
+    \node[main node] (0) [below of=r] {$\noperm$};
+
+    \path[every node/.style={font=\sffamily\small}]
+
+    (rw) edge (r)
+    (r) edge (0)
+
+    (rwx) edge (rx)
+
+    (rw) edge (rwx)
+    (r) edge (rx);
+  \end{tikzpicture}
+
+  \caption{Permission hierarchy}
+  \label{fig:perm-hier}
+\end{wrapfigure}
+In this section, we introduce a simple but representative capability machine with linear capabilities, that we call \trgcm{} (Linear Capability Machine).
+\trgcm{} is mainly inspired by CHERI~\citep{watson_cheri:_2015} with linear capabilities as the main addition.
+For simplicity, \trgcm{} assumes an infinite address space and unbounded integers.
+% \lau{Do we have a good reason to assume an infinite address space for this work?
+%   We do not model malloc, so we do not need to worry about what happens when malloc runs out of memory.}
+
+%%% Capabilities
+The concept of a capability is the cornerstone of any capability machine.
+In its simplest form, a capability is a permission and a range of authority.
+The permission dictates the operations the capability can be used for, and the range of authority specifies the range of memory it can act upon.
+% Permissions and Range of authority
+The capabilities on \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (defined in Figure~\ref{fig:target-syntax} with the rest of the syntax of \trgcm{}). Here $\var{perm}$ is the permission, and $[\var{base},\var{end}]$ is the range of authority.
+The available permissions are read-write-execute ($\rwx$), read-write ($\rw$), read-execute ($\rx$), read-only ($\ro$), and null-permission ($\noperm$), ordered by $\le$ as illustrated in Figure~\ref{fig:perm-hier}.
+% Pointer and linearity
+In addition to the permission and range, capabilities also have a current address $\var{addr}$ and a linearity $\var{lin}$.
+The linearity is either $\normal$ for traditional capabilities or $\linear$ for linear ones.
+% What is linear capabilities, split/splice
+A linear capability is a capability that cannot be duplicated.
+This is enforced dynamically on the capability machine, so when a linear capability is moved between registers or memory, the source is cleared.
+The non-duplicability of linear capabilities means that a linear capability cannot become aliased if it wasn't to begin with.
+
+%%% Seals
+% KJAA: Here I am still missing an intuition of what a seal 'is' -- why the range, why the seal as an 'entity'?
+
+Any reasonable capability machine needs a way to set up boundaries between security domains as well as a way to cross the boundaries in a way where each domain retains their authority.
+%The M-Machine~\citep{Dally1997Memo59} inspired capability machine in \citet{skorstengaard_reasoning_2017} uses enter-capabilities to achieve this.
+On \trgcm{} we have CHERI-like sealed capabilities to achieve this~\cite{watson_cheri:_2015}.
+Syntactically, sealed capabilities add two types of capabilities.
+% seals
+A set of seals $\seal{\sigma_\var{base},\sigma_\var{end},\sigma}$ consists of a range of available seals $[\sigma_\var{base},\sigma_\var{end}]$ and the current seal $\sigma$, all represented by a natural number.
+% sealed caps
+A sealed capability $\sealed{\sigma,\vsc}$ consists of a sealable capability $\vsc$ and the seal $\sigma$ it has been sealed with.
+Sealable capabilities $\vsc \in \SealableCaps$ are sets of seals or memory capabilities.
 \begin{figure}[tb]
   \centering
   \[
@@ -298,66 +356,6 @@ The technical report~\citep{technical_report} contains additional details and pr
   \caption{The syntax of our capability machine with seals and linear capabilities.}
   \label{fig:target-syntax}
 \end{figure}
-% Brief intro to section and this cap machine:
-% Cap machine inspired by CHERI, but with linear capabilities
-In this section, we introduce a simple but representative capability machine with linear capabilities, that we call \trgcm{} (Linear Capability Machine).
-\trgcm{} is mainly inspired by CHERI~\citep{watson_cheri:_2015} with linear capabilities as the main addition.
-For simplicity, \trgcm{} assumes an infinite address space and unbounded integers.
-% \lau{Do we have a good reason to assume an infinite address space for this work?
-%   We do not model malloc, so we do not need to worry about what happens when malloc runs out of memory.}
-
-%%% Capabilities
-The concept of a capability is the cornerstone of any capability machine.
-In its simplest form, a capability is a permission and a range of authority.
-The permission dictates the operations the capability can be used for, and the range of authority specifies the range of memory it can act upon.
-% Permissions and Range of authority
-The capabilities of \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (as defined in Figure~\ref{fig:target-syntax} along with the rest of the syntax of \trgcm{}). Here $\var{perm}$ is the permission, and $[\var{base},\var{end}]$ is the range of authority.
-The available permissions are read-write-execute ($\rwx$), read-write ($\rw$), read-execute ($\rx$), read-only ($\ro$), and null-permission ($\noperm$), ordered by $\le$ as illustrated in Figure~\ref{fig:perm-hier}.
-% Pointer and linearity
-In addition to the permission and range, capabilities also have a current address $\var{addr}$ and a linearity $\var{lin}$.
-The linearity $\lin$ is either $\normal$ for traditional capabilities $\linear$ for linear ones.
-% What is linear capabilities, split/splice
-A linear capability is a capability that cannot be duplicated.
-This is enforced dynamically on the capability machine, so when a linear capability is moved between registers or memory, the source register or memory location is cleared.
-The non-duplicability of linear capabilities means that a linear capability cannot become aliased if it wasn't to begin with.
-
-\begin{wrapfigure}{r}{0.28\linewidth}
-  \centering
-  \begin{tikzpicture}[main node/.style={}]
-    \node[main node] (rwx) {$\rwx$};
-    \node[main node] (rx) [below right of=rwx] {$\rx$};
-
-    \node[main node] (rw) [below left of=rwx,] {$\rw$};
-    \node[main node] (r) [below right of=rw] {$\readonly$};
-    \node[main node] (0) [below of=r] {$\noperm$};
-
-    \path[every node/.style={font=\sffamily\small}]
-
-    (rw) edge (r)
-    (r) edge (0)
-
-    (rwx) edge (rx)
-
-    (rw) edge (rwx)
-    (r) edge (rx);
-  \end{tikzpicture}
-
-  \caption{Permission hierarchy}
-  \label{fig:perm-hier}
-\end{wrapfigure}
-
-%%% Seals
-% KJAA: Here I am still missing an intuition of what a seal 'is' -- why the range, why the seal as an 'entity'?
-
-Any reasonable capability machine needs a way to set up boundaries between security domains as well as a way to cross the boundaries in a way where each domain retains their authority.
-%The M-Machine~\citep{Dally1997Memo59} inspired capability machine in \citet{skorstengaard_reasoning_2017} uses enter-capabilities to achieve this.
-On \trgcm{} we have CHERI-like sealed capabilities to achieve this~\cite{watson_cheri:_2015}.
-Syntactically, sealed capabilities add two types of capabilities.
-% seals
-A set of seals $\seal{\sigma_\var{base},\sigma_\var{end},\sigma}$ consists of a range of available seals $[\sigma_\var{base},\sigma_\var{end}]$ and the current seal $\sigma$, all represented by a natural number.
-% sealed caps
-A sealed capability $\sealed{\sigma,\vsc}$ consists of a sealable capability $\vsc$ and the seal $\sigma$ it has been sealed with.
-Sealable capabilities $\vsc \in \SealableCaps$ are sets of seals or memory capabilities.
 
 %%% Domains
 Words on \trgcm{} are capabilities and data (represented by $\ints$).
@@ -538,7 +536,6 @@ They are combined by taking the union of each of their constituents.
 For every import that is satisfied by an export of the other component, in the sense that they have the same symbol, the data memory is updated to have the exported word on the imported address.
 The satisfied imports are removed from the import list in the resulting linked component and the exports are updated to be the exports of the two components.
 Components and linking are defined in Figure~\ref{fig:target-component-and-linking}.
-\todo[inline]{Add better separation between component and linking in figure.}
 
 % Programs
 We can now define the notion of a program as well as a context.
@@ -551,11 +548,11 @@ We can now define the notion of a program as well as a context.
 % Getting an executable from a component - postpone this to later, but mention:
 % write xor exec
 In Section~\ref{sec:form-secur-with}, we will get back to how a program is instrumented to create an executable configuration.
-% We will, however, at this point mention that all programs will be instrumented as Write-XOR-Execute,\todo[inline]{Do we have a reference for this?} i.e.\ there will only be read-execute capabilities for the code and read-write capabilities for the data.
+% We will, however, at this point mention that all programs will be instrumented as Write-XOR-Execute,{Do we have a reference for this?} i.e.\ there will only be read-execute capabilities for the code and read-write capabilities for the data.
 %Further, we will only consider a specific class of well-formed components, but we will get back to this.
 
 Some simplifications has been made in this presentation of \trgcm{}. See \citet{technical_report} for the details.
-\begin{figure}[htb]
+\begin{figure}[tb]
   \centering
   \[
     \begin{array}{rl c rl c rl}
@@ -703,9 +700,8 @@ In the figure on the right (Figure~\ref{fig:ret-ptr-abuse}), we have given the a
 The adversary may have stored the pair of sealed return capabilities from the first call in order to use it in the second call where they are not allowed to use it.
 The figure illustrates how the adversarial code uses the return pair from the first call to return from the second call and thus break WBCF.
 
-\todo[inline]{If target cap. machine is introduced before this section, then revisit/delete this section.}
 % Informally explain how we prevent this using linear capabilities
-As the examples illustrate, the standard memory and object-like capabilities (sealed capabilities) do not provide sufficient guarantees to enforce LSE and WBCF.
+As the examples illustrate, the standard memory and object-like capabilities (here sealed capabilities) do not provide sufficient guarantees to enforce LSE and WBCF.
 The problem is essentially that the stack and return pointers that a callee receives from a caller remain in effect after their intended lifetime: either when the callee has already returned or when they have themselves invoked other code. 
 Linear capabilities offer a form of revocation\footnote{Revocation in the sense that if we hand out a linear capability and later get it back, then the receiver no longer has it or a copy of it as it is non-duplicable.} that can be used to prevent this from happening.
 
@@ -1555,8 +1551,10 @@ The logical relation has two expression relations.
 They both relate capabilities that can safely be used for execution in configurations that satisfy a given world.
 The first one, $\mathcal{E}$, is standard as logical relations for capability machines go: It takes related register files and related memories, plugs the capabilities in question into the program counter, and requires it to observably behave the same way.
 In our case, the only observable thing on the capability machines is termination.
-The observation relation $\mathcal{O}$ defines when a configuration observably approximates another\footnote{While we present this as a logical relation, it is in fact two logical approximations. However, the only difference between the two approximations is in the observation approximation.}.
-\begin{align*}
+The observation relation $\mathcal{O}$ (Figure~\ref{fig:obs-rel}) defines when a configuration observably approximates another\footnote{While we present this as a logical relation, it is in fact two logical approximations. However, the only difference between the two approximations is in the observation approximation.}.
+\begin{figure}[htb]
+  \centering
+  \begin{align*}
   \lro[\preceq,(\ta,\stkb,\_,\_)] ={}&\{ \npair{\left(\src{\Phi_S},\Phi_T\right)} \mid
   \forall i \leq n \ldotp
     \src{\Phi_S \sterm[i]{\ta,\stkb}} \Rightarrow \Phi_T \trg{\term} \}\\
@@ -1564,6 +1562,9 @@ The observation relation $\mathcal{O}$ defines when a configuration observably a
   \forall i \leq n \ldotp 
     \Phi_T \trg{\term[i]} \Rightarrow \src{\Phi_S \sterm{\ta,\stkb}} \}
 \end{align*}
+\caption{The observation approximations.}
+\label{fig:obs-rel}
+\end{figure}
 With sealed capabilities in the mix, we also need to be able to say that \texttt{xjmp}s are safe, but a sealed code capability only needs to be safe to execute when it has access to the related data capability.
 Further, \texttt{xjmp}s are used to invoke return pairs which on \srccm{} is somewhat involved.
 This is handled uniformly by the \texttt{xjmp}-expression relation $\mathcal{E}_{\mathrm{xjmp}}$.
@@ -2010,16 +2011,16 @@ Its costs are
 \end{itemize}
 The main caveat is that we rely on the assumption that capability machines like CHERI can be extended with linear capabilities in an efficient way.
 
-Although this assumption can only be discharged by demonstrating an actual implementation with efficiency measurements, the following notes are based on private discussions with people from the CHERI team, as well as our own thoughts on the matter.
+Although this assumption can only be discharged by demonstrating an actual implementation with efficiency measurements, the following notes are based on private discussions with people from the CHERI team as well as our own thoughts on the matter.
 As we understand it, the main problems to solve for adding linear capabilities to a capability machine like CHERI are related to the move semantics for instructions like \texttt{move}, \texttt{store} and \texttt{load}.
 Processor optimizations like pipelining and out-of-order execution rely on being able to accurately predict the registers and memory that an instruction will write to and read from.
 Our instructions are a bit clumsy from this point-of-view because, for example, \texttt{move} or \texttt{store} will zero the source register resp. memory location if the value being written is linear.
-A solution for this problem could be to add separate instructions for moving, storing and loading linear registers, at the cost of additional opcode space.
+A solution for this problem could be to add separate instructions for moving, storing and loading linear registers at the cost of additional opcode space.
 Adding splice and split will also consume some opcode space.
 
 Another problem is caused by the move semantics for \texttt{load} in the presence of multiple hardware threads.
 In this setting, zeroing out the source memory location must happen atomically to avoid race conditions where two hardware threads end up reading the same linear capability to their registers.
-This means that a \texttt{load} of a linear capability will need to behave like an atomic operation, similar to a compare-and-swap instruction.
+This means that a \texttt{load} of a linear capability will need to behave like an atomic operation similar to a compare-and-swap instruction.
 This is in principle not a problem except that a compare-and-swap is significantly slower than a regular \texttt{load} (on the order of 10x slower or more).
 When using \stktokens{}, loads of linear capabilities normally happen only when a thread has stored its return data capability on the stack and loads it back from there after a return.
 Because the stack is a region of memory with very high thread affinity (no other hardware thread should access it, in principle), and which is accessed quite often, we are hopeful that well-engineered caching could reduce the high overhead of atomic loads of linear capabilities.
@@ -2033,23 +2034,23 @@ We do not repeat the work we discussed in Section~\ref{sec:introduction}.
 
 Capability machines originate with \citet{dennis_programming_1966} and we refer to \citet{levy_capability-based_1984} and \citet{watson_cheri:_2015} for an overview of previous work.
 The capability machine formalized in Section~\ref{sec:cap-mach-w-seal-and-lin} is modelled after CHERI~\citep{watson_cheri:_2015,woodruff_cheri_2014}.
-This is a recent and relatively mature capability machine, which combines capabilities with a virtual memory approach, in the interest of backwards compatibility and gradual adoption.
-For simplicity, we have omitted features of CHERI that were not needed for modelling \stktokens{} (e.g.\ local capabilities, virtual memory).
+This is a recent, relatively mature capability machine which combines capabilities with a virtual memory approach in the interest of backwards compatibility and gradual adoption.
+For simplicity, we have omitted features of CHERI that were not needed for \stktokens{} (e.g.\ local capabilities, virtual memory).
 
-Plenty of other papers enforce well-bracketed control flow at a low level, but most are restricted to preventing particular types of attacks and enforce only partial correctness of control flow.
+Plenty of other papers enforce well-bracketed control flow at a low level but most are restricted to preventing particular types of attacks and enforce only partial correctness of control flow.
 This includes particularly the line of work on \emph{control-flow integrity}~\citep{abadi_control-flow_2005}.
 This technique prevents certain classes of attacks by sanitizing addresses before direct and indirect jumps based on static information about a program's control graph and a shadow stack.
 Contrary to \stktokens{}, CFI can be implemented on commodity hardware rather than capability machines.
-However, its attacker model is different and its security goals are weaker.
-They assume an attacker that is not able to execute code, but can overwrite arbitrary data at any time during execution (to model buffer overflows).
+However, its attacker model is different, and its security goals are weaker.
+They assume an attacker that is unable to execute code but can overwrite arbitrary data at any time during execution (to model buffer overflows).
 In terms of security goals, the technique does not enforce local stack encapsulation.
-Also, it only enforces a weak form of control flow correctness, saying that jumps stay within the static control flow graph of a program~\cite{Abadi2005Theory}.
+Also, it only enforces a weak form of control flow correctness saying that jumps stay within the static control flow graph of a program~\cite{Abadi2005Theory}.
 Such a property ignores temporal properties and seems hard to use for reasoning.
 There is also more and more evidence that these partial security properties are not enough to prevent realistic attacks in practice~\citep{Evans:2015:CJW:2810103.2813646,Carlini2015ControlFlowBending}.
 
 More closely related to our work are papers that use separate per-component stacks, a trusted stack manager and some form of memory isolation to enforce control-flow correctness as part of a secure compilation result~\citep{patrignani_modular_2016,juglaret_beyond_2016}.
-Our work differs from theirs in that we use a different low-level security primitive (a capability machine with local capabilities rather than a machine with a primitive notion of compartments) and we do not use per-component stacks or a trusted stack manager, but a single shared stack and a decentralized calling convention based on linear capabilities.
-Both prove a secure compilation result from a high-level language, which clearly implies a general form of control-flow correctness, but that result is not separated from the results about other aspects of their compiler.
+Our work differs from theirs in that we use a different low-level security primitive (a capability machine with local capabilities rather than a machine with a primitive notion of compartments), and we do not use per-component stacks or a trusted stack manager but a single shared stack and a decentralized calling convention based on linear capabilities.
+Both prove a secure compilation result from a high-level language which clearly implies a general form of control-flow correctness, but that result is not separated from the results about other aspects of their compiler.
 
 CheriBSD applies a similar approach with separate per-component stacks and a trusted stack manager on a capability machine~\cite{watson_cheri:_2015}.
 The authors use local capabilities to prevent components from accidentally leaking their stack pointer to other components, but there is no actual capability revocation in play.
@@ -2058,9 +2059,9 @@ They do not provide many details on this mechanism and it is, for example, not c
 The fact that our full abstraction result only applies to reasonable components (see Section~\ref{sec:form-secur-with}) makes it related to full abstraction results for unsafe languages.
 In their study of compartmentalization primitives, \Citet{juglaret_beyond_2016} discuss the property of Secure Compartmentalizing Compilation (SCC): a variant of full abstraction that applies to unsafe source languages.
 Essentially, they modify standard full abstraction so that preservation and reflection of contextual equivalence are only guaranteed for components that are {\itshape fully defined}, which means essentially that they do not exhibit undefined behavior in any fully defined context.
-In follow-up work, \citet{DBLP:journals/corr/abs-1802-00588} extend this approach to scenarios where components only start to exhibit undefined behavior after a number of well-defined steps.
+In follow-up work, \citet{abate_good_components_2018} extend this approach to scenarios where components only start to exhibit undefined behavior after a number of well-defined steps. 
 If we see reasonable behavior as defined behavior, then our full abstraction result can be seen as an application of this same idea.
-Our results do not apply to dynamic compromise scenarios because they are intended to be used in the verification of a secure compiler, where these scenarios are not relevant.
+Our results do not apply to dynamic compromise scenarios because they are intended to be used in the verification of a secure compiler where these scenarios are not relevant.
 
 \bibliography{references}
 
