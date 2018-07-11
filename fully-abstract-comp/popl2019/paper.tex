@@ -701,7 +701,7 @@ The adversary may have stored the pair of sealed return capabilities from the fi
 The figure illustrates how the adversarial code uses the return pair from the first call to return from the second call and thus break WBCF.
 
 % Informally explain how we prevent this using linear capabilities
-As the examples illustrate, the standard memory and object-like capabilities (sealed capabilities) do not provide sufficient guarantees to enforce LSE and WBCF.
+As the examples illustrate, the standard memory and object-like capabilities (here sealed capabilities) do not provide sufficient guarantees to enforce LSE and WBCF.
 The problem is essentially that the stack and return pointers that a callee receives from a caller remain in effect after their intended lifetime: either when the callee has already returned or when they have themselves invoked other code. 
 Linear capabilities offer a form of revocation\footnote{Revocation in the sense that if we hand out a linear capability and later get it back, then the receiver no longer has it or a copy of it as it is non-duplicable.} that can be used to prevent this from happening.
 
@@ -2009,19 +2009,19 @@ Its costs are
 \end{itemize}
 The main caveat is that we rely on the assumption that capability machines like CHERI can be extended with linear capabilities in an efficient way.
 
-Although this assumption can only be discharged by demonstrating an actual implementation with efficiency measurements, the following notes are based on private discussions with people from the CHERI team, as well as our own thoughts on the matter.
+Although this assumption can only be discharged by demonstrating an actual implementation with efficiency measurements, the following notes are based on private discussions with people from the CHERI team as well as our own thoughts on the matter.
 As we understand it, the main problems to solve for adding linear capabilities to a capability machine like CHERI are related to the move semantics for instructions like \texttt{move}, \texttt{store} and \texttt{load}.
 Processor optimizations like pipelining and out-of-order execution rely on being able to accurately predict the registers and memory that an instruction will write to and read from.
 Our instructions are a bit clumsy from this point-of-view because, for example, \texttt{move} or \texttt{store} will zero the source register resp. memory location if the value being written is linear.
-A solution for this problem could be to add separate instructions for moving, storing and loading linear registers, at the cost of additional opcode space.
+A solution for this problem could be to add separate instructions for moving, storing and loading linear registers at the cost of additional opcode space.
 Adding splice and split will also consume some opcode space.
 
 Another problem is caused by the move semantics for \texttt{load} in the presence of multiple hardware threads.
 In this setting, zeroing out the source memory location must happen atomically to avoid race conditions where two hardware threads end up reading the same linear capability to their registers.
-This means that a \texttt{load} of a linear capability will need to behave like an atomic operation, similar to a compare-and-swap instruction.
+This means that a \texttt{load} of a linear capability will need to behave like an atomic operation similar to a compare-and-swap instruction.
 This is in principle not a problem except that a compare-and-swap is significantly slower than a regular \texttt{load} (on the order of 10x slower or more).
 When using \stktokens{}, loads of linear capabilities normally happen only when a thread has stored its return data capability on the stack and loads it back from there after a return.
-Because the stack is a region of memory with very high thread affinity (no other hardware thread should access it, in principle), and which is accessed quite often, we are hopeful that well-engineered caching could reduce the high overhead of atomic loads of linear capabilities.
+Because the stack is a region of memory with very high thread affinity (no other hardware thread should access it, in principle) and which is accessed quite often, we are hopeful that well-engineered caching could reduce the high overhead of atomic loads of linear capabilities.
 If such memory could be (usually) kept exclusively locked in a cache close to the processor, the overhead of atomic loads in \stktokens{} might be significantly less than \texttt{load}'s worst case.
 The processor could perhaps also (be told to) rely on the fact that race conditions should be impossible for loads from linear capabilities (which should in principle be non-aliased) and just use a non-atomic load in that case.
 
@@ -2035,7 +2035,7 @@ The capability machine formalized in Section~\ref{sec:cap-mach-w-seal-and-lin} i
 This is a recent, relatively mature capability machine which combines capabilities with a virtual memory approach in the interest of backwards compatibility and gradual adoption.
 For simplicity, we have omitted features of CHERI that were not needed for \stktokens{} (e.g.\ local capabilities, virtual memory).
 
-Plenty of other papers enforce WBCF at a low level but most are restricted to preventing particular types of attacks and enforce only partial correctness of control flow.
+Plenty of other papers enforce well-bracketed control flow at a low level but most are restricted to preventing particular types of attacks and enforce only partial correctness of control flow.
 This includes particularly the line of work on \emph{control-flow integrity}~\citep{abadi_control-flow_2005}.
 This technique prevents certain classes of attacks by sanitizing addresses before direct and indirect jumps based on static information about a program's control graph and a shadow stack.
 Contrary to \stktokens{}, CFI can be implemented on commodity hardware rather than capability machines.
@@ -2057,7 +2057,7 @@ They do not provide many details on this mechanism and it is, for example, not c
 The fact that our full abstraction result only applies to reasonable components (see Section~\ref{sec:form-secur-with}) makes it related to full abstraction results for unsafe languages.
 In their study of compartmentalization primitives, \Citet{juglaret_beyond_2016} discuss the property of Secure Compartmentalizing Compilation (SCC): a variant of full abstraction that applies to unsafe source languages.
 Essentially, they modify standard full abstraction so that preservation and reflection of contextual equivalence are only guaranteed for components that are {\itshape fully defined}, which means essentially that they do not exhibit undefined behavior in any fully defined context.
-In follow-up work, \citet{DBLP:journals/corr/abs-1802-00588} extend this approach to scenarios where components only start to exhibit undefined behavior after a number of well-defined steps.
+In follow-up work, \citet{abate_good_components_2018} extend this approach to scenarios where components only start to exhibit undefined behavior after a number of well-defined steps. 
 If we see reasonable behavior as defined behavior, then our full abstraction result can be seen as an application of this same idea.
 Our results do not apply to dynamic compromise scenarios because they are intended to be used in the verification of a secure compiler where these scenarios are not relevant.
 
