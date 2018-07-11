@@ -1402,20 +1402,20 @@ Finally, for presentation, we will sometimes omit details, like step indexing, t
 \subsubsection{Worlds}
 \label{subsec:worlds}
 Generally speaking, a world is used in a logical relation to model assumptions about memory.
-\srccm{} has three kinds of memory, the heap, the call stack, and the free stack, and our worlds model this by being triples of sub-worlds.
+\srccm{} has three kinds of memory: the heap, the call stack, and the free stack, and our worlds model this by being triples of sub-worlds.
 All of the sub-worlds are partial maps from $\RegionName$ (modelled as natural numbers) to regions.
 The regions differ for each of the sub-worlds based on what they model.
 Generally, the regions consist of a region type and a world indexed relation that specifies the memories allowed by the region.
-The region types models linearity as they indicate how the memory can be referenced.
+The region types model linearity as they indicate how the memory can be referenced.
 We have three types of regions: $\pure$, $\spatial$, and $\spatialo$.
 The $\pure$ regions can be referenced by normal capabilities, the $\spatialo$ regions by linear capabilities, and the $\spatial$ regions by nothing.
 To prevent duplication of linear capabilities, two linear capabilities cannot address the same $\spatialo$, so ownership has to be distributed between worlds.
-To this end, we have the partial operation $W_1 \oplus W_2$ that requires $W_1$ and $W_2$ to be the same except that they have disjoint ownership: $\pure$ regions can be present in both but a $\spatialo$ region can only be present in one of both worlds.
+To this end, we have the partial operation $W_1 \oplus W_2$ that requires $W_1$ and $W_2$ to be the same except that they have disjoint ownership: $\pure$ regions can be present in both worlds, but a $\spatialo$ region can only be present in one.
 Such a region must then be $\spatial$ in the other world.
 %We define $W_1 \uplus W_2$ which joins together two worlds with disjoint regions.
 This is important because the logical relation will require that valid memories are backed by a suitable memory segment, even when the memory does not own them (for example, when a linear capability for it is in one of the registers).
 Revocation of linear capabilities is supported in a certain way using the $\revoked$ region.
-Finally, $\pure$ regions can also claim ownership of a seal by defining a seal interpretation function at this seal.
+Finally, $\pure$ regions can also claim ownership of a seal by defining a seal interpretation for it.
 The seal interpretation is a world-indexed relation that must hold for all sealables signed by this seal.
 We split the regions in two categories:
 \begin{align*}
@@ -1450,8 +1450,10 @@ Define worlds as $\World = (\Worldh \times \Worlds \times \Worldfs)$. They are r
 %   \]
 %   and for $\hat{W},\hat{W}' \in \Wor: \quad  \hat{W'} \future \hat{W}\text{ iff }\xi(\hat{W'}) \future \xi(\hat{W})$
 % \end{lemma}
-The future world relation $\future$ is fairly simple.
-It is extensional and requires regions to stay the same type in future worlds except $\spatial$ regions can become $\spatialo$ or $\revoked$.
+The future world relation $\future$ is fairly standard.
+It is extensional and requires all but $\spatial$ regions to stay the same type in future worlds.
+$\spatial$ regions can become $\spatialo$ or $\revoked$.
+
 
 \subsubsection{Code region}
 The code region is a central region to the logical relation that models the code memory of a component.
@@ -1465,7 +1467,8 @@ The code region is defined as follows:
 The code region is $\pure$ which makes it persistent in future worlds and reflects the fact that it is addressed by normal capabilities.
 The memory relation $H^\mathrm{code,\square} \; (\dots)$ only relates $\mscode$ to itself, i.e.\ our component's code memory must not be modified.
 $H^\mathrm{code,\square} \; (\dots)$ requires $\mscode$ to be well-formed and that its contents is non-linear and in the value relation.
-As we will see later, we have two value relations, a trusted and an untrusted, and the value relation used depends on whether the code region governs trusted or untrusted code.
+As we will see later, we have two value relations: a trusted and an untrusted.
+The value relation used depends on whether the code region governs trusted or untrusted code.
 For now it suffices to know that the untrusted value relation contains everything that untrusted code can safely have, and the trusted value relation additionally includes things that trusted components are allowed to have but not pass away, e.g.\ return seals.
 
 % \todo[inline]{Describe $H^\mathrm{code}$}
@@ -1492,7 +1495,7 @@ The code return pointer corresponds to a normal capability which means that it c
 Because of this, the code pointer is not associated with any specific call frame as it can be used by any data return pointer generated from the same call point.
 Reuse of return pairs is prevented by the data return pointer being linear, so the seal interpretation function relates data return pointers to linear capabilities.
 It also requires the data return pointer to correspond to a $\spatialo$ region for one of the stack frames on the call stack.
-The return address that is part of this region in $\Worlds$, must be the return address of the call that the return seal corresponds to.
+The return address that is part of this region in $\Worlds$, must be the return address of the call that the return seal is affiliated with.
 \begin{multline*}
   H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; \; \sigma \; \hat{W}= \\
   \begin{array}[t]{l}
