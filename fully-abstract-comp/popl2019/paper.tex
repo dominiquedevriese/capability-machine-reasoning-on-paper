@@ -268,6 +268,65 @@ This paper is accompanied by a technical report~\citep{technical_report} with th
 
 \section{A Capability Machine with Sealing and Linear Capabilities}
 \label{sec:cap-mach-w-seal-and-lin}
+% Brief intro to section and this cap machine:
+% Cap machine inspired by CHERI, but with linear capabilities
+\begin{wrapfigure}{r}{0.28\linewidth}
+  \centering
+  \begin{tikzpicture}[main node/.style={}]
+    \node[main node] (rwx) {$\rwx$};
+    \node[main node] (rx) [below right of=rwx] {$\rx$};
+
+    \node[main node] (rw) [below left of=rwx,] {$\rw$};
+    \node[main node] (r) [below right of=rw] {$\readonly$};
+    \node[main node] (0) [below of=r] {$\noperm$};
+
+    \path[every node/.style={font=\sffamily\small}]
+
+    (rw) edge (r)
+    (r) edge (0)
+
+    (rwx) edge (rx)
+
+    (rw) edge (rwx)
+    (r) edge (rx);
+  \end{tikzpicture}
+
+  \caption{Permission hierarchy}
+  \label{fig:perm-hier}
+\end{wrapfigure}
+In this section, we introduce a simple but representative capability machine with linear capabilities, that we call \trgcm{} (Linear Capability Machine).
+\trgcm{} is mainly inspired by CHERI~\citep{watson_cheri:_2015} with linear capabilities as the main addition.
+For simplicity, \trgcm{} assumes an infinite address space and unbounded integers.
+% \lau{Do we have a good reason to assume an infinite address space for this work?
+%   We do not model malloc, so we do not need to worry about what happens when malloc runs out of memory.}
+
+%%% Capabilities
+The concept of a capability is the cornerstone of any capability machine.
+In its simplest form, a capability is a permission and a range of authority.
+The permission dictates the operations the capability can be used for, and the range of authority specifies the range of memory it can act upon.
+% Permissions and Range of authority
+The capabilities of \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (as defined in Figure~\ref{fig:target-syntax} along with the rest of the syntax of \trgcm{}). Here $\var{perm}$ is the permission, and $[\var{base},\var{end}]$ is the range of authority.
+The available permissions are read-write-execute ($\rwx$), read-write ($\rw$), read-execute ($\rx$), read-only ($\ro$), and null-permission ($\noperm$), ordered by $\le$ as illustrated in Figure~\ref{fig:perm-hier}.
+% Pointer and linearity
+In addition to the permission and range, capabilities also have a current address $\var{addr}$ and a linearity $\var{lin}$.
+The linearity $\lin$ is either $\normal$ for traditional capabilities $\linear$ for linear ones.
+% What is linear capabilities, split/splice
+A linear capability is a capability that cannot be duplicated.
+This is enforced dynamically on the capability machine, so when a linear capability is moved between registers or memory, the source register or memory location is cleared.
+The non-duplicability of linear capabilities means that a linear capability cannot become aliased if it wasn't to begin with.
+
+%%% Seals
+% KJAA: Here I am still missing an intuition of what a seal 'is' -- why the range, why the seal as an 'entity'?
+
+Any reasonable capability machine needs a way to set up boundaries between security domains as well as a way to cross the boundaries in a way where each domain retains their authority.
+%The M-Machine~\citep{Dally1997Memo59} inspired capability machine in \citet{skorstengaard_reasoning_2017} uses enter-capabilities to achieve this.
+On \trgcm{} we have CHERI-like sealed capabilities to achieve this~\cite{watson_cheri:_2015}.
+Syntactically, sealed capabilities add two types of capabilities.
+% seals
+A set of seals $\seal{\sigma_\var{base},\sigma_\var{end},\sigma}$ consists of a range of available seals $[\sigma_\var{base},\sigma_\var{end}]$ and the current seal $\sigma$, all represented by a natural number.
+% sealed caps
+A sealed capability $\sealed{\sigma,\vsc}$ consists of a sealable capability $\vsc$ and the seal $\sigma$ it has been sealed with.
+Sealable capabilities $\vsc \in \SealableCaps$ are sets of seals or memory capabilities.
 \begin{figure}[tb]
   \centering
   \[
@@ -299,66 +358,6 @@ This paper is accompanied by a technical report~\citep{technical_report} with th
   \caption{The syntax of our capability machine with seals and linear capabilities.}
   \label{fig:target-syntax}
 \end{figure}
-% Brief intro to section and this cap machine:
-% Cap machine inspired by CHERI, but with linear capabilities
-In this section, we introduce a simple but representative capability machine with linear capabilities, that we call \trgcm{} (Linear Capability Machine).
-\trgcm{} is mainly inspired by CHERI~\citep{watson_cheri:_2015} with linear capabilities as the main addition.
-For simplicity, \trgcm{} assumes an infinite address space and unbounded integers.
-% \lau{Do we have a good reason to assume an infinite address space for this work?
-%   We do not model malloc, so we do not need to worry about what happens when malloc runs out of memory.}
-
-%%% Capabilities
-The concept of a capability is the cornerstone of any capability machine.
-In its simplest form, a capability is a permission and a range of authority.
-The permission dictates the operations the capability can be used for, and the range of authority specifies the range of memory it can act upon.
-% Permissions and Range of authority
-The capabilities of \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (as defined in Figure~\ref{fig:target-syntax} along with the rest of the syntax of \trgcm{}). Here $\var{perm}$ is the permission, and $[\var{base},\var{end}]$ is the range of authority.
-The available permissions are read-write-execute ($\rwx$), read-write ($\rw$), read-execute ($\rx$), read-only ($\ro$), and null-permission ($\noperm$), ordered by $\le$ as illustrated in Figure~\ref{fig:perm-hier}.
-% Pointer and linearity
-In addition to the permission and range, capabilities also have a current address $\var{addr}$ and a linearity $\var{lin}$.
-The linearity $\lin$ is either $\normal$ for traditional capabilities $\linear$ for linear ones.
-% What is linear capabilities, split/splice
-A linear capability is a capability that cannot be duplicated.
-This is enforced dynamically on the capability machine, so when a linear capability is moved between registers or memory, the source register or memory location is cleared.
-The non-duplicability of linear capabilities means that a linear capability cannot become aliased if it wasn't to begin with.
-
-\begin{wrapfigure}{r}{0.28\linewidth}
-  \centering
-  \begin{tikzpicture}[main node/.style={}]
-    \node[main node] (rwx) {$\rwx$};
-    \node[main node] (rx) [below right of=rwx] {$\rx$};
-
-    \node[main node] (rw) [below left of=rwx,] {$\rw$};
-    \node[main node] (r) [below right of=rw] {$\readonly$};
-    \node[main node] (0) [below of=r] {$\noperm$};
-
-    \path[every node/.style={font=\sffamily\small}]
-
-    (rw) edge (r)
-    (r) edge (0)
-
-    (rwx) edge (rx)
-
-    (rw) edge (rwx)
-    (r) edge (rx);
-  \end{tikzpicture}
-
-  \caption{Permission hierarchy}
-  \label{fig:perm-hier}
-\end{wrapfigure}
-
-%%% Seals
-% KJAA: Here I am still missing an intuition of what a seal 'is' -- why the range, why the seal as an 'entity'?
-
-Any reasonable capability machine needs a way to set up boundaries between security domains as well as a way to cross the boundaries in a way where each domain retains their authority.
-%The M-Machine~\citep{Dally1997Memo59} inspired capability machine in \citet{skorstengaard_reasoning_2017} uses enter-capabilities to achieve this.
-On \trgcm{} we have CHERI-like sealed capabilities to achieve this~\cite{watson_cheri:_2015}.
-Syntactically, sealed capabilities add two types of capabilities.
-% seals
-A set of seals $\seal{\sigma_\var{base},\sigma_\var{end},\sigma}$ consists of a range of available seals $[\sigma_\var{base},\sigma_\var{end}]$ and the current seal $\sigma$, all represented by a natural number.
-% sealed caps
-A sealed capability $\sealed{\sigma,\vsc}$ consists of a sealable capability $\vsc$ and the seal $\sigma$ it has been sealed with.
-Sealable capabilities $\vsc \in \SealableCaps$ are sets of seals or memory capabilities.
 
 %%% Domains
 Words on \trgcm{} are capabilities and data (represented by $\ints$).
