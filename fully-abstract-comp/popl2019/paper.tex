@@ -199,10 +199,10 @@ Also in the presence of higher-order values (e.g. function pointers, objects etc
 It is not clear how this can be done efficiently in the presence of large amounts of components.
 Finally, this approach does not allow passing stack references between components.
 
-A more scalable approach retains a single stack that is shared between components.
+A more scalable approach retains a single stack shared between components.
 Enforcing WBCF and LSE in this approach requires a way to temporarily provide stack and return capabilities to an untrusted component and to revoke them after it returns.
 While capability revocation is expensive in general, some capability machines offer restricted forms of revocation that can be implemented efficiently.
-For example, CHERI offers a form of {\itshape local} capabilities that, briefly, can only be stored in registers or on the stack but not in other parts of memory.
+For example, CHERI offers a form of {\itshape local} capabilities that can only be stored in registers or on the stack but not in other parts of memory.
 \citet{skorstengaard_reasoning_2017} has demonstrated that by making the stack and return pointer local, and by introducing a number of security checks and measures, the two properties can be guaranteed.
 % KJAA: 'Boundary crossing' is new here.
 However, a problem with this approach is that revoking the local stack and return capabilities on every security boundary crossing requires clearing the entire unused part of the stack, an operation that may be prohibitively expensive.
@@ -271,7 +271,7 @@ This paper is accompanied by a technical report~\citep{technical_report} with th
 \label{sec:cap-mach-w-seal-and-lin}
 % Brief intro to section and this cap machine:
 % Cap machine inspired by CHERI, but with linear capabilities
-\begin{wrapfigure}{r}{0.28\linewidth}
+\begin{wrapfigure}{r}{0.26\linewidth}
   \centering
   \begin{tikzpicture}[main node/.style={}]
     \node[main node] (rwx) {$\rwx$};
@@ -306,14 +306,14 @@ The concept of a capability is the cornerstone of any capability machine.
 In its simplest form, a capability is a permission and a range of authority.
 The permission dictates the operations the capability can be used for, and the range of authority specifies the range of memory it can act upon.
 % Permissions and Range of authority
-The capabilities of \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (as defined in Figure~\ref{fig:target-syntax} along with the rest of the syntax of \trgcm{}). Here $\var{perm}$ is the permission, and $[\var{base},\var{end}]$ is the range of authority.
+The capabilities on \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (defined in Figure~\ref{fig:target-syntax} with the rest of the syntax of \trgcm{}). Here $\var{perm}$ is the permission, and $[\var{base},\var{end}]$ is the range of authority.
 The available permissions are read-write-execute ($\rwx$), read-write ($\rw$), read-execute ($\rx$), read-only ($\ro$), and null-permission ($\noperm$), ordered by $\le$ as illustrated in Figure~\ref{fig:perm-hier}.
 % Pointer and linearity
 In addition to the permission and range, capabilities also have a current address $\var{addr}$ and a linearity $\var{lin}$.
-The linearity $\lin$ is either $\normal$ for traditional capabilities $\linear$ for linear ones.
+The linearity is either $\normal$ for traditional capabilities or $\linear$ for linear ones.
 % What is linear capabilities, split/splice
 A linear capability is a capability that cannot be duplicated.
-This is enforced dynamically on the capability machine, so when a linear capability is moved between registers or memory, the source register or memory location is cleared.
+This is enforced dynamically on the capability machine, so when a linear capability is moved between registers or memory, the source is cleared.
 The non-duplicability of linear capabilities means that a linear capability cannot become aliased if it wasn't to begin with.
 
 %%% Seals
@@ -556,7 +556,7 @@ In Section~\ref{sec:form-secur-with}, we will get back to how a program is instr
 %Further, we will only consider a specific class of well-formed components, but we will get back to this.
 
 Some simplifications has been made in this presentation of \trgcm{}. See \citet{technical_report} for the details.
-\begin{figure}[htb]
+\begin{figure}[tb]
   \centering
   \[
     \begin{array}{rl c rl c rl}
@@ -1554,8 +1554,10 @@ The logical relation has two expression relations.
 They both relate capabilities that can safely be used for execution in configurations that satisfy a given world.
 The first one $\mathcal{E}$ is standard as logical relations for capability machines go: It takes related register files and related memories, plugs the capabilities in question into the program counter, and requires it to observably behave the same way.
 In our case, the only observable thing on the capability machines is termination.
-The observation relation $\mathcal{O}$ defines when a configuration observably approximates another\footnote{While we present this as a logical relation, it is in fact two logical approximations. However, the only difference between the two approximations is in the observation approximation.}.
-\begin{align*}
+The observation relation $\mathcal{O}$ (Figure~\ref{fig:obs-rel}) defines when a configuration observably approximates another\footnote{While we present this as a logical relation, it is in fact two logical approximations. However, the only difference between the two approximations is in the observation approximation.}.
+\begin{figure}[htb]
+  \centering
+  \begin{align*}
   \lro[\preceq,(\ta,\stkb,\_,\_)] ={}&\{ \npair{\left(\src{\Phi_S},\Phi_T\right)} \mid
   \forall i \leq n \ldotp
     \src{\Phi_S \sterm[i]{\ta,\stkb}} \Rightarrow \Phi_T \trg{\term} \}\\
@@ -1563,6 +1565,9 @@ The observation relation $\mathcal{O}$ defines when a configuration observably a
   \forall i \leq n \ldotp 
     \Phi_T \trg{\term[i]} \Rightarrow \src{\Phi_S \sterm{\ta,\stkb}} \}
 \end{align*}
+\caption{The observation approximations.}
+\label{fig:obs-rel}
+\end{figure}
 With sealed capabilities in the mix, we also need to be able to say that \texttt{xjmp}s are safe, but a sealed code capability only needs to be safe to execute when it has access to the related data capability.
 Further, \texttt{xjmp}s are used to invoke return pairs which on \srccm{} is somewhat involved.
 This is handled uniformly by the \texttt{xjmp}-expression relation $\mathcal{E}_{\mathrm{xjmp}}$.
@@ -2035,7 +2040,7 @@ The capability machine formalized in Section~\ref{sec:cap-mach-w-seal-and-lin} i
 This is a recent, relatively mature capability machine which combines capabilities with a virtual memory approach in the interest of backwards compatibility and gradual adoption.
 For simplicity, we have omitted features of CHERI that were not needed for \stktokens{} (e.g.\ local capabilities, virtual memory).
 
-Plenty of other papers enforce well-bracketed control flow at a low level but most are restricted to preventing particular types of attacks and enforce only partial correctness of control flow.
+Plenty of other papers enforce WBCF at a low level but most are restricted to preventing particular types of attacks and enforce only partial correctness of control flow.
 This includes particularly the line of work on \emph{control-flow integrity}~\citep{abadi_control-flow_2005}.
 This technique prevents certain classes of attacks by sanitizing addresses before direct and indirect jumps based on static information about a program's control graph and a shadow stack.
 Contrary to \stktokens{}, CFI can be implemented on commodity hardware rather than capability machines.
