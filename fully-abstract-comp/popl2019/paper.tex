@@ -73,7 +73,8 @@
 \renewcommand{\comp}{\var{comp}}
 \renewcommand{\memSatStack}[3][n]{\npair[#1]{#2} \in \typesetlr{S}(#3)}
 \renewcommand{\memSatFStack}[3][n]{\npair[#1]{#2} \in \typesetlt{F}(#3)}
-\renewcommand{\Worlds}{\World_{\mathrm{call\ stack}}}
+\renewcommand{\Worlds}{\World_{\mathrm{call\_stack}}}
+\renewcommand{\Worldfs}{\World_{\mathrm{free\_stack}}}
 
 
 \newcommand{\xjmpres}[1]{\plainfun{xjmpRes}{#1}}
@@ -130,7 +131,7 @@
 \begin{abstract}
   We propose and study \stktokens{}: a new calling convention that provably enforces well-bracketed control flow and local state encapsulation on a capability machine.
   The calling convention is based on linear capabilities: a type of capabilities that are prevented from being duplicated by the hardware.
-  In addition to designing and formalizing this new calling convention, we also contribute a new way to formalise and prove that it effectively enforces well-bracketed control flow and local state encapsulation using what we call a fully abstract overlay semantics.
+  In addition to designing and formalizing this new calling convention, we also contribute a new way to formalize and prove that it effectively enforces well-bracketed control flow and local state encapsulation using what we call a fully abstract overlay semantics.
 \end{abstract}
 
 
@@ -239,7 +240,7 @@ In this paper, we make the following contributions:
 \begin{itemize}
 \item We present \trgcm{}: A formalization of a simple CHERI-like capability machine with linear capabilities (Section~\ref{sec:cap-mach-w-seal-and-lin}).
 \item We present a new calling convention \stktokens{} that provably guarantees LSE and WBCF on \trgcm{} (Section~\ref{sec:stktokens-explained}).
-\item We present a new way to formalise these guarantees based on a novel technique called \textit{fully-abstract overlay semantics} and we prove the results. This includes:
+\item We present a new way to formalize these guarantees based on a novel technique called \textit{fully-abstract overlay semantics} and we prove the results. This includes:
   \begin{itemize}
   \item defining \srccm{}: an overlay semantics for \trgcm{} with built-in LSE and WBCF (Section~\ref{sec:form-secur-with})
   \item proving full-abstraction for a compiler from \srccm{} to \trgcm{} (Section~\ref{sec:fa-proof}) by
@@ -306,7 +307,7 @@ In its simplest form, a capability is a permission and a range of authority.
 The permission dictates the operations the capability can be used for, and the range of authority specifies the range of memory it can act upon.
 % Permissions and Range of authority
 The capabilities on \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (defined in Figure~\ref{fig:target-syntax} with the rest of the syntax of \trgcm{}). Here $\var{perm}$ is the permission, and $[\var{base},\var{end}]$ is the range of authority.
-The available permissions are read-write-execute ($\rwx$), read-write ($\rw$), read-execute ($\rx$), read-only ($\ro$), and null-permission ($\noperm$), ordered by $\le$ as illustrated in Figure~\ref{fig:perm-hier}.
+The available permissions are read-write-execute ($\rwx$), read-write ($\rw$), read-execute ($\rx$), read-only ($\ro$), and null-permission ($\noperm$) ordered by $\le$ as illustrated in Figure~\ref{fig:perm-hier}.
 % Pointer and linearity
 In addition to the permission and range, capabilities also have a current address $\var{addr}$ and a linearity $\var{lin}$.
 The linearity is either $\normal$ for traditional capabilities or $\linear$ for linear ones.
@@ -1396,7 +1397,7 @@ We first give an informal presentation of the logical relation before we return 
 \label{subsec:logical-relation}
 In this section, we present the logical relation.
 Unfortunately, for space reasons, we do not give a comprehensive description of it.
-Instead we highlight the parts specific to the logical relation and refer to~\citet{technical_report} for details and to~\citet{skorstengaard_reasoning_2017} for a more comprehensive description of a logical relation for a capability machine.
+Instead we highlight specific parts to the logical relation and refer to~\citet{technical_report} for details and to~\citet{skorstengaard_reasoning_2017} for a more comprehensive description of a logical relation for a capability machine.
 Finally, for presentation, we will sometimes omit details, like step indexing, that are important for correctness but otherwise not interesting.
 
 \subsubsection{Worlds}
@@ -1407,13 +1408,13 @@ All of the sub-worlds are partial maps from $\RegionName$ (modelled as natural n
 The regions differ for each of the sub-worlds based on what they model.
 Generally, the regions consist of a region type and a world indexed relation that specifies the memories allowed by the region.
 The region types model linearity as they indicate how the memory can be referenced.
-We have three types of regions: $\pure$, $\spatial$, and $\spatialo$.
-The $\pure$ regions can be referenced by normal capabilities, the $\spatialo$ regions by linear capabilities, and the $\spatial$ regions by nothing.
+We have four types of regions: $\pure$, $\spatial$, $\spatialo$, and $\revoked$.
+The $\pure$ regions can be referenced by normal capabilities, the $\spatialo$ regions by linear capabilities, and the $\spatial$ and $\revoked$ regions by nothing.
 To prevent duplication of linear capabilities, two linear capabilities cannot address the same $\spatialo$, so ownership has to be distributed between worlds.
 To this end, we have the partial operation $W_1 \oplus W_2$ that requires $W_1$ and $W_2$ to be the same except that they have disjoint ownership: $\pure$ regions can be present in both worlds, but a $\spatialo$ region can only be present in one.
 Such a region must then be $\spatial$ in the other world.
 %We define $W_1 \uplus W_2$ which joins together two worlds with disjoint regions.
-This is important because the logical relation will require that valid memories are backed by a suitable memory segment, even when the memory does not own them (for example, when a linear capability for it is in one of the registers).
+This is important because the logical relation will require that valid memories are backed by a suitable memory segment even when the memory does not own them (for example, when a linear capability for it is in one of the registers).
 Revocation of linear capabilities is supported in a certain way using the $\revoked$ region.
 Finally, $\pure$ regions can also claim ownership of a seal by defining a seal interpretation for it.
 The seal interpretation is a world-indexed relation that must hold for all sealables signed by this seal.
@@ -1441,7 +1442,7 @@ The world for the heap can contain every kind of region because it can be addres
 The call stack and free stack are only ever addressed by linear capabilities, so their sub-worlds only allow $\Regions$.
 Regions in $\Worlds$ correspond to a stack frame, so they contain the return address for this frame.
 
-Define worlds as $\World = (\Worldh \times \Worlds \times \Worldfs)$. They are recursive as they contain world indexed relations. Recursive worlds are common in Kripke models, and we use the method of \citet{Birkedal:2011:SKM:1926385.1926401,Birkedal_taste_2014} to construct $\Wor$ which solves the circularity\footnote{We have cheated in the presentation and included the solution to the circularity already.}.
+Define worlds as $\World = \Worldh \times \Worlds \times \Worldfs$. They are recursive as they contain world indexed relations. Recursive worlds are common in Kripke models, and we use the method of \citet{Birkedal:2011:SKM:1926385.1926401,Birkedal_taste_2014} to construct $\Wor$ which solves the circularity\footnote{We have cheated in the presentation and included the solution to the circularity already.}.
 % \begin{lemma}
 %   \label{thm:recursive-domain-eq}
 %   There exists a c.o.f.e.\ $\Wor$ and preorder $\future$ such that $(\Wor,\future)$ is a preordered c.o.f.e.\and there exists an isomorphism $\xi$ such that
@@ -1452,7 +1453,7 @@ Define worlds as $\World = (\Worldh \times \Worlds \times \Worldfs)$. They are r
 % \end{lemma}
 The future world relation $\future$ is fairly standard.
 It is extensional and requires all but $\spatial$ regions to stay the same type in future worlds.
-$\spatial$ regions can become $\spatialo$ or $\revoked$.
+The $\spatial$ regions can become $\spatialo$ or $\revoked$.
 
 
 \subsubsection{Code region}
@@ -1487,15 +1488,15 @@ For now it suffices to know that the untrusted value relation contains everythin
 %   \right\}
 % \end{multline*}
 
-The seal interpretation function $H^\mathrm{code,\square}_\sigma \; (\dots)$ dictates what the return seals $\sigrets$ and closure seals $\sigclos$ can seal.
+The seal interpretation function $H^\mathrm{code,\square}_\sigma \; (\dots)$ dictates what the return seals $\sigrets$ and closure seals $\sigcloss$ can seal.
 The return seals can only be used to seal return pointers that corresponds to the return from a call in the code of the region.
 Code return pointers must point to the first address after a call, and the call must be associated with the return seal in question.
-The corresponding capability on \trgcm{} should point to the address just after the \texttt{xjmp} in the call code (figure~\ref{fig:call-code}) as it needs to perform the safety checks that are built into the call on \srccm{}.
-The code return pointer corresponds to a normal capability which means that it can be reused but always to return from the same call.
+The corresponding capability on \trgcm{} should point to the address just after the \texttt{xjmp} in the call code (Figure~\ref{fig:call-code}) as it needs to perform the safety checks that are built into the call on \srccm{}.
+The code return pointer corresponds to a normal capability which means that it can be reused but only to return from the same call.
 Because of this, the code pointer is not associated with any specific call frame as it can be used by any data return pointer generated from the same call point.
 Reuse of return pairs is prevented by the data return pointer being linear, so the seal interpretation function relates data return pointers to linear capabilities.
-It also requires the data return pointer to correspond to a $\spatialo$ region for one of the stack frames on the call stack.
-The return address that is part of this region in $\Worlds$, must be the return address of the call that the return seal is affiliated with.
+It also requires the data return pointer to refer to a $\spatialo$ region for one of the stack frames on the call stack.
+The return address of this region in $\Worlds$ must be the return address of the call that the return seal is affiliated with.
 \begin{multline*}
   H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; \; \sigma \; \hat{W}= \\
   \begin{array}[t]{l}
@@ -1529,7 +1530,7 @@ The return address that is part of this region in $\Worlds$, must be the return 
 Unlike return seals, closure seals are allowed in both trusted and untrusted components, but we cannot allow them to use closure seals to seal the same things.
 If we allowed this, then a trusted component could seal a read-only capability for its code (i.e.\ access to return seals) with an untrusted closure seal and give it to the untrusted component which can unseal it with \texttt{xjmp}.
 The closure seals in untrusted code should therefore only be used to seal things from the untrusted value relation, i.e.\ things that are safe to transfer to an untrusted component.
-The trusted closure seals can by used to seal things from the untrusted value relation.
+The trusted closure seals can be used to seal things from the untrusted value relation.
 This allows trusted seals to seal capabilities for the trusted code which is necessary in order to create a new closure.
 
 % and
@@ -1603,14 +1604,14 @@ Register files are related either by a trusted or untrusted relation $\mathcal{R
 The register-file relation splits the ownership of $W$ between the registers as linear capability need a spatially owned region; but to prevent aliasing, the they cannot depend on the same spatially owned region.
 % memory relation
 The memory on \srccm{} consists of a heap $\ms_S$, a call stack $\stk$ and a free stack $\ms_\stk$.
-This relates to a memory $\ms_T$ on \trgcm{} in a world $W$ if we can split $\ms_T$ into three parts that corresponds with the view \srccm{} provides on the memory.
-Each of the three partitions of $\ms_T$ must be related to the three parts of \srccm{} memory under the relevant sub-worlds of $W$.
+This relates to a memory $\ms_T$ on \trgcm{} in a world $W$ if we can split $\ms_T$ into three parts that correspond with the view \srccm{} provides on the memory.
+Each of the three partitions of $\ms_T$ must be related to one of the three parts of \srccm{} memory under the relevant sub-world of $W$.
 The heap $\ms_S$ relates to the heap partition of $\ms_T$ in the standard way, i.e.\ the two memories can be partitioned, so they satisfy all the regions of the heap world.
-The free stack $\ms_\stk$ relates to the free stack partition of $\ms_T$ in the standard way, but with respect to the free stack world.
+The free stack $\ms_\stk$ also relates to the free stack partition of $\ms_T$ in the standard way but with respect to the free stack world.
 %Further, the address $\stkb$ should always be an address of the free stack (the return token always has authority over $\stkb$), so it must be one of the addresses of $\ms_\stk$.
-The call stack $\stk$ relates to the call stack partition of $\ms_T$ if it can be split into parts relating each of the stack frames.
-Further, as each of the stack frames correspond to a slot in the return order, none of the stack frames should be empty.
-It is the physical location of a stack frame that determines its order in the call stack, so the order must be preserved in the actual memory.
+The call stack $\stk$ relates to the call stack partition of $\ms_T$ if it can be split into parts related to each of the stack frames.
+Further, as each of the stack frames corresponds to a slot in the return order none of the stack frames should be empty.
+It is the physical location of a stack frame that determines its order in the call stack, so the order must be preserved by the partitions of $\ms_T$.
 
 % %the topmost stack frame should have memory addresses smaller than (the stack grows downwards) the addresses all of the other stack frame, the next and so on.
 % A memory on \trgcm{} $\ms_T$ is related to a heap, call stack and free stack on \srccm{} if the following is possible: $\ms_T$ can be split in three disjoint parts.
@@ -1629,19 +1630,19 @@ It is the physical location of a stack frame that determines its order in the ca
 
 \subsubsection{Value relations}
 The purpose of the value relations is twofold: It relates the words on \srccm{} to the words they correspond to on \trgcm{}, and it defines what pairs of words are safe, i.e.\ are unable to break the guarantees of the capability machines including the LSE and WBCF guaranteed by \srccm{}.
-As previously explained, we try to ensure LSE and WBCF for some trusted code that we expect to behave reasonable, e.g.\ by treating return seals in a reasonable way.
-This means that it is safe to give return seals to trusted code; but at the same time, we have some code that we do not trust and that we want to guarantee LSE and WBCF against.
-This means that there is a difference between what is safe to give to the trusted code and the untrusted code which we capture by having a trusted and untrusted value relation.
+As previously explained, we try to ensure LSE and WBCF for some trusted code that we expect to behave reasonably, e.g.\ by handling return seals in a safe way.
+This means that it is safe to give return seals to trusted code; but at the same time, we have some code that we do not trust and want to guarantee LSE and WBCF against.
+This means that there is a difference between what is safe to give to the trusted code and the untrusted code which we capture by having a trusted and an untrusted value relation.
 The two value relations are sketched in Figure~\ref{fig:value-relation}.
 
-The untrusted value relation relates words that can safely be given to untrusted code.
+The untrusted value relation relates words from the two machines that can safely be given to untrusted code.
 Data is always safe, and a piece of data relates to itself.
 A stack pointer is related to a linear capability with the same (non-executable) permission, range of authority, and current address.
-The stack pointer should only be able to produce safe words, so a stack pointer with read permission can only produce safe words, i.e.\ words in $\mathcal{V}_\untrusted$, and a stack pointer with write permission can at least write safe words.
-Regions model the contents of memory, so to determine safety of a stack pointer there must be an appropriate spatially owned region in the free stack part of the world.
-Syntactically equal memory capabilities are related in a similar way to stack capabilities when they have read-write permission.
+A safe stack pointer with read permission should only be able to produce safe words, i.e.\ words in $\mathcal{V}_\untrusted$, and a safe stack pointer with write permission can at least write safe words.
+Regions model the contents of memory, so to determine safety of a stack pointer there must be an appropriate spatially owned region in the free stack sub-world.
+Syntactically equal memory capabilities are related in a similar way to stack capabilities when they have read (and write) permission.
 The difference is that memory capabilities point to the heap rather than the free stack, so the regions they depend on are picked from the heap sub-world.
-An executable memory capability should always point to code which means that there should be a code region governing the memory it points to.
+An executable memory capability should always point to code which means that there should be a code region governing the memory it references.
 The trusted return seals and closure seals cannot be given safely to untrusted code, so a set of seals is only in the untrusted value relation when it is disjoint from those, and they may only be used to seal things in $\mathcal{V}_\untrusted$.
 % The write condition is called $\stackWriteCond{}$
 % \begin{multline*}
@@ -1656,7 +1657,7 @@ The trusted return seals and closure seals cannot be given safely to untrusted c
 % \end{multline*}
 When a piece of untrusted code is called, it is passed a return pair consisting of two sealed capabilities.
 Calling untrusted code should be safe, so sealed capabilities must be related in the untrusted value relation.
-The seal interpretation function decides what a seal can be used for, so for a pair $(\src{\sealed{\sigma,\vsc_S}}, \sealed{\sigma,\vsc_T})$ to be in the untrusted value relation, $(\vsc_S,\vsc_T)$ must be in the seal interpretation function for $\sigma$.
+The seal interpretation function decides what a seal can be used for, so for a pair $(\src{\sealed{\sigma,\vsc_S}}, \sealed{\sigma,\vsc_T})$ to be in the untrusted value relation, $(\src{\vsc_S},\vsc_T)$ must be in the seal interpretation function for $\sigma$.
 Further, it should be safe to use the sealed capability, i.e.\ jump to it with \texttt{xjmp}, which is exactly what $\mathcal{E}_{\mathrm{xjmp}}$ expresses, so when paired up with another pair from the seal interpretation function for $\sigma$ the quadruple must be in $\mathcal{E}_{\mathrm{xjmp}}$.
 
 \begin{figure}[htb]
@@ -1747,7 +1748,7 @@ Further, it should be safe to use the sealed capability, i.e.\ jump to it with \
 
 The trusted value relation includes everything that the untrusted value relation contains and a few extra things.
 Trusted code uses the return seals and the closure seals (in a responsible way), and therefore sets of seals with trusted return seals and closure seals are in the trusted value relation.
-In order for trusted code to even execute, it needs to use an executable memory capability for the trusted code, so such capabilities are in the untrusted value relation.\footnote{Note that code capabilities for trusted code is not allowed in the untrusted value relation as it could be used to read return seals that are not in the untrusted value relation.}
+In order for trusted code to even execute, it needs to use an executable memory capability for the trusted code, so such capabilities are in the trusted value relation.\footnote{Note that code capabilities for trusted code is not allowed in the untrusted value relation as it could be used to read return seals that are not in the untrusted value relation.}
 
 % \[
 %   \xReadCond{W} = \left\{ \npair{A} \middle|
@@ -1765,23 +1766,22 @@ In order for trusted code to even execute, it needs to use an executable memory 
 With the logical relation defined, we state the fundamental theorem of logical relations (FTLR).
 \begin{lemma}[FTLR]
   \label{thm:ftlr}
-  For all $n,W,\lin,\baddr,\eaddr,\aaddr$,
-  if\ $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$
-  and either $[\baddr,\eaddr] \subseteq \ta$ and $({((\rx,\normal),\baddr,\eaddr,\aaddr)}$ behaves reasonably up to $n$ steps or
+  If\ $\npair{[\baddr,\eaddr]} \in \xReadCond{W}$
+  and either $[\baddr,\eaddr] \subseteq \ta$ and\\ $\src{((\rx,\normal),\baddr,\eaddr,\aaddr)}$ behaves reasonably up to $n$ steps or
 $[\baddr,\eaddr] \mathrel{\#} \ta$,
 then 
   \[
-    \npair{\left(((\rx,\normal),\baddr,\eaddr,\aaddr), ((\rx,\normal),\baddr,\eaddr,\aaddr)\right)} \in \lre(W) \qedhere
+    \npair{\left(\src{((\rx,\normal),\baddr,\eaddr,\aaddr)}, ((\rx,\normal),\baddr,\eaddr,\aaddr)\right)} \in \lre(W) \qedhere
   \]
 \end{lemma}
-Roughly speaking, the FTLR says that any executable capability used for execution in a safe environment won't break the capability machine guarantees.
+Roughly speaking, the FTLR says: any executable capability used for execution in a safe environment won't break the capability machine guarantees.
 This is, however, only true for syntactically well-formed code, which the $\xReadCond{}$ entails, and for trusted code the semantic reasonability condition must also be satisfied.
-The proof of the FTLR is done by a nested induction where each instruction that could be executed is considered.
+The proof of the FTLR is done by a nested induction where each instruction that could be executed is proven safe.
 The lemma is not directly used in the proof sketch we present in Section~\ref{subsec:proof-sketch}, but it is crucial to the proofs of the lemmas in that section.
 
 \subsection{Full abstraction proof sketch}
 \label{subsec:proof-sketch}
-The logical relation presented in Section~\ref{subsec:logical-relation} is lifted to a component relation $\mathcal{C}$ (we will also use $\cong$ to denote this relation) and an executable configuration relation $\mathcal{EC}$ in a straight forward.
+The logical relation presented in Section~\ref{subsec:logical-relation} is lifted to a component relation $\mathcal{C}$ (we will also use $\cong$ to denote this relation) and an executable configuration relation $\mathcal{EC}$ in a straight forward manner.
 The component relation relates components to themselves which makes sense as well-formed components should contain no \srccm{} specific constructs.
 We prove a number of lemmas about the relations.
 The first is a FTLR for components that says (1) all well-formed untrusted components are related to themselves in the component relation, and (2)  all well-formed and reasonable trusted components are related to themselves in the component relation.
@@ -1813,16 +1813,16 @@ The first is a FTLR for components that says (1) all well-formed untrusted compo
 \begin{lemma}[FTLR for components]
   \label{lem:ftlr-comps}
   If $\comp$ is a well-formed component, i.e. $\wdjud{\comp}$ and either
-    $\dom(\comp.\mscode) \subseteq \ta$ and $\comp$ is a reasonable component; or
+    $\dom(\comp.\mscode) \subseteq \ta$ and $\src{\comp}$ is a reasonable component; or
     $\dom(\comp.\mscode) \mathrel{\#} \ta$,
   then there exists a $W$ such that
-  $\npair{(\comp,\comp)} \in \lrcomp(W)$
+  $\npair{(\src{\comp},\comp)} \in \lrcomp(W)$
 \end{lemma}
 The next is a compatibility lemma for plugging that says: given a context and component each related to itself in the component relation, plugging the context with the component will give an executable configuration in the executable configuration relation.
 \begin{lemma}[Compatibility lemma for context plugging]
   \label{lem:compat-context-plug}
   If $\npair{\stpair{\context}{\context}}\in\lrcomp(W_1)$ and $\npair{\stpair{\comp}{\comp}} \in \lrcomp(W_2)$, then
-  $\npair[n']{(\plug{\context_S}{\comp_S},\plug{\context_T}{\comp_T})} \in \lrec(W_1 \uplus W_2)$, for all $n' < n$.
+  $\npair[n']{(\plug{\src{\context_S}}{\src{\comp_S}},\plug{\context_T}{\comp_T})} \in \lrec(W_1 \uplus W_2)$, for all $n' < n$.
 \end{lemma}
 Finally, we have an adequacy lemma for the execution configuration relation.
 This lemma says that if an \srccm{} configuration approximates a \trgcm{} configuration, and the \trgcm{} configuration terminates, then so does the \srccm{} configuration.
@@ -1848,25 +1848,25 @@ The symmetric case is also true.
   \label{lem:adequacy}
   If $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\preceq,\gc](W)$ and
  $i \leq n$ and
-and $\Phi_S \sterm[i]{\gc}$,
+and $\src{\Phi_S} \sterm[i]{\gc}$,
   then $\Phi_T\term$.
 
   Also, if
  $\npair{\stpair{\Phi}{\Phi}}\in\lrec[\succeq,\gc](W)$ and
  $i \leq n$
 and $\Phi_T \term[i]$,
-  then $\Phi_S\sterm{\gc}$.
+  then $\src{\Phi_S}\sterm{\gc}$.
 \end{lemma}
 We use these three lemmas to prove Theorem~\ref{thm:full-abstraction}
 \begin{proof}[Proof of Theorem~\ref{thm:full-abstraction}]
   The proof of both directions are very similar, so we only show the right direction.
-  W.l.o.g.\ it suffices to show one direction of the contextual equivalence, so we assume ${\plug{\trg{\context}}{\src{\comp_1}} \term[]{}}$.
+  We need to show the \trgcm{} contextual equivalence, so w.l.o.g\ assume ${\plug{\trg{\context}}{\src{\comp_1}} \term[]{}}$.
   The proof is sketched in Figure~\ref{fig:fa-proof-sketch}.
-  By the statement of Theorem~\ref{thm:full-abstraction}, we may assume that the trusted components $\comp_1$ and $\comp_2$ are well-formed and reasonable.
-  Further, by $\tconeq$ we may assume the context $\context$ is well-formed.
-  We prove arrow (1) in the figure by using the mentioned assumptions about $\comp_1$ and $\context$ along with Lemma~\ref{lem:ftlr-comps}, \ref{lem:compat-context-plug}, and \ref{lem:adequacy}.
+  By the statement of Theorem~\ref{thm:full-abstraction}, we may assume that the trusted components $\src{\comp_1}$ and $\src{\comp_2}$ are well-formed and reasonable.
+  Further, by $\tconeq$ we may assume the context $\trg{\context}$ is well-formed.
+  We prove arrow (1) in the figure by using the mentioned assumptions about $\src{\comp_1}$ and $\trg{\context}$ along with Lemma~\ref{lem:ftlr-comps}, \ref{lem:compat-context-plug}, and \ref{lem:adequacy}.
   Now we know that ${\plug{\trg{\context}}{\src{\comp_1}} \sterm[]{\gc}{}}$, so by the assumption that $\comp_1$ and $\comp_2$ are contextually equivalent on \srccm{} we get ${\plug{\trg{\context}}{\src{\comp_2}} \sterm[]{\gc}{}}$, i.e.\ arrow (2) in the figure.
-  To prove arrow (3), we again apply Lemma~\ref{lem:ftlr-comps}, \ref{lem:compat-context-plug}, and \ref{lem:adequacy}; but this time, we use the assumption that $\comp_2$ is well-formed and reasonable and that $\context$ is well-formed.
+  To prove arrow (3), we again apply Lemma~\ref{lem:ftlr-comps}, \ref{lem:compat-context-plug}, and \ref{lem:adequacy}; but this time, we use the assumption that $\src{\comp_2}$ is well-formed and reasonable and that $\trg{\context}$ is well-formed.
 \end{proof}
 
 \renewcommand{\comp}{C}
