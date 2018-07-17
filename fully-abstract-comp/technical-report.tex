@@ -1221,19 +1221,22 @@ We define a component as follows:
                &\mid  (\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})
 \end{align*}
 \clearpage
-We define inductively when a component is valid ($\vdash \var{comp}$) by the below inference rules:
+We define inductively when a component is valid ($\ta \vdash \var{comp}$) by the below inference rules:
 \begin{mathpar}
   \inference{
     \mscode(a) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr} & [\sigma_\baddr,\sigma_\eaddr] = (\sigrets \cup \sigcloss)
   }{
-    \sigrets,\sigrets[\mathrm{owned}],\sigcloss \vdash_{\mathrm{comp-code}} \mscode,a
+    \sigrets,\sigrets[\mathrm{owned}],\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode,a
   }
   \and
   \inference{
     \mscode(a) \in \ints\\
-    \mscode([a \cdots a + \calllen-1]) = \scall[0..\calllen-1]{\offpc,\offsigma}{r_1}{r_2} \Rightarrow (\mscode(a+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr} \wedge \sigma_\baddr+\offsigma \in \sigrets[\mathrm{owned}])
-  }{
-    \sigrets,\sigrets[\mathrm{owned}],\sigcloss \vdash_{\mathrm{comp-code}} \mscode,a
+{    \begin{multlined}
+      ([a \cdots a + \calllen-1] \subseteq \ta \wedge \mscode([a \cdots a + \calllen-1]) = \scall[0..\calllen-1]{\offpc,\offsigma}{r_1}{r_2})
+      \Rightarrow\\ (\mscode(a+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr} \wedge \sigma_\baddr+\offsigma \in \sigrets[\mathrm{owned}])
+    \end{multlined}
+}  }{
+    \sigrets,\sigrets[\mathrm{owned}],\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode,a
   }
   \and
   \inference{
@@ -1242,10 +1245,10 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
     \exists d_\sigma : \dom(\mscode) \rightarrow \powerset{\Seal} \ldotp
     \sigrets = \biguplus_{a \in \dom(\mscode)} d_\sigma(a) \tand\\
     \forall a \in \dom(\mscode) \ldotp 
-    \sigrets,d_\sigma(a),\sigcloss \vdash_{\mathrm{comp-code}} \mscode,a\\
+    \sigrets,d_\sigma(a),\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode,a\\
     \exists a \ldotp \mscode(a) = \seal{\sigma_\baddr,\sigma_\eaddr,\_} \wedge [\sigma_\baddr,\sigma_\eaddr] \neq \emptyset
   }{
-    \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode
+    \sigrets,\sigcloss,\ta\vdash_{\mathrm{comp-code}} \mscode
   }
 \end{mathpar}
 
@@ -1291,23 +1294,23 @@ We define inductively when a component is valid ($\vdash \var{comp}$) by the bel
     \dom(\mscode) = [\baddr,\eaddr]&
     [\baddr-1,\eaddr+1] \mathrel{\#} \dom(\msdata)\\
     \mspad = [\baddr-1\mapsto 0] \uplus [\eaddr+1 \mapsto 0]\\
-    \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode \\
+    \sigrets,\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode \\
     \exists A_\mathrm{own} : \dom(\msdata) \rightarrow \powerset{\dom(\msdata)} & \dom(\msdata) = A_{\mathrm{non-linear}} \uplus A_\linear \\
     A_\linear = \biguplus_{a \in \dom(\msdata)} A_{\mathrm{own}}(a) \\
     \forall a \in \dom(\msdata)\ldotp \dom(\mscode),A_{\mathrm{own}}(a),A_{\mathrm{non-linear}},\sigrets,\sigcloss \vdash_{\mathrm{comp-value}} \msdata(a)\\
     \overline{\var{export}} = \overline{s_{\mathrm{export}} \mapsto w_{\mathrm{export}}} & \overline{\var{import}} = \overline{a_{\mathrm{import}} \mapsfrom s_{\mathrm{import}}}& \{\overline{a_{\mathrm{import}}}\} \subseteq \dom(\msdata)\\
     \overline{\dom(\mscode), A_{\mathrm{non-linear}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-export}} w_{\mathrm{export}}}\\
-    \overline{s_{\mathrm{import}}} \mathrel{\#} \overline{s_{\mathrm{export}}} & (\dom(\mscode) \subseteq \ta) \vee (\dom(\mscode) \mathrel{\#} \ta \wedge \sigrets = \emptyset)&
+    \overline{s_{\mathrm{import}}} \mathrel{\#} \overline{s_{\mathrm{export}}} & (\emptyset \neq \dom(\mscode) \subseteq \ta) \vee (\dom(\mscode) \mathrel{\#} \ta \wedge \sigrets = \emptyset)&
     \dom(\msdata) \mathrel{\#} \ta
   }{
-    \vdash (\mscode\uplus \mspad,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
+    \ta \vdash (\mscode\uplus \mspad,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
   }
   \and
   \inference{
     \var{comp}_0 = (\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)\\
-    \vdash \var{comp}_0 & (\_ \mapsto c_{\mathrm{main},c}), (\_ \mapsto c_{\mathrm{main},d}) \in \overline{\var{export}}
+    \ta \vdash \var{comp}_0 & (\_ \mapsto c_{\mathrm{main},c}), (\_ \mapsto c_{\mathrm{main},d}) \in \overline{\var{export}}
   }{
-    \vdash (\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})
+    \ta \vdash (\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})
   }
 \end{mathpar}
 where the following definition is used
@@ -1413,6 +1416,24 @@ A context for a given component is any other component that can be linked with i
   When $\var{comp'}$ is a context for component $\var{comp}$ and $\var{comp}' \bowtie \var{comp} \rightsquigarrow \Phi$, 
   then we write $\plug{\var{comp'}}{\var{comp}}$ for the execution configuration $\Phi$.
 \end{definition}
+
+\begin{lemma}
+  \label{lem:context-trusted-addr-ampl}
+  For components $\context$ and $\comp$,
+  if
+  \begin{itemize}
+  \item $\emptyset \vdash \context$
+  \item $\dom(\comp.\mscode) \vdash \comp$
+  \item $\plug{\context}{\comp}$ is defined
+  \end{itemize}
+  Then
+  \[
+    \dom(\comp.\mscode) \vdash \context
+  \]
+\end{lemma}
+\begin{proof}
+  Follows by definition.
+\end{proof}
 
 \section{Compiler}
 \label{sec:compiler}
@@ -2251,7 +2272,7 @@ H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
       ([\baddr - 1, \eaddr + 1] \subseteq \ta \wedge \sigrets \subseteq \gsigrets \wedge \sigcloss \subseteq \gsigcloss \wedge \trust = \trusted) \vee \\
       \quad ([\baddr-1,\eaddr+1]\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted) \wedge \\
       \mspad = [\baddr-1 \mapsto 0] \uplus [\eaddr + 1 \mapsto 0]\wedge\\
-      \sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \code \wedge\\
+      \sigrets,\sigcloss,\ta \vdash_{\mathrm{comp-code}} \code \wedge\\
       \forall a \in \dom(\code)\ldotp\\
       \quad\npair{(\code(a),\code(a))} \in \lrvg{\trust}(\purePart{\xi(\hat{W})})
     \end{array}
@@ -3222,7 +3243,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   \label{lem:ftlr-comp-code}
   If
   \begin{equation*}
-    \sigrets,\sigrets[\mathrm{owned}],\sigcloss \vdash_{\mathrm{comp-code}} w
+    \sigrets,\sigrets[\mathrm{owned}],\sigcloss,\ta\vdash_{\mathrm{comp-code}} w
   \end{equation*}
   and
   \begin{itemize}
@@ -3235,7 +3256,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
 \begin{proof}
   By induction on
   \begin{equation*}
-    \sigrets,\sigrets[\mathrm{owned}],\sigcloss \vdash_{\mathrm{comp-code}} w
+    \sigrets,\sigrets[\mathrm{owned}],\sigcloss,\ta\vdash_{\mathrm{comp-code}} w
   \end{equation*}
   There are two cases to consider:
   \begin{itemize}
@@ -3261,9 +3282,9 @@ Note: we don't require the readcondition in the trusted case because trusted cod
     \end{itemize}
 
   \item $\mscode(a) \in \ints$ and
-    \begin{equation*}
-      \mscode([a \cdots a + \calllen-1]) = \scall[0..\calllen-1]{\offpc,\offsigma}{r_1}{r_2} \Rightarrow (\mscode(a+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr} \wedge \sigma_\baddr+\offsigma \in \sigrets[\mathrm{owned}])
-    \end{equation*}:
+    \begin{multline*}
+      ([a \cdots a + \calllen-1] \subseteq \ta \wedge\mscode([a \cdots a + \calllen-1]) = \scall[0..\calllen-1]{\offpc,\offsigma}{r_1}{r_2}) \Rightarrow\\ (\mscode(a+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr} \wedge \sigma_\baddr+\offsigma \in \sigrets[\mathrm{owned}])
+    \end{multline*}:
 
     Using $\mscode(a) \in \ints$, the result follows easily by definition.
   \end{itemize}
@@ -3447,7 +3468,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
   If
   \begin{itemize}
   \item $\gc = (\ta,\stkb,\gsigrets,\gsigcloss)$
-  \item $\var{comp}$ is a well-formed component, i.e. $\vdash \var{comp}$
+  \item $\var{comp}$ is a well-formed component, i.e. $\ta \vdash \var{comp}$
   \item One of the following holds:
     \begin{itemize}
     \item $\dom(\var{comp}.\mscode) \subseteq \ta$ and $\var{comp}$ is a reasonable component (see Section~\ref{sec:reasonability})
@@ -3471,12 +3492,12 @@ Note: we don't require the readcondition in the trusted case because trusted cod
     \var{comp} = (\mscode\uplus\mspad,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
   \end{equation*}
   Note that confusingly, $\var{comp}.\mscode = \mscode\uplus\mspad$, so the assumption about $\dom(\var{comp}.\mscode)$ should be interpreted properly.
-  We then know from $\vdash \var{comp}$ that 
+  We then know from $\ta \vdash \var{comp}$ that 
   \begin{itemize}
   \item $\dom(\mscode) = [\baddr,\eaddr]$
   \item $[\baddr-1,\eaddr+1] \mathrel{\#} \dom(\msdata)$
   \item $\mspad = [\baddr-1\mapsto 0] \uplus [\eaddr+1 \mapsto 0]$
-  \item $\sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \mscode$
+  \item $\sigrets,\sigcloss,\ta\vdash_{\mathrm{comp-code}} \mscode$
   \item $\exists A_\mathrm{own} : \dom(\msdata) \rightarrow \powerset{\dom(\msdata)}$
   \item $\dom(\msdata) = A_{\mathrm{non-linear}} \uplus A_\linear$
   \item $A_\linear = \biguplus_{a \in \dom(\msdata)} A_{\mathrm{own}}(a)$
@@ -3573,7 +3594,7 @@ Note: we don't require the readcondition in the trusted case because trusted cod
       \begin{itemize}
       \item $\dom(\code) = [\baddr,\eaddr]$: by assumption.
       \item $([\baddr-1,\eaddr+1] \wedge \trust = \trusted) \vee ([\baddr-1,\eaddr+1]\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted)$: by assumption and choice of $\trust$.
-      \item $\sigrets,\sigcloss \vdash_{\mathrm{comp-code}} \code$: by assumption.
+      \item $\sigrets,\sigcloss,\ta\vdash_{\mathrm{comp-code}} \code$: by assumption.
       \item $\mspad = [\baddr-1 \mapsto 0] \uplus [\eaddr + 1 \mapsto 0]$:
         by assumption
       \item $\forall a \in \dom(\code) \ldotp \npair[n']{(\code(a),\code(a))} \in \lrvg{\trust}(\purePart{}(\xi(\xi^{-1}(\purePart{W'}))))$:
@@ -3844,7 +3865,7 @@ The untrusted case can be considered as a back-translation correctness result.
 \begin{definition}[Source language contextual equivalence]
   In the source language, we define that $\src{\var{comp}_1 \sconeq \var{comp}_2}$ iff
   \begin{equation*}
-    \forall \src{\context} \ldotp \vdash \src{\context} \Rightarrow \src{\plug{\context}{\var{comp}_1} \sterm{\ta[,1],\stkb_1}} \Leftrightarrow \src{\plug{\context}{\var{comp}_2} \sterm{\ta[,2],\stkb_2}}
+    \forall \src{\context} \ldotp \emptyset \vdash \src{\context} \Rightarrow \src{\plug{\context}{\var{comp}_1} \sterm{\ta[,1],\stkb_1}} \Leftrightarrow \src{\plug{\context}{\var{comp}_2} \sterm{\ta[,2],\stkb_2}}
   \end{equation*}
   with $\src{\ta[,i]} = \src{\dom(\var{comp}_i.\mscode)}$
   \lau{06-07-2018: TODO: Dominique, did you resolve this?}
@@ -3864,13 +3885,13 @@ This works perfectly fine, except that the context does not get any well-bracket
 \begin{definition}[Target language contextual equivalence]
   In the target language, we define that $\trg{\var{comp}_1 \tconeq \var{comp}_2}$ iff
   \begin{equation*}
-    \forall \trg{\context} \ldotp \vdash \trg{\context} \Rightarrow \trg{\plug{\context}{\var{comp}_1} \term} \Leftrightarrow \trg{\plug{\context}{\var{comp}_2} \term}
+    \forall \trg{\context} \ldotp \emptyset \vdash \trg{\context} \Rightarrow \trg{\plug{\context}{\var{comp}_1} \term} \Leftrightarrow \trg{\plug{\context}{\var{comp}_2} \term}
   \end{equation*}
 \end{definition}
 
 \begin{theorem}
   \label{thm:full-abstraction}
-  For reasonable, well-formed components $\var{comp}_1$ and $\var{comp}_2$, we have
+  For reasonable, well-formed components $\var{comp}_1$ and $\var{comp}_2$ (with respect to $\ta[,i] = \dom(\var{comp}_i.\mscode)$, respectively), we have
   \begin{gather*}
     \src{\var{comp}_1} \sconeq \src{\var{comp}_2}\\
     \Updownarrow\\
@@ -3882,7 +3903,7 @@ This works perfectly fine, except that the context does not get any well-bracket
   \item Consider first the upward arrow.
     Assume $\src{\var{comp}_1} \tconeq \src{\var{comp}_2}$.
 
-    Take a $\src{\context}$ such that $\vdash \src{\context}$, take $\src{\ta[,i]}
+    Take a $\src{\context}$ such that $\emptyset \vdash \src{\context}$, take $\src{\ta[,i]}
     = \src{\dom(\var{comp}_i.\mscode)}$, $\gsigrets_i = \var{comp}_i.\sigrets$ and
     $\gsigcloss_i = \var{comp}_i.\sigcloss$, $\gc_i = (\ta[,i],\stkb_i,\gsigrets_i,\gsigcloss_i)$ and we will prove that
     $\src{\plug{\context}{\var{comp}_1} \sterm{\gc_1}} \Leftrightarrow
@@ -3894,7 +3915,7 @@ This works perfectly fine, except that the context does not get any well-bracket
     First, we show that also $\plug{\context}{\var{comp}_1} \trg{\term}$.
     Take $n$ the amount of steps in the termination of $\src{\plug{\context}{\var{comp}_1} \sterm{\gc_1}}$.
     It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n+1]{(\var{comp}_1,\var{comp}_1)} \in \lrcomp[\preceq,\gc_1](W_1)$ for some $W_1$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
-    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n+1]{(\context,\context)} \in \lrcomp[\preceq,\gc_1](W_1')$ for some $W_1'$ that we can choose such that $W_1 \uplus W_1'$ is defined.
+    It also follows from the same Lemma~\ref{lem:ftlr-comps} and Lemma~\ref{lem:context-trusted-addr-ampl} that $\npair[n+1]{(\context,\context)} \in \lrcomp[\preceq,\gc_1](W_1')$ for some $W_1'$ that we can choose such that $W_1 \uplus W_1'$ is defined.
     Lemma~\ref{lem:compat-context-plug} then tells us that $\npair{(\plug{\context}{\var{comp}_1}, \plug{\context}{\var{comp}_1})} \in \lrec[\preceq,\gc_1](W_1\uplus W_1')$
     Together with $\src{\plug{\context}{\var{comp}_1} \sterm[n]{\gc_1}}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_1} \trg{\term}$.
 
@@ -3903,7 +3924,7 @@ This works perfectly fine, except that the context does not get any well-bracket
     It now remains to show that also $\src{\plug{\context}{\var{comp}_2} \sterm{\gc_2}}$.
     Take $n'$ the amount of steps in the termination of $\plug{\context}{\var{comp}_2} \trg{\term}$.
     It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n'+1]{(\var{comp}_2,\var{comp}_2)} \in \lrcomp[\succeq,\gc_2](W_2)$ for some $W_2$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
-    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n'+1]{(\context,\context)} \in \lrcomp[\succeq,\gc_2](W_2')$ for some $W_2'$ that we can choose such that $W_2 \uplus W_2'$ is defined.
+    It also follows from the same Lemma~\ref{lem:ftlr-comps} and Lemma~\ref{lem:context-trusted-addr-ampl} that $\npair[n'+1]{(\context,\context)} \in \lrcomp[\succeq,\gc_2](W_2')$ for some $W_2'$ that we can choose such that $W_2 \uplus W_2'$ is defined.
     Lemma~\ref{lem:compat-context-plug} then tells us that $\npair[n']{(\plug{\context}{\var{comp}_2}, \plug{\context}{\var{comp}_2})} \in \lrec[\succeq,\gc_2](W_2\uplus W_2')$
     Together with $\plug{\context}{\var{comp}_2} \trg{\term[n']}$, Lemma~\ref{lem:adequacy} then tells us that $\src{\plug{\context}{\var{comp}_2} \sterm{\gc_2}}$, concluding this direction of the proof.
 
@@ -3912,7 +3933,7 @@ This works perfectly fine, except that the context does not get any well-bracket
     Assume $\src{\var{comp}_1} \sconeq \src{\var{comp}_2}$.
     Take $\src{\ta[,i]} = \src{\dom(\var{comp}_i.\mscode)}$, $\gsigrets_i = \var{comp}_i.\sigrets$ and $\gsigcloss_i = \var{comp}_i.\sigcloss$, $\gc_i = (\ta[,i],\stkb_i,\gsigrets_i,\gsigcloss_i)$.
 
-    Take a $\trg{\context}$ such that $\vdash \trg{\context}$ and we will prove that
+    Take a $\trg{\context}$ such that $\emptyset \vdash \trg{\context}$ and we will prove that
     $\trg{\plug{\context}{\var{comp}_1} \term} \Leftrightarrow
     \trg{\plug{\context}{\var{comp}_2} \term}$.
 
@@ -3922,7 +3943,7 @@ This works perfectly fine, except that the context does not get any well-bracket
     First, we show that also $\plug{\context}{\var{comp}_1} \src{\sterm{\gc_1}}$.
     Take $n$ the amount of steps in the termination of $\plug{\context}{\var{comp}_1} \trg{\term}$.
     It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n+1]{(\var{comp}_1,\var{comp}_1)} \in \lrcomp[\succeq,\gc_1](W_1)$ for some $W_1$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
-    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n+1]{(\context,\context)} \in \lrcomp[\succeq,\gc_1](W_1')$ for some $W_1'$ that we can choose such that $W_1 \uplus W_1'$ is defined.
+    It also follows from the same Lemma~\ref{lem:ftlr-comps} and Lemma~\ref{lem:context-trusted-addr-ampl} that $\npair[n+1]{(\context,\context)} \in \lrcomp[\succeq,\gc_1](W_1')$ for some $W_1'$ that we can choose such that $W_1 \uplus W_1'$ is defined.
     Lemma~\ref{lem:compat-context-plug} then tells us that $\npair{(\plug{\context}{\var{comp}_1}, \plug{\context}{\var{comp}_1})} \in \lrec[\succeq,\gc_1](W_1\uplus W_1')$
     Together with $\plug{\context}{\var{comp}_1} \trg{\term[n]}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_1} \src{\sterm{\gc_1}}$.
 
@@ -3931,7 +3952,7 @@ This works perfectly fine, except that the context does not get any well-bracket
     It now remains to show that also $\plug{\context}{\var{comp}_2} \trg{\term}$.
     Take $n'$ the amount of steps in the termination of $\plug{\context}{\var{comp}_2} \src{\sterm{\gc_2}}$.
     It follows from Lemma~\ref{lem:ftlr-comps} that $\npair[n'+1]{(\var{comp}_2,\var{comp}_2)} \in \lrcomp[\preceq,\gc_2](W_2)$ for some $W_2$ with $\dom(\pwfree) = \dom(\pwpriv) = \emptyset$.
-    It also follows from the same Lemma~\ref{lem:ftlr-comps} that $\npair[n'+1]{(\context,\context)} \in \lrcomp[\preceq,\gc_2](W_2')$ for some $W_2'$ that we can choose such that $W_2 \uplus W_2'$ is defined.
+    It also follows from the same Lemma~\ref{lem:ftlr-comps} and Lemma~\ref{lem:context-trusted-addr-ampl} that $\npair[n'+1]{(\context,\context)} \in \lrcomp[\preceq,\gc_2](W_2')$ for some $W_2'$ that we can choose such that $W_2 \uplus W_2'$ is defined.
     Lemma~\ref{lem:compat-context-plug} then tells us that $\npair[n']{(\plug{\context}{\var{comp}_2}, \plug{\context}{\var{comp}_2})} \in \lrec[\preceq,\gc_2](W_2\uplus W_2')$
     Together with $\plug{\context}{\var{comp}_2} \trg{\term[n']}$, Lemma~\ref{lem:adequacy} then tells us that $\plug{\context}{\var{comp}_2} \trg{\term}$, concluding the second direction of the proof.
   \end{itemize}
