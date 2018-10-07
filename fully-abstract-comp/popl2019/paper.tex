@@ -178,7 +178,7 @@ Well-bracketed control flow (WBCF) expresses that invoked functions must either 
 At the assembly level, this property does not hold immediately. 
 Invoked functions get direct access to return pointers that they are supposed to jump to a single time at the end of their execution.
 There is, however, no guarantee that untrusted assembly code respects this intended usage.
-Particularly, a function may invoke return pointers from other stack frames than its own: either frames higher in the call stack or ones that no longer exist as they have already returned. 
+In particular, a function may invoke return pointers from other stack frames than its own: either frames higher in the call stack or ones that no longer exist as they have already returned. 
 
 Local state encapsulation (LSE) is the guarantee that when a function invokes another function, its local variables (saved on its stack frame) will not have been read or modified when the invoked function returns.
 At the assembly level, this property also does not hold immediately.
@@ -198,9 +198,9 @@ Each of the two capabilities are sealed with a common seal which make them opaqu
 The hardware transparently unseals the pair upon invocation~\citep{watson_capability_2015}.
 
 To enforce WBCF and LSE on a capability machine, there are essentially two approaches.
-A first approach uses separate stacks for distrusting components, and a central, trusted stack manager component that mediates cross-component invocations.
+A first approach uses separate stacks for mutually distrusting components, and a central, trusted stack manager component that mediates cross-component invocations.
 This idea has been applied in CheriBSD (an operating system built on CHERI)~\citep{watson_capability_2015}, but it is not without downsides.
-First, it scales poorly to large amounts of distrusting components because of the need to reserve separate stack space for all components.
+First, it scales poorly to large amounts of components because of the need to reserve separate stack space for all components.
 Also in the presence of higher-order values (e.g. function pointers, objects etc.), the stack manager needs to be able to decide which component a higher-order value belongs to in order to provide it the right stack pointer upon invocation.
 It is not clear how this can be done efficiently in the presence of large amounts of components.
 Finally, this approach does not allow passing stack references between components.
@@ -216,9 +216,9 @@ However, a problem with this approach is that revoking the local stack and retur
 In this work, we propose and study \stktokens{}: an alternative calling convention that enforces WBCF and LSE with a single shared stack.
 Instead of CHERI's local capabilities, it builds on {\itshape linear} capabilities; a new form of capabilities that has not been previously described in the published literature.\footnote{Although they have been mentioned in some technical documents.}
 % KJAA: Perhaps make it clear by who and when/where?
-These capabilities are non-duplicable enforced by the hardware.
+The hardware prevents these capabilities from being duplicated.
 We propose to make stack and return pointers linear and require components to hand them out in cross-component invocations and to return them in returns.
-The non-duplicability of linear capabilities together with some security checks allow us to guarantee WBCF and LSE without large overhead on boundary crossings particularly without the need for clearing large blocks of memory.
+The non-duplicability of linear capabilities together with some security checks allow us to guarantee WBCF and LSE without large overhead on boundary crossings in particular without the need for clearing large blocks of memory.
 
 A second contribution of this work is the way in which we formulate these two properties using a technique we call {\itshape fully abstract overlay semantics}.
 Formulations in previous work are either partial and not suitable for reasoning~\cite{abadi_control-flow_2005} or lacked evidence of generality~\cite{skorstengaard_reasoning_2017}.
@@ -377,7 +377,7 @@ An executable configuration is a register file and memory pair.
         \baddr \le \aaddr \le \eaddr \and \perm \in \{\rwx,\rx\}
  }{ \Phi \step \sem{\decInstr{\Phi.\mem(\aaddr)}}(\Phi) }
               \and
-              \inference{ \neg (\Phi \step \Phi') \and \Phi' \neq \failed}
+              \inference{ \forall \Phi' \ldotp \neg (\Phi \step \Phi') \wedge \Phi' \neq \failed}
                         {\Phi \step \failed }
   \end{mathpar}
   \[
@@ -419,7 +419,7 @@ An executable configuration is a register file and memory pair.
     % \hline
     % \move{r}{\rn}                                & \updPcAddr{\Phi\updReg{r}{\rn}} & $\rn \in \ints$\\
     \hline
-    \move{r}{\rn}                                & \updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{\rn}{w_2}\\ & \updReg{r}{w_1})\endarray & $\rn \in \RegName$ and $w_1 = \Phi(\rn)$ and $w_2 = \linCons{\rn}$ \\
+    \move{r}{\rn}                                & \updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{\rn}{w_2}\\ & \updReg{r}{w_1})\endarray & $\rn \in \RegName$ and $w_1 = \Phi(\rn)$ and $w_2 = \linCons{\Phi(\rn)}$ \\
     \hline
     \load{r_1}{r_2}                              & \updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_1}{w_1}\\ &\update{\mem.\aaddr}{w_\aaddr})\endarray & $\Phi(r_2) = ((\perm,\_),\baddr,\eaddr,\aaddr)$ and $\baddr \le \aaddr \le \eaddr$ and $\perm \in \{\rwx,\rw,\rx,\ro\}$ and $w_1 = \Phi.\mem(\aaddr)$ and $\isLinear{w_1} \Rightarrow \perm \in \{\rwx,\rw\}$ and $w_a = \linCons{w_1}$\\
     \hline
@@ -429,11 +429,11 @@ An executable configuration is a register file and memory pair.
     \hline
     \cca{r}{\rn}                                 &\updPcAddr{\Phi\updReg{r}{w}} & $\Phi(\rn) = n \in \ints$ and either $\Phi(r) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ or $\Phi(r) = (\sigma_\baddr,\sigma_\eaddr,\sigma)$ and $w = ((\perm,\lin),\baddr,\eaddr,\aaddr + n)$ or $w = (\sigma_\baddr,\sigma_\eaddr,\sigma+n)$, respectively \\
     \hline
-    \jmp{r}    &\Phi\updReg{r,\pcreg}{w,\Phi(r)} & $w = \linCons{\Phi(r)}$\\
+    \jmp{r}    &\Phi\arraycolsep=0pt\array[t]{l}\updReg{r}{w}\\\updReg{\pcreg}{\Phi(r)}\endarray & $w = \linCons{\Phi(r)}$\\
     \hline
     \xjmp{r_1}{r_2}                              & \Phi' & $\Phi(r_1) = \sealed{\sigma,c_1}$ and $\Phi(r_2) = \sealed{\sigma,c_2}$ and $w_1 = \linCons{c_1}$ and $w_2 = \linCons{c_2}$ and $\Phi' = \xjmpres{c_1,c_2,\Phi\updReg{r_1,r_2}{w_1,w_2}}$  \\
     \hline
-    \tsplit{r_1}{r_2}{r_3}{\rn}                  & \updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_3}{w}\\ &\updReg{r_1}{c_1}\\ &\updReg{r_2}{c_2})\endarray & $\Phi(r_3) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ and $\Phi(\rn) = n \in \nats$ and $\baddr \le n < \eaddr$ and $c_1 = ((\perm,\lin),\baddr,n,\aaddr)$ and $c_2 = ((\perm,\lin),n+1,\eaddr,\aaddr)$ and $w = \linCons{\Phi(r_1)}$\\
+    \tsplit{r_1}{r_2}{r_3}{\rn}                  & \updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_3}{w}\\ &\updReg{r_1}{c_1}\\ &\updReg{r_2}{c_2})\endarray & $\Phi(r_3) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ and $\Phi(\rn) = n \in \nats$ and $\baddr \le n < \eaddr$ and $c_1 = ((\perm,\lin),\baddr,n,\aaddr)$ and $c_2 = ((\perm,\lin),n+1,\eaddr,\aaddr)$ and $w = \linCons{\Phi(r_3)}$\\
     \hline
     \splice{r_1}{r_2}{r_3}                       & \updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_2}{w_2}\\ &\updReg{r_3}{w_3}\\ &\updReg{r_1}{c})\endarray& $\Phi(r_2) = ((\perm,\lin),\baddr,n,\_)$ and $\Phi(r_3) = ((\perm,\lin),n+1,\eaddr,\aaddr)$ and $\baddr \le n < \eaddr$ and $c = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ and $w_2,w_3 = \linCons{\Phi(r_2),\Phi(r_3)}$\\
     \hline
@@ -450,7 +450,7 @@ An executable configuration is a register file and memory pair.
 % syntax (instructions)
 \trgcm{}'s instruction set is somewhat basic with the instructions one expects on most low-level machine as well as capability-related instructions.
 The standard instructions are: unconditional and conditional jump (\texttt{jmp} and \texttt{jnz}), copy between registers (\texttt{move}), instructions that load from memory and store to memory (\texttt{load} and \texttt{store}), and arithmetic operations (\texttt{plus}, \texttt{minus}, and \texttt{lt}).
-The simplest of the capability instructions simply inspect the properties of capabilities: type (\texttt{gettype}), linearity (\texttt{getl}), range (\texttt{getb} and \texttt{gete}), current address or seal (\texttt{geta}) or permission (\texttt{getp}).
+The simplest of the capability instructions inspect the properties of capabilities: type (\texttt{gettype}), linearity (\texttt{getl}), range (\texttt{getb} and \texttt{gete}), current address or seal (\texttt{geta}) or permission (\texttt{getp}).
 The current address (or seal) of a capability (or set of seals) can be shifted by an offset (\texttt{cca}) or set to the base address (\texttt{seta2b}).
 The \texttt{restrict} instruction reduces the permission of a capability according to the permission order $\le$.
 Generally speaking, a capability machine needs an instruction for reducing the range of authority of a capability.
@@ -464,8 +464,8 @@ The operational semantics of \trgcm{} is displayed in Figure~\ref{fig:target-op-
 The operational semantics is defined in terms of a step relation that executes the next instruction in an executable configuration $\Phi$ which results in a new executable configuration or one of the two terminated configurations.
 The executed instruction is determined by the capability in $\pcreg$ register, i.e.\ $\Phi(\pcreg)$ (we write $\Phi(r)$ to mean $\Phi.\reg(r)$).
 In order for the machine to take a step, the capability in the $\pcreg$ must have a permission that allows execution, and the current address of the capability must be within the capability's range of authority.
-If both things are satisfied, then the word pointed to by the capability is decoded to an instruction which is interpreted relatively to $\Phi$.
-The interpretation of some of the instructions are displayed in Figure~\ref{fig:target-op-sem}.
+If both things are satisfied, then the word pointed to by the capability is decoded to an instruction which is interpreted relative to $\Phi$.
+The interpretations of some of the instructions are displayed in Figure~\ref{fig:target-op-sem}.
 In order to step through a program in memory, most of the interpretations use the function $\updPcAddr{}$ which simply updates the capability in the $\pcreg$ to point to the next memory address.
 The instructions that stop execution or change the flow of execution do not use $\updPcAddr{}$.
 For instance, the \texttt{halt} and \texttt{fail} instructions are simply interpreted as the $\halted$ and $\failed$ configurations, respectively, and they do not use $\updPcAddr{}$.
@@ -501,7 +501,7 @@ Apart from dealing with linearity, \texttt{xjmp} takes a pair of sealed capabili
 A pair of sealed capabilities can be seen as a closure where the code capability (the capability placed in $\pcreg$) is the program and the data capability is the local environment.
 Because of the opacity of sealed capability, the creator of the closure can be sure that execution will start where the code capability points and only in an environment with the related data, i.e.\ sealed with the same seal.
 This makes \texttt{xjmp} the mechanism on \trgcm{} that transfers control between security domains.
-Opaque sealed capabilities encapsulate a security domain's local state and authority, and it only becomes accessible again when control is transferred to the security domain.
+Opaque sealed capabilities encapsulate a security domain's local state and authority, and they only become accessible again when control is transferred to the security domain.
 Some care should be taken for sealing because reusing the same seal for multiple closures makes it possible to jump to the code of one closure with the environment of another.
 % xjmp to unseal
 \trgcm{} does not have an instruction for unsealing capabilities directly, but it can be (partially) simulated using \texttt{xjmp}.
@@ -520,28 +520,25 @@ The two instructions work in the same way for seal sets.
 We do not provide special support for lossless reduction of capability permissions, but this could probably be achieved with more fine-grained permissions.
 This would also allow linear capabilities to have aliases, but only by linear capabilities with disjoint permissions.
 
-At this time, the executable configuration is our only way to specify the state of the capability machine.
-We would, however, much prefer a notion of programs that only describes the essential parts of an entity on the machine and only later instrument the program to make it into an executable configuration.
-In later sections, we describe different entities on the capability machine that interact with each other.
-In order for them to interact, we need to be able to link them together, and to this end we introduce a notion of components.
-A component is basically a program with open ends in the form of imports that need to be satisfied.
-A component also has exports allowing other components to link with it.
-We define the notion of a component in Figure~\ref{fig:target-component-and-linking}.
+The executable configuration describes the machine state, but it does not make it clear what components run on the machine and how they interact with each other.
+To make this clearer, we introduce notions of components and programs from which we construct executable configurations.
+A component is basically a program with entry points in the form of imports that need to be linked.
+A component has exports that can satisfy the imports of other components.
+The component definition is in Figure~\ref{fig:target-component-and-linking}.
 % Structure
-A base component $\comp_0$ consists of the following: a code memory segment, a data memory segment, a list of imported symbols, a list of exported symbols, two lists specifying the available seals\footnote{We will return to the seals in Section~\ref{sec:form-secur-with}.}, and a set of all the linear addresses.
+A base component $\comp_0$ consists of the following: a code memory segment, a data memory segment, a list of imported symbols, a list of exported symbols, two lists specifying the available seals\footnote{We will return to the seals in Section~\ref{sec:form-secur-with}.}, and a set of all the linear addresses (addresses governed by a linear capability).
 The import list specifies where in memory imports should be placed, and imports are matched to exports via their symbols.
 The exports are words each associated with a symbol.
 %base = library
-A base component can be seen as library implementations because it does not specify a main entry point of execution.
+A base component has no main entry point, so it needs to be invoked by another component to run. For this reason, it can be seen as a library implementation.
 A component is either a library component or a base component with a main in the form of a pair of sealed capabilities which can be seen as a program that still needs to be linked with libraries.
 % Linking .
 Components are combined into new components by linking them together.
 Libraries can be linked together and incomplete programs can be linked with libraries, but two incomplete programs cannot be linked with each other.
-Two components can be linked when their memories, seals, and linear addresses disjoint.
+Two components can be linked when their memories, seals, and linear addresses are disjoint.
 They are combined by taking the union of each of their constituents.
 For every import that is satisfied by an export of the other component, in the sense that they have the same symbol, the data memory is updated to have the exported word on the imported address.
 The satisfied imports are removed from the import list in the resulting linked component and the exports are updated to be the exports of the two components.
-Components and linking are defined in Figure~\ref{fig:target-component-and-linking}.
 
 % Programs
 We can now define the notion of a program as well as a context.
@@ -557,7 +554,7 @@ In Section~\ref{sec:form-secur-with}, we will get back to how a program is instr
 % We will, however, at this point mention that all programs will be instrumented as Write-XOR-Execute,{Do we have a reference for this?} i.e.\ there will only be read-execute capabilities for the code and read-write capabilities for the data.
 %Further, we will only consider a specific class of well-formed components, but we will get back to this.
 
-Some simplifications has been made in this presentation of \trgcm{}. See \citet{technical_report} for the details.
+Some simplifications have been made in this presentation of \trgcm{}. See \citet{technical_report} for the details.
 \begin{figure}[tb]
   \centering
   \[
@@ -572,9 +569,9 @@ Some simplifications has been made in this presentation of \trgcm{}. See \citet{
 \vspace{0.5cm}
 \begin{mathpar}
   \inference{
-    \comp_1 = (\mscode[1], \msdata[1], \overline{\var{import}_1}, \overline{\var{export}_1}, \sigrets[1], \sigcloss[1],A_{\linear,1})\\
-    \comp_2 = (\mscode[2], \msdata[2], \overline{\var{import}_2}, \overline{\var{export}_2}, \sigrets[2], \sigcloss[2],A_{\linear,2})\\
-    \comp_3 = (\mscode[3], \msdata[3], \overline{\var{import}_3}, \overline{\var{export}_3}, \sigrets[3], \sigcloss[3],A_{\linear,3})\\
+    \comp_0 = (\mscode[1], \msdata[1], \overline{\var{import}_1}, \overline{\var{export}_1}, \sigrets[1], \sigcloss[1],A_{\linear,1})\\
+    \comp_0' = (\mscode[2], \msdata[2], \overline{\var{import}_2}, \overline{\var{export}_2}, \sigrets[2], \sigcloss[2],A_{\linear,2})\\
+    \comp_0'' = (\mscode[3], \msdata[3], \overline{\var{import}_3}, \overline{\var{export}_3}, \sigrets[3], \sigcloss[3],A_{\linear,3})\\
     \mscode[3] = \mscode[1] \uplus \mscode[2] \\
     \msdata[3] = (\msdata[1] \uplus \msdata[2])[a \mapsto w \mid (a \mapsfrom s) \in (\overline{\var{import}_1} \cup \overline{\var{import}_2}), (s \mapsto w) \in \overline{\var{export}}_3] \\
     \overline{\var{export}_3} = \overline{\var{export}_1} \cup \overline{\var{export}_2}&
@@ -584,7 +581,7 @@ Some simplifications has been made in this presentation of \trgcm{}. See \citet{
     A_{\linear,3} = A_{\linear,1} \uplus A_{\linear,2}\\
     \dom(\mscode[3]) \mathrel{\#} \dom(\msdata[3]) & \sigrets[3] \mathrel{\#} \sigcloss[3]
   } {
-    \comp_3 = \comp_1 \bowtie \comp_2
+    \comp_0'' = \comp_0 \bowtie \comp_0'
   }
   \and
   \inference{
@@ -597,7 +594,7 @@ Some simplifications has been made in this presentation of \trgcm{}. See \citet{
 %   \begin{mathpar}
 %     \inference{
 %       c_{\mathrm{main},c} = \sealed{\sigma_1, c_{\mathrm{main},c}'} &
-%       c_{\mathrm{main},d} = \sealed{\sigma_2, c_{\mathrm{main},d}'} &
+%       c_{\mathrm{main},d} = \sealed{\sigma_2, c_{\mathrm{main},d}'} &comp\
 %       \sigma_1 = \sigma_2\\
 %       \nonExec{c_{\mathrm{main},d}'}&
 %       \reg(\pcreg) = c_{\mathrm{main},c}' & 
@@ -809,7 +806,7 @@ There is also a more practical reason for a \stktokens{} caller to make sure the
 % known stack base
 % + more
 At this point, the caller checks that the return token is adjacent to the stack capability for the caller's local stack frame and they have the means to do so.
-However, this does not make sure that the caller's stack frame is on top of the call stack.
+However, this does not ensure that the caller's stack frame is on top of the call stack.
 The issue is that stack frames may not be tightly packed leaving space between stack frames in memory.
 An adversarial callee may even intentionally leave a bit of space in memory above the caller's stack frame, so that they later can return out of order by returning the bit of the return token for the bit of memory left above the caller's stack frame.
 This is illustrated in Figure~\ref{fig:stk-base-abuse}: In Figure~\ref{fig:stack-base-abuse-a}, a trusted caller has called an adversarial callee.
@@ -848,7 +845,7 @@ The return pointer in the \stktokens{} scheme is a pair of sealed capabilities w
 Both of the capabilities in the pair are of course sealed with the same seal.
 % One seal per return point
 All call points need to be associated with a unique seal (a return seal) that is only used to seal the capabilities in the return pair for that particular call point.
-The return seal is what associates the stack frame on the call stack with a specific call point in a program, so if we allowed return seals to be reused, it would be possible to return to a different call point than the one that caused the stack frame to be pushed on the call stack which would break WBCF.
+The return seal is what associates the stack frame on the call stack with a specific call point in a program, so if we allowed return seals to be reused, it would be possible to return to a different call point than the one that caused the stack frame to be pushed on the call stack, which would break WBCF.
 For similar reasons, we cannot allow return seals to be used to seal closures.
 % Don't be stupid
 Return seals should never be leaked to adversarial code as this would allow them to unseal the local stack frame of a caller breaking LSE.
@@ -990,7 +987,21 @@ Item~\ref{item:check-stkb}-\ref{item:return-code} are captured by the code in Fi
   \end{array}
 \]
 }
-  \caption{The instructions that constitutes a call. The variable $\offpc$ is the offset from the first instruction of the call to the set of seals it uses. The variable $\offsigma$ is the offset in the set of seals. The constant $\stkb$ is the globally agreed on stack base. There are a number of ``magic'' numbers in the code: line 1: $42$, garbage data to ensure a non-empty stack. Line 7: $-5$, offset to the first instruction (from the point the capability was moved out of the $\pcreg$-register). Line 12: $5$, offset to the return address. Line 19: $5$, offset to fail. Line 21: offset to address after fail.}
+\caption{
+  The instructions that constitutes a call. Register $r_1$ and $r_2$ are the registers where the sealed capability pair to the callee resides.
+  Variable $\offpc$ is the offset from the first instruction of the call to the set of seals, and $\offsigma$ is the offset to the seal within the set.
+  Instructions 1-3: ensure that the stack is non-empty.
+  Instructions 4-5: split stack pointer in two (stack pointer for callee done).
+  Instructions 6-9: Load the seal designated for this call.
+  Instruction 10: Seal capability for private stack to create data return pointer.
+  Instructions 11-13: Seal capability for return point to create code return pointer.
+  Instructions 14-15: Clean up temporary register and jump.
+  Instructions 16-26: The return code.
+  Instructions 16-23: check the stack base.
+  Instruction 24: join the stack pointer.
+  Instructions 25-26: pop 42 from the stack.
+%The variable $\offpc$ is the offset from the first instruction of the call to the set of seals it uses. The variable $\offsigma$ is the offset in the set of seals. The constant $\stkb$ is the globally agreed on stack base. There are a number of ``magic'' numbers in the code: line 1: $42$, garbage data to ensure a non-empty stack. Line 7: $-5$, offset to the first instruction (from the point the capability was moved out of the $\pcreg$-register). Line 12: $5$, offset to the return address. Line 19: $5$, offset to fail. Line 21: offset to address after fail.
+}
   \label{fig:call-code}
 \end{figure}
 
@@ -1019,9 +1030,9 @@ In other words, they cannot do anything that doesn't correspond to something tha
 More formally, our full-abstraction result states that two trusted components are indistinguishable to arbitrary other components in the regular semantics iff they are indistinguishable to arbitrary other components in the overlay semantics.
 
 Our formal results are complicated by the fact that they only hold for well-behaved components that respect the basic rules of the calling convention, and also on a sane initial configuration of the system.
-For example, the system should be setup such that seals that components use for constructing return pointers should not be shared with other components.
+For example, the system should be set up such that seals that components use for constructing return pointers are not shared with other components.
 We envision distributing seals as a job for the linker, so this means our results depend on a linker to do this properly.
-As another example, a seal that is used to construct a return pointer, can be used again to construct other return pointers for the same return point, but a different seal must be used for others.
+As another example, a seal that is used to construct a return pointer can be used again to construct other return pointers for the same return point, but a different seal must be used for others.
 Such seals should also never be passed to other components.
 Such requirements are easy to satisfy: components should request sufficient seals from the linker, use a different one for every place in the code where they make a call to another component, and make sure to clear them from registers before every call.
 The general pattern is that $\stktokens{}$ only protects components that do not shoot themselves in the foot by violating a few basic rules.
@@ -1072,9 +1083,9 @@ A stack pointer has a permission, range of authority, and current address, just 
 The final syntactic constructs added by \srccm{} are the code and data return pointers.
 The data return pointer corresponds to some stack pointer (which in turn corresponds to a linear capability), and the code return pointer corresponds to some capability with read-execute permission.
 Syntactically, the return capabilities contain just enough information to reconstruct what they correspond to on the underlying machine.
-Return pointers are generated by calls from the capabilities they correspond to, and they are turned back to the capabilities they correspond to upon return.
-Even though the return pointers both correspond to capabilities with read permission, neither can be used for reading. 
-Say, we allowed reads through a data return pointer, then that would correspond to reading from some stack memory that is encapsulated in a stack frame which would break LSE.
+On \srccm{}, return pointers are generated by calls from the capabilities they correspond to on \trgcm{}, and they are turned back to the capabilities they correspond to upon return.
+% Even though the return pointers both correspond to capabilities with read permission, neither can be used for reading. 
+% Say, we allowed reads through a data return pointer, then that would correspond to reading from some stack memory that is encapsulated in a stack frame which would break LSE.
 
 The opaque nature of the return pointers is reflected in the interpretation of the instructions common to both \trgcm{} and \srccm{} as \srccm{} does not add special interpretation for them.
 Stack pointers, on the other hand, need to behave just like capabilities, so \srccm{} adds new cases for them in the semantics, e.g.\ \texttt{cca} can now also change the current address of a stack pointer as displayed in Figure~\ref{fig:source-op-sem}.
@@ -1100,12 +1111,12 @@ The interpretation of a call is also shown in Figure~\ref{fig:source-op-sem}, an
 Based on the stack pointer in $\rstk$, a stack pointer for the callee is created (this corresponds to the return token of \stktokens{}) as well as a return pointer which governs the private part of the stack, i.e.\ addresses $[\aaddr_\stk,\eaddr_\stk]$ which is $42$ and everything (conceptually) below on the stack.
 A new stack frame is pushed to the stack.
 The stack frame consists of the local stack (addresses $[\baddr_\stk,\aaddr_\stk-1]$) as well as the address where execution is supposed to continue on return.
-The return address in the stack frame is an important piece of meta data as it connects the stack frame to the return point and thus allows us on return to check whether we returned to the right place.
+The return address in the stack frame is an important piece of metadata as it connects the stack frame to the return point and thus allows us on return to check whether we returned to the right place.
 The return pointers are sealed with the seal dictated by $\offpc$ and $\offsigma$ and placed in registers $\rretc$ and $\rretd$, so the callee can use them to return.
 Finally, control is transferred in the same fashion \texttt{xjmp} does it.
 
 The return pair can only be used to return with.
-They only exists on \srccm{} in sealed capabilities, so it is only natural that \texttt{xjmp} takes care of returning.
+They only exist on \srccm{} in sealed capabilities, so it is only natural that \texttt{xjmp} takes care of returning.
 To this end, we update the semantics of \texttt{xjmp} by redefining $\xjmpres{}$.
 The function remains the same except when $c_1$ and $c_2$ are code and data return pointers, respectively.
 In this case, the top stack frame is popped from the stack and added to the free stack.
@@ -1113,7 +1124,7 @@ The execution continues at the return point with a stack pointer in $\rstk$ for 
 However, the execution only continues if the code return pointer actually points to the correct return address, the base of the returned stack pointer is $\stkb$, and the returned stack pointer is adjacent to the data return pointer (which corresponds to checking the validity of the return token in \stktokens{}).
 
 \srccm{} supports tail calls.
-A tail call is a call from a caller that is done executing and thus don't need to be returned to.
+A tail call is a call from a caller that is done executing and thus doesn't need to be returned to.
 This means that a tail call should not reserve a slot in the return order by pushing a stack frame on the call stack, i.e.\ it should not use the built-in call.
 To perform a tail call, the caller simply transfers control to the callee using \texttt{xjmp}.
 The callee needs to return to the caller's caller, so the caller leaves the return pair they received for the callee to use.
@@ -1291,7 +1302,7 @@ Finally, the addresses of the imports $\overline{\var{import}}$ must be addresse
 % Reasonability
 The static guarantees given by $\wdjud[\ta]{\comp}$ makes sure that components initially don't undermine the security measures needed for \stktokens{}, but it does not prevent a component from doing something silly during execution that undermines \stktokens{}.
 In order for \stktokens{} to provide guarantees for a component, we expect it to not shoot itself in the foot and perform certain necessary checks not captured by the call code (Figure~\ref{fig:call-code}).
-We more precisely expect four things of a reasonable component: (1) It checks the stack base address before performing a call.
+More precisely, we expect four things of a reasonable component: (1) It checks the stack base address before performing a call.
 As explained in Section~\ref{sec:stktokens-explained}, we do not include this check in the call code as it often would be redundant.
 (2) It uses the return seals only for calls and the closure seals in an appropriate way which means that they should only be used to seal executable capabilities for code that behaves reasonably or non-executable things that do not undermine the security mechanisms \stktokens{} relies on.
 (3) It does not leak return and closure seals or means to retrieve them.
@@ -1786,7 +1797,7 @@ The lemma is not directly used in the proof sketch we present in Section~\ref{su
 
 \subsection{Full abstraction proof sketch}
 \label{subsec:proof-sketch}
-The logical relation presented in Section~\ref{subsec:logical-relation} is lifted to a component relation $\mathcal{C}$ (we will also use $\cong$ to denote this relation) and an executable configuration relation $\mathcal{EC}$ in a straight forward manner.
+The logical relation presented in Section~\ref{subsec:logical-relation} is lifted to a component relation $\mathcal{C}$ (we will also use $\cong$ to denote this relation) and an executable configuration relation $\mathcal{EC}$ in a straightforward manner.
 The component relation relates components to themselves which makes sense as well-formed components should contain no \srccm{} specific constructs.
 We prove a number of lemmas about the relations.
 The first is a FTLR for components that says (1) all well-formed untrusted components are related to themselves in the component relation, and (2)  all well-formed and reasonable trusted components are related to themselves in the component relation.
