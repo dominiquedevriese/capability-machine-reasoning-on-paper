@@ -330,7 +330,7 @@ Syntactically, sealed capabilities add two types of capabilities.
 A set of seals $\seal{\sigma_\var{base},\sigma_\var{end},\sigma}$ consists of a range of available seals $[\sigma_\var{base},\sigma_\var{end}]$ and the current seal $\sigma$, all represented by a natural number.
 % sealed caps
 A sealed capability $\sealed{\sigma,\vsc}$ consists of a sealable capability $\vsc$ and the seal $\sigma$ it has been sealed with.
-Sealable capabilities $\vsc \in \SealableCaps$ are sets of seals or memory capabilities.
+Sealables $\vsc \in \SealableCaps$ are sets of seals or memory capabilities.
 \begin{figure}[tb]
   \centering
   \[
@@ -714,7 +714,8 @@ On call, the caller splits the stack capability in two, such that they have a ca
 The stack capability for their local stack frame is sealed and used as the data part of the sealed return pair, and the stack capability for the remainder of the stack is given to the callee.
 % Prevention of left attack non-aliasing of linear capabilities - token like (ensuring LSE)
 Because the stack capability is linear the caller knows that the capability for their local stack frame cannot have an alias.
-This means that an adversary will need the stack capability the caller produced in order to access their local data.
+This means that an adversary would need the stack capability the caller produced
+in order to access the caller's local data.
 While the caller gives the capability to the adversary, it is only after the caller seals it which makes the capability opaque.
 This is illustrated in Figure~\ref{fig:stack-ptr-abuse-prev} and prevents the issue illustrated in Figure~\ref{fig:stack-ptr-abuse}.
 
@@ -812,9 +813,11 @@ An adversarial callee may even intentionally leave a bit of space in memory abov
 This is illustrated in Figure~\ref{fig:stk-base-abuse}: In Figure~\ref{fig:stack-base-abuse-a}, a trusted caller has called an adversarial callee.
 The adversary calls the trusted code back, but first they split the return token in two and store on the heap the part for the memory adjacent to the trusted caller's call frame (Figure~\ref{fig:stack-base-abuse-b}).
 The trusted caller calls the adversary back using the precautions we have described so far (Figure~\ref{fig:stack-base-abuse-c}).
-At this point (Figure~\ref{fig:stack-base-abuse-b})), the adversary has access to a partial return token adjacent to the trusted caller's first stack frame which allows the adversary to return from this call breaking WBCF.
+At this point (Figure~\ref{fig:stack-base-abuse-b}), the adversary has access to a partial return token adjacent to the trusted caller's first stack frame which allows the adversary to return from this call breaking WBCF.
 For the caller to be sure that there are no hidden stack frames above its own, they need to make sure that the return token is exactly the same as the one they passed to the callee.
-In \stktokens{}, the base address of the stack is fixed as a compile-time constant.
+In \stktokens{}, the base address of the stack capability is fixed as a
+compile-time constant (Note: the stack grows downwards, so the base address of
+the stack capability is the top-most address of the stack). 
 The caller verifies the validity of the return token by checking whether the base address\footnote{The stack grows downwards in the address space} of a returned token corresponds to this fixed base address, which was the base address for the return token they gave to the callee.
 In the scenario we just sketched, the caller would be alerted to the attempt to break WBCF when the base address check of the return token fails in Figure~\ref{fig:stack-base-abuse-d}.
 
@@ -1098,12 +1101,13 @@ As discussed earlier, our formal results only provide guarantees for components 
 However, there is no such assumption on the untrusted other components they interact with.
 To formalize this distinction, \srccm{} has a set of trusted addresses $\ta$.
 Only instructions at these addresses are allowed to perform calls that push stack frames to the call stack, i.e.\ calls for which \srccm{} provides native LSE and WBCF guarantees.
-The constant $\ta$ is passed around as a parameter of the \trgcm{} step relation.
+The constant $\ta$ is passed around as a parameter of the \srccm{} step relation.
 Similarly, \stktokens{} assumes a fixed base address of the stack memory, that is also passed around as such a parameter, for use in the native semantics of calls.
 
 Apart from the step relation of \trgcm{}, \srccm{} has one overlay step that takes precedence over the others.
 This step is shown in Figure~\ref{fig:source-op-sem}, and it is different from the others in the sense that it interprets a sequence of instructions rather than one.
-The sequence of instructions have to correspond to a call, i.e.\ the instructions in Figure~\ref{fig:call-code} ({\footnotesize $\scall[i]{\offpc,\offsigma}{r_1}{r_2}$} corresponds to the $i$'th instruction in the figure and $\calllen$ is $26$, i.e.\ the number of instructions).
+The sequence of instructions have to correspond to a call, i.e.\ the
+instructions in Figure~\ref{fig:call-code} ({\footnotesize  $\scall[i]{\offpc,\offsigma}{r_1}{r_2}$} corresponds to the $i$'th instruction in the figure and $\calllen$ is always $26$, i.e.\ the number of instructions).
 Calls are only executed when the well-behaved component executes, so the addresses where the call resides must be in $\ta$, and the executing capability must have the authority to execute the call.
 
 % Call/return
@@ -1286,7 +1290,7 @@ For components with a main pair, the main pair must come from the exports and th
 As a reminder, a base component looks like this: $(\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)$.
 The return seals $\sigrets$ are the seals supposed to be used to seal return pointers and the closure seals $\sigcloss$ all the other seals in a component .
 If a component is not trusted, i.e.\ the domain of the code memory $\mscode$ is disjointed from the set of trusted addresses $\ta$, then there should be no return seals.
-The code memory may contain sets of seals, but only the seals in $\sigrets$ and $\sigclos$.
+The code memory may contain sets of seals, but only the seals in $\sigrets$ and $\sigcloss$.
 Other than that, code memory only contains instructions in the form of integers.
 When a sequence of instructions in the code memory corresponds to a call (Figure~\ref{fig:call-code}), it must have access to the return seal specified by that call.
 The return seal also needs to be unique to that call, so no other call can specify the same seal.
@@ -1458,7 +1462,7 @@ The world for the heap can contain every kind of region because it can be addres
 The call stack and free stack are only ever addressed by linear capabilities, so their sub-worlds only allow $\Regions$.
 Regions in $\Worlds$ correspond to a stack frame, so they contain the return address for this frame.
 
-Define worlds as $\World = \Worldh \times \Worlds \times \Worldfs$. They are recursive as they contain world indexed relations. Recursive worlds are common in Kripke models, and we use the method of \citet{Birkedal:2011:SKM:1926385.1926401,Birkedal_taste_2014} to construct $\Wor$ which solves the circularity\footnote{We have cheated in the presentation and included the solution to the circularity already.}.
+Define worlds as $\Wor = \Worldh \times \Worlds \times \Worldfs$. They are recursive as they contain world indexed relations. Recursive worlds are common in Kripke models, and we use the method of \citet{Birkedal:2011:SKM:1926385.1926401,Birkedal_taste_2014} to construct $\Wor$ which solves the circularity\footnote{We have cheated in the presentation and included the solution to the circularity already.}.
 % \begin{lemma}
 %   \label{thm:recursive-domain-eq}
 %   There exists a c.o.f.e.\ $\Wor$ and preorder $\future$ such that $(\Wor,\future)$ is a preordered c.o.f.e.\and there exists an isomorphism $\xi$ such that
