@@ -1,7 +1,7 @@
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
-\documentclass[acmsmall,review,anonymous]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+%\documentclass[acmsmall,review,anonymous]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
 %% For editing double-blind review submission, w/o CCS and ACM Reference (max submission space)
-%\documentclass[acmsmall,review,anonymous,showframe]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+\documentclass[acmsmall,review,anonymous,showframe]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
 %% For double-blind review submission, w/ CCS and ACM Reference
 %\documentclass[acmsmall,review,anonymous]{acmart}\settopmatter{printfolios=true}
 %% For single-blind review submission, w/o CCS and ACM Reference (max submission space)
@@ -1173,33 +1173,6 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
     \_                                           & \failed & \totherwise \\
     \hline
   \end{tabular}
-
-  \begin{mathpar}
-    \inferrule{
-      \src{r_1 \neq \rtmp{1}}\\
-      \src{\reg(r_1) = \sealed{\sigma,c_1} }\\
-      \src{r_2 \neq \rtmp{1} }\\
-      \src{\reg(r_2) = \sealed{\sigma',c_2} }\\
-      \src{\reg(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk} }\\
-      \src{\baddr_\stk < \aaddr_\stk \leq \eaddr_\stk }\\
-      \src{\ms_{\stk,\priv} = \ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42} }\\
-      \src{\ms_{\stk,\var{rest}} = \ms_\stk - \ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]} }\\
-      \src{c_\stk = \stkptr{\rw,\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1} }\\
-      \src{c_\var{priv\_data} = \retptrd(\aaddr_\stk,\eaddr_\stk) }\\
-      \src{\reg(\pcreg) = ((\_,\_),\baddr,\eaddr,\aaddr) }\\
-      \src{\opc = \aaddr + \calllen }\\
-      \src{c_\opc = \retptrc(\baddr,\eaddr,\opc) }\\
-      \src{\stk' = (\opc,\ms_{\stk,\priv}) :: \stk }\\
-      \src{\mem(\aaddr+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\aaddr} }\\
-      \src{\baddr \leq  \aaddr+\offpc \leq \eaddr }\\
-      \src{\sigma = \sigma_\aaddr + \offsigma }\\
-      \src{\sigma_\baddr \leq \sigma \leq \sigma_\eaddr }\\
-      \src{w_1,w_2 = \linCons{\reg(r_1),\reg(r_2)}}\\ 
-      \src{s_c = \sealed{\sigma,c_\opc} }\\
-      \src{s_d = \sealed{\sigma,c_\var{priv\_data}} }\\
-      \src{\reg' =\reg\updReg{r_1,r_2}{w_1,w_2}\updReg{\rretc,\rretd}{s_c,s_d}\updReg{\rstk,\rtmp{1}}{c_\stk,0}}}
-    {\src{\var{callConditions}(r_1,r_2,\offpc,\offsigma,(\mem,\reg,\stk,\ms_\stk)) = (\mem,\reg',\stk',\ms_{\stk,\var{rest}})}}
-  \end{mathpar}
 \begin{multline*}
   \srcxjmpres{c_1,c_2,\Phi} = \\
   \left\{ 
@@ -1211,33 +1184,163 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
            & \updReg{\rdata}{c_2}
     \end{array}
     &\phantom{mak} &  $\nonExec{c_2}$ \srcalt{and $c_1 \neq \retptrc(\_)$ and $c_2 \neq \retptrd(\_)$}\\
-      & & \\
-    \sourcecolor\left.
-      \arraycolsep=0pt
-      \begin{array}[t]{rl}
-        \Phi' & \updReg{\pcreg}{c_\opc}\\
-              & \updReg{\rstk}{c_\stk}\\
-              & \updReg{\rdata}{0}\\
-              & \updReg{\rtmp{1}}{0}\\
-              & \updReg{\rtmp{2}}{0}
-      \end{array}\right.
-    & &
-        \srcalt{$c_1 = \retptrc(\baddr,\eaddr,\opc)$ and
-        $c_2 = \retptrd(\aaddr_\stk,\eaddr_{\stk})$ and
-        $\Phi(\rstk) = \stkptr{\rw,\stkb,\aaddr_\stk-1,\_}$ and
-        $\stkb \leq \aaddr_\stk-1$ and
-        $\Phi = (\mem,\reg,\stkf::\stk,\ms_\stk)$ and
-        $\stkf = (\opc,\ms_{\stk,\priv})$ and
-        $c_\opc = ((\rx,\normal),\baddr,\eaddr,\opc)$ and
-        $\dom(\ms_{\stk,\priv}) = [\aaddr_\stk,\eaddr_{\stk}]$ and
-        $c_\stk = \stkptr{\rw,\stkb,\eaddr_{\stk},\aaddr_\stk}$ and
-        $\Phi' = (\mem,\reg,\stk,\ms_{\stk,\priv} \uplus \ms_\stk)$ }\\
-      & & \\
+        \src{\Phi'} 
+      & &
+        $\src{ \Phi' = \var{returnCondition}(c_1,c_2,\Phi)}$ \\
       \failed &  & \totherwise
     \end{array} 
 \right.
 \end{multline*}
   \caption{An excerpt of the operational semantics of \srccm{}.}
+  \label{fig:source-op-sem}
+\end{figure}
+
+\begin{figure}
+  \begin{mathpar}
+    \inferrule{
+      \src{\exists \sigma \ldotp \reg(r_1) = \sealed{\sigma, c_1} \wedge \reg(r_2) = \sealed{\sigma, c_2}} \\
+      \src{r_1 \neq \rtmp{1}} \\ \src{r_2 \neq \rtmp{2}}
+    }{
+      \src{\var{argumentsSealedPairs}(\reg,r_1,r_2,c_1,c_2)}
+    }
+    \and
+    \inferrule{
+      \src{\reg(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk} }\\
+      \src{\baddr_\stk < \aaddr_\stk \leq \eaddr_\stk }\\
+      \src{\ms_{\stk,\var{local}} = \ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42} }\\
+      \src{c_\var{local\_data} = \retptrd(\aaddr_\stk,\eaddr_\stk) }\\
+      \src{\ms_{\stk,\var{unused}} = \ms_\stk - \ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]} }\\
+      \src{c_\stk = \stkptr{\rw,\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1} }
+    }{
+      \src{\ms_{\stk,\var{local}},\ms_{\stk,\var{unused}},c_\stk,c_\var{local\_data} = \var{setupStackAndDataRetPtr}(\reg, \ms_\stk)}
+    }
+    \and
+    \inferrule{
+      \src{\reg(\pcreg) = ((\_,\_),\baddr,\eaddr,\aaddr) }\\
+      \src{\opc = \aaddr + \calllen }\\
+      \src{c_\opc = \retptrc(\baddr,\eaddr,\opc) }
+    }{
+      \src{ \opc, c_\opc = \var{setupOpc(\reg)}}
+    }
+    \and
+    \inferrule{
+      \src{\var{callStackFrame} = (\opc,\ms_{\stk,\priv})}\\
+      \src{\stk' = \var{callStackFrame} :: \stk }
+    }{
+      \src{\stk' = \var{pushCallStackFrame}(\stk, \opc, \ms_{\stk,\var{unused}})}      
+    }
+    \and
+    \inferrule{
+      \src{\reg(\pcreg) = ((\_,\_),\_,\_,\aaddr) }\\
+            \src{\mem(\aaddr+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\aaddr} }\\
+      \src{\baddr \leq  \aaddr+\offpc \leq \eaddr }\\
+      \src{\sigma = \sigma_\aaddr + \offsigma }\\
+      \src{\sigma_\baddr \leq \sigma \leq \sigma_\eaddr }
+    }{
+      \src{\sigma = \var{getCallSeal}(\reg,\mem,\offpc,\offsigma)}
+    }
+    \and
+    \inferrule{
+      \src{s_d = \sealed{\sigma,c_\var{priv\_data}}}\\
+      \src{s_c = \sealed{\sigma,c_\opc}}
+    }{
+     \src{s_c,s_d = \var{sealReturnPair}(\sigma,c_\var{priv\_data},c_\opc)}
+    }    
+    % \and
+    % \inferrule{
+    %   % \src{r_1 \neq \rtmp{1}}\\
+    %   % \src{\reg(r_1) = \sealed{\sigma',c_1} }\\
+    %   % \src{r_2 \neq \rtmp{1} }\\
+    %   % \src{\reg(r_2) = \sealed{\sigma',c_2} }\\
+    %   % \src{\reg(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk} }\\
+    %   % \src{\baddr_\stk < \aaddr_\stk \leq \eaddr_\stk }\\
+    %   % \src{\ms_{\stk,\priv} = \ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42} }\\
+    %   % \src{\ms_{\stk,\var{rest}} = \ms_\stk - \ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]} }\\
+    %   % \src{c_\stk = \stkptr{\rw,\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1} }\\
+    %   % \src{c_\var{priv\_data} = \retptrd(\aaddr_\stk,\eaddr_\stk) }\\
+    %   % \src{\reg(\pcreg) = ((\_,\_),\baddr,\eaddr,\aaddr) }\\
+    %   % \src{\opc = \aaddr + \calllen }\\
+    %   % \src{c_\opc = \retptrc(\baddr,\eaddr,\opc) }\\
+    %   % \src{\stk' = (\opc,\ms_{\stk,\priv}) :: \stk }\\
+    %   % \src{\mem(\aaddr+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\aaddr} }\\
+    %   % \src{\baddr \leq  \aaddr+\offpc \leq \eaddr }\\
+    %   % \src{\sigma = \sigma_\aaddr + \offsigma }\\
+    %   % \src{\sigma_\baddr \leq \sigma \leq \sigma_\eaddr }\\
+    %   \src{\ms_{\stk,\var{local}},\ms_{\stk,\var{unused}},c_\stk,c_\var{local\_data} = \var{setupStackAndDataRetPtr}(\reg, \ms_\stk)}\\
+    %   \src{\opc, c_\opc =\var{setupOpc(\reg)}}\\
+    %   \src{\stk' = \var{pushCallStackFrame}(\stk, \opc, \ms_{\stk,\var{unused}})}\\
+    %   \src{\sigma = \var{getCallSeal}(\reg,\mem,\offpc,\offsigma)}\\
+    %   \src{s_c,s_d = \var{sealReturnPair}(\sigma,c_\var{priv\_data},c_\opc)}\\
+    %   \src{w_1,w_2 = \linCons{\reg(r_1),\reg(r_2)}}\\ 
+    %   \src{\reg' =\reg\updReg{r_1,r_2}{w_1,w_2}\updReg{\rretc,\rretd}{s_c,s_d}\updReg{\rstk,\rtmp{1}}{c_\stk,0}}
+    % }
+    % {\src{\var{callConditions}(r_1,r_2,\offpc,\offsigma,(\mem,\reg,\stk,\ms_\stk)) = (\mem,\reg',\stk',\ms_{\stk,\var{rest}})}}
+  \end{mathpar}
+  \[
+    \begin{array}{l}
+    \src{\var{callConditions}(r_1,r_2,\offpc,\offsigma,(\mem,\reg,\stk,\ms_\stk)) = (\mem,\reg',\stk',\ms_{\stk,\var{rest}})} \quad \mathit{iff}\\
+      \quad\quad\left\{ 
+      \begin{array}{l}
+      \src{\ms_{\stk,\var{local}},\ms_{\stk,\var{unused}},c_\stk,c_\var{local\_data} = \var{setupStackAndDataRetPtr}(\reg, \ms_\stk) \wedge{}}\\
+      \src{\opc, c_\opc =\var{setupOpc(\reg)} \wedge{}}\\
+      \src{\stk' = \var{pushCallStackFrame}(\stk, \opc, \ms_{\stk,\var{unused}}) \wedge{}}\\
+      \src{\sigma = \var{getCallSeal}(\reg,\mem,\offpc,\offsigma) \wedge{}}\\
+      \src{s_c,s_d = \var{sealReturnPair}(\sigma,c_\var{priv\_data},c_\opc) \wedge{}}\\
+      \src{w_1,w_2 = \linCons{\reg(r_1),\reg(r_2)} \wedge{}}\\ 
+      \src{\reg' =\reg\updReg{r_1,r_2}{w_1,w_2}\updReg{\rretc,\rretd}{s_c,s_d}\updReg{\rstk,\rtmp{1}}{c_\stk,0}}
+      \end{array}\right.
+  \end{array}
+\]
+\[
+    \src{\stkptr{\rw,\stkb,\eaddr_\stk,\aaddr_\stk} = \var{tokenToStkPtr}(\retptrd(\aaddr_\stk,\eaddr_\stk)}
+\]
+\[
+    \src{((\rx,\normal),\baddr,\eaddr,\opc) = \var{tokenToPc}(\retptrc(\baddr,\eaddr,\opc)}
+\]
+\[
+    \src{\stk', \ms_\var{local\_stk} = \var{popCallStackFrame} (\stk,c_1,c_2)}
+    \quad\mathit{iff}\quad
+      \left\{ \array{l}
+        \src{\stk = (\opc, \ms_\var{local\_stk}) :: \stk' \wedge{}} \\
+        \src{c_1 = \retptrc(\_,\_,\opc) \wedge{}} \\
+        \src{c_2 = \retptrd(\aaddr_\stk,\eaddr_\stk)\wedge{}} \\
+        \src{\dom(\ms_\var{local\_stk} \subseteq [\aaddr_\stk,\eaddr_\stk])}
+        \endarray
+     \right.
+\]
+\[
+    \src{c_\stk = \var{reconstructStackPointer}(\reg,c)}
+    \quad\mathit{iff}\quad
+      \left\{ \array{l}
+        \src{c = \retptrd(\aaddr_\stk,\eaddr_\stk) \wedge{}} \\
+        \src{\reg(\rstk) = \stkptr{\rw, \stkb, \aaddr_\stk-1,\_} \wedge{}} \\
+        \src{\stkb \leq \addr_\stk \wedge{}} \\
+        \src{c_\stk = \var{tokenToStkPtr(c)} }
+        \endarray
+     \right.
+\]
+  \[
+    \begin{array}{l}
+    \src{(\mem,\reg',\stk',\ms_\stk') = \var{returnCondition}(c_1,c_2,(\mem,\reg,\stk,\ms_\stk))} \quad \mathit{iff}\\
+      \quad\quad\left\{ 
+      \begin{array}{l}
+      \src{\stk', \ms_\var{local\_stk} = \var{popCallStackFrame}(\stk,c_1,c_2)}\\
+      \src{c_\stk = \var{reconstructStackPointer}(\reg,c_2)}\\
+      \src{c_\opc =  \var{tokenToPc}(c_1)} \\
+      \src{\ms_\stk' = \ms_\stk \uplus \ms_\var{local\_stk}} \\
+      \src{\reg' =\reg\updReg{\pcreg,\rstk}{c_\opc,c_\stk}\updReg{\rdata,\rtmp{1},\rtmp{2}}{0,0,0}}
+      \end{array}\right.
+  \end{array}
+\]
+
+
+\begin{mathpar}
+  \inferrule{     
+  }{
+d
+  }
+\end{mathpar}
+  \caption{The call condition in the operational semantics of \srccm{}.}
   \label{fig:source-op-sem}
 \end{figure}
 \subsection{Well-formedness and reasonability}
