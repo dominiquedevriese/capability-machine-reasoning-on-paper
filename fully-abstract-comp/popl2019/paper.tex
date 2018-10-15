@@ -195,7 +195,7 @@ The concrete mechanics of object capabilities vary between different capability 
 % KJAA: This 'sealed' and 'common seal' business is unclear to me.
 For example, on a recent capability machine called CHERI they take the form of pairs of capabilities that represent the code and data parts of the closure.
 Each of the two capabilities are sealed with a common seal which make them opaque.
-The hardware transparently unseals the pair upon invocation~\citep{watson_capability_2015}.
+The hardware transparently unseals the pair upon invocation~\citep{watson_capability_2015,watson_fast_2016}.
 
 To enforce WBCF and LSE on a capability machine, there are essentially two approaches.
 A first approach uses separate stacks for mutually distrusting components, and a central, trusted stack manager component that mediates cross-component invocations.
@@ -209,8 +209,8 @@ A more scalable approach retains a single stack shared between components.
 Enforcing WBCF and LSE in this approach requires a way to temporarily provide stack and return capabilities to an untrusted component and to revoke them after it returns.
 While capability revocation is expensive in general, some capability machines offer restricted forms of revocation that can be implemented efficiently.
 For example, CHERI offers a form of {\itshape local} capabilities that can only be stored in registers or on the stack but not in other parts of memory.
-\citet{skorstengaard_reasoning_2017} has demonstrated that by making the stack and return pointer local, and by introducing a number of security checks and measures, the two properties can be guaranteed.
-In fact, Robert Watson told us privately that a similar system was envisioned in earlier work on CHERI~\citep{watson2012cheri}. 
+\citet{skorstengaard_reasoning_2017} have demonstrated that by making the stack and return pointer local, and by introducing a number of security checks and measures, the two properties can be guaranteed.
+In fact, a similar system was envisioned in earlier work on CHERI~\citep{watson2012cheri}. 
 % KJAA: 'Boundary crossing' is new here.
 However, a problem with this approach is that revoking the local stack and return capabilities on every security boundary crossing requires clearing the entire unused part of the stack, an operation that may be prohibitively expensive.
 
@@ -219,7 +219,7 @@ Instead of CHERI's local capabilities, it builds on {\itshape linear} capabiliti
 % KJAA: Perhaps make it clear by who and when/where?
 The hardware prevents these capabilities from being duplicated.
 We propose to make stack and return pointers linear and require components to hand them out in cross-component invocations and to return them in returns.
-The non-duplicability of linear capabilities together with some security checks allow us to guarantee WBCF and LSE without large overhead on boundary crossings in particular without the need for clearing large blocks of memory.
+The non-duplicability of linear capabilities together with some security checks allow us to guarantee WBCF and LSE without large overhead on boundary crossings and in particular without the need for clearing large blocks of memory.
 
 A second contribution of this work is the way in which we formulate these two properties using a technique we call {\itshape fully abstract overlay semantics}.
 Formulations in previous work are either partial and not suitable for reasoning~\cite{abadi_control-flow_2005} or lacked evidence of generality~\cite{skorstengaard_reasoning_2017}.
@@ -249,7 +249,7 @@ In this paper, we make the following contributions:
   and WBCF claims. This includes:
   \begin{itemize}
   \item defining \srccm{}: an overlay semantics for \trgcm{} with built-in LSE and WBCF (Section~\ref{sec:form-secur-with})
-  \item proving full-abstraction for a compiler from \srccm{} to \trgcm{} (Section~\ref{sec:fa-proof}) by
+  \item proving full-abstraction for the embedding of \srccm{} into \trgcm{} (Section~\ref{sec:fa-proof}) by
   \item using and defining a cross-language, step-indexed, Kripke logical relation with recursive worlds (Section~\ref{sec:fa-proof}).
   \end{itemize}
 \end{itemize}
@@ -277,6 +277,13 @@ This paper is accompanied by a technical report~\citep{technical_report} with th
 \label{sec:cap-mach-w-seal-and-lin}
 % Brief intro to section and this cap machine:
 % Cap machine inspired by CHERI, but with linear capabilities
+In this section, we introduce a simple but representative capability machine with linear capabilities, that we call \trgcm{} (Linear Capability Machine).
+\trgcm{} is mainly inspired by CHERI~\citep{watson_cheri:_2015} with linear capabilities as the main addition.
+For simplicity, \trgcm{} assumes an infinite address space and unbounded integers.
+% \lau{Do we have a good reason to assume an infinite address space for this work?
+%   We do not model malloc, so we do not need to worry about what happens when malloc runs out of memory.}
+
+%%% Capabilities
 \begin{wrapfigure}{r}{0.26\linewidth}
   \centering
   \begin{tikzpicture}[main node/.style={}]
@@ -301,13 +308,6 @@ This paper is accompanied by a technical report~\citep{technical_report} with th
   \caption{Permission hierarchy}
   \label{fig:perm-hier}
 \end{wrapfigure}
-In this section, we introduce a simple but representative capability machine with linear capabilities, that we call \trgcm{} (Linear Capability Machine).
-\trgcm{} is mainly inspired by CHERI~\citep{watson_cheri:_2015} with linear capabilities as the main addition.
-For simplicity, \trgcm{} assumes an infinite address space and unbounded integers.
-% \lau{Do we have a good reason to assume an infinite address space for this work?
-%   We do not model malloc, so we do not need to worry about what happens when malloc runs out of memory.}
-
-%%% Capabilities
 The concept of a capability is the cornerstone of any capability machine.
 In its simplest form, a capability is a permission and a range of authority.
 The permission dictates the operations the capability can be used for, and the range of authority specifies the range of memory it can act upon.
