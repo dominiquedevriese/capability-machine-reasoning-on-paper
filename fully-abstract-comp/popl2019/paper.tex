@@ -699,12 +699,12 @@ They form an opaque closure that the callee can only jump to, and the caller's d
 While the above adds extra protection, it is not sufficient to enforce WBCF and LSE.
 The caller provides the adversary with a stack capability and a return pair that they are supposed to use for the call, but the adversary can store the provided capabilities on the heap in order to use them later.
 Figure~\ref{fig:stack-ret-ptr-abuse} illustrates two examples of this.
-In both examples our component and some adversarial component have been taking turns calling each other, so the stack now contains four stack frames alternating between ours and theirs.
+In both examples our component and an adversarial component have been taking turns calling each other, so the stack now contains four stack frames alternating between ours and theirs.
 The figure on the left (Figure~\ref{fig:stack-ptr-abuse}) illustrates how we try to ensure LSE by restricting the stack capability to the unused part before every call to the adversary.
 However, restricting the stack capability does not help when we, in the first call, give access to the part of the stack where our second stack frame will reside as nothing prevents the adversary from duplicating and storing the stack pointer.
-Generally speaking, we have no reason to ever trust a stack capability received from a component we do not trust as that stack capability may have been duplicated and stored for later use.
+Generally speaking, we have no reason to ever trust a stack capability received from an untrusted component as that stack capability may have been duplicated and stored for later use.
 In the figure on the right (Figure~\ref{fig:ret-ptr-abuse}), we have given the adversary two pairs of sealed return capabilities, one in each of the two calls to the adversarial component.
-The adversary may have stored the pair of sealed return capabilities from the first call in order to use it in the second call where they are not allowed to use it.
+The adversary stores the pair of sealed return capabilities from the first call in order to use it in the second call where they are not allowed.
 The figure illustrates how the adversarial code uses the return pair from the first call to return from the second call and thus break WBCF.
 
 % Informally explain how we prevent this using linear capabilities
@@ -717,16 +717,15 @@ The linear capabilities are put to use by requiring the stack capability to be l
 On call, the caller splits the stack capability in two, such that they have a capability for their local stack frame and a capability for the unused part of the stack.
 The stack capability for their local stack frame is sealed and used as the data part of the sealed return pair, and the stack capability for the remainder of the stack is given to the callee.
 % Prevention of left attack non-aliasing of linear capabilities - token like (ensuring LSE)
-Because the stack capability is linear the caller knows that the capability for their local stack frame cannot have an alias.
-This means that an adversary would need the stack capability the caller produced
-in order to access the caller's local data.
-While the caller gives the capability to the adversary, it is only after the caller seals it which makes the capability opaque.
+Because the stack capability is linear, the caller knows that the capability for their local stack frame cannot have an alias.
+This means that an adversary would need the stack capability produced by the caller in order to access their local data.
+The caller gives this capability to the adversary only in a sealed form, rendering it opaque and unusable.
 This is illustrated in Figure~\ref{fig:stack-ptr-abuse-prev} and prevents the issue illustrated in Figure~\ref{fig:stack-ptr-abuse}.
 
 % Prevention of attack 2
 In a traditional calling convention with a single stack, the stack serves as a call stack keeping track of the order calls where made in and thus in which order they should be returned to.
 A caller pushes a stack frame to the stack on call and a callee pops a stack frame from the stack upon return.
-However without any enforcement, there is nothing to prevent a callee from returning from an arbitrary call on the call stack.
+However without any enforcement, there is nothing to prevent a callee from returning on an arbitrary call on the call stack.
 This is exactly what the adversary does in Figure~\ref{fig:ret-ptr-abuse} when they skip two stack frames.
 In the presence of adversarial code, we need some enforcement mechanism that allows us to make sure that the order of the call stack is kept.
 One way to enforce this would be to hand out a token on call that can only be used when the caller's stack frame is on top of the call stack.
@@ -803,7 +802,7 @@ If the splice is successful, then the caller knows that the two capabilities are
 
 % Non-empty trusted stack frames.
 In order for a call to have a presence on the call stack, its stack frame must be non-empty.
-If we could have empty stack frames on the call stack, then it would be impossible to tell whether the topmost non-empty stack frame has an empty stack frame on top of it.
+We cannot allow empty stack frames on the call stack, because then it would be impossible to tell whether the topmost non-empty stack frame has an empty stack frame on top of it.
 Non-empty stack frames come naturally in traditional C-like calling convention as they keep track of old stack pointers and old program counters on the stack, but in \stktokens{} these things are part of the return pair which means that a caller with no local data may only need an empty stack frame.
 This means that a caller using \stktokens{} needs to take care that their stack frame is non-empty in order to reserve their spot in the return order.
 There is also a more practical reason for a \stktokens{} caller to make sure their stack frame is non-empty: They need a bit of the stack capability in order to perform the splice that verifies the validity of the return token.
@@ -811,18 +810,16 @@ There is also a more practical reason for a \stktokens{} caller to make sure the
 % known stack base
 % + more
 At this point, the caller checks that the return token is adjacent to the stack capability for the caller's local stack frame and they have the means to do so.
-However, this does not ensure that the caller's stack frame is on top of the call stack.
+However, this still does not ensure that the caller's stack frame is on top of the call stack.
 The issue is that stack frames may not be tightly packed leaving space between stack frames in memory.
-An adversarial callee may even intentionally leave a bit of space in memory above the caller's stack frame, so that they later can return out of order by returning the bit of the return token for the bit of memory left above the caller's stack frame.
+An adversarial callee may even intentionally leave a bit of space in memory above the caller's stack frame, so that they can later return out of order by returning the bit of the return token for the bit of memory left above the caller's stack frame.
 This is illustrated in Figure~\ref{fig:stk-base-abuse}: In Figure~\ref{fig:stack-base-abuse-a}, a trusted caller has called an adversarial callee.
 The adversary calls the trusted code back, but first they split the return token in two and store on the heap the part for the memory adjacent to the trusted caller's call frame (Figure~\ref{fig:stack-base-abuse-b}).
 The trusted caller calls the adversary back using the precautions we have described so far (Figure~\ref{fig:stack-base-abuse-c}).
 At this point (Figure~\ref{fig:stack-base-abuse-b}), the adversary has access to a partial return token adjacent to the trusted caller's first stack frame which allows the adversary to return from this call breaking WBCF.
 For the caller to be sure that there are no hidden stack frames above its own, they need to make sure that the return token is exactly the same as the one they passed to the callee.
-In \stktokens{}, the base address of the stack capability is fixed as a
-compile-time constant (Note: the stack grows downwards, so the base address of
-the stack capability is the top-most address of the stack). 
-The caller verifies the validity of the return token by checking whether the base address\footnote{The stack grows downwards in the address space} of a returned token corresponds to this fixed base address, which was the base address for the return token they gave to the callee.
+In \stktokens{}, the base address of the stack capability is fixed as a compile-time constant (Note: the stack grows downwards, so the base address of the stack capability is the top-most address of the stack). 
+The caller verifies the validity of the return token by checking whether the base address of a returned token corresponds to this fixed base address, which was the base address for the return token they gave to the callee.
 In the scenario we just sketched, the caller would be alerted to the attempt to break WBCF when the base address check of the return token fails in Figure~\ref{fig:stack-base-abuse-d}.
 
 % Where do we get the stack pointer from, how can we know it is linear
