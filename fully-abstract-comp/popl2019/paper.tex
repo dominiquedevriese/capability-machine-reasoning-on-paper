@@ -1,5 +1,6 @@
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
 %\documentclass[acmsmall,review,anonymous]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+%\documentclass[acmsmall]{acmart}\settopmatter{}
 %% For editing double-blind review submission, w/o CCS and ACM Reference (max submission space)
 \documentclass[acmsmall,review,anonymous,showframe]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
 %% For double-blind review submission, w/ CCS and ACM Reference
@@ -115,10 +116,10 @@
 \author{Dominique Devriese}
 \orcid{0000-0002-3862-6856}             %% \orcid is optional
 \affiliation{
-  \institution{KU~Leuven}           %% \institution is required
+  \institution{Vrije~Universiteit~Brussel}           %% \institution is required
   \country{Belgium}                   %% \country is recommended
 }
-\email{dominique.devriese@cs.kuleuven.be}         %% \email is recommended
+\email{dominique.devriese@vub.be}         %% \email is recommended
 
 \author{Lars Birkedal}
 % \orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
@@ -191,11 +192,11 @@ These processors use tagged memory to enforce a strict separation between intege
 Capabilities come in different flavours.
 Memory capabilities allow reading from and writing to a block of memory.
 Additionally, capability machines offer some form of {\itshape object capabilities} that represent low-level encapsulated closures, i.e. a piece of code coupled with private state that it gains access to upon invocation.
-The concrete mechanics of object capabilities varies between different capability machines.
+The concrete mechanics of object capabilities vary between different capability machines.
 % KJAA: This 'sealed' and 'common seal' business is unclear to me.
 For example, on a recent capability machine called CHERI they take the form of pairs of capabilities that represent the code and data parts of the closure.
 Each of the two capabilities are sealed with a common seal which make them opaque.
-The hardware transparently unseals the pair upon invocation~\citep{watson_capability_2015}.
+The hardware transparently unseals the pair upon invocation~\citep{watson_capability_2015,watson_fast_2016}.
 
 To enforce WBCF and LSE on a capability machine, there are essentially two approaches.
 A first approach uses separate stacks for mutually distrusting components, and a central, trusted stack manager component that mediates cross-component invocations.
@@ -209,8 +210,8 @@ A more scalable approach retains a single stack shared between components.
 Enforcing WBCF and LSE in this approach requires a way to temporarily provide stack and return capabilities to an untrusted component and to revoke them after it returns.
 While capability revocation is expensive in general, some capability machines offer restricted forms of revocation that can be implemented efficiently.
 For example, CHERI offers a form of {\itshape local} capabilities that can only be stored in registers or on the stack but not in other parts of memory.
-\citet{skorstengaard_reasoning_2017} has demonstrated that by making the stack and return pointer local, and by introducing a number of security checks and measures, the two properties can be guaranteed.
-In fact, Robert Watson told us privately that a similar system was envisioned in earlier work on CHERI~\citep{watson2012cheri}. 
+\citet{skorstengaard_reasoning_2017} have demonstrated that by making the stack and return pointer local, and by introducing a number of security checks and measures, the two properties can be guaranteed.
+In fact, a similar system was envisioned in earlier work on CHERI~\citep{watson2012cheri}. 
 % KJAA: 'Boundary crossing' is new here.
 However, a problem with this approach is that revoking the local stack and return capabilities on every security boundary crossing requires clearing the entire unused part of the stack, an operation that may be prohibitively expensive.
 
@@ -219,7 +220,7 @@ Instead of CHERI's local capabilities, it builds on {\itshape linear} capabiliti
 % KJAA: Perhaps make it clear by who and when/where?
 The hardware prevents these capabilities from being duplicated.
 We propose to make stack and return pointers linear and require components to hand them out in cross-component invocations and to return them in returns.
-The non-duplicability of linear capabilities together with some security checks allow us to guarantee WBCF and LSE without large overhead on boundary crossings in particular without the need for clearing large blocks of memory.
+The non-duplicability of linear capabilities together with some security checks allow us to guarantee WBCF and LSE without large overhead on boundary crossings and in particular without the need for clearing large blocks of memory.
 
 A second contribution of this work is the way in which we formulate these two properties using a technique we call {\itshape fully abstract overlay semantics}.
 Formulations in previous work are either partial and not suitable for reasoning~\cite{abadi_control-flow_2005} or lacked evidence of generality~\cite{skorstengaard_reasoning_2017}.
@@ -249,7 +250,7 @@ In this paper, we make the following contributions:
   and WBCF claims. This includes:
   \begin{itemize}
   \item defining \srccm{}: an overlay semantics for \trgcm{} with built-in LSE and WBCF (Section~\ref{sec:form-secur-with})
-  \item proving full-abstraction for a compiler from \srccm{} to \trgcm{} (Section~\ref{sec:fa-proof}) by
+  \item proving full-abstraction for the embedding of \srccm{} into \trgcm{} (Section~\ref{sec:fa-proof}) by
   \item using and defining a cross-language, step-indexed, Kripke logical relation with recursive worlds (Section~\ref{sec:fa-proof}).
   \end{itemize}
 \end{itemize}
@@ -277,6 +278,13 @@ This paper is accompanied by a technical report~\citep{technical_report} with th
 \label{sec:cap-mach-w-seal-and-lin}
 % Brief intro to section and this cap machine:
 % Cap machine inspired by CHERI, but with linear capabilities
+In this section, we introduce a simple but representative capability machine with linear capabilities, that we call \trgcm{} (Linear Capability Machine).
+\trgcm{} is mainly inspired by CHERI~\citep{watson_cheri:_2015} with linear capabilities as the main addition.
+For simplicity, \trgcm{} assumes an infinite address space and unbounded integers.
+% \lau{Do we have a good reason to assume an infinite address space for this work?
+%   We do not model malloc, so we do not need to worry about what happens when malloc runs out of memory.}
+
+%%% Capabilities
 \begin{wrapfigure}{r}{0.26\linewidth}
   \centering
   \begin{tikzpicture}[main node/.style={}]
@@ -301,13 +309,6 @@ This paper is accompanied by a technical report~\citep{technical_report} with th
   \caption{Permission hierarchy}
   \label{fig:perm-hier}
 \end{wrapfigure}
-In this section, we introduce a simple but representative capability machine with linear capabilities, that we call \trgcm{} (Linear Capability Machine).
-\trgcm{} is mainly inspired by CHERI~\citep{watson_cheri:_2015} with linear capabilities as the main addition.
-For simplicity, \trgcm{} assumes an infinite address space and unbounded integers.
-% \lau{Do we have a good reason to assume an infinite address space for this work?
-%   We do not model malloc, so we do not need to worry about what happens when malloc runs out of memory.}
-
-%%% Capabilities
 The concept of a capability is the cornerstone of any capability machine.
 In its simplest form, a capability is a permission and a range of authority.
 The permission dictates the operations the capability can be used for, and the range of authority specifies the range of memory it can act upon.
@@ -467,7 +468,7 @@ The operational semantics of \trgcm{} is displayed in Figure~\ref{fig:target-op-
 The operational semantics is defined in terms of a step relation that executes the next instruction in an executable configuration $\Phi$ which results in a new executable configuration or one of the two terminated configurations.
 The executed instruction is determined by the capability in $\pcreg$ register, i.e.\ $\Phi(\pcreg)$ (we write $\Phi(r)$ to mean $\Phi.\reg(r)$).
 In order for the machine to take a step, the capability in the $\pcreg$ must have a permission that allows execution, and the current address of the capability must be within the capability's range of authority.
-If both things are satisfied, then the word pointed to by the capability is decoded to an instruction which is interpreted relative to $\Phi$.
+If both conditions are satisfied, then the word pointed to by the capability is decoded to an instruction which is interpreted relative to $\Phi$.
 The interpretations of some of the instructions are displayed in Figure~\ref{fig:target-op-sem}.
 In order to step through a program in memory, most of the interpretations use the function $\updPcAddr{}$ which simply updates the capability in the $\pcreg$ to point to the next memory address.
 The instructions that stop execution or change the flow of execution do not use $\updPcAddr{}$.
@@ -484,7 +485,8 @@ In the case of \texttt{move}, the source register $r_2$ is overwritten with $\li
 We see the other approach later.
 
 % load w/ lin (and store)
-The \texttt{store} and \texttt{load} instructions are fairly standard: They require a capability with permission to either write or read depending on the operation, they check that the capability points within the range of authority, and they clear the source of a linear capability transfer.
+The \texttt{store} and \texttt{load} instructions are fairly standard.
+They require a capability with permission to either write or read depending on the operation, they check that the capability points within the range of authority, and they clear the source of a linear capability transfer.
 Linear capabilities introduce one extra complication for \texttt{load} as it needs to clear the loaded memory address when it contains a linear capability in order to not duplicate the capability.
 In this case, we require that the memory capability used for loading also has write-permission.
 
@@ -553,7 +555,7 @@ We can now define the notion of a program as well as a context.
 \end{definition}
 % Getting an executable from a component - postpone this to later, but mention:
 % write xor exec
-In Section~\ref{sec:form-secur-with}, we will get back to how a program is instrumented to create an executable configuration.
+In Section~\ref{sec:form-secur-with}, we will get back to how a program is initialised to create an executable configuration.
 % We will, however, at this point mention that all programs will be instrumented as Write-XOR-Execute,{Do we have a reference for this?} i.e.\ there will only be read-execute capabilities for the code and read-write capabilities for the data.
 %Further, we will only consider a specific class of well-formed components, but we will get back to this.
 
@@ -698,12 +700,12 @@ They form an opaque closure that the callee can only jump to, and the caller's d
 While the above adds extra protection, it is not sufficient to enforce WBCF and LSE.
 The caller provides the adversary with a stack capability and a return pair that they are supposed to use for the call, but the adversary can store the provided capabilities on the heap in order to use them later.
 Figure~\ref{fig:stack-ret-ptr-abuse} illustrates two examples of this.
-In both examples our component and some adversarial component have been taking turns calling each other, so the stack now contains four stack frames alternating between ours and theirs.
+In both examples our component and an adversarial component have been taking turns calling each other, so the stack now contains four stack frames alternating between ours and theirs.
 The figure on the left (Figure~\ref{fig:stack-ptr-abuse}) illustrates how we try to ensure LSE by restricting the stack capability to the unused part before every call to the adversary.
 However, restricting the stack capability does not help when we, in the first call, give access to the part of the stack where our second stack frame will reside as nothing prevents the adversary from duplicating and storing the stack pointer.
-Generally speaking, we have no reason to ever trust a stack capability received from a component we do not trust as that stack capability may have been duplicated and stored for later use.
+Generally speaking, we have no reason to ever trust a stack capability received from an untrusted component as that stack capability may have been duplicated and stored for later use.
 In the figure on the right (Figure~\ref{fig:ret-ptr-abuse}), we have given the adversary two pairs of sealed return capabilities, one in each of the two calls to the adversarial component.
-The adversary may have stored the pair of sealed return capabilities from the first call in order to use it in the second call where they are not allowed to use it.
+The adversary stores the pair of sealed return capabilities from the first call in order to use it in the second call where they are not allowed.
 The figure illustrates how the adversarial code uses the return pair from the first call to return from the second call and thus break WBCF.
 
 % Informally explain how we prevent this using linear capabilities
@@ -716,16 +718,15 @@ The linear capabilities are put to use by requiring the stack capability to be l
 On call, the caller splits the stack capability in two, such that they have a capability for their local stack frame and a capability for the unused part of the stack.
 The stack capability for their local stack frame is sealed and used as the data part of the sealed return pair, and the stack capability for the remainder of the stack is given to the callee.
 % Prevention of left attack non-aliasing of linear capabilities - token like (ensuring LSE)
-Because the stack capability is linear the caller knows that the capability for their local stack frame cannot have an alias.
-This means that an adversary would need the stack capability the caller produced
-in order to access the caller's local data.
-While the caller gives the capability to the adversary, it is only after the caller seals it which makes the capability opaque.
+Because the stack capability is linear, the caller knows that the capability for their local stack frame cannot have an alias.
+This means that an adversary would need the stack capability produced by the caller in order to access their local data.
+The caller gives this capability to the adversary only in a sealed form, rendering it opaque and unusable.
 This is illustrated in Figure~\ref{fig:stack-ptr-abuse-prev} and prevents the issue illustrated in Figure~\ref{fig:stack-ptr-abuse}.
 
 % Prevention of attack 2
 In a traditional calling convention with a single stack, the stack serves as a call stack keeping track of the order calls where made in and thus in which order they should be returned to.
 A caller pushes a stack frame to the stack on call and a callee pops a stack frame from the stack upon return.
-However without any enforcement, there is nothing to prevent a callee from returning from an arbitrary call on the call stack.
+However without any enforcement, there is nothing to prevent a callee from returning on an arbitrary call on the call stack.
 This is exactly what the adversary does in Figure~\ref{fig:ret-ptr-abuse} when they skip two stack frames.
 In the presence of adversarial code, we need some enforcement mechanism that allows us to make sure that the order of the call stack is kept.
 One way to enforce this would be to hand out a token on call that can only be used when the caller's stack frame is on top of the call stack.
@@ -802,7 +803,7 @@ If the splice is successful, then the caller knows that the two capabilities are
 
 % Non-empty trusted stack frames.
 In order for a call to have a presence on the call stack, its stack frame must be non-empty.
-If we could have empty stack frames on the call stack, then it would be impossible to tell whether the topmost non-empty stack frame has an empty stack frame on top of it.
+We cannot allow empty stack frames on the call stack, because then it would be impossible to tell whether the topmost non-empty stack frame has an empty stack frame on top of it.
 Non-empty stack frames come naturally in traditional C-like calling convention as they keep track of old stack pointers and old program counters on the stack, but in \stktokens{} these things are part of the return pair which means that a caller with no local data may only need an empty stack frame.
 This means that a caller using \stktokens{} needs to take care that their stack frame is non-empty in order to reserve their spot in the return order.
 There is also a more practical reason for a \stktokens{} caller to make sure their stack frame is non-empty: They need a bit of the stack capability in order to perform the splice that verifies the validity of the return token.
@@ -810,18 +811,16 @@ There is also a more practical reason for a \stktokens{} caller to make sure the
 % known stack base
 % + more
 At this point, the caller checks that the return token is adjacent to the stack capability for the caller's local stack frame and they have the means to do so.
-However, this does not ensure that the caller's stack frame is on top of the call stack.
+However, this still does not ensure that the caller's stack frame is on top of the call stack.
 The issue is that stack frames may not be tightly packed leaving space between stack frames in memory.
-An adversarial callee may even intentionally leave a bit of space in memory above the caller's stack frame, so that they later can return out of order by returning the bit of the return token for the bit of memory left above the caller's stack frame.
+An adversarial callee may even intentionally leave a bit of space in memory above the caller's stack frame, so that they can later return out of order by returning the bit of the return token for the bit of memory left above the caller's stack frame.
 This is illustrated in Figure~\ref{fig:stk-base-abuse}: In Figure~\ref{fig:stack-base-abuse-a}, a trusted caller has called an adversarial callee.
 The adversary calls the trusted code back, but first they split the return token in two and store on the heap the part for the memory adjacent to the trusted caller's call frame (Figure~\ref{fig:stack-base-abuse-b}).
 The trusted caller calls the adversary back using the precautions we have described so far (Figure~\ref{fig:stack-base-abuse-c}).
 At this point (Figure~\ref{fig:stack-base-abuse-b}), the adversary has access to a partial return token adjacent to the trusted caller's first stack frame which allows the adversary to return from this call breaking WBCF.
 For the caller to be sure that there are no hidden stack frames above its own, they need to make sure that the return token is exactly the same as the one they passed to the callee.
-In \stktokens{}, the base address of the stack capability is fixed as a
-compile-time constant (Note: the stack grows downwards, so the base address of
-the stack capability is the top-most address of the stack). 
-The caller verifies the validity of the return token by checking whether the base address\footnote{The stack grows downwards in the address space} of a returned token corresponds to this fixed base address, which was the base address for the return token they gave to the callee.
+In \stktokens{}, the base address of the stack capability is fixed as a compile-time constant (Note: the stack grows downwards, so the base address of the stack capability is the top-most address of the stack). 
+The caller verifies the validity of the return token by checking whether the base address of a returned token corresponds to this fixed base address, which was the base address for the return token they gave to the callee.
 In the scenario we just sketched, the caller would be alerted to the attempt to break WBCF when the base address check of the return token fails in Figure~\ref{fig:stack-base-abuse-d}.
 
 % Where do we get the stack pointer from, how can we know it is linear
@@ -858,20 +857,20 @@ Return seals should never be leaked to adversarial code as this would allow them
 This goes for direct leaks, such as leaving a seal in a register or writing it to adversarial memory, as well as indirect leaks, where a capability for reading a return seal (either directly or indirectly) from memory is leaked.
 
 % Note about them vs us, we do nothing that they couldn't do
-In the description of the \stktokens{} calling scheme, it has sometimes been in terms of ``them vs us''.
+We have sometimes phrased the description of the \stktokens{} calling scheme in terms of ``them vs us''.
 This may have created the impression of an asymmetric calling convention that places a special status on trusted components allowing them to protect themselves against adversaries.
 However, \stktokens{} is a modular calling scheme: no restriction is put on adversarial components that we do not expect trusted components to meet.
 This means that any component can ensure WBCF and LSE by employing \stktokens{}.
 % KJAA: ^-- Assuming that there is a global stack address capability, no? Can I "suddenly" begin to impose \stktokens{}?
 
 % Summary of CC
-In the this section, we have described our proposed calling convention, \stktokens{}. The measures taken are:
+To summarise, our proposed calling convention \stktokens{} consists of the following measures:
 \begin{enumerate}
 \item \label{item:check-stkb} Check the base address of the stack capability before and after calls
 \item \label{item:non-empty-sf} Make sure that local stack frames are non-empty
-\item \label{item:return-data} Create token and data return capability on call: split the stack capability in two to get a stack capability for your local stack frame and a stack capability for the unused part of the stack. The stack capability for your local stack frame is sealed and used for the data part of the return pair.
+\item \label{item:return-data} Create token and data return capability on call: split the stack capability in two to get a stack capability for your local stack frame and a stack capability for the unused part of the stack. The former is sealed and used for the data part of the return pair.
 \item \label{item:return-code} Create code return capability on call: Seal the old program pointer.
-\item Reasonable use of seals: Return seals are only used to seal old program pointers, all return seals are only used for one call site, and return seals are not leaked.
+\item Reasonable use of seals: Return seals are only used to seal old program pointers, all return seals are only used for one call site, and they are not leaked.
 \end{enumerate}
 Item~\ref{item:check-stkb}-\ref{item:return-code} are captured by the code in Figure~\ref{fig:call-code} with the exception of checking stack base before calls. We do not include this check because it only needs to happen once between two calls which means that the check after a call suffices if the base of the stack pointer is not changed subsequently.
 
@@ -1029,9 +1028,9 @@ The main difference between the two semantics, is that the new one satisfies LSE
 Important run-time values like return capabilities and stack pointers are represented by special syntactic tokens that interact with the abstract machine's stack, but during execution, there remains a close, structural correspondence to the actual regular capabilities that they represent.
 For example, stack capabilities in the overlay semantics correspond directly to linear capabilities in the underlying semantics, and they have authority over the part of memory that the overlay views as the stack.
 
-The fact that \stktokens{} enforces LSE and WBCF is formulated as the theorem about the function that maps components in the well-behaved overlay semantics to the underlying components in the regular semantics.
+The fact that \stktokens{} enforces LSE and WBCF is formulated as a theorem about the function that maps components in the well-behaved overlay semantics to the underlying components in the regular semantics.
 The theorem states that this function constitutes a fully abstract compiler, a well-known property from the field of secure compilation~\cite{abadi_protection_1999}.
-Intuitively, the theorem states that if a trusted component interacts with (potentially malicious) components in the regular semantics, then these components have no more expressive power than the corresponding components in the well-behaved overlay semantics.
+Intuitively, the theorem states that if a trusted component interacts with (potentially malicious) components in the regular semantics, then these components have no more expressive power than components which the trusted component interacts with in the well-behaved overlay semantics.
 In other words, they cannot do anything that doesn't correspond to something that a well-behaved component, respecting LSE and WBCF, can also do.
 More formally, our full-abstraction result states that two trusted components are indistinguishable to arbitrary other components in the regular semantics iff they are indistinguishable to arbitrary other components in the overlay semantics.
 
@@ -1040,7 +1039,7 @@ For example, the system should be set up such that seals that components use for
 We envision distributing seals as a job for the linker, so this means our results depend on a linker to do this properly.
 As another example, a seal that is used to construct a return pointer can be used again to construct other return pointers for the same return point, but a different seal must be used for others.
 Such seals should also never be passed to other components.
-Such requirements are easy to satisfy: components should request sufficient seals from the linker, use a different one for every place in the code where they make a call to another component, and make sure to clear them from registers before every call.
+These requirements are easy to satisfy: components should request sufficient seals from the linker, use a different one for every place in the code where they make a call to another component, and make sure to clear them from registers before every call.
 The general pattern is that $\stktokens{}$ only protects components that do not shoot themselves in the foot by violating a few basic rules.
 In this section, we define a well-formedness judgement for the syntactic requirements on components as well as a reasonability condition that semantically disallows components to do certain unsafe things.
 
@@ -1150,9 +1149,9 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
                \src{\lbrack \aaddr ,\aaddr + \calllen - 1\rbrack \subseteq \ta}  \\
                \src{\lbrack\aaddr,\aaddr + \calllen-1\rbrack \subseteq [\baddr,\eaddr]} \\
                \src{\perm \in \{\rwx,\rx\}} \\
-               \src{\Phi.\mem(\aaddr,\dots,\addr + \calllen-1) = \scall[0]{\offpc,\offsigma}{r_1}{r_2}, \dots, \scall[\calllen-1]{\offpc,\offsigma}{r_1}{r_2}}
+               \src{\Phi.\mem(\aaddr,\dots,\addr + \calllen-1) = \scall[0]{\offpc,\offsigma}{r_1}{r_2} \cdots \scall[\calllen-1]{\offpc,\offsigma}{r_1}{r_2}}
  }
-              { \src{\Phi}  \; \src{\step[\src{\ta,\stkb}] \sem{\scall{\offpc,\offsigma}{r_1}{r_2}}} }
+              { \src{\Phi}  \; \src{\step[\src{\ta,\stkb}] \sem{\scall{\offpc,\offsigma}{r_1}{r_2}}(\Phi)} }
   \end{mathpar}
   \begin{tabular}{|>{$}c<{$}|>{$}p{3.8cm}<{$}|>{\raggedright\arraybackslash}p{6.4cm}|}
     \hline
