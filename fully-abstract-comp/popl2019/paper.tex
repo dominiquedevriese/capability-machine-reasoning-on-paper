@@ -99,7 +99,7 @@
 \renewcommand{\lrec}[1][]{\typesetlr{EC}^{#1}}
 \renewcommand{\lrheap}[1][]{\typesetlr{H}^{#1}}
 
-\renewcommand{\memSat}[3][]{\memSatGeneric{#1}{#2}{#3}{\gc}}
+\renewcommand{\memSat}[3][]{\memSatGeneric{#1}{#2}{#3}{}}
 \renewcommand{\stdreg}[3][]{\iota^{\mathrm{std},#3,#1}_{#2}}
 \renewcommand{\stareg}[2][\stpair{\ms}{\ms}]{\iota^{\mathrm{sta},#2}_{#1}}
 \renewcommand{\codereg}[2][\mathrm{code}]{\iota^{#1}_{#2}}
@@ -249,8 +249,9 @@ The hardware prevents these capabilities from being duplicated.
 We propose to make stack and return pointers linear and require components to hand them out in cross-component invocations and to return them in returns.
 The non-duplicability of linear capabilities together with some security checks allow us to guarantee WBCF and LSE without large overhead on boundary crossings and in particular without the need for clearing large blocks of memory.
 
-A second contribution of this work is the way in which we formulate these two properties using a technique we call {\itshape fully abstract overlay semantics}.
+A second contribution of this work is the way in which we formulate these two properties: although the terms ``well-bracketed control flow'' and ``local state encapsulation'' sound precise, it is actually far from clear what they mean, and how best to formalize them.
 Formulations in previous work are either partial and not suitable for reasoning~\cite{abadi_control-flow_2005} or lacked evidence of generality~\cite{skorstengaard_reasoning_2017}.
+We propose a new formulation using a technique we call {\itshape fully abstract overlay semantics}.
 Our new formulation starts from the premise that security results for a calling convention should be reusable as part of a larger proof of a secure compiler.
 To accommodate this, we define a second operational semantics for our target language with a native well-bracketed call stack and primitive ways to do calls and returns.
 This well-behaved semantics guarantees WBCF and LSE natively for components using our calling convention.
@@ -1046,8 +1047,25 @@ Item~\ref{item:check-stkb}-\ref{item:return-code} are captured by the code in Fi
 
 \section{Formulating Security with a Fully Abstract Overlay Semantics}
 \label{sec:form-secur-with}
-A central contribution of this paper is to prove that \stktokens{} actually guarantees LSE and WBCF.
-Our proof uses a novel approach we call fully abstract overlay semantics.
+As mentioned, the \stktokens{} calling convention guarantees well-bracketed control flow (WBCF) and local state encapsulation (LSE).
+However, before we can prove these properties, we need to know how to even formulate them.
+Although the properties are intuitively clear and sound precise, formalizing them is actually far from obvious.
+
+Ideally, we would like to define the properties in a way that is
+\begin{enumerate}
+\item {\itshape intuitive}
+\item {\itshape useful for reasoning:} we should be able to use WBCF and LSE when reasoning about correctness and security of programs using \stktokens{}.
+\item {\itshape reusable in secure compiler chains:} for compilers using \stktokens{}, one should be able to rely on WBCF and LSE when reasoning about correctness and security of other compiler passes and then compose such results with our results to obtain results about the full compiler. 
+\item {\itshape arguably "complete"}: the formalization should arguably capture the entire meaning of WBCF and LSE and should arguably be applicable to any reasonable program.
+\item {\itshape potentially scalable}: even though we currently do not consider dynamic code
+  generation or multi-threading, the current formalization should at least potentially extend to such settings.
+\end{enumerate}
+
+Previous formalisations in the literature are formulated in terms of a static control flow graph~\cite[e.g., ]{Abadi2005Theory}.
+While these are intuitively appealing (1), it is not clear how they can be used to reason about programs (2) or other compiler passes (3), they lack temporal safety guarantees (4) and do not scale (5) to settings with dynamic code generation (where a static control flow graph cannot be defined).
+Skorstengaard et al. [2018] provide a logical relation that can be used to reason about programs using their calling convention (2,3), but it is not intuitive (1), there is no argument for completeness and it is unclear whether it will scale to more complex features.
+
+We contribute a new way to formalise the properties using a novel approach we call fully abstract overlay semantics.
 The idea is to define a second operational semantics for programs in our target language.
 This second semantics uses a different abstract machine and different run-time values, but it executes in lock-step with the original semantics and there is a very close correspondence between the state of both machines.
 
@@ -1593,7 +1611,7 @@ This region is used, for example, to govern inactive parts of the stack whose co
 
 \subsection{The logical relation}
 Using these Kripke worlds as assumptions, we can then define when different \srccm{} and \trgcm{} entities are related: values, jump targets, memories, execution configurations, components etc.
-The most important relations are summarised in the following table:\\
+The most important relations are summarised in the following table, where we mention the general form of the relations, what type of things they relate and extra conditions that some of them imply:\\
 % latex hack stolen from https://tex.stackexchange.com/questions/78788/align-equations-over-multiple-tabular-rows
 \newcolumntype{R}{>{$}r<{$}}
 \newcolumntype{L}{>{$}l<{$}}
@@ -1602,8 +1620,8 @@ The most important relations are summarised in the following table:\\
   \hline
   \multicolumn{2}{|c|}{General form} & Relates ... & and ...\\
   \hline
-  \npair{(w_S,w_T)} & \lrv(W) & values & \parbox{3.3cm}{safe to pass to\\ adversarial code}\\
-  \npair{(w_S,w_T)} & \lrvtrusted(W) & values & \\
+  \npair{(w_S,w_T)} & \lrv(W) & values (machine words) & \parbox{3.3cm}{safe to pass to\\ adversarial code}\\
+  \npair{(w_S,w_T)} & \lrvtrusted(W) & values (machine words) & \\
   \npair{(\reg_S,\reg_T)}  &  \lrr(W) & register files & \parbox{3.3cm}{safe to pass to\\ adversarial code}\\
   \npair{(\reg_S,\reg_T)}  &  \lrrtrusted(W) & register files & \\
   \npair{\Phi_S,\Phi_T}  &  \lro & execution configurations & \\
