@@ -1561,13 +1561,13 @@ Additionally, for presentation, we will omit details, like step indexing, that a
 Assumptions about the system, that relatedness is predicated on, are gathered in (Kripke) worlds. 
 We use a type of worlds that is tailored specifically for our purposes.
 They consist of three sub-worlds: $\Wor = \Worldh \times \Worlds \times \Worldfs$, capturing assumptions about the heap\footnote{Actually, we use the term heap to describe all memory except the stack, including, for example, code memory.}, the inactive and the active part of the stack, respectively.
-Sub-worlds consist of a finite mapping from region names to regions, which come in two forms (spatial and shared):
+Sub-worlds consist of a finite mapping from region names to regions which come in two forms (spatial and shared):
 \begin{align*}
   \Worldh  &={} \RegionName \parfun (\Regions + \Regionh)\\
   \Worlds  &={} \RegionName \parfun (\Regions \times \Addr)\\
   \Worldfs &={} \RegionName \parfun \Regions
 \end{align*}
-Different parts of the world can contain different types of regions: heap-related assumptions can be either shared or spatial (see below), while stack-related regions must be spatial.
+Different parts of the world can contain different types of regions: heap-related assumptions can be either spatial or shared (see below), while stack-related regions must be spatial.
 Additionally, regions for inactive parts of the stack additionally include an address specifying the return address for that stack frame.
 
 Regions in $\Regionh$ specify the presence of an invariant in the system, shared with the rest of the system.
@@ -1583,17 +1583,20 @@ Regions in $\Regionh$ specify the presence of an invariant in the system, shared
              \end{multlined}\right.
 \end{align*}
 Shared regions are tagged with the syntactic token $\pure$ and may prescribe two different types of requirements.
-First, they may require the presence of \srccm{} and \trgcm{} memory segments satisfying a given relation in $\Wor \monnefun \URel{\MemSeg^2}$ (see below for the meaning of $\Wor \monnefun$).
+First, they may require the presence of \srccm{} and \trgcm{} memory segments
+satisfying a given relation in $\Wor \monnefun \URel{\MemSeg^2}$
+% Lau: Where do you return to this? I did not find it very clear what it meant when I was done reading about the worlds.
+(see below for the meaning of $\Wor \monnefun$).
 A region might, for example, require the presence of a certain list of instructions at a given set of memory addresses in both \srccm{} and \trgcm{}.
 If a memory segment is owned by a given region, then that memory segment must be disjoint from the memory segments owned by all other regions.
-Second, a shared region may also contains a partial function from seals to relations on pairs of sealable capabilities: $\Seal \parfun \Wor \monnefun \URel{\SealableCaps \times \SealableCaps}$ (see below for the meaning of $\Wor \monnefun$).
+Second, a shared region may also contain a partial function from seals to relations on pairs of sealable capabilities: $\Seal \parfun \Wor \monnefun \URel{\SealableCaps \times \SealableCaps}$.
 When the region defines such a relation for a given seal, then no other region in the world can do the same, and any value signed with that seal will be required to satisfy the registered relation.
 
 Spatial regions are similar to shared regions, but they are tagged as $\spatial$ or $\spatialo$ and may not specify seal invariants.
 Additionally, a spatial region may also be $\revoked$.
 The difference between spatial and shared regions is related to linearity and ownership.
 For example, a \trgcm{} linear capability to a piece of memory is related to its \srccm{} counterpart, but only if no other linear capability overlaps with it.
-We will model such an assumption for exclusive ownership by making the relatedness rely on the presence of a $\spatialo$ region, that only one value in the system may rely on.
+We will model such an assumption for exclusive ownership by making the relatedness rely on the presence of a $\spatialo$ region that only one value in the system may rely on.
 More concretely, we will define how to combine worlds $W_1$ and $W_2$ into a combined world $W_1 \oplus W_2$, on the condition that they represent compatible assumptions: $W_1$ and $W_2$ must contain the same regions except that they must respect exclusive ownership of $\spatialo$ regions: $\pure$ regions must be present in both worlds, but a $\spatialo$ region can only be present in one and must be $\spatial$ in the other.
 We say that worlds $W_1$ and $W_2$ are compatible when $W_1 \oplus W_2$ is defined.
 
@@ -1604,7 +1607,7 @@ We also use a relation $W_2 \future W_1$ that defines when a world $W_2$ is a fu
 Relations that hold with respect to $W_1$, will then generally continue to hold in $W_2$.
 Our future world relation is fairly standard: the future world must contain all the previous world's regions, except that $\spatial$ regions are allowed to become $\spatialo$ (i.e.\ gaining ownership of a region will never break relatedness) or $\revoked$ (i.e.\ revoking spatial regions will never break relatedness).
 
-Attentive readers may have noticed that our definition of worlds is actually cyclic: worlds in $\Wor$ contain regions in $Regionh$, but those contain partial functions from the set $\Wor$ to something else.
+Attentive readers may have noticed that our definition of worlds is actually cyclic: worlds in $\Wor$ contain regions in $\Regionh$, but those contain partial functions from the set $\Wor$ to something else.
 Such recursive worlds are in fact common in Kripke models, and we use the method of \citet{Birkedal:2011:SKM:1926385.1926401,Birkedal_taste_2014} (essentially an advanced form of step-indexing) to construct the set $\Wor$ and rigorously resolve the circularity.
 % \begin{lemma}
 %   \label{thm:recursive-domain-eq}
@@ -1618,38 +1621,42 @@ Such recursive worlds are in fact common in Kripke models, and we use the method
 In our proof, we use only a few regions.
 For space reasons, we do not go into their definitions (see the \citet{technical_report}), but we give a brief overview here.
 First, we have the code region $\codereg{\sigrets,\sigcloss,\mscode}$.
-This is a shared region that represents the assumption that memory segment $\mscode$ is loaded in heap memory at a certain location, that it is well-formed and uses return seals $\sigrets$ and closure seals $\sigcloss$.
+This is a shared region that represents the assumption that memory segment
+$\mscode$ is loaded in heap memory at a certain location, it is well-formed and it uses return seals $\sigrets$ and closure seals $\sigcloss$.
+% Lau: I cannot parse this sentence:
 It takes ownership of those seals and registers appropriate invariants on the capabilities that may be signed with them.
 
 A second type of regions $\stdreg{A}{\pure}$ and $\stdreg{A}{\spatialo}$ governs heap or stack memory at a set of addresses $A$.
-It simply requires presence of a memory segment for those addresses, such that the memory contains values that themselves satisfy the relation between values that we will see below.
+It simply requires the presence of a memory segment for those addresses, such that the memory contains values that themselves satisfy the relation between values that we will see below.
 The contents of the memory is allowed to change as long as the new contents are still valid.
-Finally, a third type of regions $\stareg[\stpair{\ms}{\ms}]{\pure}$ or $\stareg[\stpair{\ms}{\ms}]{\spatialo}$ requires the presence of two given memory segment $\ms_S$ and $\ms_T$ and does not allow them to change.
+Finally, a third type of regions $\stareg[(\ms_S,\ms_T)]{\pure}$ or $\stareg[(\ms_S,\ms_T)]{\spatialo}$ requires the presence of two given memory segment $\ms_S$ and $\ms_T$ and does not allow them to change.
 This region is used, for example, to govern inactive parts of the stack whose contents is required to remain unmodified.
 
 \subsection{The logical relation}
 Using these Kripke worlds as assumptions, we can then define when different \srccm{} and \trgcm{} entities are related: values, jump targets, memories, execution configurations, components etc.
 The most important relations are summarised in the following table, where we mention the general form of the relations, what type of things they relate and extra conditions that some of them imply:\\
 % latex hack stolen from https://tex.stackexchange.com/questions/78788/align-equations-over-multiple-tabular-rows
+% Lau: I find it difficult to easily see what constitutes a row in this table.
+% I have updated it to a table I find easier to read.
 \newcolumntype{R}{>{$}r<{$}}
 \newcolumntype{L}{>{$}l<{$}}
 \newcolumntype{M}{R@{${}\in{}$}L}
-\begin{tabular}{|M|c|c|}
+\begin{tabular}{|M|c|p{4.8cm}|}
   \hline
   \multicolumn{2}{|c|}{General form} & Relates ... & and ...\\
   \hline
-  \npair{(w_S,w_T)} & \lrv(W) & values (machine words) & \parbox{3.3cm}{safe to pass to\\ adversarial code}\\
+  \npair{(w_S,w_T)} & \lrv(W) & values (machine words) & safe to pass to adversarial code\\
   \npair{(w_S,w_T)} & \lrvtrusted(W) & values (machine words) & \\
-  \npair{(\reg_S,\reg_T)}  &  \lrr(W) & register files & \parbox{3.3cm}{safe to pass to\\ adversarial code}\\
+  \npair{(\reg_S,\reg_T)}  &  \lrr(W) & register files & safe to pass to adversarial code\\
   \npair{(\reg_S,\reg_T)}  &  \lrrtrusted(W) & register files & \\
   \npair{\Phi_S,\Phi_T}  &  \lro & execution configurations & \\
   \npair{(w_S,w_T)}  &  \lre(W) & $\tjmp{}$ targets &\\
-  \npair{((w_{S,1},w_{S,2}),(w_{T,1},w_{T,2}))}  &  \lrexj(W) & $\txjmp{}{}$ targets &\\
-  \multicolumn{2}{|c|}{$\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W}$} & memory & \parbox{3.3cm}{satisfy the\\ assumptions in $W$}\\
+  \left(\arraycolsep=1pt\array{l}(w_{S,1},w_{S,2}),\\(w_{T,1},w_{T,2})\endarray\right)  &  \lrexj(W) & $\txjmp{}{}$ targets &\\
+  \multicolumn{2}{|c|}{$\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W}$} & memory & satisfy the assumptions in $W$\\
   \hline
 \end{tabular}\\
 These relations are defined using a set of mutually recursive equations, with cyclicity resolved through another (omitted) use of step-indexing.
-For space reasons, we cannot show all of these definitions, but we will try to give a good overview, omitting many details.
+For space reasons, we cannot show all of these definitions, but we will try to give a good overview.
 
 Note first how we have two value relations, whose definitions are shown in Figure~\ref{fig:value-relation}.
 The difference is that the untrusted value relation $\lrv(W)$ does not just express that the two values are related, but also that they are safe to pass to an untrusted adversary, i.e. they cannot be used to break LSE and WBCF.
@@ -1761,6 +1768,7 @@ They are not in the untrusted value relation because the code memory contains co
 \begin{align*}
   \lrrg{\trust}(W) &= \left\{ \npair{\stpair{\reg}{\reg}} \middle|
     \begin{array}{l}
+    % Lau: Consider using \Wor instead of \World as we have not made a distinction between the two.
       \exists S : (\RegName \setminus \{\pcreg \})\fun \World \ldotp \\
       \quad W = \bigoplus_{r \in (\RegName\setminus (\{\pcreg \} \cup R))} S(r) \wedge \\
       \quad \forall r \in \RegName \setminus \{\pcreg \}\ldotp \npair{\stpair[.]{\src{\reg_S(r)}}{\reg_T(r)}} \in \lrvg{\trust}(S(r))
