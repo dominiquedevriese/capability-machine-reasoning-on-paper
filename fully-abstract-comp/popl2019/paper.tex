@@ -1198,23 +1198,42 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
  }
               { \src{\Phi}  \; \src{\step[\src{\ta,\stkb}] \sem{\scall{\offpc,\offsigma}{r_1}{r_2}}(\Phi)} }
   \end{mathpar}
-  \begin{tabular}{|>{$}c<{$}|>{$}p{3.8cm}<{$}|>{\raggedright\arraybackslash}p{6.4cm}|}
+  \begin{tabular}{|>{$}c<{$}|p{3.7cm}|>{\raggedright\arraybackslash}p{6.55cm}|}
     \hline
-    i \in \Instr                                 & \sem{i}(\Phi) & Conditions\\
+    i \in \Instr                                 & $\sem{i}(\Phi)$ & Conditions\\
     \hline
-    \halt                                        & \halted & \\
+    \halt                                        & $\halted$ & \\
     \hline
     \multicolumn{3}{|c|}{\dots\text{ (the operational semantics of \trgcm)}} \\
     \hline
-    \store{r_1}{r_2}                             & \srcalt{\var{updPc}} \sourcecolor\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_2}{w_2}\\ &\update{\ms_\stk.\aaddr}{\Phi(r_2)})\endarray  & \srcalt{$\Phi(r_1) = \stkptr{\perm,\baddr,\eaddr,\aaddr}$ and $\perm \in \{\rwx,\rw\}$ and $\baddr \le \aaddr \le \eaddr$ and $w_2 = \linCons{\Phi(r_2)}$ and $\aaddr \in \dom(\ms_\stk)$}\\
+    \store{r_1}{r_2}                             & $\srcalt{\var{updPc}} \sourcecolor\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_2}{w_2}\\ &\update{\ms_\stk.\aaddr}{\Phi(r_2)})\endarray$  & \srcalt{$\Phi(r_1) = \stkptr{\perm,\baddr,\eaddr,\aaddr}$ and $\perm \in \{\rwx,\rw\}$ and $\baddr \le \aaddr \le \eaddr$ and $w_2 = \linCons{\Phi(r_2)}$ and $\aaddr \in \dom(\ms_\stk)$}\\
     \hline
-    \cca{r}{\rn}                                 &\srcalt{\updPcAddr{\Phi\updReg{r}{w}}} &  \srcalt{$\Phi(\rn) = n \in \ints$ and $\Phi(r) = \stkptr{\perm,\baddr,\eaddr,\aaddr}$ and $w = \stkptr{\perm,\baddr,\eaddr,\aaddr+n}$} \\
+    \cca{r}{\rn}                                 &$\srcalt{\updPcAddr{\Phi\updReg{r}{w}}}$ &  \srcalt{$\Phi(\rn) = n \in \ints$ and $\Phi(r) = \stkptr{\perm,\baddr,\eaddr,\aaddr}$ and $w = \stkptr{\perm,\baddr,\eaddr,\aaddr+n}$} \\
     \hline
-    \scall{\srcalt{\offpc,\offsigma}}{\src{r_1}}{\src{r_2}} & \srcalt{\var{xjmpRes}(c_1,c_2,\Phi')} & $\srcalt{ \Phi' =\var{callConditions}(r_1,r_2,\offpc,\offsigma,\Phi)}$\\
+    \scall{\srcalt{\offpc,\offsigma}}{\src{r_1}}{\src{r_2}} &
+        $\srcalt{\var{xjmpRes}(c_1,c_2,}$
+        $\srcalt{\hspace{.25cm}\left(\arraycolsep=0pt\array[c]{rl}\Phi&\updReg{r_1,r_2}{w_1,w_2}\\
+            &\updReg{\rretc}{s_c}\\
+            &\updReg{\rretd}{s_d}\\
+            &\updReg{\rstk}{c_\stk}\\
+            &\update{\ms_\stk}{\ms_{\stk,\var{rest}}}\\
+            &\update{\stk}{\stk'}\\
+            \endarray\right))}$
+       &
+      \srcalt{$\stk' = (\opc,\ms_{\stk,\var{local}}) :: \Phi.\stk$ and 
+         $\begin{multlined}
+           \ms_{\stk,\var{local}},\ms_{\stk,\var{rest}},c_\stk,c_\var{local} =\\ \var{splitStack}(\Phi.\reg(\rstk), \Phi.\ms_\stk) \text{ and }
+         \end{multlined}$
+    $\opc, c_\opc =\var{setupOpc(\Phi.\reg(\pcreg))}$ and
+    $\sigma = \var{getCallSeal}(\Phi.\reg,\Phi.\mem,\offpc,\offsigma)$ and 
+    $s_c,s_d = \var{sealReturnPair}(\sigma,c_\var{local},c_\opc)$
+    $w_1,w_2 = \linCons{\Phi.\reg(r_1,r_2)}$ and
+                        $\reg(r_1,r_2) = \sealed{\sigma', c_1}, \sealed{\sigma', c_2}$
+                        }\\
     \hline 
     \multicolumn{3}{|c|}{\dots} \\
     \hline
-    \_                                           & \failed & \totherwise \\
+    \_                                           & $\failed$ & \totherwise \\
     \hline
   \end{tabular}
 \begin{multline*}
@@ -1235,7 +1254,7 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
     \end{array} 
 \right.
 \end{multline*}
-  \caption{An excerpt of the operational semantics of \srccm{}.}
+  \caption{An excerpt of the operational semantics of \srccm{} (some details omitted).}
   \label{fig:source-op-sem}
 \end{figure}
 
@@ -1250,22 +1269,21 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
       \right.
     \]
     \[
-      \src{ \opc, c_\opc = \var{setupOpc(\reg)}} \mathit{ iff }
+      \src{ \opc, c_\opc = \var{setupOpc(((\_,\_),\baddr,\eaddr,\aaddr))}} \mathit{ iff }
       \left\{ 
       \begin{array}{l}
-      \src{\reg(\pcreg) = ((\_,\_),\baddr,\eaddr,\aaddr) \wedge{}}\\
       \src{\opc = \aaddr + \calllen \wedge{}}\\
       \src{c_\opc = \retptrc(\baddr,\eaddr,\opc) \wedge{}}
       \end{array}
        \right.
     \]
     \begin{multline*}
-      \src{\ms_{\stk,\var{local}},\ms_{\stk,\var{unused}},c_\stk,c_\var{local\_data} = \var{setupStackAndDataRetPtr}(\reg, \ms_\stk)} \mathit{\ iff} \\
+      \src{\ms_{\stk,\var{local}},\ms_{\stk,\var{unused}},c_\stk,c_\var{local\_data} = \var{splitStack}(\stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk}, \ms_\stk)} \mathit{\ iff} \\
       \left\{ 
       \begin{array}{l}
-      \src{\reg(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk} \wedge \baddr_\stk < \aaddr_\stk \leq \eaddr_\stk }\\
+      \src{\baddr_\stk < \aaddr_\stk \leq \eaddr_\stk }\\
       \src{\ms_{\stk,\var{local}} = \ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]}\update{\aaddr_\stk}{42} }\\
-      \src{\ms_{\stk,\var{unused}} = \ms_\stk - \ms_\stk |_{[\aaddr_\stk,\eaddr_\stk]} }\\
+      \src{\ms_{\stk,\var{unused}} = \ms_\stk|_{[\baddr_\stk,\aaddr_\stk-1]} }\\
       \src{c_\stk = \stkptr{\rw,\baddr_\stk,\aaddr_\stk-1,\aaddr_\stk-1} }\\
       \src{c_\var{local\_data} = \retptrd(\aaddr_\stk,\eaddr_\stk) }\\
       \end{array}
@@ -1286,20 +1304,20 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
      \src{s_c,s_d = \var{sealReturnPair}(\sigma,c_\var{priv\_data},c_\opc)} \mathit{\ iff\ }
       \src{s_d = \sealed{\sigma,c_\var{priv\_data}} \wedge{} s_c = \sealed{\sigma,c_\opc}}
     \]
-  \begin{multline*}
-    \src{\var{callConditions}(r_1,r_2,\offpc,\offsigma,(\mem,\reg,\stk,\ms_\stk)) = (\mem,\reg',\stk',\ms_{\stk,\var{rest}})}\mathit{\ iff}\\
-      \quad\quad\left\{ 
-        \begin{array}{l}
-          \src{\var{sealedPairArgument}(\reg,r_1,r_2,c_1,c_2)}\\
-      \src{\ms_{\stk,\var{local}},\ms_{\stk,\var{rest}},c_\stk,c_\var{local\_data} = \var{setupStackAndDataRetPtr}(\reg, \ms_\stk) \wedge{}}\\
-      \src{\opc, c_\opc =\var{setupOpc(\reg)} \wedge{}}\\
-      \src{\stk' = (\opc,\ms_{\stk,\var{local}}) :: \stk \wedge{}}\\
-      \src{\sigma = \var{getCallSeal}(\reg,\mem,\offpc,\offsigma) \wedge{}}\\
-      \src{s_c,s_d = \var{sealReturnPair}(\sigma,c_\var{priv\_data},c_\opc) \wedge{}}\\
-      \src{w_1,w_2 = \linCons{\reg(r_1),\reg(r_2)} \wedge{}}\\ 
-      \src{\reg' =\reg\updReg{r_1,r_2}{w_1,w_2}\updReg{\rretc,\rretd}{s_c,s_d}\updReg{\rstk,\rtmp{1}}{c_\stk,0}}
-      \end{array}\right.
-  \end{multline*}
+  % \begin{multline*}
+  %   \src{\var{callConditions}(r_1,r_2,\offpc,\offsigma,(\mem,\reg,\stk,\ms_\stk)) = (\mem,\reg',\stk',\ms_{\stk,\var{rest}})}\mathit{\ iff}\\
+  %     \quad\quad\left\{ 
+  %       \begin{array}{l}
+  %         \src{\var{sealedPairArgument}(\reg,r_1,r_2,c_1,c_2)}\\
+  %     \src{\ms_{\stk,\var{local}},\ms_{\stk,\var{rest}},c_\stk,c_\var{local\_data} = \var{splitStack}(\reg, \ms_\stk) \wedge{}}\\
+  %     \src{\opc, c_\opc =\var{setupOpc(\reg)} \wedge{}}\\
+  %     \src{\stk' = (\opc,\ms_{\stk,\var{local}}) :: \stk \wedge{}}\\
+  %     \src{\sigma = \var{getCallSeal}(\reg,\mem,\offpc,\offsigma) \wedge{}}\\
+  %     \src{s_c,s_d = \var{sealReturnPair}(\sigma,c_\var{local\_data},c_\opc) \wedge{}}\\
+  %     \src{w_1,w_2 = \linCons{\reg(r_1),\reg(r_2)} \wedge{}}\\ 
+  %     \src{\reg' =\reg\updReg{r_1,r_2}{w_1,w_2}\updReg{\rretc,\rretd}{s_c,s_d}\updReg{\rstk,\rtmp{1}}{c_\stk,0}}
+  %     \end{array}\right.
+  % \end{multline*}
   
   \caption{The call condition in the operational semantics of \srccm{}.}
   \label{fig:source-op-sem}
