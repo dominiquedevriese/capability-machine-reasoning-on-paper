@@ -1203,8 +1203,6 @@ Further, the built-in call and returns make sure that a stack frame is pushed on
 In other words by inspection of the operational semantics, \srccm{} guarantees LSE and WBCF.
 It is important to point this out as \stktokens{} guarantee exactly the LSE and WBCF we have on \srccm{}.
 
-
-
 \begin{figure}[htb]
   \centering
   \begin{mathpar}
@@ -1240,13 +1238,13 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
        &
       \srcalt{$\stk' = (\opc,\ms_{\stk,\var{local}}) :: \Phi.\stk$ and 
          $\begin{multlined}
-           \ms_{\stk,\var{local}},\ms_{\stk,\var{rest}},c_\stk,c_\var{local} =\\ \var{splitStack}(\Phi.\reg(\rstk), \Phi.\ms_\stk) \text{ and }
+           \ms_{\stk,\var{local}},c_\var{local},\ms_{\stk,\var{rest}},c_\stk =\\ \var{splitStack}(\Phi.\reg(\rstk), \Phi.\ms_\stk) \text{ and }
          \end{multlined}$
     $\opc, c_\opc =\var{setupOpc(\Phi.\reg(\pcreg))}$ and
     $\sigma = \var{getCallSeal}(\Phi.\reg,\Phi.\mem,\offpc,\offsigma)$ and 
-    $s_c,s_d = \var{sealReturnPair}(\sigma,c_\var{local},c_\opc)$
+    $s_c,s_d = \var{sealReturnPair}(\sigma,c_\var{local},c_\opc)$ and
     $w_1,w_2 = \linCons{\Phi.\reg(r_1,r_2)}$ and
-                        $\reg(r_1,r_2) = \sealed{\sigma', c_1}, \sealed{\sigma', c_2}$
+                        $\Phi.\reg(r_1,r_2) = \sealed{\sigma', c_1}, \sealed{\sigma', c_2}$
                         }\\
     \hline 
     \multicolumn{3}{|c|}{\dots} \\
@@ -1264,10 +1262,23 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
       \Phi & \updReg{\pcreg}{c_1}\\
            & \updReg{\rdata}{c_2}
     \end{array}
-    &\phantom{mak} &  $\nonExec{c_2}$ \srcalt{and $c_1 \neq \retptrc(\_)$ and $c_2 \neq \retptrd(\_)$}\\
-        \src{\Phi'} 
-      & &
-        $\src{ \Phi' = \var{returnCondition}(c_1,c_2,\Phi)}$ \\
+    &\phantom{mak} & $\nonExec{c_2}$ \srcalt{and $c_1 \neq \retptrc(\_)$ and $c_2 \neq \retptrd(\_)$}\\
+      \arraycolsep=0pt
+      \array[c]{rl}
+      \Phi&\updReg{\pcreg}{c_\opc}\\
+          &\updReg{\rstk}{c_\stk}\\
+          &\updReg{\rdata}{0}\\
+          &\update{\stk}{\stk'}\\
+          &\update{\ms_\stk}{\ms_\stk \uplus \ms_\var{local}}
+      \endarray
+           & &
+               $\arraycolsep=0pt\array{l}
+        \src{(\opc, \ms_\var{local}) :: \stk'= \Phi.\stk \tand} \\
+      \src{\var{retPtrMatchesOpc}(c_1,\opc)}\\
+      \src{\var{retPtrForLocalStack}(c_2,\ms_\var{local})}\\
+      \src{c_\stk = \var{reconstructStackPointer}(\reg,c_2) \tand}\\
+      \src{c_\opc =  \var{tokenToPc}(c_1)} 
+      \endarray$\\
       \failed &  & \totherwise
     \end{array} 
 \right.
@@ -1296,7 +1307,7 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
        \right.
     \]
     \begin{multline*}
-      \src{\ms_{\stk,\var{local}},\ms_{\stk,\var{unused}},c_\stk,c_\var{local\_data} = \var{splitStack}(\stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk}, \ms_\stk)} \mathit{\ iff} \\
+      \src{\ms_{\stk,\var{local}},c_\var{local\_data},\ms_{\stk,\var{unused}},c_\stk = \var{splitStack}(\stkptr{\rw,\baddr_\stk,\eaddr_\stk,\aaddr_\stk}, \ms_\stk)} \mathit{\ iff} \\
       \left\{ 
       \begin{array}{l}
       \src{\baddr_\stk < \aaddr_\stk \leq \eaddr_\stk }\\
@@ -1347,17 +1358,24 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
 \[
     \src{((\rx,\normal),\baddr,\eaddr,\opc) = \var{tokenToPc}(\retptrc(\baddr,\eaddr,\opc)}
 \]
+% \[
+%     \src{\stk', \ms_\var{local\_stk} = \var{popCallStackFrame} (\stk,c_1,c_2)}
+%     \mathit{\ iff\ }
+%       \left\{ \array{l}
+%         \src{\stk = (\opc, \ms_\var{local\_stk}) :: \stk' \wedge{}} \\
+%         \src{c_1 = \retptrc(\_,\_,\opc) \wedge{}} \\
+%         \src{c_2 = \retptrd(\aaddr_\stk,\eaddr_\stk)\wedge{}} \\
+%         \src{\dom(\ms_\var{local\_stk}) \subseteq [\aaddr_\stk,\eaddr_\stk]}
+%         \endarray
+%      \right.
+% \]
 \[
-    \src{\stk', \ms_\var{local\_stk} = \var{popCallStackFrame} (\stk,c_1,c_2)}
-    \mathit{\ iff\ }
-      \left\{ \array{l}
-        \src{\stk = (\opc, \ms_\var{local\_stk}) :: \stk' \wedge{}} \\
-        \src{c_1 = \retptrc(\_,\_,\opc) \wedge{}} \\
-        \src{c_2 = \retptrd(\aaddr_\stk,\eaddr_\stk)\wedge{}} \\
-        \src{\dom(\ms_\var{local\_stk}) \subseteq [\aaddr_\stk,\eaddr_\stk]}
-        \endarray
-     \right.
+  \src{\var{retPtrMatchesOpc(\retptrc(\_,\_,\opc_c),\opc)}} \mathit{\ iff\ } \src{\opc_c = \opc}
 \]
+\[
+  \src{\var{retPtrForMatchLocalStack(\retptrd(\aaddr_\stk,\eaddr_\stk),\ms_\var{local})}} \mathit{\ iff\ } \src{\dom(\ms_\var{local} \subseteq [\aaddr_\stk,\eaddr_\stk])}
+\]
+
 \[
     \src{c_\stk = \var{reconstructStackPointer}(\reg,c)}
     \mathit{\ iff\ }
@@ -1370,17 +1388,17 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
      \right.
 \]
 
-\begin{multline*}
-    \src{(\mem,\reg',\stk',\ms_\stk') = \var{returnCondition}(c_1,c_2,(\mem,\reg,\stk,\ms_\stk))}\mathit{\ iff\ }\\
-      \quad\quad\left\{ 
-      \begin{array}{l}
-      \src{\stk', \ms_\var{local\_stk} = \var{popCallStackFrame}(\stk,c_1,c_2)}\\
-      \src{c_\stk = \var{reconstructStackPointer}(\reg,c_2)}\\
-      \src{c_\opc =  \var{tokenToPc}(c_1)} \\
-      \src{\ms_\stk' = \ms_\stk \uplus \ms_\var{local\_stk}} \\
-      \src{\reg' =\reg\updReg{\pcreg,\rstk}{c_\opc,c_\stk}\updReg{\rdata,\rtmp{1},\rtmp{2}}{0,0,0}}
-      \end{array}\right.
-  \end{multline*}
+% \begin{multline*}
+%     \src{(\mem,\reg',\stk',\ms_\stk') = \var{returnCondition}(c_1,c_2,(\mem,\reg,\stk,\ms_\stk))}\mathit{\ iff\ }\\
+%       \quad\quad\left\{ 
+%       \begin{array}{l}
+%       \src{\stk', \ms_\var{local\_stk} = \var{popCallStackFrame}(\stk,c_1,c_2)}\\
+%       \src{c_\stk = \var{reconstructStackPointer}(\reg,c_2)}\\
+%       \src{c_\opc =  \var{tokenToPc}(c_1)} \\
+%       \src{\ms_\stk' = \ms_\stk \uplus \ms_\var{local\_stk}} \\
+%       \src{\reg' =\reg\updReg{\pcreg,\rstk}{c_\opc,c_\stk}\updReg{\rdata,\rtmp{1},\rtmp{2}}{0,0,0}}
+%       \end{array}\right.
+%   \end{multline*}
 
   \caption{The return condition in the operational semantics of \srccm{}.}
   \label{fig:source-op-sem-return}
