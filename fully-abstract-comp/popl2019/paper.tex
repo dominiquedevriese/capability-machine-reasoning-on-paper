@@ -409,7 +409,7 @@ An executable configuration is a register file and memory pair.
         \baddr \le \aaddr \le \eaddr \and \perm \in \{\rwx,\rx\}
  }{ \Phi \step \sem{\decInstr{\Phi.\mem(\aaddr)}}(\Phi) }
               \and
-              \inference{ \forall \Phi' \ldotp \neg (\Phi \step \Phi') \wedge \Phi' \neq \failed}
+              \inference{ \forall \Phi' \neq \failed \ldotp \Phi \nrightarrow \Phi'}
                         {\Phi \step \failed }
   \end{mathpar}
   \[
@@ -509,7 +509,7 @@ When a linear capability is moved, the source register must be cleared, so the c
 This is done uniformly in the semantics using two approaches.
 In the first one, we use the function $\linCons{}$ that returns $0$ for linear capabilities and is the identity for all other words.
 When a word $w$ is transferred on the machine, then the source of $w$ is overwritten with $\linCons{w}$ which clears the source if $w$ was linear and leaves it unchanged otherwise.
-In the case of \texttt{move}, the source register $r_2$ is overwritten with $\linCons{\Phi(r_2)}$.
+In the case of \texttt{move}, the source register $\rn$ is overwritten with $\linCons{\Phi(\rn)}$.
 We see the other approach later.
 
 % load w/ lin (and store)
@@ -520,7 +520,7 @@ In this case, we require that the memory capability used for loading also has wr
 
 % geta, cca
 The instruction \texttt{geta} projects the current address (or seal) from a capability (or set of seals), and returns $-1$ for data and sealed capabilities.
-\texttt{cca} changes the current address or seal of a capability or set of seals, respectively, by a given offset.
+\texttt{cca} (change current address) changes the current address or seal of a capability or set of seals, respectively, by a given offset.
 It handles linearity by updating the capability in-place, i.e.\ the source register is used as the target register.
 This is the second approach we use to uniformly handle linearity.
 The \texttt{jmp} instruction is a simple jump that just sets the $\pcreg$ register.
@@ -554,7 +554,7 @@ We do not provide special support for lossless reduction of capability permissio
 This would also allow linear capabilities to have aliases, but only by linear capabilities with disjoint permissions.
 
 The executable configuration describes the machine state, but it does not make it clear what components run on the machine and how they interact with each other.
-To make this clearer, we introduce notions of components and programs from which we construct executable configurations.
+To clarify this, we introduce notions of components and programs from which we construct executable configurations.
 A component is basically a program with entry points in the form of imports that need to be linked.
 A component has exports that can satisfy the imports of other components.
 The component definition is in Figure~\ref{fig:target-component-and-linking}.
@@ -737,7 +737,7 @@ The adversary stores the pair of sealed return capabilities from the first call 
 The figure illustrates how the adversarial code uses the return pair from the first call to return from the second call and thus break WBCF.
 
 % Informally explain how we prevent this using linear capabilities
-As the examples illustrate, the standard memory and object-like capabilities (here sealed capabilities) do not provide sufficient guarantees to enforce LSE and WBCF.
+As the examples illustrate, the standard memory and object-like capabilities (here sealed capabilities) do not seem to provide sufficient guarantees to enforce LSE and WBCF.
 The problem is essentially that the stack and return pointers that a callee receives from a caller remain in effect after their intended lifetime: either when the callee has already returned or when they have themselves invoked other code. 
 Linear capabilities offer a form of revocation\footnote{Revocation in the sense that if we hand out a linear capability and later get it back, then the receiver no longer has it or a copy of it as it is non-duplicable.} that can be used to prevent this from happening.
 
@@ -754,17 +754,17 @@ This is illustrated in Figure~\ref{fig:stack-ptr-abuse-prev} and prevents the is
 % Prevention of attack 2
 In a traditional calling convention with a single stack, the stack serves as a call stack keeping track of the order calls where made in and thus in which order they should be returned to.
 A caller pushes a stack frame to the stack on call and a callee pops a stack frame from the stack upon return.
-However without any enforcement, there is nothing to prevent a callee from returning on an arbitrary call on the call stack.
+However without any enforcement, there is nothing to prevent a callee from returning from an arbitrary call on the call stack.
 This is exactly what the adversary does in Figure~\ref{fig:ret-ptr-abuse} when they skip two stack frames.
 In the presence of adversarial code, we need some enforcement mechanism that allows us to make sure that the order of the call stack is kept.
 One way to enforce this would be to hand out a token on call that can only be used when the caller's stack frame is on top of the call stack.
 The callee would have to provide this token on return to prove that it is allowed to return to the caller, and on return the token would be taken back by the caller to prevent it from being spent multiple times.
 As it turns out, the stack capability for the unused part of the stack can be used as such a token in the following way:
 On return the callee has to give back the stack capability they were given on invocation.
-When the caller receives a stack capability back on return, they need to check that this token is actually spendable, i.e.\ check whether their stack frame is on top of the call stack.
+When the caller receives a stack capability back on return, they need to check that this token is actually spendable, i.e.\ check whether their stack frame is on top of the call stack or not.
 They do this by attempting to restore the stack capability from before the call by splicing the return token with the stack capability for the local stack frame which at this point has been unsealed again.
 If the splice is successful, then the caller knows that the two capabilities are adjacent. On the other hand, if the splice fails, then they are alerted to the fact that their stack frame may not be the topmost.
-\stktokens{} uses this approach, and as illustrated in Figure~\ref{fig:ret-ptr-abuse-prev} it prevents the issue in Figure~\ref{fig:ret-ptr-abuse} as the adversary does not return a spendable token when they return.
+\stktokens{} uses this approach; and as illustrated in Figure~\ref{fig:ret-ptr-abuse-prev}, it prevents the issue in Figure~\ref{fig:ret-ptr-abuse} as the adversary does not return a spendable token when they return.
 \begin{figure}
   \centering
   \begin{subfigure}{0.4\linewidth}
@@ -897,8 +897,8 @@ Can I "suddenly" begin to impose \stktokens{}?
 % Summary of CC
 To summarise, our proposed calling convention \stktokens{} consists of the following measures:
 \begin{enumerate}
-\item \label{item:check-stkb} Check the base address of the stack capability before and after calls
-\item \label{item:non-empty-sf} Make sure that local stack frames are non-empty
+\item \label{item:check-stkb} Check the base address of the stack capability before and after calls.
+\item \label{item:non-empty-sf} Make sure that local stack frames are non-empty.
 \item \label{item:return-data} Create token and data return capability on call: split the stack capability in two to get a stack capability for your local stack frame and a stack capability for the unused part of the stack. The former is sealed and used for the data part of the return pair.
 \item \label{item:return-code} Create code return capability on call: Seal the old program pointer.
 \item Reasonable use of seals: Return seals are only used to seal old program pointers, all return seals are only used for one call site, and they are not leaked.
