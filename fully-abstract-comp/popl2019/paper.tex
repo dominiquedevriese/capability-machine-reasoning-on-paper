@@ -888,8 +888,11 @@ This goes for direct leaks, such as leaving a seal in a register or writing it t
 We have sometimes phrased the description of the \stktokens{} calling scheme in terms of ``them vs us''.
 This may have created the impression of an asymmetric calling convention that places a special status on trusted components allowing them to protect themselves against adversaries.
 However, \stktokens{} is a modular calling scheme: no restriction is put on adversarial components that we do not expect trusted components to meet.
+Specifically, we are going to assume that both trusted and adversarial components are initially syntactically well-formed (described in more detail in Section~\ref{sec:well-form-reas}) which basically just restrict adversarial components to not break machine guarantees initially (e.g.\ no aliases for linear capabilities or access to seals of other components).
 This means that any component can ensure WBCF and LSE by employing \stktokens{}.
-% KJAA: ^-- Assuming that there is a global stack address capability, no? Can I "suddenly" begin to impose \stktokens{}?
+
+% KJAA: ^-- Assuming that there is a global stack address capability, no?
+Can I "suddenly" begin to impose \stktokens{}?
 
 % Summary of CC
 To summarise, our proposed calling convention \stktokens{} consists of the following measures:
@@ -1098,9 +1101,10 @@ In other words, they cannot do anything that doesn't correspond to something tha
 More formally, our full-abstraction result states that two trusted components are indistinguishable to arbitrary other components in the regular semantics iff they are indistinguishable to arbitrary other components in the overlay semantics.
 
 Our formal results are complicated by the fact that they only hold for well-behaved components that respect the basic rules of the calling convention, and also on a sane initial configuration of the system.
-For example, the system should be set up such that seals that components use for constructing return pointers are not shared with other components.
+For example, the system should be set up such that seals used by components for constructing return pointers are not shared with other components.
 We envision distributing seals as a job for the linker, so this means our results depend on a linker to do this properly.
-As another example, a seal that is used to construct a return pointer can be used again to construct other return pointers for the same return point, but a different seal must be used for others.
+As another example, a seal used to construct a return pointer can be reused but only to construct return pointers for the same return point.
+Different seals must be used for different return points.
 Such seals should also never be passed to other components.
 These requirements are easy to satisfy: components should request sufficient seals from the linker, use a different one for every place in the code where they make a call to another component, and make sure to clear them from registers before every call.
 The general pattern is that $\stktokens{}$ only protects components that do not shoot themselves in the foot by violating a few basic rules.
@@ -1451,24 +1455,23 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
 % - Sealed capability for code (sealed with clos seal)
 % Imports
 % - Address must be in data memory
-The judgement $\wdjud[\ta]{\comp}$ specifies what components are well formed, i.e.\ satisfy the syntactic requirements necessary to be able to rely on system guarantees.
-We elide the details of the judgement here and describe the main points.
+The judgement $\wdjud[\ta]{\comp}$ specifies what components are well formed, i.e.\ satisfy the initial syntactic requirements necessary to be able to rely on system guarantees.
+We elide the details of the judgement here and describe the main points:
 For components with a main pair, the main pair must come from the exports and the remainder of the component must be well-formed.
 As a reminder, a base component looks like this: $(\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)$.
 The return seals $\sigrets$ are the seals supposed to be used to seal return pointers and the closure seals $\sigcloss$ all the other seals in a component .
-If a component is not trusted, i.e.\ the domain of the code memory $\mscode$ is disjointed from the set of trusted addresses $\ta$, then there should be no return seals.
-The code memory may contain sets of seals, but only the seals in $\sigrets$ and $\sigcloss$.
+If a component is adversarial, i.e.\ the domain of the code memory $\mscode$ is disjointed from the set of trusted addresses $\ta$, then there should be no return seals.
+The code memory may contain sets of seals but only the seals in $\sigrets$ and $\sigcloss$.
 Other than that, code memory only contains instructions in the form of integers.
-When a sequence of instructions in the code memory corresponds to a call (Figure~\ref{fig:call-code}), it must have access to the return seal specified by that call.
-The return seal also needs to be unique to that call, so no other call can specify the same seal.
+When a sequence of instructions in the code memory corresponds to a call (Figure~\ref{fig:call-code}), the call must have access to the return seal it specifies.
+The return seal also needs to be unique to that call; that is, no other call can specify the same seal as its return seal.
 The data memory $\msdata$ may contain data, capabilities, and sealed capabilities.
 The capabilities in the data memory can only have authority over the data memory itself.
-By allowing this, a component can be constructed with predetermined data structures.
-In order to respect Write-XOR-Execute, the capabilities can at most have a read-write permission.
-The capabilities also need to respect linearity which means that a linear capability cannot have any aliases, and it must be for a range of the predetermined linear addresses $A_\linear$.
+This allows components to have initial data structures.
+In order to respect Write-XOR-Execute, the capabilities in data memory cannot have execute permission.
+The capabilities also need to respect linearity which means that linear capabilities cannot be aliased by any other capability, and they must be for a range of the predetermined linear addresses $A_\linear$.
 The sealed capabilities must be sealed with a closure seal, and the sealable can be anything that is allowed to reside in data memory.
 The exports $\overline{\var{export}}$ can be anything non-linear allowed to reside in data memory or a sealed capability for the code memory sealed with one of the closure seals.
-Finally, the addresses of the imports $\overline{\var{import}}$ must be addresses in the data memory.
 
 % Reasonability
 The static guarantees given by $\wdjud[\ta]{\comp}$ makes sure that components initially don't undermine the security measures needed for \stktokens{}, but it does not prevent a component from doing something silly during execution that undermines \stktokens{}.
@@ -1482,6 +1485,10 @@ There are also indirect ways to leak seals such as leaking a capability for code
 (4) It does not store return and closure seals or means to get them.
 By disallowing this, we make sure that data memory always can be safely shared as it does not contain seals or means to get them to begin with.
 We elide the details here and refer to~\citet{technical_report}
+
+In our result, we assume that adversarial components are well-formed, but not necessarily reasonable. The well-formedness assumption ensures that the trusted component can rely on basic security guarantees provided by the capability machine. For instance, if we did not require linearity to be respected initially, then adversarial code could start with an alias for the stack capability. The adversary is not assumed to be reasonable as we do not expect them to obey the calling convention in any way. Can adversarial code call into trusted components? The answer to that question is yes but not with LSE and WBCF guaranteed. Formally, adversarial code can contain the instructions that constitute a call. However, for untrusted code, \srccm{} will not execute those instructions as a "native call" but execute the individual instructions separately. The callee then executes in the same stack frame as the caller, so WBCF and LSE do not follow (for that call).
+
+We will assume trusted component, for which WBCF and LSE are guaranteed, to be both well-formed and reasonable. 
 %The reasonability definition has also been left out for space reasons, and we refer to the technical report~\citep{technical_report} for full definitions.
 
 % \begin{definition}[Reasonable configuration]
