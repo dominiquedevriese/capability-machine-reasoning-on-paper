@@ -1162,14 +1162,14 @@ The opaque nature of the return pointers is reflected in the interpretation of t
 Stack pointers, on the other hand, need to behave just like capabilities, so \srccm{} adds new cases for them in the semantics, e.g.\ \texttt{cca} can now also change the current address of a stack pointer as displayed in Figure~\ref{fig:source-op-sem}.
 Similarly, \texttt{load} and \texttt{store} work on the free part of the stack when provided with a stack pointer.
 A store attempted with a stack capability that points to an address outside the free stack results in the $\failed$ configuration because that action is inconsistent with the view the overlay semantics has on the underlying machine.
-In other words, it should not be possible to have something else than a stack pointer for that part of memory.
+In other words, there should only be stack pointer for the stack memory.
 
 % Back to high-level view
 As discussed earlier, our formal results only provide guarantees for components that respect the calling convention.
-However, there is no such assumption on the untrusted other components they interact with.
+Untrusted components are not expected to take part in the calling convention.
 To formalize this distinction, \srccm{} has a set of trusted addresses $\ta$.
-Only instructions at these addresses are allowed to perform calls that push stack frames to the call stack, i.e.\ calls for which \srccm{} provides native LSE and WBCF guarantees.
-The constant $\ta$ is passed around as a parameter of the \srccm{} step relation.
+Only instructions at these addresses can be interpreted as the \srccm{} native call and push frames to the call stack which guarantees LSE and WBCF.
+The constant $\ta$ is a parameter of the \srccm{} step relation.
 Similarly, \stktokens{} assumes a fixed base address of the stack memory, that is also passed around as such a parameter, for use in the native semantics of calls.
 
 Apart from the step relation of \trgcm{}, \srccm{} has one overlay step that takes precedence over the others.
@@ -1209,7 +1209,7 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
 \begin{figure}[htb]
   \centering
   \begin{mathpar}
-    \inferrule{ \src{\Phi(\pcreg) = ((\perm,\_),\baddr,\eaddr,\aaddr)} \\
+    \inferrule{\src{\Phi(\pcreg) = ((\perm,\_),\baddr,\eaddr,\aaddr)} \\
                \src{\lbrack \aaddr ,\aaddr + \calllen - 1\rbrack \subseteq \ta}  \\
                \src{\lbrack\aaddr,\aaddr + \calllen-1\rbrack \subseteq [\baddr,\eaddr]} \\
                \src{\perm \in \{\rwx,\rx\}} \\
@@ -1219,7 +1219,7 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
   \end{mathpar}
   \begin{tabular}{|>{$}c<{$}|p{3.7cm}|>{\raggedright\arraybackslash}p{6.6cm}|}
     \hline
-    i \in \Instr                                 & $\sem{i}(\Phi)$ & Conditions\\
+    i \in \src{\Instr}                                 & $\sem{i}(\Phi)$ & Conditions\\
     \hline
     \halt                                        & $\halted$ & \\
     \hline
@@ -1327,7 +1327,6 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
       \end{array}
       \right.
     \]
-
     \[
      \src{\sealed{\sigma,c_\opc},\sealed{\sigma,c_\var{local}} = \var{sealReturnPair}(\sigma,c_\opc,c_\var{local})}
     \]
@@ -1352,7 +1351,7 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
    \end{multline*}
 
   \caption{Auxiliary definitions used in the operational semantics of \srccm{}.}
-  \label{fig:source-op-sem}
+  \label{fig:source-op-sem-aux}
 \end{figure}
 % \begin{figure}
 % % \[
