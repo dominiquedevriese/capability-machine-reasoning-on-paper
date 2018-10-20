@@ -1179,21 +1179,15 @@ instructions in Figure~\ref{fig:call-code} ({\footnotesize  $\scall[i]{\offpc,\o
 Calls are only executed when the well-behaved component executes, so the addresses where the call resides must be in $\ta$, and the executing capability must have the authority to execute the call.
 
 % Call/return
-The interpretation of a call is also shown in Figure~\ref{fig:source-op-sem}, and it may look daunting due to a fair bit of bookkeeping, but it essentially does the following: Given a stack pointer in the stack register, $42$ is pushed to the stack to ensure that the stack frame will be non-empty.
-Based on the stack pointer in $\rstk$, a stack pointer for the callee is created (this corresponds to the return token of \stktokens{}) as well as a return pointer which governs the private part of the stack, i.e.\ addresses $[\aaddr_\stk,\eaddr_\stk]$ which is $42$ and everything (conceptually) below on the stack.
-A new stack frame is pushed to the stack.
-The stack frame consists of the local stack (addresses $[\baddr_\stk,\aaddr_\stk-1]$) as well as the address where execution is supposed to continue on return.
-The return address in the stack frame is an important piece of metadata as it connects the stack frame to the return point and thus allows us on return to check whether we returned to the right place.
-The return pointers are sealed with the seal dictated by $\offpc$ and $\offsigma$ and placed in registers $\rretc$ and $\rretd$, so the callee can use them to return.
-Finally, control is transferred in the same fashion \texttt{xjmp} does it.
+The interpretation of a call is also shown in Figure~\ref{fig:source-op-sem} and essentially does the following: It takes the local stack of the caller and puts it on the call stack along with the return address.
+It also takes the stack capability for the local stack and a copy of the $\pc$-capability adjusted to point to the return address and turns them into a pair of sealed return capabilities.
+The return capabilities are sealed with the seal designated for the call.
 
-The return pair can only be used to return with.
-They only exist on \srccm{} in sealed capabilities, so it is only natural that \texttt{xjmp} takes care of returning.
-To this end, we update the semantics of \texttt{xjmp} by redefining $\xjmpres{}$.
-The function remains the same except when $c_1$ and $c_2$ are code and data return pointers, respectively.
-In this case, the top stack frame is popped from the stack and added to the free stack.
-The execution continues at the return point with a stack pointer in $\rstk$ for the free stack that now includes the memory of the popped stack frame.
-However, the execution only continues if the code return pointer actually points to the correct return address, the base of the returned stack pointer is $\stkb$, and the returned stack pointer is adjacent to the data return pointer (which corresponds to checking the validity of the return token in \stktokens{}).
+The return capabilities, $\retptrc$ and $\retptrd$, can only be used for returning.
+Returns are handled by the \texttt{xjmp} instruction because the call produces sealed return capabilities.
+Upon return, the topmost call stack frame $(\opc,\ms_\var{local})$ is popped from the call stack.
+In order for the return to succeed, the return address in the code return pointer must match $\opc$, and the range of addresses in the data return pointer must be in the domain of the local stack.
+If the return succeeds, then the stack pointer is reconstructed, and the local stack is moved back to be part of the active stack.
 
 \srccm{} supports tail calls.
 A tail call is a call from a caller that is done executing and thus doesn't need to be returned to.
@@ -1283,7 +1277,7 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
                $\arraycolsep=0pt\array{l}
         \src{(\opc, \ms_\var{local}) :: \stk'= \Phi.\stk \tand} \\
       \src{c_1 = \retptrc(\baddr,\eaddr,\opc)}\\
-      \src{c_2 = \retptrd(\aaddr_\stk,\eaddr_\stk) \wedge \dom(\ms_\var{local}) \subseteq [\aaddr_\stk,\eaddr_\stk]}\\
+      \src{c_2 = \retptrd(\aaddr_\stk,\eaddr_\stk) \wedge \dom(\ms_\var{local}) = [\aaddr_\stk,\eaddr_\stk]}\\
       \src{c_\stk = \var{reconstructStackPointer}(\reg(\rstk),c_2) \tand}\\
       \src{c_\opc =  ((\rx,\normal),\baddr,\eaddr,\opc)} 
       \endarray$\\
@@ -1291,7 +1285,7 @@ It is important to point this out as \stktokens{} guarantee exactly the LSE and 
     \end{array} 
 \right.
 \end{multline*}
-  \caption{An excerpt of the operational semantics of \srccm{} (some details omitted).}
+  \caption{An excerpt of the operational semantics of \srccm{} (some details omitted). Auxiliary definitions are found in Figure~\ref{fig:source-op-sem-aux}. }
   \label{fig:source-op-sem}
 \end{figure}
 
