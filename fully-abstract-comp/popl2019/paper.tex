@@ -100,7 +100,7 @@
 \renewcommand{\lrheap}[1][]{\typesetlr{H}^{#1}}
 
 \renewcommand{\memSat}[3][]{\memSatGeneric{#1}{#2}{#3}{}}
-\renewcommand{\stdreg}[3][]{\iota^{\mathrm{std},#3,#1}_{#2}}
+\renewcommand{\stdreg}[2]{\iota^{\mathrm{std},#2}_{#1}}
 \renewcommand{\stareg}[2][\stpair{\ms}{\ms}]{\iota^{\mathrm{sta},#2}_{#1}}
 \renewcommand{\codereg}[2][\mathrm{code}]{\iota^{#1}_{#2}}
 \renewcommand{\staureg}[2][\stpair{\ms}{\ms}]{\iota^{\mathrm{sta,\lrv},#2}_{#1}}
@@ -212,6 +212,7 @@ Local state encapsulation (LSE) is the guarantee that when a function invokes an
 At the assembly level, this property also does not hold immediately.
 The calling function's local variables are stored on the stack during the invocation, and functions are not supposed to touch stack frames other than their own.
 However, untrusted assembly code is free to ignore this requirement and read or overwrite the local state of other stack frames.
+
 To enforce these properties, target language security primitives are needed that can be used to prevent untrusted code from misbehaving without imposing too much overhead on well-behaved code.
 The virtual-memory based security primitives on commodity processors do not seem sufficiently fine-grained to efficiently support this.
 More suitable security primitives are offered by a type of CPUs known as capability machines \citep{levy_capability-based_1984,watson_cheri:_2015}.
@@ -243,14 +244,15 @@ In fact, a similar system was envisioned in earlier work on CHERI~\citep{watson2
 However, a problem with this approach is that revoking the local stack and return capabilities on every security boundary crossing requires clearing the entire unused part of the stack, an operation that may be prohibitively expensive.
 
 In this work, we propose and study \stktokens{}: an alternative calling convention that enforces WBCF and LSE with a single shared stack.
-Instead of CHERI's local capabilities, it builds on {\itshape linear} capabilities; a new form of capabilities that has not been previously described in the published literature.\footnote{Although they have been mentioned in some technical documents.}
+Instead of CHERI's local capabilities, it builds on {\itshape linear} capabilities; a new form of capabilities that has not previously been described in the published literature, although a design sketch for them is incorporated in the latest CHERI ISA reference~\citep{TODO}\todo{reference!} and related ideas have been described by~\citet[``scarce objects'']{szabo_formalizing_1997} and in technical documents.
 % KJAA: Perhaps make it clear by who and when/where?
 The hardware prevents these capabilities from being duplicated.
 We propose to make stack and return pointers linear and require components to hand them out in cross-component invocations and to return them in returns.
 The non-duplicability of linear capabilities together with some security checks allow us to guarantee WBCF and LSE without large overhead on boundary crossings and in particular without the need for clearing large blocks of memory.
 
-A second contribution of this work is the way in which we formulate these two properties: although the terms ``well-bracketed control flow'' and ``local state encapsulation'' sound precise, it is actually far from clear what they mean, and how best to formalize them.
-Formulations in previous work are either partial and not suitable for reasoning~\cite{abadi_control-flow_2005} or lacked evidence of generality~\cite{skorstengaard_reasoning_2017}.
+A second contribution of this work is the way in which we formulate these two properties.
+Although the terms ``well-bracketed control flow'' and ``local state encapsulation'' sound precise, it is actually far from clear what they mean, and how best to formalize them.
+Formulations in previous work are either partial and not suitable for reasoning~\cite{abadi_control-flow_2005} or lack evidence of generality~\cite{skorstengaard_reasoning_2017}.
 We propose a new formulation using a technique we call {\itshape fully abstract overlay semantics}.
 Our new formulation starts from the premise that security results for a calling convention should be reusable as part of a larger proof of a secure compiler.
 To accommodate this, we define a second operational semantics for our target language with a native well-bracketed call stack and primitive ways to do calls and returns.
@@ -263,7 +265,7 @@ Compared to~\citet{skorstengaard_reasoning_2017} that prove LSE and WBCF for a h
 this approach expresses what it means to enforce the desirable properties in a general way and makes it clear that we can support a very general class of programs.
 Additionally, formulating security of a calling convention in this way makes it potentially reusable in a larger security proof of a full compiler.
 The idea is that security of such a compiler could be verified by proving fully abstract compilation with respect to the well-behaved semantics of the target language, so that the proof can rely on native well-bracketedness and local stack frame encapsulation.
-This independent result could then be composed with our result to obtain security of the compiler targeting the real target language, by transitivity of full abstraction.
+Such an independent result could then be composed with our result to obtain security of the compiler targeting the real target language, by transitivity of full abstraction.
 
 %The main contributions of this paper are (1) \stktokens{} a calling convention that uses linear capabilities to provably secure LSE and WBCF, and (2) a novel proof technique that we call fully-abstract overlay semantics which we apply to prove the properties of \stktokens{}.
 In this paper, we make the following contributions:
@@ -357,19 +359,18 @@ The non-duplicability of linear capabilities means that a linear capability cann
 Any reasonable capability machine needs a way to set up boundaries between security domains with different authorities.
 It also must have a way to cross these boundaries such that (1) the security domain we move from can encapsulate and later regain its authority and (2) the security domain we move to regains all of its authority. 
 %The M-Machine~\citep{Dally1997Memo59} inspired capability machine in \citet{skorstengaard_reasoning_2017} uses enter-capabilities to achieve this.
-On \trgcm{} we have CHERI-like sealed capabilities to achieve this~\cite{watson_cheri:_2015}.
+On \trgcm{} we have CHERI-like sealed capabilities to achieve this~\cite{watson_cheri:_2015,watson_fast_2016}.
 % seals
 A sealed capability makes an underlying capability opaque which means that the underlying capability cannot be changed or used for the operations it normally gives permission to.
 In other words, the authority the underlying capability represents is encapsulated under the seal.
 Syntactically, the sealed capability is represented as $\sealed{\sigma,\vsc}$ where $\vsc$ is a sealable and $\sigma$ is the seal used to seal the capability.
-In order to seal a sealable, it is necessary to have the right to do so.
-The right to make sealed capabilities is represented by a sets of seals $\seal{\sigma_\var{base},\sigma_\var{end},\sigma}$.
-A set of seal gives the right to seal sealables under seals in the range $[\sigma_\var{base},\sigma_\var{end}]$.
-In spirit of the memory capabilities, a set of seals has an active seal $\sigma$ which is the seal currently used to make sealed capabilities.
-On \trgcm{}, we represent seals in sets rather than single seals to have a more compact representation of multiple seals and make it possible to have seal allocation (not described here).
-As we will see later, sealed capabilities can be unsealed with an \texttt{xjmp}.
-When underlying capabilities are unsealed with \texttt{xjmp}, control will be transferred to one of the underlying capability which allows the capability-sealer to decide how the sealed capabilities are used.
-The \texttt{xjmp} instruction will be explained in more detail later.
+In order to seal a sealable with a seal $\sigma$, it is necessary to have the right to do so.
+The right to make sealed capabilities is represented by a sets of seals $\seal{\sigma_\var{base},\sigma_\var{end},\sigma_{\var{current}}}$.
+A set of seals is a capability that represents the authority to seal sealables with seals in the range $[\sigma_\var{base},\sigma_\var{end}]$.
+In spirit of memory capabilities, a set of seals has an active seal $\sigma_{\var{current}}$ that is selected for use in the next seal operation.
+% On \trgcm{}, we represent seals in sets rather than single seals to have a more compact representation of multiple seals and make it possible to have seal allocation (not described here).
+As we will see later, sealed capabilities can be unsealed with an \texttt{xjmp}, an operation that operates on a pair of capabilities sealed with the same seal.
+The instruction will be explained in more detail below, but essentially, it unseals the pair of capabilities, transfers control to one of them (the code part of the pair) and makes the other one (the data part of the pair) available to the invoked code.
 The combination of sealed capabilities and \texttt{xjmp} gives (1) and (2).
 \begin{figure}[tb]
   \centering
@@ -404,10 +405,10 @@ The combination of sealed capabilities and \texttt{xjmp} gives (1) and (2).
 \end{figure}
 
 %%% Domains
-Words on \trgcm{} are capabilities and data (represented by $\ints$).
+Words on \trgcm{} are capabilities and data (represented by integers ($\ints$)).
 We assume a finite set of register names $\RegName$ containing at least $\pcreg$, $\rretd$, $\rretc$, $\rstk$, $\rdata$, $\rtmp{1}$, and $\rtmp{2}$, and we define register files as functions from register names to words.
 We have complete memories mapping all addresses to words and memory segments mapping some addresses to words (i.e.\ partial functions).
-$\trgcm{}$ has two terminated configurations $\halted$ and $\failed$ that respectively signify a successful execution and an execution where something went wrong, e.g.\ an out-of-bounds memory access.
+$\trgcm{}$ has two terminated configurations $\halted$ and $\failed$ that respectively signify a successful execution and an execution where something went wrong, e.g.,\ an out-of-bounds memory access.
 An executable configuration is a register file and memory pair.
 
 \begin{figure}[p]
@@ -488,7 +489,7 @@ An executable configuration is a register file and memory pair.
   \label{fig:target-op-sem}
 \end{figure}
 % syntax (instructions)
-\trgcm{}'s instruction set is somewhat basic with the instructions one expects on most low-level machine as well as capability-related instructions.
+\trgcm{}'s instruction set is somewhat basic with the instructions one expects on most low-level machines as well as capability-related instructions.
 The standard instructions are: unconditional and conditional jump (\texttt{jmp} and \texttt{jnz}), copy between registers (\texttt{move}), instructions that load from memory and store to memory (\texttt{load} and \texttt{store}), and arithmetic operations (\texttt{plus}, \texttt{minus}, and \texttt{lt}).
 The simplest of the capability instructions inspect the properties of capabilities: type (\texttt{gettype}), linearity (\texttt{getl}), range (\texttt{getb} and \texttt{gete}), current address or seal (\texttt{geta}) or permission (\texttt{getp}).
 The current address (or seal) of a capability (or set of seals) can be shifted by an offset (\texttt{cca}) or set to the base address (\texttt{seta2b}).
@@ -502,7 +503,7 @@ Finally, \trgcm{} has instructions to signal whether an execution was successful
 % opsem
 The operational semantics of \trgcm{} is displayed in Figure~\ref{fig:target-op-sem}.
 The operational semantics is defined in terms of a step relation that executes the next instruction in an executable configuration $\Phi$ which results in a new executable configuration or one of the two terminated configurations.
-The executed instruction is determined by the capability in $\pcreg$ register, i.e.\ $\Phi(\pcreg)$ (we write $\Phi(r)$ to mean $\Phi.\reg(r)$).
+The executed instruction is determined by the capability in the $\pcreg$ register, i.e.\ $\Phi(\pcreg)$ (we write $\Phi(r)$ to mean $\Phi.\reg(r)$).
 In order for the machine to take a step, the capability in the $\pcreg$ must have a permission that allows execution, and the current address of the capability must be within the capability's range of authority.
 If both conditions are satisfied, then the word pointed to by the capability is decoded to an instruction which is interpreted relative to $\Phi$.
 The interpretations of some of the instructions are displayed in Figure~\ref{fig:target-op-sem}.
@@ -514,24 +515,21 @@ For instance, the \texttt{halt} and \texttt{fail} instructions are simply interp
 The \texttt{move} instruction simply moves a word from one register to another.
 It is, however, complicated slightly by the presence of the non-duplicable linear capabilities.
 When a linear capability is moved, the source register must be cleared, so the capability is not duplicated.
-This is done uniformly in the semantics using two approaches.
-In the first one, we use the function $\linCons{}$ that returns $0$ for linear capabilities and is the identity for all other words.
+This is done uniformly in the semantics using the function $\linCons{}$ that returns $0$ for linear capabilities and is the identity for all other words.
 When a word $w$ is transferred on the machine, then the source of $w$ is overwritten with $\linCons{w}$ which clears the source if $w$ was linear and leaves it unchanged otherwise.
 In the case of \texttt{move}, the source register $\rn$ is overwritten with $\linCons{\Phi(\rn)}$.
-We see the other approach later.
 
 % load w/ lin (and store)
 The \texttt{store} and \texttt{load} instructions are fairly standard.
-They require a capability with permission to either write or read depending on the operation, they check that the capability points within the range of authority, and they clear the source of a linear capability transfer.
+They require a capability with permission to either write or read depending on the operation, they check that the capability points within the range of authority.
 Linear capabilities introduce one extra complication for \texttt{load} as it needs to clear the loaded memory address when it contains a linear capability in order to not duplicate the capability.
 In this case, we require that the memory capability used for loading also has write-permission.
 
 % geta, cca
 The instruction \texttt{geta} projects the current address (or seal) from a capability (or set of seals), and returns $-1$ for data and sealed capabilities.
 \texttt{cca} (change current address) changes the current address or seal of a capability or set of seals, respectively, by a given offset.
-It handles linearity by updating the capability in-place, i.e.\ the source register is used as the target register.
-This is the second approach we use to uniformly handle linearity.
-The \texttt{jmp} instruction is a simple jump that just sets the $\pcreg$ register.
+Note that this instruction does not need to use $\linCons{}$ like the previous ones, because it modifies the capability in-place, i.e.\ the source register is also the target register.
+The \texttt{jmp} instruction is a simple jump that just sets register $\pcreg$.
 
 %% Sealing
 The operational side of the sealing in \trgcm{} consists of two instructions: \texttt{cseal} for sealing a capability and \texttt{xjmp} for unsealing a pair of capabilities.
@@ -630,28 +628,7 @@ Some simplifications have been made in this presentation of \trgcm{}. See \citet
   }{
     (\comp_0'',c_{\mathrm{main},c}, c_{\mathrm{main},d}) = \comp_0 \bowtie (\comp_0',c_{\mathrm{main},c}, c_{\mathrm{main},d}) = (\comp_0,c_{\mathrm{main},c}, c_{\mathrm{main},d}) \bowtie \comp_0'
   }
-\end{mathpar}
-% \begin{definition}[Initial execution configuration]
-%   \begin{mathpar}
-%     \inference{
-%       c_{\mathrm{main},c} = \sealed{\sigma_1, c_{\mathrm{main},c}'} &
-%       c_{\mathrm{main},d} = \sealed{\sigma_2, c_{\mathrm{main},d}'} &comp\
-%       \sigma_1 = \sigma_2\\
-%       \nonExec{c_{\mathrm{main},d}'}&
-%       \reg(\pcreg) = c_{\mathrm{main},c}' & 
-%       \reg(\rdata) = c_{\mathrm{main},d}' \\
-%       \src{\reg(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\eaddr_\stk}} & 
-%       \trg{\reg(\rstk) = ((\rw,\linear),\baddr_\stk,\eaddr_\stk,\eaddr_\stk)} \\
-%       \reg(\RegName \setminus \{\pcreg,\rdata,\rstk\}) = 0\\
-%       \range{\ms_\stk} = \{0\}&
-%       \mem = \mscode \uplus \msdata \trg{\;\uplus\; \ms_\stk} \\
-%       [\baddr_\stk,\eaddr_\stk] = \dom(\ms_\stk ) \mathrel{\#} (\dom(\mscode) \cup \dom(\msdata)) &
-%       \overline{\var{import}} = \emptyset
-%     }{
-%       ((\mscode, \msdata, \overline{\var{import}}, \overline{\var{export}}, \sigrets, \sigcloss,A_\linear),  c_{\mathrm{main},c}, c_{\mathrm{main},d}) \rightsquigarrow (\mem, \reg\src{, \emptyset, \ms_\stk})
-%     }
-%   \end{mathpar}
-% \end{definition}
+  \end{mathpar}
 % \begin{definition}[Plugging a program into a context]
 %   When $\var{comp'}$ is a context for component $\comp$ and $\comp' \bowtie \comp \rightsquigarrow \Phi$, 
 %   then we write $\plug{\comp'}{\comp}$ for the execution configuration $\Phi$.
@@ -725,7 +702,7 @@ We will gradually explain each of the security measures \stktokens{} takes and m
 \end{figure}
 
 \stktokens{} is based on a traditional single stack, shared between all components.
-As we are on a capability machine, it is natural to add some extra protection to stack and return pointers.
+To explain the technique, let us first consider how we might already add extra protection to stack and return pointers on a capability machine.
 First, we replace stack pointers with stack capabilities.
 When a new stack frame is created, the caller provisions it with a stack capability, restricted to the appropriate range, i.e.\ it does not cover the caller's stack frame.
 Return pointers, on the other hand, are replaced by a pair of sealed return capabilities.
@@ -734,7 +711,8 @@ They form an opaque closure that the callee can only jump to, and the caller's d
 
 %informally explain how an adversary may try to abuse stack and return caps
 While the above adds extra protection, it is not sufficient to enforce WBCF and LSE.
-A callee that do not respect the calling convention (hence forward referred to as an adversary\footnote{The assumption on the adversary is described in detail in Section~\ref{sec:well-form-reas}.}) receives a stack capability and a return pair that they are supposed to use for the call, but the adversary can store the provided capabilities on the heap in order to use them later.
+Untrusted callees receive a stack capability and a return pair that they are supposed to use for the call.
+However, a malicious callee (which we will refer to as an adversary\footnote{See Section~\ref{sec:well-form-reas} for more details on our attacker model.}) can store the provided capabilities on the heap in order to use them later.
 Figure~\ref{fig:stack-ret-ptr-abuse} illustrates two examples of this.
 In both examples our component and an adversarial component have been taking turns calling each other, so the stack now contains four stack frames alternating between ours and theirs.
 The figure on the left (Figure~\ref{fig:stack-ptr-abuse}) illustrates how we try to ensure LSE by restricting the stack capability to the unused part before every call to the adversary.
@@ -745,14 +723,15 @@ The adversary stores the pair of sealed return capabilities from the first call 
 The figure illustrates how the adversarial code uses the return pair from the first call to return from the second call and thus break WBCF.
 
 % Informally explain how we prevent this using linear capabilities
-As the examples illustrate, the standard memory and object-like capabilities (here sealed capabilities) do not seem to provide sufficient guarantees to enforce LSE and WBCF.
+As the examples illustrate, the standard memory and object-like capabilities (here sealed capabilities) do not provide sufficient guarantees to enforce LSE and WBCF.
 The problem is essentially that the stack and return pointers that a callee receives from a caller remain in effect after their intended lifetime: either when the callee has already returned or when they have themselves invoked other code. 
 Linear capabilities offer a form of revocation\footnote{Revocation in the sense that if we hand out a linear capability and later get it back, then the receiver no longer has it or a copy of it as it is non-duplicable.} that can be used to prevent this from happening.
 
 % Stack capability linear
 The linear capabilities are put to use by requiring the stack capability to be linear.
-On call, the caller splits the stack capability in two, such that they have a capability for their local stack frame and a capability for the unused part of the stack.
-The stack capability for their local stack frame is sealed and used as the data part of the sealed return pair, and the stack capability for the remainder of the stack is given to the callee.
+On call, the caller splits the stack capability in two: one capability for their local stack frame and another one for the unused part of the stack.
+The local stack frame capability is sealed and used as the data part of the sealed return pair.
+The capability for the remainder of the stack is given to the callee.
 % Prevention of left attack non-aliasing of linear capabilities - token like (ensuring LSE)
 Because the stack capability is linear, the caller knows that the capability for their local stack frame cannot have an alias.
 This means that an adversary would need the stack capability produced by the caller in order to access their local data.
@@ -764,7 +743,7 @@ In a traditional calling convention with a single stack, the stack serves as a c
 A caller pushes a stack frame to the stack on call and a callee pops a stack frame from the stack upon return.
 However without any enforcement, there is nothing to prevent a callee from returning from an arbitrary call on the call stack.
 This is exactly what the adversary does in Figure~\ref{fig:ret-ptr-abuse} when they skip two stack frames.
-In the presence of adversarial code, we need some enforcement mechanism that allows us to make sure that the order of the call stack is kept.
+In the presence of adversarial code, we need some mechanism to enforce that the order of the call stack is kept.
 One way to enforce this would be to hand out a token on call that can only be used when the caller's stack frame is on top of the call stack.
 The callee would have to provide this token on return to prove that it is allowed to return to the caller, and on return the token would be taken back by the caller to prevent it from being spent multiple times.
 As it turns out, the stack capability for the unused part of the stack can be used as such a token in the following way:
@@ -854,6 +833,7 @@ This is illustrated in Figure~\ref{fig:stk-base-abuse}: In Figure~\ref{fig:stack
 The adversary calls the trusted code back, but first they split the return token in two and store on the heap the part for the memory adjacent to the trusted caller's call frame (Figure~\ref{fig:stack-base-abuse-b}).
 The trusted caller calls the adversary back using the precautions we have described so far (Figure~\ref{fig:stack-base-abuse-c}).
 At this point (Figure~\ref{fig:stack-base-abuse-b}), the adversary has access to a partial return token adjacent to the trusted caller's first stack frame which allows the adversary to return from this call breaking WBCF.
+
 For the caller to be sure that there are no hidden stack frames above its own, they need to make sure that the return token is exactly the same as the one they passed to the callee.
 In \stktokens{}, the base address of the stack capability is fixed as a compile-time constant (Note: the stack grows downwards, so the base address of the stack capability is the top-most address of the stack). 
 The caller verifies the validity of the return token by checking whether the base address of a returned token corresponds to this fixed base address, which was the base address for the return token they gave to the callee.
@@ -909,7 +889,7 @@ To summarise, our proposed calling convention \stktokens{} consists of the follo
 \item \label{item:non-empty-sf} Make sure that local stack frames are non-empty.
 \item \label{item:return-data} Create token and data return capability on call: split the stack capability in two to get a stack capability for your local stack frame and a stack capability for the unused part of the stack. The former is sealed and used for the data part of the return pair.
 \item \label{item:return-code} Create code return capability on call: Seal the old program pointer.
-\item Reasonable use of seals: Return seals are only used to seal old program pointers, all return seals are only used for one call site, and they are not leaked.
+\item Reasonable use of seals: Return seals are only used to seal old program pointers, every seal is only used for one call site, and they are not leaked.
 \end{enumerate}
 Item~\ref{item:check-stkb}-\ref{item:return-code} are captured by the code in Figure~\ref{fig:call-code} with the exception of checking stack base before calls. We do not include this check because it only needs to happen once between two calls which means that the check after a call suffices if the base of the stack pointer is not changed subsequently.
 
@@ -1086,10 +1066,10 @@ Ideally, we would like to define the properties in a way that is
 \item {\itshape useful for reasoning:} we should be able to use WBCF and LSE when reasoning about correctness and security of programs using \stktokens{}. \label{def-prop:useful}
 \item {\itshape reusable in secure compiler chains:} for compilers using \stktokens{}, one should be able to rely on WBCF and LSE when reasoning about correctness and security of other compiler passes and then compose such results with our results to obtain results about the full compiler. \label{def-prop:reusable}
 \item {\itshape arguably "complete"}: the formalization should arguably capture the entire meaning of WBCF and LSE and should arguably be applicable to any reasonable program. \label{def-prop:complete}
-\item {\itshape potentially scalable}: even though we currently do not consider dynamic code generation or multi-threading, the current formalization should at least potentially extend to such settings. \label{def-prop:scalable}
+\item {\itshape potentially scalable}: even though we currently do not consider dynamic code generation or multi-threading, the formalization should, at least potentially, extend to such settings. \label{def-prop:scalable}
 \end{enumerate}
 
-Previous formalisations in the literature are formulated in terms of a static control flow graph~\cite[e.g., ]{Abadi2005Theory}.
+Previous formalisations in the literature are formulated in terms of a static control flow graph~\cite[e.g., ][]{Abadi2005Theory}.
 While these are intuitively appealing (\ref{def-prop:intuitive}), it is not clear how they can be used to reason about programs (\ref{def-prop:useful}) or other compiler passes (\ref{def-prop:reusable}), they lack temporal safety guarantees (\ref{def-prop:complete}) and do not scale (\ref{def-prop:scalable}) to settings with dynamic code generation (where a static control flow graph cannot be defined).
 \citet{skorstengaard_reasoning_2017} provide a logical relation that
 can be used to reason about programs using their calling convention
@@ -1103,21 +1083,22 @@ The main difference between the two semantics, is that the new one satisfies LSE
 Important run-time values like return capabilities and stack pointers are represented by special syntactic tokens that interact with the abstract machine's stack, but during execution, there remains a close, structural correspondence to the actual regular capabilities that they represent.
 For example, stack capabilities in the overlay semantics correspond directly to linear capabilities in the underlying semantics, and they have authority over the part of memory that the overlay views as the stack.
 
-The fact that \stktokens{} enforces LSE and WBCF is formulated as a theorem about the function that maps components in the well-behaved overlay semantics to the underlying components in the regular semantics.
+The fact that \stktokens{} enforces LSE and WBCF is then formulated as a theorem about the function that maps components in the well-behaved overlay semantics to the underlying components in the regular semantics.
 The theorem states that this function constitutes a fully abstract compiler, a well-known property from the field of secure compilation~\cite{abadi_protection_1999}.
 Intuitively, the theorem states that if a trusted component interacts with (potentially malicious) components in the regular semantics, then these components have no more expressive power than components which the trusted component interacts with in the well-behaved overlay semantics.
 In other words, they cannot do anything that doesn't correspond to something that a well-behaved component, respecting LSE and WBCF, can also do.
 More formally, our full-abstraction result states that two trusted components are indistinguishable to arbitrary other components in the regular semantics iff they are indistinguishable to arbitrary other components in the overlay semantics.
 
-Our formal results are complicated by the fact that they only hold for well-behaved components that respect the basic rules of the calling convention, and also on a sane initial configuration of the system.
+Our formal results are complicated by the fact that they only hold on a sane initial configuration of the system and for well-behaved components that respect the basic rules of the calling convention.
 For example, the system should be set up such that seals used by components for constructing return pointers are not shared with other components.
-We envision distributing seals as a job for the linker, so this means our results depend on a linker to do this properly.
+We envision distributing seals as a job for the linker, so this means our results depend on the linker to do this properly.
 As another example, a seal used to construct a return pointer can be reused but only to construct return pointers for the same return point.
 Different seals must be used for different return points.
 Such seals should also never be passed to other components.
 These requirements are easy to satisfy: components should request sufficient seals from the linker, use a different one for every place in the code where they make a call to another component, and make sure to clear them from registers before every call.
 The general pattern is that $\stktokens{}$ only protects components that do not shoot themselves in the foot by violating a few basic rules.
 In this section, we define a well-formedness judgement for the syntactic requirements on components as well as a reasonability condition that semantically disallows components to do certain unsafe things.
+Well-formedness is a requirement for all components (trusted and untrusted), but the reasonability requirement only applies to trusted components, i.e.\ those components for which we provide LSE and WBCF guarantees.
 
 \begin{figure}[b]
   \centering
@@ -1147,16 +1128,17 @@ In this section, we define a well-formedness judgement for the syntactic require
   \label{fig:source-syntax}
 \end{figure}
 
-\todo[inline]{Dominique: I think it would be less confusing and more in line with the overlay semantics story to not add an extra instruction in Figure~\ref{fig:source-syntax} but rather present it as just a special case of the overlay semantics for the same underlying instructions.}
+% see e-mail discussion: we do not see a good way to implement this TODO.
+% \todo[inline]{Dominique: I think it would be less confusing and more in line with the overlay semantics story to not add an extra instruction in Figure~\ref{fig:source-syntax} but rather present it as just a special case of the overlay semantics for the same underlying instructions.}
 
 \subsection{Overlay semantics}
 % Describe the things added to the syntax
-The overlay semantics we define for \trgcm{} (\srccm{}) views part of the memory as a built-in stack (Figure~\ref{fig:source-syntax}).
+The overlay semantics \srccm{} for \trgcm{} views part of the memory as a built-in stack (Figure~\ref{fig:source-syntax}).
 % Built-in stack
 To this end, it adds a call stack and a free stack memory to the executable configurations of \trgcm{}.
-The call stack is a list with all the stack frames that are currently inaccessible because they belong to other calls.
-A stack frame contains encapsulated stack memory as well as the program point execution is supposed to return to.
-The free stack memory is the part of the stack that has not been claimed by a call and thus can be used at this point of time.
+The call stack is a list with all the stack frames that are currently inaccessible because they belong to previous calls.
+Every stack frame contains encapsulated stack memory as well as the program point that execution is supposed to return to.
+The free stack memory is the active part of the stack that has not been claimed by a call and thus can be used at this point of time.
 % Stack pointer
 In order to distinguish capabilities for the stack from the capabilities for the rest of the memory, \srccm{} adds stack pointers.
 A stack pointer has a permission, range of authority, and current address, just like capabilities on \trgcm{}, but they are always linear.
@@ -1189,14 +1171,14 @@ instructions in Figure~\ref{fig:call-code} ({\footnotesize  $\scall[i]{\offpc,\o
 Calls are only executed when the well-behaved component executes, so the addresses where the call resides must be in $\ta$, and the executing capability must have the authority to execute the call.
 
 % Call/return
-The interpretation of a call is also shown in Figure~\ref{fig:source-op-sem} and essentially does the following: It takes the local stack of the caller and puts it on the call stack along with the return address.
-It also takes the stack capability for the local stack and a copy of the $\pc$-capability adjusted to point to the return address and turns them into a pair of sealed return capabilities.
+The interpretation of a call is also shown in Figure~\ref{fig:source-op-sem} and essentially does the following: It splits the current active stack and the stack capability into the local stack frame of the caller and the rest.
+It also constructs a return capability $c_{\var{opc}}$ and its address $\var{opc}$, pointing after the call instructions.
+The local stack frame and return address are pushed onto the stack, and turns the local stack capability and return capability into a pair of sealed return capabilities.
 The return capabilities are sealed with the seal designated for the call.
 
-The return capabilities, $\retptrc$ and $\retptrd$, can only be used for returning.
-Returns are handled by the \texttt{xjmp} instruction because the call produces sealed return capabilities.
-Upon return, the topmost call stack frame $(\opc,\ms_\var{local})$ is popped from the call stack.
-In order for the return to succeed, the return address in the code return pointer must match $\opc$, and the range of addresses in the data return pointer must be in the domain of the local stack.
+The return capabilities, $\retptrc$ and $\retptrd$ are sealed and can only be used using the \texttt{xjmp} instruction, to perform a return.
+When this happens, the topmost call stack frame $(\opc,\ms_\var{local})$ is popped from the call stack.
+In order for the return to succeed, the return address in the code return pointer must match $\opc$, and the range of addresses in the data return pointer must match the domain of the local stack.
 If the return succeeds, then the stack pointer is reconstructed, and the local stack is moved back to be part of the active stack.
 
 \srccm{} supports tail calls.
@@ -1246,11 +1228,12 @@ In other words, WBCF and LSE are natively enforced in this semantics.
             &\update{\stk}{\stk'}\\
             \endarray\right))}$
        &
-      \srcalt{$\stk' = (\opc,\ms_{\stk,\var{local}}) :: \Phi.\stk$ and 
+      \srcalt{
          $\begin{multlined}
            \ms_{\stk,\var{local}},c_\var{local},\ms_{\stk,\var{rest}},c_\stk =\\ \var{splitStack}(\Phi.\reg(\rstk), \Phi.\ms_\stk) \text{ and }
          \end{multlined}$
     $\opc, c_\opc =\var{setupOpc(\Phi.\reg(\pcreg))}$ and
+    $\stk' = (\opc,\ms_{\stk,\var{local}}) :: \Phi.\stk$ and 
     $\sigma =\begin{multlined}[t]
       \var{getCallSeal}(\\
       \Phi.\reg(\pcreg), \Phi.\mem,\offpc,\offsigma)  \text{ and }
@@ -1440,9 +1423,9 @@ The judgement $\wdjud[\ta]{\comp}$ specifies what components are well formed, i.
 We elide the details of the judgement here and describe the main points:
 For components with a main pair, the main pair must come from the exports and the remainder of the component must be well-formed.
 As a reminder, a base component looks like this: $(\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)$.
-The return seals $\sigrets$ are the seals supposed to be used to seal return pointers and the closure seals $\sigcloss$ all the other seals in a component .
-If a component is adversarial, i.e.\ the domain of the code memory $\mscode$ is disjointed from the set of trusted addresses $\ta$, then there should be no return seals.
-The code memory may contain sets of seals but only the seals in $\sigrets$ and $\sigcloss$.
+The return seals $\sigrets$ are the seals supposed to be used to seal return pointers and the closure seals $\sigcloss$ all the other seals in a component.
+If a component is adversarial, i.e.\ the domain of the code memory $\mscode$ is disjoint from the set of trusted addresses $\ta$, then there should be no return seals.
+The code memory may contain sets of seals but only for the seals in $\sigrets$ and $\sigcloss$.
 Other than that, code memory only contains instructions in the form of integers.
 When a sequence of instructions in the code memory corresponds to a call (Figure~\ref{fig:call-code}), the call must have access to the return seal it specifies.
 The return seal also needs to be unique to that call; that is, no other call can specify the same seal as its return seal.
@@ -1467,9 +1450,9 @@ There are also indirect ways to leak seals such as leaking a capability for code
 By disallowing this, we make sure that data memory always can be safely shared as it does not contain seals or means to get them to begin with.
 We elide the details here and refer to~\citet{technical_report}
 
-In our result, we assume that adversarial components are well-formed, but not necessarily reasonable. The well-formedness assumption ensures that the trusted component can rely on basic security guarantees provided by the capability machine. For instance, if we did not require linearity to be respected initially, then adversarial code could start with an alias for the stack capability. The adversary is not assumed to be reasonable as we do not expect them to obey the calling convention in any way. Can adversarial code call into trusted components? The answer to that question is yes but not with LSE and WBCF guaranteed. Formally, adversarial code can contain the instructions that constitute a call. However, for untrusted code, \srccm{} will not execute those instructions as a "native call" but execute the individual instructions separately. The callee then executes in the same stack frame as the caller, so WBCF and LSE do not follow (for that call).
+In our result, we assume that adversarial components are well-formed, but not necessarily reasonable. The well-formedness assumption ensures that the trusted component can rely on basic security guarantees provided by the capability machine. For instance, if we did not require linearity to be respected initially, then adversarial code could start with an alias for the stack capability. The adversary is not assumed to be reasonable as we do not expect them to obey the calling convention in any way. Can adversarial code call into trusted components? The answer to that question is yes but not with LSE and WBCF guarantees. Formally, adversarial code can contain the instructions that constitute a call. However, for untrusted code, \srccm{} will not execute those instructions as a "native call" but execute the individual instructions separately. The callee then executes in the same stack frame as the caller, so WBCF and LSE do not follow (for that call).
 
-We will assume trusted component, for which WBCF and LSE are guaranteed, to be both well-formed and reasonable. 
+We will assume trusted components, for which WBCF and LSE are guaranteed, to be both well-formed and reasonable. 
 %The reasonability definition has also been left out for space reasons, and we refer to the technical report~\citep{technical_report} for full definitions.
 
 % \begin{definition}[Reasonable configuration]
@@ -1492,9 +1475,31 @@ We will assume trusted component, for which WBCF and LSE are guaranteed, to be b
 \subsection{Full abstraction}
 All that is left before we state the full-abstraction theorem is to define how components are combined with contexts and executed, so that we can define contextual equivalence.
 
+\begin{figure}
+  \centering
+  \begin{equation*}
+    \inference{
+      c_{\mathrm{main},c},c_{\mathrm{main},d}  = \sealed{\sigma, c_{\mathrm{main},c}', c_{\mathrm{main},d}'} &
+      \nonExec{c_{\mathrm{main},d}'}&
+      \reg(\pcreg,\rdata) = c_{\mathrm{main},c}', c_{\mathrm{main},d}' \\
+      \src{\reg(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\eaddr_\stk}} & 
+      \trg{\reg(\rstk) = ((\rw,\linear),\baddr_\stk,\eaddr_\stk,\eaddr_\stk)} \\
+      \reg(\RegName \setminus \{\pcreg,\rdata,\rstk\}) = 0&
+      \range{\ms_\stk} = \{0\}&
+      \mem = \mscode \uplus \msdata \trg{\;\uplus\; \ms_\stk} \\
+      [\baddr_\stk,\eaddr_\stk] = \dom(\ms_\stk ) \mathrel{\#} (\dom(\mscode) \cup \dom(\msdata)) &
+      \overline{\var{import}} = \emptyset
+    }{
+      ((\mscode, \msdata, \overline{\var{import}}, \overline{\var{export}}, \sigrets, \sigcloss,A_\linear),  c_{\mathrm{main},c}, c_{\mathrm{main},d}) \rightsquigarrow (\mem, \reg\src{, \emptyset, \ms_\stk})
+    }
+  \end{equation*}
+  \caption{The judgement $\var{prog} \rightsquigarrow \Phi$, which defines the initial execution configuration $\Phi$ for executing a program $\var{prog}$.}
+  \label{fig:init-ec}
+\end{figure}
+
 % How a program is lifted to an executable configuration
-Given a program $\var{comp}$, the judgement $\var{comp} \rightsquigarrow \Phi$ defines an initial execution configuration that can be executed.
-It works almost the same on \trgcm{} and \srccm{}.
+Given a program $\var{comp}$, the judgement $\var{comp} \rightsquigarrow \Phi$ in Figure~\ref{fig:init-ec} defines an initial execution configuration that can be executed.
+It works almost the same on \trgcm{} (conditions in \trg{red}) and \srccm{} (conditions in \src{blue}).
 On both machines a stack containing all zeroes is added, as part of the regular memory on \trgcm{} and as the free stack on \srccm{}.
 On \srccm{}, the initial stack is empty as no calls have been made.
 The component needs access to the stack, so a stack pointer is added to the register file in $\rstk$.
@@ -1544,7 +1549,7 @@ If the source language has a property that the target language doesn't have, the
 In our case, LSE and WBCF was built into the semantics of \srccm{}, but they are not properties of \trgcm{}.
 In order to enforce these properties, components on \trgcm{} use \stktokens{}.
 Theorem~\ref{thm:full-abstraction} proves that \stktokens{} enforces these properties in a way that behaviorally matches \srccm{} which means that it enforces LSE and WBCF.
-\todo[inline]{Consider writing a bit more about compiler correctness and contextual equivalence preservation.}
+% \todo[inline]{Consider writing a bit more about compiler correctness and contextual equivalence preservation.}
 
 
 
@@ -1574,11 +1579,11 @@ The relation between \srccm{} and \trgcm{} components is non-trivial: essentiall
 However, values are often only related under certain assumptions about the rest of the system.
 For example, the linear data part of a return capability should only be related to the corresponding \srccm{} capability if no other value in the system references the same inactive stack frame and if it is sealed with a seal that is only used for return pointers to the same code location.
 To accomodate such conditional relatedness, we construct our relation as a step-indexed Kripke logical relation with recursive worlds.
-Space constraints prevent us from explaining it in full detail in this paper. 
+Space constraints prevent us from explaining this in full detail in this paper. 
 Instead, we will only highlight specific important parts of the logical relation in this section, and we refer to~\citet{technical_report} for details and to~\citet{skorstengaard_reasoning_2017} for a more comprehensive description of a logical relation for a capability machine.
 Additionally, for presentation, we will omit details, like step indexing, that are important for correctness but otherwise uninteresting.
 
-Assumptions about the system, that relatedness is predicated on, are gathered in (Kripke) worlds. 
+Assumptions about the system that relatedness is predicated on, are gathered in (Kripke) worlds. 
 We use a type of worlds that is tailored specifically for our purposes.
 They consist of three sub-worlds: $\Wor = \Worldh \times \Worlds \times \Worldfs$, capturing assumptions about the heap\footnote{Actually, we use the term heap to describe all memory except the stack, including, for example, code memory.}, the inactive and the active part of the stack, respectively.
 Sub-worlds consist of a finite mapping from region names to regions which come in two forms (spatial and shared):
@@ -1591,35 +1596,36 @@ Different parts of the world can contain different types of regions: heap-relate
 Additionally, regions for inactive parts of the stack additionally include an address specifying the return address for that stack frame.
 
 Regions in $\Regionh$ specify the presence of an invariant in the system, shared with the rest of the system.
+They are tagged with the syntactic token $\pure$ and may prescribe two different types of requirements:
 \begin{align*}
   \Regionh &= 
              \left\{\begin{multlined}
                \{\pure \} \times (\Wor \monnefun \URel{\MemSeg}) \times \\
                (\Seal \parfun \Wor \monnefun \URel{\SealableCaps \times \SealableCaps})
-             \end{multlined}\right.\\
-  \Regions &={}
-             \left\{\begin{multlined}
-               \{\spatial,\spatialo \} \times (\Wor \monnefun \URel{\MemSeg^2}) \cup{} \{\revoked\}
              \end{multlined}\right.
 \end{align*}
-Shared regions are tagged with the syntactic token $\pure$ and may prescribe two different types of requirements.
-First, they may require the presence of \srccm{} and \trgcm{} memory segments
-satisfying a given relation in $\Wor \monnefun \URel{\MemSeg^2}$
-(readers unfamiliar with Kripke and step-indexed logical relations may read $\Wor \monnefun \URel{\MemSeg^2}$ as the set of functions from $\Wor$ to relations on memory segments).
+First, they may require the presence of \srccm{} and \trgcm{} memory segments satisfying a given relation in $\Wor \monnefun \URel{\MemSeg^2}$ (readers unfamiliar with Kripke and step-indexed logical relations may read $\Wor \monnefun \URel{\MemSeg^2}$ as the set of functions from $\Wor$ to relations on memory segments).
 A region might, for example, require the presence of a certain list of instructions at a certain set of memory addresses in both \srccm{} and \trgcm{}.
 If a memory segment is owned by a given region, then that memory segment must be disjoint from the memory segments owned by all other regions.
 Second, a shared region may also contain a partial function from seals to relations on pairs of sealable capabilities: $\Seal \parfun \Wor \monnefun \URel{\SealableCaps \times \SealableCaps}$.
 When the region defines such a relation for a given seal, then no other region in the world can do the same, and any value signed with that seal will be required to satisfy the registered relation.
 
 Spatial regions are similar to shared regions, but they are tagged as $\spatial$ or $\spatialo$ and may not specify seal invariants.
-Additionally, a spatial region may also be $\revoked$.
+Additionally, a spatial region may also be $\revoked$:
+\begin{align*}
+  \Regions &={}
+             \begin{multlined}
+               \{\spatial,\spatialo \} \times (\Wor \monnefun \URel{\MemSeg^2}) \cup{} \{\revoked\}
+             \end{multlined}
+\end{align*}
+
 The difference between spatial and shared regions is related to linearity and ownership.
 For example, a \trgcm{} linear capability to a piece of memory is related to its \srccm{} counterpart, but only if no other linear capability overlaps with it.
-We will model such an assumption for exclusive ownership by making the relatedness rely on the presence of a $\spatialo$ region that only one value in the system may rely on.
-More concretely, we will define how to combine worlds $W_1$ and $W_2$ into a combined world $W_1 \oplus W_2$, on the condition that they represent compatible assumptions: $W_1$ and $W_2$ must contain the same regions except that they must respect exclusive ownership of $\spatialo$ regions: $\pure$ regions must be present in both worlds, but a $\spatialo$ region can only be present in one and must be $\spatial$ in the other.
-We say that worlds $W_1$ and $W_2$ are compatible when $W_1 \oplus W_2$ is defined.
+We will model such an assumption of exclusive ownership by making the relatedness rely on the presence of a $\spatialo$ region that only one value in the system may rely on.
+More concretely, we will define how to combine worlds $W_1$ and $W_2$ into a combined world $W_1 \oplus W_2$, on the condition that they represent compatible assumptions: $W_1$ and $W_2$ must contain the same regions except that they must respect exclusive ownership: $\pure$ regions must be present in both worlds, but a $\spatialo$ region can only be present in one and must be $\spatial$ in the other.
+When $W_1 \oplus W_2$ is defined, we say that worlds $W_1$ and $W_2$ are compatible and we refer to $W_1$ and $W_2$ as compatible partitions of the combined world.
 
-The reason that we have $\spatial$ regions is for defining when \srccm{} and \trgcm{} memories are related.
+The reason that we have $\spatial$ regions (in addition to $\spatialo$ ones) is for defining when \srccm{} and \trgcm{} memories are related.
 We need them to contain suitable memory segments for all regions in the system, even for regions owned by values that live outside the memory (for example register values).
 Those regions will be in the world for the memory, but only as $\spatial$, i.e.\ they may not actually be referenced from within memory, but we still require them to be backed by suitable memory contents.
 We also use a relation $W_2 \future W_1$ that defines when a world $W_2$ is a future world of a world $W_1$.
@@ -1637,7 +1643,7 @@ Such recursive worlds are in fact common in Kripke models, and we use the method
 %   and for $\hat{W},\hat{W}' \in \Wor: \quad  \hat{W'} \future \hat{W}\text{ iff }\xi(\hat{W'}) \future \xi(\hat{W})$
 % \end{lemma}
 
-In our proof, we use only a few regions.
+In our proof, we use only a few different types of regions.
 For space reasons, we do not go into their definitions (see the \citet{technical_report}), but we give a brief overview here.
 First, we have the code region $\codereg{\sigrets,\sigcloss,\mscode}$.
 This is a shared region that represents the assumption that memory segment
@@ -1648,7 +1654,7 @@ It takes ownership of those seals and registers appropriate invariants on the ca
 A second type of regions $\stdreg{A}{\pure}$ and $\stdreg{A}{\spatialo}$ governs heap or stack memory at a set of addresses $A$.
 It simply requires the presence of a memory segment for those addresses, such that the memory contains values that themselves satisfy the relation between values that we will see below.
 The contents of the memory is allowed to change as long as the new contents are still valid.
-Finally, a third type of regions $\stareg[(\ms_S,\ms_T)]{\pure}$ or $\stareg[(\ms_S,\ms_T)]{\spatialo}$ requires the presence of two given memory segment $\ms_S$ and $\ms_T$ and does not allow them to change.
+Finally, a third type of regions $\stareg[(\ms_S,\ms_T)]{\spatialo}$ requires the presence of two given memory segment $\ms_S$ and $\ms_T$ and does not allow them to change.
 This region is used, for example, to govern inactive parts of the stack whose contents is required to remain unmodified.
 
 \subsection{The logical relation}
@@ -1674,14 +1680,14 @@ The most important relations are summarised in the following table, where we men
   \multicolumn{2}{|c|}{$\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W}$} & memory & satisfy the assumptions in $W$\\
   \hline
 \end{tabular}\\
-These relations are defined using a set of mutually recursive equations, with cyclicity resolved through another (omitted) use of step-indexing.
-For space reasons, we cannot show all of these definitions, but we will try to give a good overview.
+These relations are defined using a set of mutually recursive equations, with cyclicity resolved through another use of step-indexing.
+For space reasons, we cannot show all of these definitions, but we will try to give an overview.
 
-Note first how we have two value relations, whose definitions are shown in Figure~\ref{fig:value-relation}.
+Note first how we have two value relations, whose definitions are sketched in Figure~\ref{fig:value-relation}.
 The difference is that the untrusted value relation $\lrv(W)$ does not just express that the two values are related, but also that they are safe to pass to an untrusted adversary, i.e. they cannot be used to break LSE and WBCF.
-The trusted value relation does not have the latter requirement and is a strict superset of the former.
+The trusted value relation does not have the latter requirement and is a superset of the former.
 
-Both relations trivially includes numbers $(i,i)$ which are always related to themselves.
+Both relations trivially include numbers $(i,i)$ which are always related to themselves.
 The untrusted value relation also includes stack pointers and the underlying linear capability (with the same (non-executable) permission, range of authority, and current address), as well as syntactically equal memory capabilities, seals and sealed values, all under certain conditions involving the world $W$ and the capability's properties.
 
 Details are in the \cite{technical_report}, but roughly, for stack capabilities, the omitted condition requires that the world contains a $\spatialo$ region governing this part of the stack.
@@ -1690,7 +1696,7 @@ If the capability is executable ($\perm \in \{\rx,\rwx\}$), then we additionally
 
 Seals allocated to trusted code are related to themselves only by $\lrvtrusted(W)$, but other seals are in both value relations.
 Sealed values are in both relations essentially when the sealed values satisfy the relation that was registered for the seal in a region of the world.
-Additionally, when they are combined with any other pair of values related by that relation, the sealed values are required to be related as $\txjmp{}{}$ targets (i.e. in $\lrexj(W)$).
+Additionally, when they are combined with any other pair of values related by that relation, they must be related as $\txjmp{}{}$ targets (i.e. in $\lrexj(W)$).
 Finally, capabilities to code memory are related to themselves in the trusted value relation ($\lrvtrusted(W)$) when there is an appropriate code region in the world.
 They are not in the untrusted value relation because the code memory contains copies of the return seals used by the code, which must not end up in the hands of an adversary.
 
@@ -1814,7 +1820,7 @@ They are not in the untrusted value relation because the code memory contains co
 \end{figure}
 
 In Figure~\ref{fig:obs-rel}, we show sketches of the register file relation $\lrr$, the relation between $\tjmp{}$ targets $\lre(W)$ and the observation relation $\lro$.
-The trusted/untrusted register file relation simply requires that all registers except $\pcreg$ are in the corresponding value relation (in compatible worlds).
+The trusted/untrusted register file relation simply requires that all registers except $\pcreg$ are in the corresponding value relation (in a compatible world partition).
 Two execution configurations are in the observation relation $\lro$ if one terminates whenever the other does\footnote{The actual definition in the \cite{technical_report} is complicated a bit by step-indexing and the fact that we actually use two separate observation relations for left- and right-approximation.}.
 The $\lre(W)$ relation then includes any two words which can be plugged into related register files and memories (in compatible worlds), to obtain execution configurations in the observation relation.
 
@@ -1876,7 +1882,7 @@ The first is a version of the FTLR for components, stating that all components a
     $\dom(\comp.\mscode) \subseteq \ta$ and $\src{\comp}$ is a reasonable component; or
     $\dom(\comp.\mscode) \mathrel{\#} \ta$,
   then there exists a $W$ such that
-  $\npair{(\src{\comp},\comp)} \in \lrcomp(W)$
+  $\npair{(\src{\comp},\comp)} \in \lrcomp(W)$.
 \end{lemma}
 
 Another lemma then relates the component relation and context plugging: given a context and component each related to themselves in the component relation, plugging the context with the component produces an executable configuration in the executable configuration relation.
@@ -1909,7 +1915,7 @@ Another lemma then relates the component relation and context plugging: given a 
 %   If $\npair{\stpair{\Phi}{\Phi}}\in\lrec(W)$ then $\src{\Phi_S} \sterm{}$ iff $\Phi_T\term$.
 % \end{lemma}
 
-Finally, we use these two lemmas to prove Theorem~\ref{thm:full-abstraction}
+Finally, we use these two lemmas to prove Theorem~\ref{thm:full-abstraction}.
 \begin{proof}[Proof of Theorem~\ref{thm:full-abstraction}]
   The proof of both directions are very similar, so we only show the right direction.
   We need to show the \trgcm{} contextual equivalence, so w.l.o.g\ assume a well-formed context $\trg{\context}$ such that ${\plug{\trg{\context}}{\src{\comp_1}} \term[]{}}$.
@@ -2031,7 +2037,7 @@ Finally, we use these two lemmas to prove Theorem~\ref{thm:full-abstraction}
 % \end{itemize}
 \subsection{Full abstraction}
 % - Full abstraction proofs difficult
-Our formulation of WBCF and LSE using a fully abstract overlay semantics has an advantage with respect to others that we haven't discussed yet.
+Our formulation of WBCF and LSE using a fully abstract overlay semantics has an important advantage with respect to others.
 Imagine that you are implementing a fully abstract compiler for a high-level language, i.e.\ a secure compiler that enforces high-level abstractions when interacting with untrusted target-language components.
 Such a compiler would need to perform many things and enforce other high-level properties than just WBCF and LSE.
 
