@@ -563,22 +563,20 @@ This would also allow linear capabilities to have aliases, but only by linear ca
 
 The executable configuration describes the machine state, but it does not make it clear what components run on the machine and how they interact with each other.
 To clarify this, we introduce notions of components and programs from which we construct executable configurations.
-A component is basically a program with entry points in the form of imports that need to be linked.
-A component has exports that can satisfy the imports of other components.
-The component definition is in Figure~\ref{fig:target-component-and-linking}.
+A component (defined in Figure~\ref{fig:target-component-and-linking}) is basically a program with entry points in the form of imports that need to be linked.
+It has exports that can satisfy the imports of other components.
 % Structure
-A base component $\comp_0$ consists of the following: a code memory segment, a data memory segment, a list of imported symbols, a list of exported symbols, two lists specifying the available seals\footnote{We will return to the seals in Section~\ref{sec:form-secur-with}.}, and a set of all the linear addresses (addresses governed by a linear capability).
+A base component $\comp_0$ consists of a code memory segment, a data memory segment, a list of imported symbols, a list of exported symbols, two lists specifying the available seals\footnote{We will return to the seals in Section~\ref{sec:form-secur-with}.}, and a set of all the linear addresses (addresses governed by a linear capability).
 The import list specifies where in memory imports should be placed, and imports are matched to exports via their symbols.
 The exports are words each associated with a symbol.
 %base = library
-A base component has no main entry point, so it needs to be invoked by another component to run. For this reason, it can be seen as a library implementation.
-A component is either a library component or a base component with a main in the form of a pair of sealed capabilities which can be seen as a program that still needs to be linked with libraries.
+A component is either a library component (without a main entry point) or an incomplete program with a main in the form of a pair of sealed capabilities.
+The latter can be seen as a program that still needs to be linked with libraries.
 % Linking .
-Components are combined into new components by linking them together.
-Libraries can be linked together and incomplete programs can be linked with libraries, but two incomplete programs cannot be linked with each other.
+Components are combined into new components by linking them together, as long as only one is an incomplete program with a main.
 Two components can be linked when their memories, seals, and linear addresses are disjoint.
 They are combined by taking the union of each of their constituents.
-For every import that is satisfied by an export of the other component, in the sense that they have the same symbol, the data memory is updated to have the exported word on the imported address.
+For every import that is satisfied by an export of the other component, the data memory is updated to have the exported word on the imported address.
 The satisfied imports are removed from the import list in the resulting linked component and the exports are updated to be the exports of the two components.
 
 % Programs
@@ -593,8 +591,7 @@ We can now define the notion of a program as well as a context.
 How a program is initialised to create an executable configuration, is discussed in Section~\ref{sec:form-secur-with}.
 % We will, however, at this point mention that all programs will be instrumented as Write-XOR-Execute,{Do we have a reference for this?} i.e.\ there will only be read-execute capabilities for the code and read-write capabilities for the data.
 %Further, we will only consider a specific class of well-formed components, but we will get back to this.
-
-Some simplifications have been made in this presentation of \trgcm{}. See \citet{technical_report} for the details.
+Some simplifications have been made in this presentation of \trgcm{}. See \citet{technical_report} for details.
 \begin{figure}[tb]
   \centering
   \[
@@ -1036,12 +1033,10 @@ We do not include this check because it only needs to happen once between two ca
   % Instructions 16-23: check the stack base.
   % Instruction 24: join the stack pointer.
   % Instructions 25-26: pop 42 from the stack.
-  The instructions for a $\scall{\offpc,\offsigma}{r_1}{r_2}$.
-  The variable $\offpc$ is the offset from the first instruction of the call to the set of seals it uses.
-  The variable $\offsigma$ is the offset in the set of seals to the call seal.
-  The constant $\stkb$ is the globally agreed on stack base.
-  There are a number of ``magic'' numbers in the code: line 1: $42$, garbage data to ensure a non-empty stack.
-  Line 7: $-5$, offset to the first instruction of the call (from the point the capability was moved out of the $\pcreg$-register).
+  The instructions for a $\scall{\offpc,\offsigma}{r_1}{r_2}$ with $\offpc$  the offset from line 1 of the call to the set of seals it uses and $\offsigma$ the offset in the set of seals to the call seal.
+  $\stkb$ is the globally agreed on stack base.
+  There are some magic numbers in the code: line 1: $42$, garbage data to ensure a non-empty stack.
+  Line 7: $-5$, offset from line 6 (where $\pcreg$ was copied into $\rtmp{1}$) to line 1.
   Line 12: $5$, offset to the return address.
   Line 19: $5$, offset to fail.
   Line 21: offset to address after fail.
