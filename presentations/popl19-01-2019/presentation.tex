@@ -24,7 +24,7 @@
 \usetikzlibrary{decorations.pathreplacing}
 \usetikzlibrary{calc}
 \usepackage{graphicx}
-
+\usepackage{dashrule}
 
 \renewcommand{\ttdefault}{pcr}
 \lstset{
@@ -260,32 +260,60 @@ void b()
 \end{enumerate}
 \end{frame}
 
-\begin{frame}
-  \frametitle{Fully-Abstract Overlay Semantics}
-  Given
-  \begin{itemize}
-  \item Target semantics
-  \item Calling convention
-  \end{itemize}
-  Define
-  \begin{itemize}
-  \item New semantics for the same syntax
-  \item Properties by inspection
-  \end{itemize}
-  In this case:\\
-  Given
-  \begin{itemize}
-  \item Capability machine with linear capabilities
-  \item \stktokens{} 
-  \end{itemize}
-  Define
-  \begin{itemize}
-  \item Same machine, but with built-in call stack
-    \begin{itemize}
-    \item Series of instructions corresponding to call and return are
-      interpreted as call and return, respectively, using the call stack
-    \end{itemize}
-  \end{itemize}
+\begin{frame}[fragile]
+  \frametitle{Overlay Semantics}
+
+    \begin{tabular}{p{3.2cm} p{3.2cm}}
+\begin{lstlisting}[basicstyle=\tiny\ttfamily,escapechar=!]
+    move  rtmp1 42
+   !\tikz[remember picture] \node[] (calltl) {};!store rstk rtmp1
+    cca   rstk -1
+    geta  rtmp1 rstk
+    cca   rretc 5      !\tikz[remember picture] \node[] (callbr) {};!
+    move  rtmp1 pc
+    cca   rtmp1 -20
+\end{lstlisting}&
+\begin{lstlisting}[basicstyle=\tiny\ttfamily,escapechar=!]
+    load  rtmp1 rtmp1
+    cca   rtmp1 -21
+    cseal rretd rtmp1
+    move  rretc pc
+   !\tikz[remember picture] \node[] (retl) {};!xjmp  r1 r2 !\tikz[remember picture] \node[] (retr) {};!
+    cseal rretc rtmp1
+    move  rtmp1 0
+\end{lstlisting}
+\end{tabular}\tikz[remember picture] \node[] (srcr) {};\\
+\onslide<2->{\hdashrule[0.5ex]{12cm}{1pt}{5pt}}
+\\\begin{tabular}{p{3.2cm} p{3.2cm}}
+\begin{lstlisting}[basicstyle=\tiny\ttfamily]
+    move  rtmp1 42
+    store rstk rtmp1
+    cca   rstk -1
+    geta  rtmp1 rstk
+    cca   rretc 5
+    move  rtmp1 pc
+    cca   rtmp1 -20
+\end{lstlisting}&
+\begin{lstlisting}[basicstyle=\tiny\ttfamily]
+    load  rtmp1 rtmp1
+    cca   rtmp1 -21
+    cseal rretd rtmp1
+    move  rretc pc
+    xjmp  r1 r2
+    cseal rretc rtmp1
+    move  rtmp1 0
+\end{lstlisting}
+\end{tabular}\tikz[remember picture] \node[] (trgr) {};
+    \begin{tikzpicture}[remember picture, overlay]
+      \draw node[rectangle, fit=(calltl) (callbr),fill={rgb:red,192;green,58;blue,45},fill opacity=0.6, rounded corners] (call) {};
+      \draw node[rectangle, fit=(calltl) (callbr)] (calltext) [yshift=-0.1cm] {\textbf{\texttt{call}}};
+      \draw node[right = 3.3cm of trgr, text width = 3cm] {Linear Capability Machine (LCM)};
+      
+      \draw node[rectangle, fit=(retl) (retr),fill={rgb:red,192;green,58;blue,45},fill opacity=0.6, rounded corners] (ret) {};
+      \draw node[rectangle, fit=(retl) (retr)] (rettext) [yshift=-0.1cm] {\textbf{\texttt{return}}};
+      \draw node[right = 3.3cm of srcr, text width = 3cm] {Overlay Semantics (oLCM)};
+%      \draw[dashed] (mid) -- ($(mid) + (7,0)$);
+    \end{tikzpicture}
 \end{frame}
 
 \begin{frame}
@@ -310,5 +338,34 @@ void b()
   \centering
   Thank you!
 \end{frame}
+
+% \begin{lstlisting}[basicstyle=\tiny\ttfamily]
+%     move rtmp1 42
+%     store rstk rtmp1
+%     cca rstk -1
+%     geta rtmp1 rstk
+%     split rstk rretd rstk rtmp1
+%     move rtmp1 pc
+%     cca rtmp1 -20
+%     load rtmp1 rtmp1
+%     cca rtmp1 -21
+%     cseal rretd rtmp1
+%     move rretc pc
+%     cca rretc 5
+%     cseal rretc rtmp1
+%     move rtmp1 0
+%     xjmp r1 r2
+%     getb rtmp1 rstk
+%     minus 1 rtmp1 432
+%     move 2 pc
+%     cca rtmp2 5
+%     jnz rtmp2 rtmp1
+%     cca rtmp2 1
+%     jmp rtmp2
+%     fail
+%     splice rstk rdata
+%     cca rstk 1
+%     move rtmp2 0
+% \end{lstlisting}
 
 \end{document}
