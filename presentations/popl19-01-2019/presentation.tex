@@ -219,7 +219,7 @@ int main()
 \begin{lstlisting}[language=C, escapechar=!]
 void a()       !\tikz[remember picture] \node[] (bt) {};! 
 {
-  !\tikz[remember picture] \node[] (pc6) {};!int y = 40+2;
+  !\tikz[remember picture] \node[] (pc6) {};!...
   !\tikz[remember picture] \node[] (pc7) {};!return;      
 }              !\tikz[remember picture] \node[] (bb) {};!
 
@@ -227,7 +227,7 @@ void b()
 {
   !\tikz[remember picture] \node[] (pc1) {};!int x = 5;
   !\tikz[remember picture] \node[] (pc2) {};!a();
-  !\tikz[remember picture] \node[] (pc3) {};!x = 2;
+  !\tikz[remember picture] \node[] (pc3) {};!...
   !\tikz[remember picture] \node[] (pc4) {};!a();
   !\tikz[remember picture] \node[] (pc5) {};!return;   
 }
@@ -263,9 +263,9 @@ void b()
 \begin{frame}[fragile]
   \frametitle{Overlay Semantics}
 
-    \begin{tabular}{p{3.2cm} p{3.2cm}}
+\begin{tabular}{p{3.2cm} p{3.2cm}}
 \begin{lstlisting}[basicstyle=\tiny\ttfamily,escapechar=!]
-    move  rtmp1 42
+   !\tikz[remember picture] \node[] (srccodetl) {};!move  rtmp1 42
    !\tikz[remember picture] \node[] (calltl) {};!store rstk rtmp1
     cca   rstk -1
     geta  rtmp1 rstk
@@ -280,10 +280,10 @@ void b()
     move  rretc pc
    !\tikz[remember picture] \node[] (retl) {};!xjmp  r1 r2 !\tikz[remember picture] \node[] (retr) {};!
     cseal rretc rtmp1
-    move  rtmp1 0
+    move  rtmp1 0    !\tikz[remember picture] \node[] (srccodebr) {};!
 \end{lstlisting}
 \end{tabular}\tikz[remember picture] \node[] (srcr) {};\\
-\onslide<2->{\hdashrule[0.5ex]{12cm}{1pt}{5pt}}
+\onslide<2->{\hdashrule[0.1ex]{12cm}{1pt}{5pt}}
 \\\begin{tabular}{p{3.2cm} p{3.2cm}}
 \begin{lstlisting}[basicstyle=\tiny\ttfamily]
     move  rtmp1 42
@@ -297,7 +297,7 @@ void b()
 \begin{lstlisting}[basicstyle=\tiny\ttfamily]
     load  rtmp1 rtmp1
     cca   rtmp1 -21
-    cseal rretd rtmp1
+    cseal rretd rtmp1 
     move  rretc pc
     xjmp  r1 r2
     cseal rretc rtmp1
@@ -305,15 +305,55 @@ void b()
 \end{lstlisting}
 \end{tabular}\tikz[remember picture] \node[] (trgr) {};
     \begin{tikzpicture}[remember picture, overlay]
-      \draw node[rectangle, fit=(calltl) (callbr),fill={rgb:red,192;green,58;blue,45},fill opacity=0.6, rounded corners] (call) {};
-      \draw node[rectangle, fit=(calltl) (callbr)] (calltext) [yshift=-0.1cm] {\textbf{\texttt{call}}};
+      %White overlay
+      \draw<1> node[rectangle,fit=(srccodetl) (srccodebr), fill=white] (whiteoverlay) {};
+
+      % Call red overlay
+      \draw<4-> node[rectangle, fit=(calltl) (callbr),fill={rgb:red,192;green,58;blue,45},fill opacity=0.6, rounded corners] (call) {};
+      \draw<4-> node[rectangle, fit=(calltl) (callbr)] (calltext) [yshift=-0.1cm] {\textbf{\texttt{call}}};
+
+      % LCM text
       \draw node[right = 3.3cm of trgr, text width = 3cm] {Linear Capability Machine (LCM)};
-      
-      \draw node[rectangle, fit=(retl) (retr),fill={rgb:red,192;green,58;blue,45},fill opacity=0.6, rounded corners] (ret) {};
-      \draw node[rectangle, fit=(retl) (retr)] (rettext) [yshift=-0.1cm] {\textbf{\texttt{return}}};
-      \draw node[right = 3.3cm of srcr, text width = 3cm] {Overlay Semantics (oLCM)};
+
+      % Call stack
+      % TODO draw call stack
+      \begin{scope}
+        \clip<3-> ($(srcr) + (0.1,-1.2)$) rectangle ($(srcr) + (2.1,-.75)$);
+        \draw<3-> ($(srcr) + (0.2,-1.5)$) rectangle ($(srcr) + (2,-.75)$) node[pos=.5,align=center] {\scriptsize{...}};
+      \end{scope}
+      \draw<3-> ($(srcr) + (0.2,-0.75)$) rectangle ($(srcr) + (2,-0.25)$) node[pos=.5,align=center] {\scriptsize{frame 1}};
+      \draw<3-> ($(srcr) + (0.2,-0.25)$) rectangle ($(srcr) + (2,0.25)$) node[pos=.5,align=center] {\scriptsize{frame 2}};
+      \draw<3-> ($(srcr) + (0.2,.25)$) rectangle ($(srcr) + (2,.75)$) node[pos=.5,align=center] {\scriptsize{frame 3}};
+
+      \draw<3-> ($(srcr) + (1.1,1.25)$) node[align=center] {\footnotesize{Builtin call stack}};
+      \draw<3-> ($(srcr) + (0.2,-.75)$) -- ($(srcr) + (0.2,-1)$);
+      \draw<3-> ($(srcr) + (2,-.75)$) -- ($(srcr) + (2,-1)$);
+      % Return red overlay
+      \draw<4-> node[rectangle, fit=(retl) (retr),fill={rgb:red,192;green,58;blue,45},fill opacity=0.6, rounded corners] (ret) {};
+      \draw<4-> node[rectangle, fit=(retl) (retr)] (rettext) [yshift=-0.1cm] {\textbf{\texttt{return}}};
+
+      %oLCM text
+      \draw<2-> node[right = 3.3cm of srcr, text width = 3cm] {Overlay Semantics (oLCM)};
 %      \draw[dashed] (mid) -- ($(mid) + (7,0)$);
     \end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Fully-abstract overlay semantics}
+  \centering
+  \begin{tikzpicture}
+    \draw (0,0) node[draw=black, rounded corners] (olcm) {oLCM};
+    \draw node[draw=black, rounded corners,below=2.5cm of olcm] (lcm) {LCM};
+    \draw (olcm) edge[bend left, ->,thick] (lcm);
+    \draw node[left = 3cm of olcm] (ll1) {};
+    \draw node[right = 3cm of olcm] (rl1) {};
+    \draw node[below = 1.25cm of ll1] (ll) {};
+    \draw node[below = 1.25cm of rl1] (rl) {};
+    \draw[dashed] (ll) -- (rl); 
+
+    \draw<1> (olcm) edge[bend left, ->,thick] node[right, near start] { } (lcm);
+    \draw<2-> (olcm) edge[bend left, ->,thick] node[right, near start] {$id$} (lcm);
+  \end{tikzpicture}
 \end{frame}
 
 \begin{frame}
@@ -333,6 +373,14 @@ void b()
 %\item {\itshape potentially scalable}% although dynamic code generation and multi-threading are currently out of scope, the formalization should, at least potentially, extend to such settings.
 \end{enumerate}
 \end{frame}
+
+\begin{frame}
+  \frametitle{The \stktokens{} calling convention}
+  \begin{onslide}<2->
+    ... is explained in the paper.
+  \end{onslide}
+\end{frame}
+
 
 \begin{frame}
   \centering
