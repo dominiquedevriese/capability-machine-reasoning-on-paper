@@ -1,0 +1,296 @@
+\documentclass[aspectratio=169]{beamer}
+\addtobeamertemplate{navigation symbols}{}{%
+    \usebeamerfont{footline}%
+    \usebeamercolor[fg]{footline}%
+    \hspace{1em}%
+    \insertframenumber/\inserttotalframenumber
+  }
+
+\usepackage{xcolor}
+\input{preamble}
+
+\usepackage{pgfpages}
+\setbeameroption{hide notes}
+%\setbeameroption{show notes on second screen=right}
+
+\definecolor{myred}{RGB}{192,58,45}
+\definecolor{mypurple}{RGB}{180,52,202}
+\definecolor{myblue}{RGB}{51,51,179}
+\definecolor{mylblue}{RGB}{52,178,204}
+\definecolor{mygreen}{RGB}{66,192,103}
+
+\usetikzlibrary{positioning}
+\usetikzlibrary{fit}
+\usetikzlibrary{decorations.pathreplacing}
+\usetikzlibrary{calc}
+\usepackage{graphicx}
+
+
+\renewcommand{\ttdefault}{pcr}
+\lstset{
+  basicstyle=\ttfamily,
+  columns=fullflexible,
+  keepspaces=true,
+  mathescape=true,
+  literate={\$}{\$}{1},
+  keywordstyle=\color{mylblue},
+  tabsize=2
+}
+
+\lstdefinelanguage
+   [x64]{Assembler}     % add a "x64" dialect of Assembler
+   [x86masm]{Assembler} % based on the "x86masm" dialect
+   % with these extra keywords:
+   {morekeywords={CDQE,CQO,CMPSQ,CMPXCHG16B,JRCXZ,LODSQ,MOVSXD, %
+                  POPFQ,PUSHFQ,SCASQ,STOSQ,IRETQ,RDTSCP,SWAPGS, %
+                  rax,rdx,rcx,rbx,rsi,rdi,rsp,rbp, %
+                  r8,r8d,r8w,r8b,r9,r9d,r9w,r9b, %
+                  r10,r10d,r10w,r10b,r11,r11d,r11w,r11b, %
+                  r12,r12d,r12w,r12b,r13,r13d,r13w,r13b, %
+                  r14,r14d,r14w,r14b,r15,r15d,r15w,r15b}} % etc.
+
+
+
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>
+    \frametitle{Overview}
+    \tableofcontents[currentsection]
+  \end{frame}
+}
+
+
+%\input{../illustrations/preamble}
+%\input{loc_preamble}
+\title{\stktokens{}: Enforcing Well-Bracketed Control Flow and Stack Encapsulation Using Linear Capabilities}
+\author{Lau Skorstengaard\inst{1} \and Dominique Devriese\inst{2} \and Lars Birkedal\inst{1}}
+\institute{\inst{1} Aarhus University \and %
+  \inst{2} Vrije Universiteit Brussel}
+
+\date{POPL, January 19, 2019}
+
+
+\begin{document}
+\maketitle
+
+\newsavebox{\assem}
+\begin{lrbox}{\assem}
+\begin{lstlisting}[basicstyle=\tiny\ttfamily]
+main:
+	.cfi_startproc
+# BB#0:
+	pushq	%rbp
+.Ltmp0:
+	.cfi\_def\_cfa\_offset 16
+.Ltmp1:
+	.cfi\_offset %rbp, -16
+	movq	%rsp, %rbp
+.Ltmp2:
+	.cfi\_def\_cfa\_register %rbp
+	subq	$\mbox{\textdollar}$16, %rsp
+	movabsq	$\mbox{\textdollar}$.L.str, %rdi
+	movl	$\mbox{\textdollar}$0, -4(%rbp)
+	movb	$\mbox{\textdollar}$0, %al
+	callq	printf
+	xorl	%ecx, %ecx
+	movl	%eax, -8(%rbp)
+	movl	%ecx, %eax
+	addq	$\mbox{\textdollar}$16, %rsp
+	popq	%rbp
+	retq
+.Lfunc\_end0:
+	.size	main, .Lfunc\_end0-main
+	.cfi\_endproc
+\end{lstlisting}
+\end{lrbox}
+
+\newsavebox{\hello}
+\begin{lrbox}{\hello}
+\begin{lstlisting}[basicstyle=\tiny\ttfamily, language=C, keywordstyle=\color{mylblue}]
+#include <stdio.h>
+int main()
+{
+  printf("Hello, World!");
+  return 0;
+}
+\end{lstlisting}
+\end{lrbox}
+
+
+\begin{frame}
+  \frametitle{Overview}
+  \tableofcontents
+\end{frame}
+
+\section{\stktokens{}-paper in the big picture}
+\begin{frame}[fragile]
+  \frametitle{Abstractions all the way down}
+  \centering
+  \begin{tikzpicture}
+    % \draw (9.5,0.25) rectangle (13.5,4.75);
+    \draw (0,0) node {};
+    \node<1->[inner sep=0pt, anchor=west] (hardware) at (9.5,2.5) {\includegraphics[angle=90,width=.285\textwidth]{hardware3-2}};
+
+    \draw<2->[dashed] (9,-.5) -- (9,5.5);
+%    \draw (4.75,n0.25) rectangle (8.75,4.75);
+    \node<2->[inner sep=0pt, anchor=west] (assem) at (4.4,2.5) {\usebox{\assem}};
+
+    \draw<3->[dashed] (3.9,-.5) -- (3.9,5.5);
+%    \draw (0,0.25) rectangle (4,4.75);
+    \node<3->[inner sep=0pt, anchor=west] (hello) at (0,2.5) {\usebox{\hello}};
+
+    \draw<4> (.8, 3.7) edge[-stealth,out=25,in=155,very thick,align=center] node[above] {\phantom{secure}\\compilation} (4.3, 3.7);
+    \draw<5-6> (.8, 3.7) edge[-stealth,out=25,in=155,very thick,align=center] node[above] {{\color{myred} secure}\\compilation} (4.3, 3.7);
+    \node<6->[rectangle,rotate=-25,fill=white,rounded corners,draw] at (11.5,2.5) {{\color{myred}Capability machine}};
+
+    \begin{onlyenv}<7->
+      \draw (0.8, 3.7) edge[-stealth,out=25,in=155,very thick,align=center,color=white] node[above] {{\color{myred} secure}\\compilation} (4.3, 3.7);
+      \draw node[rectangle,fill=white,rounded corners,draw] at (1.93,3.7) (ir1) {ir};
+      \draw node[rectangle,fill=white,rounded corners,draw] at (3.15,3.7) (ir2) {ir'};
+      \draw (0.8, 3.7) edge[-stealth,bend left,very thick] node[above] {} (ir1);
+      \draw (ir1) edge[-stealth,bend left,very thick] node[above] {} (ir2);
+      \draw (ir2) edge[-stealth,bend left,very thick] node[above] {} (4.3,3.7);
+    \end{onlyenv}
+
+    \draw<8-> node at (4.3,3.7) (p) { };
+    \draw<8-> node[rectangle, fit=(ir2) (p),draw={rgb:red,192;green,58;blue,45}] (lastphase) {};
+  \end{tikzpicture}
+
+    \note[item]{Compbuter at the hardware level is a lot of physics going on very, very quickly.}
+    \note[item]{Abstractions: instead of currents, bits.}
+    \note[item]{Assembler - a lot more abstraction. We can make sense of it, but still not nice to work with.}
+    \note[item]{High-level languages - enough abstractions to work with it and
+      build incredible software systems.}
+    \note[item]{In order to move between abstractions, we compile programs}
+    \note[item]{Most compilers do not provably preserve the abstractions of
+      high-level language.}
+    \note[item]{This leads to security vulnerabilities}
+    \note[item]{Important for compilation to preserve abstractions.}
+    \note[item]{A compilation that preserves abstractions, even when linked with
+      unknown assembly,is known as a \emph{secure} compilation}
+    \note[item]{Little hope that it is possible to make a secure compilation to
+      a traditional processor - they have no way to enforce the abstraction.}
+    \note[item]{Necessary with hardware with enforcement mechanisms.}
+    \note[item]{Our take is that this could be a capability machine}
+    \note[item]{Capability machine explained briefly: Basically a processor as
+      you know it except pointers are replaced with capabilities. Capabilities
+      do not just point to memory, they also carry permissions that specify what
+    operations they can be used for and on what part of the memory they can operate.}
+    \note[item]{Naturally, this means that the assembly language must be
+      capability aware.}
+\end{frame}
+
+
+% 	.type	.L.str,@object          # @.str
+% 	.section	.rodata.str1.1,"aMS",@progbits,1
+% .L.str:
+% 	.asciz	"Hello, World!"
+% 	.size	.L.str, 14
+
+
+% #include <stdio.h>
+% int main()
+% {
+%   printf("Hello, World!");
+%   return 0;
+% }
+
+%\section{Paper Overview}
+\begin{frame}
+  \frametitle{Paper Contents Overview}
+  \begin{description}
+  \item[Formalization of CHERI-like capability machine with linear capabilities]
+  \item[\stktokens{}] a calling convention that provably guarantees local-state
+    encapsulation (LSE) and well-bracketed control-flow (WBCF)
+  \item[Fully-abstract overlay semantics] a novel way to prove LSE and WBCF claims
+  \end{description}
+\end{frame}
+
+\section{Defining well-bracketed control flow and local state  encapsulation}
+
+\newcommand{\drawpc}[1]{
+
+}
+
+\begin{frame}[fragile]
+  \frametitle{Defining well-bracketed control flow and local state encapsulation}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[language=C, escapechar=!]
+void a()       !\tikz[remember picture] \node[] (bt) {};! 
+{
+  !\tikz[remember picture] \node[] (pc6) {};!int y = 40+2;
+  !\tikz[remember picture] \node[] (pc7) {};!return;      
+}              !\tikz[remember picture] \node[] (bb) {};!
+
+void b()
+{
+  !\tikz[remember picture] \node[] (pc1) {};!int x = 5;
+  !\tikz[remember picture] \node[] (pc2) {};!a();
+  !\tikz[remember picture] \node[] (pc3) {};!x = 2;
+  !\tikz[remember picture] \node[] (pc4) {};!a();
+  !\tikz[remember picture] \node[] (pc5) {};!return;   
+}
+\end{lstlisting}
+      \begin{tikzpicture}[remember picture, overlay, text width=3cm]
+%        \draw<1> node { };
+        \draw<2>[decorate,decoration={brace,amplitude=6pt,raise=4pt},yshift=0pt] ($(bt) + (0,0.2)$) -- ($(bb) + (0,-0.2)$) node[xshift=-1cm] (brace) [midway] {};
+        \draw<2> node[right = -0cm of brace] {Function \texttt{a} cannot access variable \texttt{x}};
+
+        \draw<3-> ($(pc1) + (-0.5,0)$) edge[-stealth] node {} (pc1);
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \only<2>{Local-state encapsulation}
+      \only<3->{Well-bracketed control flow}
+    \end{column}
+    % What is LSE and WBCF
+    % Quick example?
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Desired properties of the WBCF and LSE definition}
+  \begin{enumerate}
+\item {\itshape Intuitive}%Should correspond to our intuition about WBCF and LSE
+\item {\itshape Useful for reasoning}% we should be able to use WBCF and LSE when reasoning about correctness and security of programs using \stktokens{}.
+\item {\itshape Reusable in secure compiler chains}% for compilers using \stktokens{}, one should be able to rely on WBCF and LSE when proving correctness and security of other compiler passes and then compose such results with ours to obtain results about the full compiler.
+\item {\itshape Arguably "complete"}% the formalization should arguably capture the entire meaning of WBCF and LSE and should arguably be applicable to any reasonable program. 
+%\item {\itshape potentially scalable}% although dynamic code generation and multi-threading are currently out of scope, the formalization should, at least potentially, extend to such settings.
+\end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Fully-Abstract Overlay Semantics}
+  Given
+  \begin{itemize}
+  \item Target semantics
+  \item Calling convention
+  \end{itemize}
+  Define
+  \begin{itemize}
+  \item New semantics for the same syntax
+  \item Properties by inspection
+  \end{itemize}
+  In this case:\\
+  Given
+  \begin{itemize}
+  \item Capability machine with linear capabilities
+  \item \stktokens{} 
+  \end{itemize}
+  Define
+  \begin{itemize}
+  \item Same machine, but with built-in call stack
+    \begin{itemize}
+    \item Series of instructions corresponding to call and return are
+      interpreted as call and return, respectively, using the call stack
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \centering
+  Thank you!
+\end{frame}
+
+\end{document}
