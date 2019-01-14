@@ -9,7 +9,7 @@
 \usepackage{appendixnumberbeamer}
 \usepackage{xcolor}
 \input{preamble}
-\input{../illustrations/preamble}
+\input{illu-preamble}
 
 \usepackage{pgfpages}
 \setbeameroption{hide notes}
@@ -54,13 +54,13 @@
 
 
 
-\AtBeginSection[]
-{
-  \begin{frame}<beamer>
-    \frametitle{Overview}
-    \tableofcontents[currentsection]
-  \end{frame}
-}
+% \AtBeginSection[]
+% {
+%   \begin{frame}<beamer>
+%     \frametitle{Overview}
+%     \tableofcontents[currentsection]
+%   \end{frame}
+% }
 
 
 %\input{../illustrations/preamble}
@@ -120,10 +120,10 @@ int main()
 \end{lrbox}
 
 
-\begin{frame}
-  \frametitle{Overview}
-  \tableofcontents
-\end{frame}
+% \begin{frame}
+%   \frametitle{Overview}
+%   \tableofcontents
+% \end{frame}
 
 \section{\stktokens{}-paper in the big picture}
 \begin{frame}[fragile]
@@ -278,40 +278,200 @@ int main()
 % \end{frame}
 \section{Capability machines and \stktokens{}}
 
-\input{../illustrations/traditional}
-\input{../illustrations/capabilities}
 \begin{frame}
-    \frametitle{\stktokens{} prevent the attack}
-  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+  \centering
+  \frametitle{Traditional stack pointers}
+  \begin{tikzpicture}[scale=.45, every node={scale=.45}]
+    % recurrent parts
+    \begin{scope}
+      \clip (-.1,-.1) rectangle (6.1,15.1);
+      \fill[gray!20,draw=none,opacity=.8] (0,0) rectangle (6,15);
+      \draw[draw=gray!80] (0,0) -- (0,15);
+      \draw[draw=gray!80] (6,0) -- (6,15);
+      \draw[fill=white] (0,-.5) rectangle (6,2.5) node[pos=.5] {\scriptsize lower stack frames...};
+    \end{scope}
+    \draw (-1.5,0) node {};
+    \draw (-1.5,15) node {};
+    % \draw[->] (-1,0) -- node[midway,sloped,above] {stack grows upward} (-1,15);
+
+    % traditional:
+    \draw<+>[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\scriptsize caller stack frame};
+    \draw<.> (8,7) node[draw=black] (sp0) {};
+    \draw<.> node[right=0cm of sp0] (sp0l) { stack pointer };
+    \draw<.> (sp0) edge[->,out=235,in=0] (6,5.25);
+
+    % traditional call:
+    \draw<+>[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\scriptsize caller stack frame};
+    \draw<.>[fill=white] (0,5.5) rectangle (6,8.5) node[pos=.5] {\scriptsize callee stack frame};
+    \draw<.> (8,7) node[draw=black] (sp0) {};
+    \draw<.> node[right=0cm of sp0] (sp0l) { stack pointer };
+    \draw<.> (sp0) edge[->,out=235,in=0] (6,8.25);
+
+    % traditional return:
+    \draw<+>[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\scriptsize caller stack frame};
+    \draw<.> (8,7) node[draw=black] (sp0) {};
+    \draw<.> node[right=0cm of sp0] (sp0l) { stack pointer };
+    \draw<.> (sp0) edge[->,out=235,in=0] (6,5.25);
+
+    % traditional call, attack:
+    \draw<+->[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\scriptsize caller stack frame};
+    \draw<.->[fill=white] (0,5.5) rectangle (6,8.5) node[pos=.5] {\scriptsize callee stack frame};
+    \draw<.-> (8,7) node[draw=black] (sp0) {};
+    \draw<.-> node[right=0cm of sp0] (sp0l) { stack pointer };
+
+    % read other stack frames
+    \draw<.> (sp0) edge[->,out=235,in=0] (6,8.25);
+    \actadv[.]{(0,5.5)}{(6,8.5)}{callee stack frame}
+    \draw<.> (sp0) edge[->,color=red,very thick,out=235,in=0] node[sloped, below] {read/write} (6,4);
+
+    % break well-bracketedness
+    \draw<+>[fill=red,opacity=.7] (-.5,2.5) rectangle (6.5,8.5);
+    \draw<.-> (8,7) node[draw=black] (sp0) {};
+    \draw<.>[red] (sp0) edge[->,out=235,in=0] (6,1.75);
+    \draw<.> node[color=red,align=left,below=of sp0l] {return but\\
+      skip caller frame};
+  \end{tikzpicture}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Naive stack and return capabilities}
+  \centering
+  \begin{tikzpicture}[scale=.45, every node={scale=.5}]
     % recurrent parts
     \stdstackstart
-    \draw (16.5,5.5) node {register file};
+
+    % first step: capabilities
+    \begin{onlyenv}<+-+(4)>
+      \draw[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\footnotesize current stack frame};
+    \end{onlyenv}
+    \begin{onlyenv}<.-.(3)>
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,2.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack capability };
+    \end{onlyenv}
+    \begin{onlyenv}<.-.(1)>
+      % \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      % (6,0) -- (6,16) node (oldframe1) [black,midway,xshift=0.5cm] {};
+      \draw (7.5,4) node[right,fill=gray!50] (rp1l) {return capability data};
+    \end{onlyenv}
+
+    % prepare call: store old return capability
+    \draw<+-+(3)>[fill=gray!50] (0,6) rectangle node {\tiny old return cap code} (6,6.5);
+    \begin{onlyenv}<+-+(2)>
+      \draw[fill=gray!50] (0,5.5) rectangle node {\tiny old return cap data} (6,6);
+      % \draw [decorate,decoration={brace,amplitude=10pt,raise=4pt},yshift=0pt]
+      % (0,0) -- (0,16) node (oldframe1) [black,midway,xshift=-0.5cm] {};
+      % \draw (0,5.75) edge[->,out=180,in=225] (oldframe1);
+    \end{onlyenv}
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt,aspect=.4},yshift=0pt]
+      (6,2.5) -- (6,16) node (callerframe1) [draw=black,pos=.4,xshift=0.8cm] {};
+      \draw node[fill=gray!50,right=0cm of callerframe1] (rp1l) {new return capability data};
+    \end{onlyenv}
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,6.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { new stack capability };
+    \end{onlyenv}
+    
+    % call using capabilities
+    \begin{onlyenv}<+->
+      \draw[fill=gray!50] (0,2.5) rectangle (6,6.5) node[pos=.5] {\footnotesize caller stack frame};
+      \draw[fill=white] (0,6.5) rectangle (6,9.5) node[pos=.5] {\footnotesize callee stack frame};
+    \end{onlyenv}
+  \end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Attack on naive stack and return capabilities }
+  \centering
+  \begin{tikzpicture}[scale=.45, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+
+    % attacker...
+    \begin{onlyenv}<+-+(2)>
+      \draw[fill=gray!50] (0,2.5) rectangle (6,6.5) node[pos=.5] {\footnotesize caller stack frame};
+      \actadv{(0,6.5)}{(6,9.5)}{callee stack frame}
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,6.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+    \end{onlyenv}
+
+    % stores stack pointer in heap
+    \begin{onlyenv}<+->
+      \begin{scope}
+        \fill[gray!20] (18,6) rectangle (22,13);
+        \draw (18,6) -- (18,13);
+        \draw (22,6) -- (22,13);
+      \end{scope}
+      \draw (20,14) node {heap memory};
+      \draw[fill=gray!50] (18,8) rectangle node[color=red] {\tiny copy of old sp} (22,8.5);
+    \end{onlyenv}
+    \draw<.> (18,8.25) edge[->,red,thick,bend left] (sp1);
+    \begin{onlyenv}<+->
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (13.5,6.5) -- (13.5,16) node[draw=black] (spold) [black,midway,xshift=0.8cm] {};
+      \draw (18,8.25) edge[->,red,thick,bend left] (spold);
+    \end{onlyenv}
+
+    % attacker returns
+    \begin{onlyenv}<+>
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      (6.5,2.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+      \draw[fill=white] (0,2.5) rectangle (6,6.5) node[pos=.5] {\footnotesize current stack frame};
+    \end{onlyenv}
+
+    % attacker gets called again + uses old stack pointer.
+    \begin{onlyenv}<+>
+      \draw[fill=gray!50] (0,2.5) rectangle (6,10.5) node[pos=.5] {\footnotesize caller stack frame};
+      \actadv{(0,10.5)}{(6,13.5)}{callee stack frame}
+      \draw (18,8.25) edge[->,color=red,very thick,out=235,in=0] node[sloped, below] {read/write} (6,8);
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+        (6.5,10.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw node[right=0cm of sp1] { stack pointer };
+      % \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
+      % (6,2.5) -- (6,16) node (callerframe1) [draw=black,midway,xshift=0.8cm] {};
+      % \draw node[fill=gray!50,right=0cm of callerframe1] (rp1l) {return pointer data};
+    \end{onlyenv}
+  \end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+  \frametitle{\stktokens{} prevent the attack}
+  \centering
+  \begin{tikzpicture}[scale=.45, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+    \draw (17.5,5.5) node {register file};
     \begin{scope}
-      \clip (15.9,1.1) rectangle (17.1,5.1);
+      \clip (16.9,1.1) rectangle (18.1,5.1);
       \foreach \x in {1,2,...,4}
       {
-        \draw[fill=white] (16,\x) rectangle (17,\x+1) node[pos=.5,color=teal] {};
+        \draw[fill=white] (17,\x) rectangle (18,\x+1) node[pos=.5,color=teal] {};
       };
     \end{scope}
-    \node (r1) at (16.75,4.5) {};
-    \node (r2) at (16.75,3.6) {};
+    \node (r1) at (17.75,4.5) {};
+    \node (r2) at (17.75,3.6) {};
 
     % Caller 
     \actsf{(0,2.5)}{(6,5)}{caller stack frame} 
     \begin{onlyenv}<+>
       \capbrace[sp1]{(6.5,2.5)}{(6.5,16)}
       \draw node[right=0cm of sp1] { stack pointer };
-      \draw (r1) edge[->,red,thick,bend left] (sp1);
+      \draw (r1) edge[->,red,thick,bend left,dashed] (sp1);
     \end{onlyenv}
 
 
     % Split the stack pointer
     \begin{onlyenv}<+>
       \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
-      \draw (r2) edge[->,red,thick,bend left] (sp2);
+      \draw (r2) edge[->,red,thick,bend left, dashed] (sp2);
       \draw [decorate,decoration={brace,aspect=0.2,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       (6.5,5) -- (6.5,16) node[draw=black] (usp) [black,pos=0.2,xshift=0.8cm] {};
-      \draw (r1) edge[->,red,thick,bend left] (usp);
+      \draw (r1) edge[->,red,thick,bend left,dashed] (usp);
       \draw node[right=0cm of usp] { stack pointer };
       \draw node[right=0cm of sp2] { private stack pointer };
     \end{onlyenv}
@@ -322,7 +482,7 @@ int main()
       \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
       \draw [decorate,decoration={brace,aspect=0.2,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       (6.5,5) -- (6.5,16) node[draw=black] (usp) [black,pos=0.2,xshift=0.8cm] {};
-      \draw (r1) edge[->,red,bend left] (usp);
+      \draw (r1) edge[->,red,bend left,dashed] (usp);
       \draw node[right=0cm of usp] { stack pointer };
 
       \draw node[fill=gray,opacity=0.5, right=0cm of sp2] { \phantom{return data pointer} };
@@ -330,7 +490,7 @@ int main()
       \inactsf{(0,2.5)}{(6,5)}{caller stack frame} 
       \actadv{(0,5)}{(6,8)}{callee stack frame}
     \end{onlyenv}
-    \draw<.-> (r2) edge[->,red,bend left] (sp2);
+    \draw<.-> (r2) edge[->,red,bend left,dashed] (sp2);
 
 
     \begin{onlyenv}<.->
@@ -350,7 +510,7 @@ int main()
     \end{onlyenv}
 
     \begin{onlyenv}<.>
-      \draw (14,10.25) edge[->,red,thick,bend right] (usp);
+      \draw (14,10.25) edge[->,red,thick,bend right,dashed] (usp);
       \draw[fill=white] (14,10) rectangle node[color=red] {\scriptsize old sp} (18,10.5);
       \draw node[right=0cm of usp] { stack pointer };
       \inactsf{(0,2.5)}{(6,5)}{caller stack frame} 
@@ -362,7 +522,7 @@ int main()
 
     % Return from callee
     \begin{onlyenv}<+->
-      \draw (14,10.25) edge[->,red,bend right] (usp);
+      \draw (14,10.25) edge[->,red,bend right,dashed] (usp);
       \draw[fill=gray!50] (14,10) rectangle node[color=red] {\scriptsize old sp} (18,10.5);
       \actsf{(0,2.5)}{(6,5)}{caller stack frame} 
       \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
@@ -693,6 +853,20 @@ int main()
 \item {\itshape arguably "complete"}: the formalization should arguably capture the entire meaning of WBCF and LSE and should arguably be applicable to any reasonable program. \label{def-prop:complete}
 \item {\itshape potentially scalable}: although dynamic code generation and multi-threading are currently out of scope, the formalization should, at least potentially, extend to such settings.\label{def-prop:scalable}
 \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{FAQ}
+  \begin{itemize}
+  \item \textit{Do you support tail calls?}
+    \begin{itemize}
+    \item Yes.
+    \end{itemize}
+  \item \textit{Do you support higher-order functions?}
+    \begin{itemize}
+    \item Yes.
+    \end{itemize}
+  \end{itemize}
 \end{frame}
 
 \end{document}
