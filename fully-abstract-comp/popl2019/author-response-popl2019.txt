@@ -1,0 +1,69 @@
+We thank reviewers for their thorough reviews.
+We acknowledge the criticism on presentation aspects, and propose to fix as follows:
+* Explain better why we formalise WBCF and LSE the way we do instead of more "direct" (see below).
+* Clarify attacker model, adversary calls and the role of well-formedness and reasonability (see below).
+* Drop 5.1.2 about the code region, give an informal overview of it instead, and do a thorough proof-read of the full section 5 to ensure independence of the TR.
+* Add comments to Figure 8, as in the TR.
+* Refactor Figure 10 as suggested by #15A, make WBCF and LSE easier to inspect.
+Note that POPL's 2-phase reviewing model allows reviewers to verify these changes.
+
+Some answers:
+* #15A: "Can you give a precise (informal) definition of WBCF"
+  #15B: "Using full abstraction machinery to describe correctness of the scheme seems very heavy-weight."
+  #15B: "I don't really understand the motivation for treating oLCM as a sort of reverse-engineered semantics for well-behaved LCM."
+  #15C: 'The paper writes that "by inspection of the operational semantics, oLCM guarantees LSE and WBCF", which means that the operational semantics had better be easy to inspect, and as presented currently, it's not.'
+  #15D: "could you have a proof that oLCM enforces WBCF+LSE rather than visual inspection?"
+
+  WBCF and LSE sound precise, but they are actually not easy to define.
+  An ideal definition would be (1) intuitive, (2) useful for reasoning and (3) reusable in secure compiler chains, (4) arguably "complete", and (5) potentially scalable to dynamic code generation, multi-threading etc.
+  A definition based on call-return traces, or the one by Abadi et al. [2005] only satisfies (1).
+  Skorstengaard et al. [2018] achieve (2) and perhaps (3) and (5), but not (1) and (4).
+  Our fully abstract overlay semantics achieves (1) through (5).
+  It is also a good informal definition: it says that it is sufficient to reason about security properties in a setting with native WBCF and LSE, at least if you make sure to follow the calling convention.
+  We agree that inspecting WBCF and LSE in the operational semantics of oLCM should be made easier by refactoring Figure 10.
+
+* #15B: attacker model is unclear
+
+  - can they call into trusted code?
+
+  Yes, but WBCF and LSE are not guaranteed for such calls.
+  Formally, adversarial code can contain the instructions that constitute a call.
+  However, for untrusted code, oLCM will not execute those instructions as a "native call", but execute the individual instructions separately.
+  The callee then executes in the same stack frame as the caller so WBCF and LSE do not follow (for that call).
+
+  Update: actually, the well-formedness condition in the submitted TR accidentally prevented adversary calls — we fixed that after the POPL submission deadline.
+  If reviewers are willing/allowed to look at it, the fixed version is available at http://people.cs.kuleuven.be/dominique.devriese/stktokens-tr-20180921.pdf
+
+  - are they (a) well-formed and/or (b) reasonable?
+
+  Untrusted components should indeed be (a) but not necessarily (b).
+  We agree that 626 and 723ff/793ff are ambiguous and will clarify.
+
+* Understandability of LR for non-experts (#15B, #15C):
+
+  Acknowledged. See above for proposed updates.
+
+* #15D: "how common/widespread are capability machines?"
+
+  At the moment, there are only research prototypes (although we understand people at CHERI are exploring potential commercialisation and ARM is rumoured to be investigating an ARM-CHERI design).
+
+* #15D: "are all existing approaches on commodity hardware providing weaker guarantees?"
+
+  Yes, weaker guarantees of limited use for reasoning, and/or weaker attacker model (no interaction with untrusted assembly), see related work section.
+
+* #15A: tail calls?
+
+  Yes, tail calls are fully supported in oLCM and LCM.
+  They can be done by simply doing an xjump to the adversary rather than a call. 
+
+* #15A: "Is there a clear difference between "abstract overlay semantics" and
+  "refinement"?"
+
+  The difference is in the full abstraction result for the embedding.
+  Security properties about code in the abstract setting then directly imply corresponding results in the concrete setting.
+  Perhaps a refinement result supports similar reasoning, or it might imply a fully abstract embedding, but it's at least less direct.
+
+* #15A:
+    In your author response, could you please provide a new version Figure 10 that a human can read?
+
+  Ack, but we respectfully propose to not do a rush job of this refactoring now, but instead use POPL's 2-phase reviewing to implement it.
