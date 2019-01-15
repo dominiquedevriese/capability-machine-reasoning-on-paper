@@ -1,0 +1,768 @@
+POPL 2019 Paper #15 Reviews and Comments
+===========================================================================
+Paper #15 StkTokens: Enforcing Well-bracketed Control Flow and Stack
+Encapsulation using Linear Capabilities
+
+
+Review #15A
+===========================================================================
+
+Overall merit
+-------------
+B. Weak accept
+
+Reviewer expertise
+------------------
+Y. Knowledgeable
+
+Paper summary
+-------------
+This work studies the following problem: can an assembler component
+running among untrusted components on a machine with support for
+runtime capabilities enforce that its stack space is private
+(neither read nor written by other components) and well-bracketed
+control flow (the control returns to its return PCs in the inverse
+dynamic order that calls were made, gaining order to the expected
+protected stack frame data created by the matching call)? Previous
+work [Skorstengaard et al.] enforced these properties using the "local
+capabilities" of the CHERI machine (capabilities that can only be
+stored in registers or stack, not heap memory), but the corresponding
+dynamic protection logic was expensive   --   you have to clear your
+callee's frames after they return, or they could leak local
+capabilities through it. This work demonstrates that these properties
+can be efficiently protected using a new cute kind of "linear
+capabilities". Technically, it defines a "safe" semantics with
+a native/privileged call stack that enforces the desired safety
+properties by construction, and shows that the proposed dynamic
+protection technique (on normal machines without this
+native/privileged call stack) refines the "safe" semantics.
+
+Strengths
+---------
+The problem that is being studied is interesting and important. The
+solution that is being proposed is novel, a solid improvement over the
+state of the art, and a detailed, formal technical argument is
+developed. It demonstrates the usefulness and importance of the new
+notion of linear capabilities.
+
+Weaknesses
+----------
+The paper does not rigorously define what well-bracketed control-flow
+(WBCF) is. The proof that WBCF holds is done by formulating
+a different version of the system, and understanding the formal
+*statement* requires understanding Figure 10, that is not humanly
+readable   --   the key reduction rule is fired when 22 conditions
+hold, and its behavior is determined by 10 other unstructured
+conditions.
+
+I was troubled by the fact that I could not, given reasonable
+reviewing effort, understand the formal guarantees given for
+control-flow bracketing, which is the key technical contribution of
+the work   --   I could not check the claim on lines 716-718 that oLCM
+guarantees WBCF. I weakly recommend accepting the submission.
+
+Comments for author
+-------------------
+### Major comments
+
+Can you provide a precise (informal) definition of WBCF?
+
+---
+
+Throughout the first half of the paper, I wondered if the various
+solutions you had in mind allowed for tail calls. I believe that your
+calling convention does allow tail calls: to perform a tail call, you
+don't split your stack capability for you callee, you just transfer
+the whole stack capability and the sealed return capability of your
+caller. You do mention tail calls on page 15, but only in the context
+of oLCM, It would have been nice to point this out before.
+
+(Note in particular that, while you insist that callers must have
+a non-empty frame, this restriction does not apply to tail-calls,
+which means in particular that loops can be encoded as recursive
+functions without trashing the stack.)
+
+---
+
+It would be important to discuss the relation between the guarantees
+given by your dynamic discipline and the static discipline of the
+Funtal work ( https://arxiv.org/abs/1711.03871 ), which use static
+polymorphism to enforce LSE (stack type polymorphism) and a form of
+control-flow regularity (return-address polymorphism). Is your notion
+of WBCF the same, weaker or stronger than the return conventions they
+can express? Could your use of dynamic capabilities be seen as
+a dynamic technique to guarantee their parametricity properties?
+
+---
+
+The availability of an ambient `halt` instruction makes the WBCF
+property of your system weaker than one may think. It is not true that
+a function calling a subroutine will get the control back, unless
+a failure occurs: the program may terminate correctly without ever
+giving control back.
+
+For example, consider this "honest" module with one public/exposed
+functions and two private functions (compiled using the secure
+calling convention):
+
+    private void before(void) { ... }
+    private void after(void) { ... }
+
+    public void wrap(void user_action(void)) {
+      before();
+      user_action();
+      after();
+    }
+
+One might expect from this code that, for any use of this component by
+a malicious context, the `after` function is called as many times as
+the `before` function, or the program fails. However, it is possible
+to write a program that reads an integer N, calls `wrap` that many
+time, suspending execution at `user_action` (never returning), so that
+`before` is called N times and `after` never, and then terminates
+correctly. (In a higher-level language, I would expect some sort of
+catchable exceptions to be required to obtain this behavior.)
+
+This behavior would not be possible if `halt` was not an ambient
+authority, and the program terminated by returning to a "global
+return" address into a trusted `boot` procedure: the malicious code
+would have to return the whole stack capability (or cause a crash),
+and so it would be forced to resume the N `wrap` invocations to
+collect their frame capabilities.
+
+---
+
+To a non-expert, your proof technique of "overlay semantics" looks
+very close to the technique of "proof by refinement" that is standard
+in formal methods for security: to show that an implementation is
+secure, show that it refines a more abstract (but often
+still executable) implementation/specification in which the desired
+security properties are self-evident. (A typical example of refinement
+is the verification of the SeL4 kernel, where assurance properties are
+verified on an abstract specification that the implementation refines.)
+
+Is there a clear difference between "abstract overlay semantics" and
+"refinement"?
+
+---
+
+You use a logical relation to establish full abstraction, would it be
+possible to show full abstraction by a simulation argument instead
+  --   as is typically used in refinement proofs? (In both case the
+argument relies on relating the execution states of the oLCM and LCM
+machines in a way that is preserved by execution.)
+
+---
+
+I can tell that you tried hard, but I'm sorry to inform that the code
+in Figure 8 is still unreadable. On the contrary, the commented
+version in your technical report is very nice! I think that you need
+to add inline comments (as in the technical report). Or maybe you
+could organize the code sequence better: in the real world it is
+common to structure assembly code using `#define` macros, you could
+consider doing the same here.
+
+You seem to be running into the space limitations of your format. Here
+would be some idle considerations on where to and not to win space:
+
+- My personal take on "what's the really important aspects that reader
+  should get out of this paper" are: (0) your capability-machine
+  setting, (1) the importance of *linear* capabilities, (2) the
+  calling convention, (3) what it is that you prove about it.
+
+- I think that the informal explanations at the beginning on the
+  machine, and then various attacks against control-flow bracketing
+  are useful and interesting. I wouldn't cut on those. (In fact,
+  I found the introduction of capability sealing maybe a bit too
+  compact already.)
+
+- You have figures with vertical stacks that use a lot of vertical
+  space. I know that this is a blasphemous suggestion for compiler
+  authors, but it might be possible to reclaim some space by
+  representing stack horizontally.
+
+- If you need to save space by reducing the part about the logical
+  relation, and referring your readers to the appendix/supplementary
+  material, I think that it may be an acceptable choice.
+
+
+### Minor comments
+
+Some details of the capability machine are unjustified and unclear:
+
+- Why do addresses have a "base" position and a "current" position,
+  with `cca` incrementing the current position, instead of having just
+  a base position that is incremented, corresponding to the maybe more
+  familiar (pointer, valid length) representation?
+
+- Why is `sealed(sigma, sc)` not Sealable?
+
+- Why is there no instruction to unseal a capability? Would there be
+  any security concern with removing `xjmp` and using a combination of
+  standard `jmp` and `unseal`?
+
+- Why does the `cca` instruction happily accepts incrementing the
+  current address outside the bounds of the [base, end] interval? If
+  it failed in that case, could you do away with the bound checking in
+  the reduction rules for `load` and `store`?
+
+  Another way to create out-of-bound current addresses is the `split`
+  instruction, which duplicates the current address of `r3` in both
+  `r1` and `r2` (it must be invalid in at least one of them). Why? And
+  how was the decision made that `splice` would keep the second
+  fragment's current address and ignore the first?
+
+---
+
+> capabilities have a current address $addr$ and a linearity $lin$
+
+It seems wrong to call $lin$ a "linearity": "normal linearity" means
+"duplicable", and this makes little sense. You could call $lin$
+a "sharing policy", and the policy is either "duplicable" or
+"linear". Or you could call it a "load mode", and the mode is either
+"copy" or "move".
+
+---
+
+The linClear(...) stuff is very noisy. Could you introduce the
+notations `Phi[-r]` for `Phi[reg.r = linClear(Phi(r))]` and `Phi[-a]` for
+`Phi[mem.a = linClear(Phi(a))]`? While we are at it:
+
+- in the `move r rn` rule, I would guess that `w2 = linClear(rn)` is a typo for `linClear(Phi(rn))`?
+
+- in the `jmp` rule, the `Phi[a,b -> va, vb]` syntax hurts readability
+  and does not win space, so maybe you could just write `Phi[a -> va][b -> vb]`
+  as in other places.
+
+- in the `split` rule, I would guess that `w = linClear(Phi(r1))` is
+  a typo for `w = linClear(Phi(r3))`?
+
+---
+
+> We do not provide special support for lossless reduction [...] with
+> disjoint permissions.
+
+I don't know what this means.
+
+Questions for authors’ response
+---------------------------------
+In your author response, could you please provide a new version Figure
+10 that a human can read? It should be possible to introduce clearer
+notations, and factor the many conditions into sub-rules that have
+a name and a logical purpose, like you would split a long and
+overly-detailed functions into subroutines.
+
+
+
+Review #15B
+===========================================================================
+
+Overall merit
+-------------
+B. Weak accept
+
+Reviewer expertise
+------------------
+Y. Knowledgeable
+
+Paper summary
+-------------
+This paper shows how a novel notion of linear (non-copyable) hardware
+memory capabilities, in combination with a capability sealing
+mechanism, can be used to enforce "Well-Bracketed Control Flow" (i.e.,
+proper nested call/return structure) and "Local State Encapsulation"
+(i.e., preventing stack frame data from being accessed by callees) in
+otherwise unstructured machine code.  The paper specifies a simple
+machine instruction set with linear capabilities and sealing, and
+gives an informal description of how these features can be used to
+enforce WBCF and LSE. It then describes an "overlay semantics" for the
+same instruction set, in which WBCF and LSE are enforced by
+construction, and states a theorem asserting that the "compilation"
+(actually the identity function) from the machine with overlay
+semantics to the machine with standard semantics is fully abstract;
+this implies that the standard semantics also enforces WBCF and LSE.
+Finally, the paper gives an extended sketch of a logical relations
+proof of the full abstraction theorem.  (A TR with full proof details
+is provided as supplementary material.)
+
+Strengths
+---------
++ The goal of achieving secure inter-langauge interaction at machine
+level is an important one.
+
++ Linear capabilities seem potentially quite useful for this purpose.
+While the idea is not entirely new, I believe this is the first clear
+formalization.
+
++ The paper explains the WBCF and LSE enforcement mechanisms clearly,
+in a gentle tutorial style.
+
+Weaknesses
+----------
+- The attacker model is not completely clear.
+
+- Using full abstraction machinery to describe correctness of
+the scheme seems very heavy-weight.
+
+- The logical relations proof sketch is only accessible
+to experts.
+
+Comments for author
+-------------------
+The idea of linear capabilities seems quite promising, and the
+exposition of the machine and encoding of WBCF and LSE enforcement
+are excellent.  My reservations have to do with the statement
+and proof of correctness.
+
+First of all, you should explain your attacker model more clearly from
+the beginning of the paper. The word "adversary" doesn't  appear until line
+401, where it appears to be associated with a function activation.
+What is the relationship among adversaries, components, and activations?
+(If "activations" are a relevant notion at all, given that LCM doesn't 
+seem to have a well-defined concept of calls.)
+
+Repeated readings did not fully clarify what constraints hold on
+the adversary, especially wrt/ obeying the calling convention.
+Presumably the attacker can do what it wants with the stack space it
+is given, but if it wants to call back into trusted code what
+conditions does it need to re-establish?  Fig. 6a suggests that
+adversary frame 1 obeys the conventions when calling trusted frame 2,
+but 660ff suggests that the very definition of untrusted component
+_prohibits_ using the calling convention, which seems very strange.
+
+Also, the roles of (a) "well-formed" vs. (b) "reasonable" requirements
+for non-trusted components are not too clear.  By the end of the
+paper, I had concluded that non-trusted components must be (a) but not
+necessarily (b).  That position seems supported by 1058ff and 729.
+But 614ff is quite ambiguous, and 626 and 723ff/793ff suggest that the
+difference between (a) and (b) is just one of syntax/static
+vs. semantic/dynamic.  Finally, 527ff, while it seems somehow relevant
+to this question, is wholly mysterious.
+
+I don't really understand the motivation for treating oLCM as a sort
+of reverse-engineered semantics for well-behaved LCM.  Why not start
+with oLCM (which supports both well-behaved calls and arbitrary `xjmp`s),
+translate it into vanilla LCM, and show a backward simulation?
+Do you really need the full abstraction machinery?  I'm prepared
+to believe it, but the paper didn't convince me.
+
+FYI, as a non-expert in logical relations, I frankly found Section 5
+impenetrable -- though I'm not claiming that's a fundamental
+problem with the paper.
+
+Smaller points:
+
+26: WBCF also doesn't obviously hold in languages with coroutines,
+iterators, or threads.
+
+57ff: This critique of the CHERI approach is not fully convincing.
+The need to reserve separate stack space is already standard in
+multi-threaded systems. Why is identifying components (61) difficult
+to scale?  And you do not permit dereferencing pointers into the
+stacks of other components either, right?
+
+78: The draft paper by Abate et al. that you cite does mention a form
+of linear tags which are quite similar.
+
+168: "set of seals"  At this point we have no idea why seals come in sets.
+This notion needs clearer and earlier motivation.
+
+183: What is a capability type?
+
+199-200: Right rule for failure doesn't seem to have the correct quantification over $\Phi'$ in the premise.
+Do you mean $\forall \Phi', \Phi \rightarrow \Phi' \Longrightarrow \Phi' = failed$?
+
+232: "$\Phi(r_1)$" -> "$\Phi(r_3)$"  (?)
+
+280: "non-executable" Why is that restriction important?
+
+304: "same way for seal sets." This is not reflected in Fig. 1, unlike for the other instructions there.
+
+309: "At this time..." Unclear what this means: at this point in the exposition, at this point in your research, or what?
+
+310: "entity on the machine" Unclear. What is an "entity" in this context?
+
+318: what is a "linear address" ??
+
+320: "can be seen as library implementations"  I couldn't follow this.
+
+341: This remark is not very helpful. If it is worth saying at all, tell us what kind of simplifications you had to make.
+
+Fig. 4: It is confusing to use $comp_0$ as the non-terminal for base components, and then refer to specific
+instances as $comp_1$, $comp_2$, etc.
+
+393: It would be helpful to clarify from the start that this paragraph
+is describing what we might attempt without linearity.  And you should
+also clarify what you are claiming here: evidently the strawman scheme
+proposed in this paragraph does not work to enforce WBCF or LSE, but
+are you claiming that _no_ scheme based on (ordinary) capabilities and
+sealing can enforce WBCF or LSE on a single shared stack?  (It would
+be quite interesting if you could prove that!)
+
+
+505ff: It might be helpful to show the stack base in Figs. 5,6,7.
+
+573ff: Some comments on this code would be helpful! (Rather than waiting for the
+discussion at 690ff.)  In any case, please note that $r_1$ and $r_2$ are also
+parameters and describe their role.
+
+644: "Return pointers are generated..." Does "generated" refer to the dynamic execution
+of oLCM or the relationship between oLCM and LCM?
+
+646: "Even though..." I don't get the significance of this.
+
+785: "respect Write-XOR-Execute" what does this mean?
+
+798ff: This description left me wondering whether reasonableness has a precise definition or not;
+perhaps it would be better to start by saying there is one (in the TR) and then give an approximate
+description. 
+
+837: This seems to be explaining the blue notation in 831, so why not lift it to above 834?
+On the other hand, you don't seem to define the analogous red notation in 836 anywhere.
+
+1169: "The processor..." But that wouldn't be sound, would it??
+
+1221: Does it make sense to "see reaosnable behavior as defined behavior" ? This possibility
+needs more detailed investigation.
+
+1255: Isn't that publication in ESOP18 ? 
+
+Language:
+
+29, 82: "Particularly" -> "In particular"
+
+56 and elsewhere: "distrusting" -> "mutually distrustful" (?)
+
+78: "These capabilities... hardware." ->  "The hardware prevents these capabilities from being duplicated." (?)
+
+183: "simplest of ... simply"
+
+250: "relatively" -> "relative"; "interpretation" -> "interpretations"
+
+286: "it only becomes" -> "they only become"
+
+326: "disjoint" -> "are disjoint"
+
+330: "Components and linking..." you already said this.
+
+341: ""has" -> "have"
+
+423ff: I think it would be more idiomatic to refer to the caller and callee as
+"it" rather than "they" (and adjust the verb agreements accordingly).
+
+492: "make sure" -> "ensure"
+
+521: "stack which" -> "stack, which"
+
+616: "setup" -> "set up"
+
+617: "should not be" -> "are not"
+
+619: "pointer, can " -> "pointer can"
+
+647: "Say," -> "If, say,"
+
+648: "frame which" -> "frame, which"
+
+697: "meta data" -> metadata"
+
+701: "exists" -> "exist"
+
+710: "don't" -> "doesn't"
+
+797: "We more precisely" -> "More precisely, we"
+
+1066: "straight forward" -> "straightforward"
+				
+1185: "control-flow integrity" why the underlining?
+
+
+
+Review #15C
+===========================================================================
+
+Overall merit
+-------------
+B. Weak accept
+
+Reviewer expertise
+------------------
+X. Expert
+
+Paper summary
+-------------
+The paper presents a novel mechanism for protecting local state and ensuring
+well-bracketed control flow using linear capabilities. The authors present an
+idealized capability machine based on a simplified version of CHERI extended
+with linear capabilities. They describe how a particular calling convention
+ensures that untrusted code can neither access local state belonging to the
+caller nor violate well-bracketed control-flow. They prove these properties by
+creating a second operational semantics that should have these properties "by
+inspection" and then proving a fully abstract compilation result between the two
+languages using a cross-language step-indexed Kripke logical relation.
+
+Strengths
+---------
+In general the paper does a good job describing both the problem that it
+addresses and the way that the StkTokens approach mitigates the attacks. Section
+3, in particular, is very strong, and makes a compelling case for incorporating
+linear capabilities into CHERI because of how it will aid security reasoning.
+
+Weaknesses
+----------
+The single biggest weakness is the paper doesn't do a great job explaining
+aspects of the formal section. In particular, it didn't figure out what to cut
+out so that it would have enough space to clearly explain the important parts.
+As a result, the formal section is somewhat muddled. In combination with the
+tech report, I was able to figure most of it out, but the paper, as it stands,
+doesn't seems to stand sufficiently on its own.
+
+Comments for author
+-------------------
+Major comments:
+
+In the first three sections of the paper, the authors motivate the problems of
+local state encapsulation (LSE) and well-bracketed control flow (WBCF),
+introduce a novel capability machine with linear capabilities (LCM), and use it
+to implement a calling convention that ensures both LSE and WBCF. These sections
+are in general clear, well motivated, and do a great job both showing the reader
+what the problem is and why StkTokens is a good solution to this problem.
+
+Unfortunately, the subsequent sections did not do quite as good a job. Section 4
+describes the approach to formal correctness, which relies upon defining a
+separate language (oLCM) which has LSE and WBCF, and then compiling (via an
+identity compile) to LCM. By proving this compiler fully abstract, they will
+show that LCM must have these same properties. How are these properties shown in
+oLCM? The paper writes that "by inspection of the operational semantics, oLCM
+guarantees LSE and WBCF", which means that the operational semantics had better
+be easy to inspect, and as presented currently, it's not. An excerpt of the
+operational semantics are presented in Figure 10, but it is woefully
+under-explained, given that it is of critical importance to the formal result of
+the paper. There are parts of the figure that are never mentioned in the text
+(e.g., why do r1 and r2 need to be not equal to rt1? etc.), and in general the
+high-level description from 690-700 is only going to be useful to someone who
+already understands the formal aspects of the operational semantics. As it
+stands, I don't think there is a sufficiently clear description of the
+operational semantics to convince the reader that these properties hold. I think
+some combination of simplifying the figure (if needed) and dedicating more space
+to actually explaining what is in it and how the operational semantics of oLCM
+works is needed, because the entire formal result rests upon this.
+
+The logical relation section also doesn't do a great job of explaining what is
+in the section. For example, the H^code relation definition isn't shown or
+described, though it is used. It would be also nice to know what the box means,
+what "gc" means (from the tech report, global constants), etc. Obviously space
+is a concern, but I would think that it would be more valuable to cut some parts
+out and dedicate more space to explaining the rest in better detail. As it is,
+even to a reader familiar with this type of logical relation, it's quite
+difficult to read without at least consulting the tech report, and at that
+point, it makes this reviewer wonder what the point of having the section in the
+paper if that's the case.
+
+Overall, I think StkTokens is a great contribution and with some work done to
+better explain oLCM and help the logical relation section stand on its own a
+little better, I would happily support this paper.
+
+Typos:
+
+Figure 3, Line 232/233 at right, should be linClear(phi(r3))
+
+Line 171, "Sealable capabalities" should be "Sealables", right? Later
+you use that term uniformly, and it is a much less confusing term.
+
+Line 501/502, extra closing paren
+
+Line 664, I _think_ this should be the oLCM step relation? Because T_A
+doesn't exist in LCM
+
+Line 731, sigma_clos missing over bar
+
+Line 908, World = ... should be Wor = ..., I think. Else it's confusing,
+and I had to look up in TR to check that that was how Wor was defined.
+
+Small comments:
+
+Figure 2. In order for this syntax to make sense, there is instruction
+encoding/decoding, as the memory has instructions, but from the syntax as
+written, there is no mention of this, and it was the first (of many) times I had
+to go to the TR to make sure things actually held together.
+
+Line 184. Referencing something of what gettype, getl, etc do would be helpful,
+as again I had to go to the TR to find that there was some encoding, the value
+was stored in a register, etc. All of that is unsurprising, but having a few
+words would make the paper stand more on its own.
+
+Line 426-430. This wording is somewhat confusing. The phrase "their local data"
+requires figuring out who "their" refers to, and some of the wording ("will
+need") makes it seem like this is something that is supposed to work.
+
+Line 573-580. The description for the figure does not do a good enough job
+explaining the 26 instructions! Either the code should be removed, or it should
+get side-by-side pseude-code or explanations like the comments in the tech report.
+
+I was confused about the comments about the base address of the stack being
+fixed, as it seemed that the calling convention had every call splitting the
+stack capability before calling, and thus the base address for the callee would
+now be different. The idea of checking the base after the call is the same makes
+sense, I just didn't quite understand what would be fixed at compile time.
+
+Line 670-671. Is call_len ever anything but 26? It wasn't clear.
+
+
+
+Review #15D
+===========================================================================
+
+Overall merit
+-------------
+A. Strong Accept
+
+Reviewer expertise
+------------------
+Y. Knowledgeable
+
+Paper summary
+-------------
+Secure compilation, ensuring that security properties of the source
+  program hold on the target program, need specific mechanisms
+  enforced by the compiler for properties that are not naturally
+  preserved in the target language. Two key properties usually holding
+  at the source language but not the target are: WBCF and LSE.  WBCF,
+  Well-bracketed Control Flow, roughly says that a function either
+  returns to callee, or calls other functions, or diverges. LSE, Local
+  State Encapsulation, roughly says that a function's local variables
+  are not touched by callees.  Enforcing these properties requires
+  security primitives at the target language level.
+
+Existing techniques include using virtual-memory of commodity
+  hardware, but this is "not fine-grained enough"; or use specific
+  hardware, namely "capability machines" (CM), like CHERI. There are 2
+  approaches to ensure WBCF+LSE on a CM:
+  1. separate stacks for distrusting components and central trusted
+     stack; drawbacks: lack scalability, performance issues and
+     limitation of passing stack reference.
+  2. single shared stack, with temporary capabilities to stacks of
+     untrusted components, with efficient revocation (using local
+     capabilities); drawbacks: large performance impact to clear all
+     the unused part of the stack.
+
+In this paper the authors propose an approach to ensure WBCF and LSE
+  on a CM using a single shared stack but with *linear* capabilities
+  (capabilities that can only be used once). Namely they contribute:
+  
+  - a new linear capability machine LCM (roughly adding linear
+    capabilities to CHERI, with special care for capability
+    manipulation operations, eg reducing authority can't be done by
+    simple updating since the capability can only be used once).
+
+  - a new calling convention StkTokens provably guaranteeing WBCF+LSE,
+    mainly replacing stack pointers with stack capabilities which must
+    be linear, preventing the capability to be used after its expected
+    lifetime (eg when the callee has already returned or when they
+    have themselves invoked other code).
+
+  - a new semantics oLCM enforcing WBCF+LSE "by construction" and used
+    to prove that LCM enforces WBCF+LSE by showing it "equivalent" to
+    oLCM; oLCM also offers more generality and reusability in larger
+    verification effort.
+
+    The equivalence notion is "full abstraction", a well-known
+    property in secure compilation: it shows that two trusted
+    components are indistinguishable to arbitrary other components in
+    the target semantics iff they are indistinguishable to arbitrary
+    other components in the source semantics.
+
+    They need to rely on well-formedness and reasonability of trusted
+    components.
+
+    For the proof itself, the key is to define the relation between
+    observable behaviours in oLCM and in LCM, for which they use a
+    specific Kripke relation (this section gets quite technical and
+    could be improved to assume less prior knowledge of Kripke).
+
+The discussion part highlights that the approach has no implementation
+  yet, so unclear overhead of imposing linear capabilities to a
+  specific capability machine hardware.
+
+Strengths
+---------
+- very well written paper, a pleasure to read
+
+- very much in scope for POPL
+
+- neat extension, providing strong guarantees
+
+Weaknesses
+----------
+- performance unknown as there is no implementation; so unclear
+  whether it "solves the problem" of other approaches with performance
+  issues.
+
+- unclear to me how widespread capability machines are, ie how
+  applicable is this technique compared to ones on commodity hardware.
+
+- the fact that oLCM enforces WBCF+LSE is done by visual inspection
+  rather than proof (l715-719). Not sure whether it could be done by
+  proof.
+
+Comments for author
+-------------------
+In addition to the comments above, questions below, and detailed minor
+points below, there are 2 points of improvements I'd like to suggest.
+
+- the "seal" notion is not explained as well as the rest of the paper,
+  creating difficulties later in some parts of the paper. In
+  particular lines 168-171 would greatly benefit from a bit more
+  explanation and an example.
+
+- the mention to Kripke relations and Worlds assume some background
+  knowledge and would benefit from better introduction, including when
+  mentioned in the intro.
+
+
+Details:
+
+- l40: "do not seem sufficiently fine-grained" -> please explain
+  better why this is the case and why this is a problem. This is
+  important to justify the need for a different approach.
+
+- l117: "and we prove the results" -> this is a strange formulations;
+  which results?
+
+- l120: "Kripke logical relation with recursive worlds" -> we have no
+  idea at this stage what this is about (whereas the previous items
+  have been introduced and explained).
+
+- l168-171: as said above, this paragraph is confusing. You mention
+  two new types of capabilities, but it is unclear to me which ones
+  they are, and whether they include the "capabilities" introduced
+  just before. The notion of a single seal as a natural number is
+  really not clear at this stage. An example would greatly help.
+
+- l317: "two lists specifying the available seals2" -> an example here
+  would help too.
+
+- fig4: where is "ms" defined/introduced? Same for c_{main,c}?
+
+- l390: "StkTokens take" -> "StkTokens takes" (you use StkTokens as
+  singular in the previous sentence, referring to 1 calling convention)
+
+- l407: "we in the first call give" -> "we, in the first call, give"
+
+- l501: "(Figure 7b))" -> remove one closing bracket
+
+- l710: don't -> doesn't
+
+- l910: what is "Wor"?
+
+- l986: "the they"
+
+Questions for authors’ response
+---------------------------------
+- how common/widespread are capability machines?
+
+- are all existing approaches on commodity hardware providing weaker
+  guarantees?
+
+- could you have a proof that oLCM enforces WBCF+LSE rather than
+  visual inspection?
