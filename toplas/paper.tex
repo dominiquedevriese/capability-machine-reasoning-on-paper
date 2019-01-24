@@ -3788,10 +3788,13 @@ lemma.
   
   The next part in the execution is an \texttt{scall}, so according to \sectionname~\ref{sec:reasoning}, we should apply the \texttt{scall} lemma (Lemma~\ref{lem:scall-works}).
   For the sake of presentation, we here sketch some of the things the \texttt{scall} lemma actually takes care of.
-  Based on the stack pointer's permission, we know by Lemma~\ref{lem:wl-local} that the capability is local (because it is a system wide assumption that there are no global read/write-local/execute capabilities \textit{c.f.}\ \sectionname~\ref{sec:stack-and-return-pointer}) which means that the region that governs it must be temporary.
+  Based on the stack pointer's permission, we know by Lemma~\ref{lem:wl-local} that the capability is local (because it is a system wide assumption that there are no global read/write-local/execute capabilities \textit{cf.}\ \sectionname~\ref{sec:stack-and-return-pointer}) which means that the region that governs it must be temporary.
   This allows us to construct a world $W_2 \futurestr W_1$ where the stack region of $W_1$ has been revoked\footnote{As a side note, it is also important for the reasoning about $x$ that this is a private future world.}.
-  In $W_2$, we replace the stack region of $W_1$ with a temporary static region that governs our stack frame, that is the private registers we push to the stack and the stack recovery code, as well as a standard region $\iota^{pwl}$-region for the part of the stack, we will provide to the callback.
-  The static region ensures that our local stack frame remains unchanged during the execution of the callback, and the standard region makes sure that the callback only puts safe values on the stack.
+  In $W_2$, two new regions govern the stack.
+  One of the new two regions governs the caller stack frame, i.e.\ the part of the stack that contains the contents of private registers and stack recovery code.
+  The region that takes care of this is a temporary static region which ensures that our local stack frame remains unchanged during the execution of the callback.
+  The other new region we add takes care of the unused part of the stack which we are going to let the callback use for its execution.
+  This is taken care of by a standard region $\iota^{pwl}$-region which allows the callback to store any safe value on the stack.
   The callback is global, so it is safe to invoke it in a private future world of $W_1$ (even though the code is unknown, we do not need to use the FTLR because we may assume that the arguments for the invocation of $c_{f4}$ are safe).
   Notice that had the callback been local, this would not be the case, but it would also not be safe to invoke as it might be a stack pointer as discussed in \sectionname~\ref{sec:stack-and-return-pointer}.
   Note also that arguing that the memory satisfies $W_2$ when we invoke the callback only works because we cleared the stack entirely (including the unused part) before the invocation.
@@ -3801,7 +3804,7 @@ lemma.
   We need to argue that it is safe to give the return pointer that \texttt{scall} constructs to the adversary which corresponds to reasoning about the remainder of the execution of \texttt{f4} (corresponding to the Hyp-Cont case of the \texttt{scall} lemma).
   The return pointer is a local capability, so we may assume that it is invoked in some configuration that satisfies $W_3 \futurewk W_2$.
   This means that none of the temporary regions have been revoked, so the regions we replaced the old stack region with are still present in $W_3$.
-  We know exactly how the execution proceeds upon return (the recovery code is executed, and $x$ is set to 0), so for the part of the execution up until the \texttt{scall} we once again use the anti-reduction lemma.
+  We know exactly how the execution proceeds upon return (the recovery code is executed, and $x$ is set to 1), so for the part of the execution up until the \texttt{scall} we once again use the anti-reduction lemma.
   
   For the \texttt{scall} itself we, of course, apply the \texttt{scall} lemma.
   As the private stack has changed, we need to replace the two regions that govern the stack.
@@ -3956,7 +3959,7 @@ convention enforces control-flow correctness, we do not prove a general theorem
 that shows this, because it is not clear what such a theorem should look like.
 Formulations in terms of a control-flow graph, like the one by \citet{abadi_control-flow_2005}, do not take into account temporal properties,
 like the well-bracketedness that Example~\texttt{g1} relies on.
-In fact, our examples show that our logical relation imply a stronger form of
+In fact, our examples show that our logical relation implies a stronger form of
 control-flow correctness than such formulations, although this is not made very
 explicit. As future work, we consider looking at a more explicit and useful way
 to formalize control-flow correctness. The idea would be to define a variant
@@ -3991,18 +3994,18 @@ Similarly, the return pointer is merely an entry pointer pointing into the trust
 This improvement of our calling convention is a recent insight and not yet reflected in our examples and our proofs.
 We do believe the proofs could be updated to accomodate for this change, but it would require some non-trivial changes.
 Consider the awkward example proof, for example, we would have to ensure that the world $W_6$, depicted in Figure~\ref{fig:worlds-in-pf-g1} would not just be a private future world of $W_5$, but a public one (in addition to being a public future world of $W_1$).
-This would allow us to do without the stack clearing, but it would entail some changes to the islands we use, and an extra argument that the old adversary's stack and return pointer remain valid after clearing the trusted code's stack frame and relaxing the invariant that used to ensure it could not be modified.
+This would allow us to do without the stack clearing, but it would entail some changes to the regions we use, and an extra argument that the old adversary's stack and return pointer remain valid after clearing the trusted code's stack frame and relaxing the invariant that used to ensure it could not be modified.
 While this change is a clear improvement, we do not actually believe that it fundamentally changes the efficiency characteristics of the approach: the cost is halved, but remains asymptotically the same.
 
 A second important remark we want to make is that the need for stack clearing in our calling convention is an instance of a general caveat when using CHERI's local capabilities as a restricted form of capability revocation.
 Consider how our use of local capabilities can be interpreted as temporarily delegating the stack and return capability to callees and then revoking the granted authority after the callee returns.
 From this perspective, local capabilities are a general feature enabling this temporary delegation of authority for the duration of an invocation and this is also how they are described by the authors~\citep{Watson2015Cheri}.
 However, our requirement for stack clearing on boundary crossings is also general.
-Revoking authority that was granted temporarily using local capabilities, requires clearing all memory for which the invokee had write-local authority (or at least erasing all local capabilities from that memory).
+Revoking authority that was granted temporarily using local capabilities requires clearing all memory for which the invokee had write-local authority (or at least erasing all local capabilities from that memory).
 Without micro-architectural support for efficiently clearing large ranges of memory, local capabilities can only be used for revocation in scenarios where the duration of a revocation is unimportant or the adversary only has write-local access to small amounts of memory.
 In future work, we are planning to investigate an alternative notion of \emph{linear} capabilities that offer a limited form of revocation without such limitations.
 
-Note, by the way, that CheriBSD's use of local capabilities in ccall does not actually involve a form of revocation.
+Note, by the way, that CheriBSD's use of local capabilities in CCall does not actually involve a form of revocation.
 CheriBSD's model involves a trusted stack manager that gives every compartment access to its own private stack using a local, write-local capability \citep{Watson2015Cheri}.
 The locality of the stack capability allows the trusted stack manager to prevent compartments from leaking their stack pointer in a boundary crossing, but those capabilities are never actually revoked.
 In fact, a compartment can easily store away such local capabilities in its own private stack and recover them there during future invocations.
@@ -4010,6 +4013,7 @@ In fact, a compartment can easily store away such local capabilities in its own 
 Since local capabilities seem intended to provide a restricted form of revocation, perhaps capability machines like CHERI should consider to provide special support for this requirement.
 Ideally, such support would take the form of a highly-optimized instruction for erasing a large block of memory.
 Recent work suggests that such a feature could perhaps be added to processors like CHERI, using a special hardware cache that tracks whether or not a memory location contains zero \citep{Joannou2017EfficientTaggedMemory}.
+
 % http://scale.eecs.berkeley.edu/papers/mmp-asplos2002.pdf
 % https://www.usenix.org/legacy/event/osdi08/tech/full_papers/zeldovich/zeldovich_html/index.html
 % http://users.ece.utexas.edu/~tiwari/pubs/MICRO-08-rangecache.pdf
@@ -4397,8 +4401,8 @@ Full details and proofs are not given here, but for those we refer to the techni
 \[
   \localityReg(\gl,W) \defeq 
   \begin{cases}
-    \dom(\erase{W}{\perm,\temp}) & \text{if } \gl = \local \\
-    \dom(\erase{W}{\perm}) & \text{if } \gl = \glob
+    \dom(\erase{W}{\perma,\temp}) & \text{if } \gl = \local \\
+    \dom(\erase{W}{\perma}) & \text{if } \gl = \glob
   \end{cases}
 \]
 %
