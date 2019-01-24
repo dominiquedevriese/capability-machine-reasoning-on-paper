@@ -39,6 +39,7 @@
 \usepackage{thmtools}
 \usepackage{stmaryrd}
 % \usepackage[numbers]{natbib}
+\usepackage{xcolor}
 \usepackage{url}
 \usepackage{array}
 \usepackage{arydshln}
@@ -53,7 +54,18 @@
   basicstyle=\footnotesize\ttfamily,
   columns=fullflexible,
   keepspaces=true,
-  mathescape
+  mathescape,
+  escapeinside=||,
+  numbers=left,
+  numberblanklines=false,
+%  frame=single,
+%  framexleftmargin=12pt,
+  numbersep=5pt,
+  morecomment=[l]{//},
+  commentstyle=\color{blue},
+  morekeywords={push, pop, move, lea, restrict, subseg, geta, getb, mclear,
+    rclear, jmp, load, store, fetch, scall, assert, halt, malloc, call, crtcls,
+    reqglob, prepstk, plus, minus, jnz, gete}
 }
 
 \usepackage{rotating}
@@ -411,7 +423,7 @@
 \definecolor{OliveGreen}{RGB}{60,128,49}
 \definecolor{Blue}{RGB}{92,26,143}
 \newenvironment{toplas}{}{}
-%    {\color{OliveGreen}}{}
+    {\color{OliveGreen}}{}
 \newenvironment{toplassug}
     {\begin{comment}}{\end{comment}}
 
@@ -1597,7 +1609,6 @@ local-state encapsulation.
   \label{fig:invoke-adv}
 \end{figure}
 
-
 \textbf{Returning from the adversary} So return pointers must be passed as local
 capabilities. But what should their permissions be, what memory should they
 point to and what should that memory (the activation record) contain? Let us
@@ -2453,18 +2464,18 @@ temporary) region.  Revoked regions are not taken into account as their memory p
   \iota^\nwl_A \defeq{} & (\temp,1,=,=,H^\nwl_A) \\
   \iota^{\nwl,p}_A \defeq{} & (\perma,1,=,=,H^\nwl_A)\\
     H^\pwl_A :{} & \States \fun (\Wor \monwknefun \UPred{\HeapSegments})\\
-  H^\pwl_A \; s \; \hat{W} \defeq{} & \left\{\npair{\hs} \middle|
+  H^\pwl_A (s)(\hat{W}) \defeq{} & \left\{\npair{\hs} \middle|
     \begin{aligned}
-      &\dom(\hs) = A \land \\
+      &\dom(\hs) = A \text{ and } \\
       &\forall \addr \in A \ldotp \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W}))
     \end{aligned}
         \right\} \union \{\npair[0]{\ms} \} \\
     H^\nwl_A :{} & \States \fun (\Wor \monstrnefun \UPred{\HeapSegments})\\
-  H^\nwl_A \; s \;\hat{W} \defeq{} & \left\{\npair{\hs} \middle|
+  H^\nwl_A (s)(\hat{W}) \defeq{} & \left\{\npair{\hs} \middle|
     \begin{aligned}
-      &\dom(\hs) = A \land \\
+      &\dom(\hs) = A \text{ and } \\
       &\forall \addr \in A \ldotp \\
-      &\quad \nonlocal{\ms(\addr)} \land\\ 
+      &\quad \nonlocal{\ms(\addr)} \text{ and }\\ 
       &\quad \npair[n-1]{\hs(\addr)} \in \stdvr(\xi(\hat{W}))
     \end{aligned}
         \right\} \union \{\npair[0]{\ms} \}
@@ -2501,7 +2512,7 @@ language, but unlike typical logical relations for typed languages, which
 require that programs do not fail.
 
 The \emph{register-file relation} $\stdrr$ defines safe register-files as those
-that contain safe words (i.e.\ words in $\stdvr$) in all registers but $\pcreg$.
+that contain safe words (i.e.\ words in the $\stdvr$-relation defined below) in all registers but $\pcreg$.
 The \emph{expression relation} $\stder$ defines that a word is safe to use as a
 program counter if it can be plugged into a safe register file (i.e.\ a register
 file in $\stdrr$) and paired with a memory satisfying the world to become a safe
@@ -2528,16 +2539,17 @@ imposes safety as a requirement on the values contained. This safety requirement
 is formulated in terms of a standard region $\iota^\pwl_{[\start,\addrend]}$. It simply
 requires all the words in the range $[\start,\addrend]$ to be safe, i.e.\ in the
 value relation. Requiring that $W(r)\nsubsim[n]\iota^\pwl_{[\start,\addrend]}$
-means that $W(r)$ must accept only safe values like
-$\iota^\pwl_{[\start,\addrend]}$, but can be even more restrictive if desired. The
+means that $W(r)$ must accept only memory segments containing safe values like
+$\iota^\pwl_{[\start,\addrend]}$, but can be even more restrictive if needed
+(the $\nsubsim[n]$-relation is defined in Appendix~\ref{app:logical-relation}). The
 read condition also takes into account the locality of the capability because,
 generally speaking, global capabilities should only depend on permanent regions.
 Concretely, we use the function $\var{localityReg}(\gl,W)$, which projects out
 all active (non-revoked) regions when the locality $\gl$ is local, but only the
 permanent regions when $\gl$ is global. The definition of the standard region
 $\iota^\pwl_{[\start,\addrend]}$ can be found
-in \figurename~\ref{fig:std-reg}; it makes use of the isomorphism from
-Theorem~\ref{thm:world-existence}. 
+in \figurename~\ref{fig:std-reg}; it makes use of the isomorphism $\xi$ from
+Theorem~\ref{thm:world-existence}.
 
 For a capability with write permission, $\writeCond{}$ must be satisfied for the
 capability's range of authority. An adversary can use such a capability to write
@@ -2566,7 +2578,7 @@ locality. Finally, there is a technical requirement that the region must be
 memory segments, then it must also accept every memory segment ``in between'',
 that is every memory segment where each address contains a value from one of the
 two accepted memory segments. An interesting property of the write condition is
-that they prohibit global write-local capabilities which, as discussed in
+that it prohibits global write-local capabilities which, as discussed in
 \sectionname~\ref{sec:stack-and-return-pointer}, is necessary for any safe use of
 local capabilities.
 The standard region $\iota^\nwl_{[\start,\addrend]}$ is defined in \figurename~\ref{fig:std-reg}.
@@ -2831,18 +2843,18 @@ storing them in a private stack frame.
         \[
           \begin{array}{l}
             \text{If }
-            \memheap = \ms_{\var{footprint}} \uplus \hsframe \land \heapSat[\ms_{\var{footprint}}]{n}{[i \mapsto \iota_\malloc]} \land \\
-            \quad\memreg(r_1) = \size \land \size \geq 0 \land  \memreg(r_0) = w_{\var{ret}} \land \\
+            \memheap = \ms_{\var{footprint}} \uplus \hsframe \land \heapSat[\ms_{\var{footprint}}]{n}{[i \mapsto \iota_\malloc]} \land{} \\
+            \quad\memreg(r_1) = \size \land \size \geq 0 \land  \memreg(r_0) = w_{\var{ret}} \land{} \\
             \quad \memreg(\pcreg) = \updatePcPerm{c_\malloc} \\ %and this needs to change with ABI.
             \text{Then, } \\
             \quad \exists \Phi' \in \ExecConfs \ldotp \exists \ms_{\var{footprint}}', \ms_{\var{alloc}} \in \HeapSegments\ldotp\\
             \qquad \exists j \in \nats \ldotp j > 0 \land \exists b',e'\in \Addrs \ldotp \exists \iota_\malloc' \in \Regions \ldotp \\
-            \qquad \quad \Phi \step[j] \Phi' \land \\
-            \qquad \quad \memheap[\Phi']=\ms_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land\\
-            \qquad \quad \iota_{\malloc}' \futurewk \iota_\malloc \land \\
-            \qquad \quad \heapSat[\ms_{\var{footprint}}']{n-j}{[i \mapsto \iota_\malloc']} \land \\
-            \qquad \quad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land \\
-            \qquad \quad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{w_{\var{ret}}}}\update{r_1}{((\rwx,\glob),b',e',b')} \land \\
+            \qquad \quad \Phi \step[j] \Phi' \land{} \\
+            \qquad \quad \memheap[\Phi']=\ms_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land{}\\
+            \qquad \quad \iota_{\malloc}' \futurewk \iota_\malloc \land{} \\
+            \qquad \quad \heapSat[\ms_{\var{footprint}}']{n-j}{[i \mapsto \iota_\malloc']} \land{} \\
+            \qquad \quad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land{} \\
+            \qquad \quad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{w_{\var{ret}}}}\update{r_1}{((\rwx,\glob),b',e',b')} \land{} \\
             \qquad \quad \size - 1 = e'-b'
           \end{array}
         \]
@@ -2933,77 +2945,73 @@ Section~\ref{sec:stack-and-return-pointer}). Finally, the non-argument registers
 are cleared and we jump to $r$. Upon return after the restoration code has been
 executed, the restoration code is popped from the stack and the private words we
 pushed to the stack before the call are popped to the private registers. The
-implementation of \texttt{scall} is presented in
-\figurename~\ref{fig:scall-impl}, and the restoration code is presented in
-\figurename~\ref{fig:scall-rest-code}. The implementation of \texttt{scall} uses
+implementation of \texttt{scall} and the restoration code used by
+\texttt{scall} are presented in \figurename~\ref{fig:scall-impl}. The implementation of \texttt{scall} uses
 some of the macros we present next.
-
-\begin{figure}[tb]
-    \centering
-\begin{lstlisting}
- $i_1$ = move r_t1 pc
- $i_2$ = lea r_t1 $\var{ofc}$
- $i_3$ = load r_stk r_t1
- $i_4$ = pop pc
-\end{lstlisting}
-    \caption{The restoration code used in \texttt{scall}. The variable
-      $\var{ofc}$ is 5 which is the offset to the address where the old stack
-      pointer is stored on the stack.}
-    \label{fig:scall-rest-code}
-\end{figure}
 
 \begin{figure}[htb]
   \begin{toplas}
     \centering
+    \begin{minipage}[t]{.6\linewidth}
 \begin{lstlisting}
-// push private registers to the stack
+// Push the private registers to the stack.
   push $r_{\var{priv},1}$
   ...
   push $r_{\var{priv},n}$
-// push restoration code to the stack
+// Push the restoration code to the stack.
   push $\encode(i_1)$
   push $\encode(i_2)$
   push $\encode(i_3)$
   push $\encode(i_4)$
-// push old pc to the stack
+// Push the old pc to the stack.
   move r_t1 pc
   lea r_t1 $\var{ofc}$ 
   push r_t1
-// push stack pointer to the stack
+// Push the stack pointer to the stack.
   push r_stk
-// set up protected return pointer
+// Set up the protected return pointer.
   move r_0 r_stk
-  lea r_0 $\var{ofc_\var{rec}}$ // -5 is the offset to the first instruction of
-the recovery code
+  lea r_0 $\var{ofc_\var{rec}}$
   restrict r_0 $\encodePermPair((\local,\entry))$
-// restrict stack capability to unused part
+// Restrict the stack capability to the unused part of the stack.
   geta r_t1 r_stk
   plus r_t1 r_t1 1
   getb r_t2 r_stk
   subseg r_stk r_t1 r_t2
-// clear unused part of the stack
+// Clear the unused part of the stack.
   mclear r_stk
-// clear non-argument registers
+// Clear non-argument registers.
   rclear $R$
   jmp r
-after:
-// pop the restore code
+return:
+// Pop the restore code.
   pop r_t1
   pop r_t1
   pop r_t1
   pop r_t1
-// pop the private state into approriate registers
+// Pop the private state into approriate registers.
   pop $r_{\var{priv},1}$
   ...
   pop $r_{\var{priv},n}$
+\end{lstlisting}      
+    \end{minipage}
+    \begin{minipage}[t]{.29\linewidth}
+\begin{lstlisting}[title=\footnotesize{The restoration code used in \texttt{scall}.}, captionpos=b,xleftmargin=2em,frame=single,framexleftmargin=1.5em]
+ $i_1$ = move r_t1 pc
+ $i_2$ = lea r_t1 $\var{ofc}_\var{stk}$
+ $i_3$ = load r_stk r_t1
+ $i_4$ = pop pc
 \end{lstlisting}
+    \end{minipage}%
     \caption{Implementation of \texttt{scall} $r(r_{\var{args},1},\dots,
       r_{\var{args},m},r_{\var{priv},1},\dots, r_{\var{priv},n})$. The
-      restoration code is given in \figurename~\ref{fig:scall-rest-code}. The
-      variable $\var{ofc}$ is the offset to the label after, and
+      restoration code is presented in the top right corner. The
+      variable $\var{ofc}_\var{ret}$ is the offset to the label \texttt{return}, and
       $\var{ofc_\var{rec}} = -5$ which is the offset to the first instruction of
       the activation record. The set $R = \RegName \setminus
-      \{\texttt{pc},\texttt{r\_stk},\texttt{r\_0},r,r_{\var{args},1},\dots,r_{\var{args},m}\}$.}
+      \{\texttt{pc},\texttt{r\_stk},\texttt{r\_0},r,r_{\var{args},1},\dots,r_{\var{args},m}\}$.
+    The variable $\var{ofc}_\var{stk} =5$ which is the offset to the address
+    where the old stack pointer is stored on the stack.}
     \label{fig:scall-impl}
   \end{toplas}
 \end{figure}
@@ -3041,7 +3049,7 @@ linking table and is basically a fetch of the malloc capability followed by a
 setup of a return pointer. Finally, the macro \texttt{crtcls
     $\overline{(x_i,r_i)}$ $r$} allocates a closure where $r$ points to the
 closure's code and a new environment is allocated (using malloc) and the
-contents of $\overline{r_i}$ is stored in the environment. In the code referred
+contents of $\overline{r_i}$ are stored in the environment. In the code referred
 to by $r$, an implicit load from the environment happens when an instruction
 refers to $x_i$.
 
@@ -3079,7 +3087,7 @@ macros, but the proofs work on the expanded macros.
 % }
 There are many details to get right when programming in assembly. These details
 carry over to proofs about assembly programs, so many of the proofs in the next
-section about example programs are a bit cumbersome. It is especially annoying,
+section about example programs are a bit cumbersome. It is especially annoying
 when the same line of reasoning is applied in multiple places. To mitigate this,
 we have defined a number of lemmas that capture common reasoning patterns in
 these proofs. We present the most important such lemmas in this section, to give
@@ -3137,16 +3145,21 @@ reasoning about programs using scall. From another point of view, it can be seen
 as a specification for scall.
 \begin{lemma}[$\mathtt{scall}$ works]
   \label{lem:scall-works}
-  If
+  For all $n \in \nats$, $\ms, \ms_\stk, \ms_\var{unused}, \ms_f \in \MemSegments$, $W
+  \in \Worlds$, $\reg \in \Regs$, $r,\overline{r_{\mathit{arg}}},
+  \overline{r_{\mathit{priv}}} \in \RegName$, and $c_\var{next} \in \Caps$,
+  if
   \begin{enumerate}
   \item \label{item:scall:memsat} $\memSat[n]{\ms}{\revokeTemp{W}}$ 
   \item $\dom(\ms_f) \cap (\dom(\ms_\stk \uplus \ms_{\mathit{unused}} \uplus \ms)) = \emptyset$
   \item \label{item:scall:stack} $(\reg,\ms) \text{ is looking at }
     \mathtt{scall}\;r(\overline{r_{\mathit{arg}}},
     \overline{r_{\mathit{priv}}}) \text{ followed by }
-    c_{\mathit{next}}$\footnote{Defined in the appendix.}
+    c_{\mathit{next}}$
   \item $\reg \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}$ unused}$
-  \item \label{item:scall:hyp-callee} \emph{Hyp-Callee} If
+  \item \label{item:scall:hyp-callee} \emph{Hyp-Callee} For all  $\ms_\var{rec},
+    \ms_\var{unused}', \ms'' \in \MemSegments$, $W' \in \Worlds$, $c_\var{ret},
+    c_\stk \in \Caps$, and $\reg' \in \Regs$, if
     \begin{itemize}
     \item $\dom(\ms_{\mathit{unused}}) = \dom(\ms_{\mathit{rec}}
       \uplus \ms_{\mathit{unused}}')$,
@@ -3162,7 +3175,8 @@ as a specification for scall.
     \end{itemize}
 
     then we have that $\npair[n-1]{(\reg',\ms'')} \in \observations(W')$
-  \item \label{item:scall:hyp-cont} \emph{Hyp-Cont} If
+  \item \label{item:scall:hyp-cont} \emph{Hyp-Cont} For all $n' \in \nats$, $W''
+    \in \Worlds$, $\ms'', \ms_\var{unused}''$, and $\reg' \in \Regs$, if
     \begin{itemize}
     \item $n' \leq n-2$
     \item $W'' \futurewk \revokeTemp{W}$
@@ -3176,7 +3190,7 @@ as a specification for scall.
           \in \stdvr(\revokeTemp{W''}) &\text{ if $\reg'(r)$ is a global capability and } r \not\in \{\pcreg,\overline{r_{\mathit{priv}}}, r_\stk\}
         \end{cases}
       \end{equation*}
-    \item $\reg' \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}''$ unused}$ for some $\ms_{\mathit{unused}}''$
+    \item $\reg' \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}''$ unused}$
     \end{itemize}
 
     then we have that $\npair[n']{(\reg',\ms'' \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{unused}}'')} \in \observations(W'')$
@@ -3190,6 +3204,132 @@ as a specification for scall.
   % words for stack pointer and return pointer and some fixed number of words for
   % the standard return instructions).
 \end{lemma}
+\begin{figure}[htb]
+  \centering
+  \begin{subfigure}{0.43\linewidth}
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+      \scope
+      \clip (-.1,-.1) rectangle (4.6,11.1);
+      \fill[fill=white] (0,0) rectangle (4.5,11);
+      \fill[color=gray!20] (0,0) rectangle (4.5,4);
+      \fill[color=gray!20] (0,9.5) rectangle (4.5,11);
+      \draw[color=gray!50] (0,5.5) rectangle (4.5,6);
+      \draw[color=gray!50] (0,7) rectangle (4.5,7.5);
+      \draw (0,0) -- (0,11);
+      \draw (4.5,0) -- (4.5,11);
+      \draw (0,4) -- (4.5,4);
+      \draw (0,9.5) -- (4.5,9.5);
+      \endscope
+      % \draw[->] (-2,0) -- node[midway,sloped,above] {stack grows upward} (-2,15);
+      \draw (-1.5,0) node {};
+      \draw (-1.5,15) node {};
+
+      \node at (8.5,7.5) { $\reg$ };
+      \begin{scope}
+        \clip (7.9,4.5) rectangle (9.1,7.1);
+        \foreach \x in {4,5,...,6}
+        {
+          \draw (8,\x) rectangle (9,\x + 1);
+        };
+      \end{scope}
+      \node[anchor=west] at (9.125,6.5) {\footnotesize\texttt{pc}};
+
+      \node at (2.25,7.25) { \footnotesize{$i_0$} };
+      \node at (2.25,6.68) { \footnotesize{$\vdots$} };
+      \node at (2.25,5.75) { \footnotesize{$i_n$} };
+      \node[rotate=0] at (2.25,8.5) {\huge{$\ms$}};
+
+      \draw [decorate,decoration={brace,amplitude=5pt,raise=0pt,aspect=0.59,mirror},yshift=0pt]
+      (4.6,4) -- (4.6,9.5) node (cstk) [black,midway,xshift=0.8cm] {};
+      \draw [decorate,decoration={brace,amplitude=5pt,raise=0pt,aspect=0.23,mirror},yshift=0pt]
+      (5,4) -- (5,9.5) node (cstk) [black,midway,xshift=0.8cm] {};
+
+
+      \tikzset{capa/.style={decoration={markings,mark=at position 0 with %
+            {\fill[black] circle(1.5pt);}}}}
+      \draw[capa] (8.5,6.5) edge[-latex,postaction={decorate},out=180,in=0] node[above] {\tiny{$(g,l)$}} (5,7.25);
+
+      \node[anchor=west] at (7.75,2) {$c_\var{next}$};
+      \draw[capa] (7.75,2) edge[-latex,postaction={decorate},out=180,in=0] node[right] {\tiny{$(g,l)$}}  (5.4,5.26);
+    \end{tikzpicture}
+    \caption{Visualization of ``$(\reg,\ms)$ is looking at $[i_0\dots i_n]$
+      followed by $c_{\var{next}}$''.}
+  \label{fig:def-intuition-looking-at}
+  \end{subfigure}
+  \begin{subfigure}{.12\linewidth}
+$\phantom{te}$
+  \end{subfigure}
+  \begin{subfigure}{0.43\linewidth}
+    \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    % recurrent parts
+      \scope
+      \clip (-.1,-.1) rectangle (4.6,11.1);
+      \fill[fill=white] (0,0) rectangle (4.5,11);
+      \fill[color=gray!20] (0,9.5) rectangle (4.5,11);
+      \fill[color=gray!20] (0,0) rectangle (4.5,2);
+      \draw (0,0) -- (0,11);
+      \draw (4.5,0) -- (4.5,11);
+
+      \draw (0,9.5) -- (4.5,9.5);
+      \draw (0,4) -- (4.5,4);
+      \draw (0,2) -- (4.5,2);
+      \endscope
+      % \draw[->] (-2,0) -- node[midway,sloped,above] {stack grows upward} (-2,15);
+      \draw (-1.5,0) node {};
+      \draw (-1.5,15) node {};
+
+      \node at (8.5,7.5) { $\reg$ };
+      \begin{scope}
+        \clip (7.9,4.5) rectangle (9.1,7.1);
+        \foreach \x in {4,5,...,6}
+        {
+          \draw (8,\x) rectangle (9,\x + 1);
+        };
+      \end{scope}
+      \node[anchor=west] at (9.125,5.5) {\footnotesize\texttt{r\_stk}};
+
+      \node[rotate=0] at (2.25,7) {\Large{$\ms_{\stk,\var{unused}}$}};
+      \node[rotate=0] at (2.25,3) {\Large{$\ms_{\stk}$}};
+
+      \draw [decorate,decoration={brace,amplitude=5pt,raise=0pt,aspect=0.23,mirror},yshift=0pt]
+      (4.6,2) -- (4.6,9.5) node (cstk) [black,midway,xshift=0.8cm] {};
+
+      \tikzset{capa/.style={decoration={markings,mark=at position 0 with %
+            {\fill[black] circle(1.5pt);}}}}
+      \draw[capa] (8.5,5.5) edge[-latex,postaction={decorate},out=200,in=10,densely dashed] node[above,sloped] {\tiny $\rwlx$} (5,3.75);
+
+    \end{tikzpicture}
+    \caption{Visualization of ``$\reg$ points to stack with $\ms_\stk$ used and
+      $\ms_{\stk,\var{unused}}$ unused''.}
+  \label{fig:def-intuition-points-to-stack}
+  \end{subfigure}
+
+  \caption{
+  }
+  \label{fig:def-intuition}
+\end{figure}
+\begin{toplas}
+The \texttt{scall} lemma is stated in terms of a number of auxiliary definitions
+found in the appendix. The region $\iota^{sta}(\gl,\ms)$ is a static region with
+locality $\gl$. It is static in the sense that it only accepts the region $\ms$
+(\appendixname~\ref{app:awkward-example}).
+The function $\revokeTemp{} : \Worlds \fun \Worlds$ yields the input world but
+with all the temporary regions replaced with revoked regions (\appendixname~\ref{app:logical-relation}). The definition of \textit{$(\reg,\ms)$ is looking at $[i_0\dots i_n]$
+      followed by $c_{\var{next}}$} is visualized in
+    \figurename~\ref{fig:def-intuition-looking-at};
+    it requires the capability in $\pcreg$ of
+    $\reg$ to point to the first address of the instructions $[i_0\dots i_n]$ in
+    $\ms$ and $c_{\var{next}}$ to point to the address immediately after the
+    instructions. The definition of \textit{$\reg$ points to stack with $\ms_\stk$ used and
+      $\ms_{\stk,\var{unused}}$ unused} is visualized in
+    \figurename~\ref{fig:def-intuition-points-to-stack};
+    it requires $\ms_\stk$ and $\ms_{\stk,\var{unused}}$ to be adjacent and
+    continuous memory segments with the local $\rwlx$-capability in
+    \texttt{r\_stk} of $\reg$ governing the two memory segments and pointing to
+    the top most address of $\ms_\stk$ (\appendixname~\ref{app:programs-definitions}).
+\end{toplas}
+
 Roughly, the \texttt{scall} lemma states that an invocation of scall is safe if
 \texttt{scall} is executed in a reasonable state
 (\ref{item:scall:memsat}-\ref{item:scall:stack}), the callee is safe to execute
@@ -3526,7 +3666,7 @@ f4:  reqglob $r_1$
 \end{lstlisting}
   \end{minipage}%
   \begin{minipage}[t]{.37\linewidth}
-\begin{lstlisting}
+\begin{lstlisting}[firstnumber=last]
      ${\text{\tiny\itshape(continued from previous column)}}$
      store $x$ 0
      scall $r_1$($[]$,$[r_0,r_1,r_{\var{env}}]$)
@@ -3540,7 +3680,7 @@ f4:  reqglob $r_1$
 \end{lstlisting}
   \end{minipage}%
   \begin{minipage}[t]{.25\linewidth}
-  \begin{lstlisting}
+  \begin{lstlisting}[firstnumber=last]
 f3: push 1
     fetch $r_1$ $\adv$
     scall $r_1$($[]$,$[r_1]$)
@@ -4219,7 +4359,7 @@ Full details and proofs are not given here, but for those we refer to the techni
 \textbf{$n$-subset simulation}
 \begin{mathpar}
   \inferrule{(s,\phi_\pub,\phi) = (s',\phi_\pub',\phi') \\
-    \forall \hat{W} \ldotp H \; s \; \hat{W} \nsubeq H' \; s' \; \hat{W} }
+    \forall \hat{W} \ldotp H \; (s) \; (\hat{W}) \nsubeq H' \; (s') \; (\hat{W}) }
   { (v,s,\phi_\pub,\phi,H) \nsubsim (v',s',\phi_\pub',\phi',H')}
 \end{mathpar}
 %
@@ -4241,6 +4381,16 @@ Full details and proofs are not given here, but for those we refer to the techni
 \begin{align*}
   \activeReg{} & : \Worlds \fun 2^\RegionNames \\
   \activeReg{W} & \defeq \dom(\erase{W}{\perma,\temp})
+\end{align*}
+%
+\textbf{Revoke temporary regions in a world}
+\begin{align*}
+  \revokeTemp{} & : \Worlds \fun \Worlds \\
+  \revokeTemp{W} & \defeq \lambda r \ldotp 
+                   \begin{cases}
+                     \revoked            & \text{if }W(r) = (\temp,s,\phi_\pub,\phi,H) \\
+                     W(r)                & \text{otherwise}
+                   \end{cases}
 \end{align*}
 %
 \textbf{Projection of regions based on locality}
@@ -4456,36 +4606,36 @@ appendix~\citep{technical_appendix}.\\
 \end{lstlisting}
 \texttt{rclear $r_1,\dots, r_n$}
 \begin{lstlisting}
-move $r_1$ 0
-move $r_2$ 0
-$\dots$
-move $r_n$ 0
+  move $r_1$ 0
+  move $r_2$ 0
+  $\dots$
+  move $r_n$ 0
 \end{lstlisting}
 \texttt{mclear $r$}
 \begin{lstlisting}
-        move r_t $r$
-        getb r_t1 r_t
-        geta r_t2 r_t
-        minus r_t2 r_t1 r_t2
-        lea r_t r_t2
-        gete r_t2
-        minus r_t1 r_t2 r_t1
-        plus r_t1 r_t1 1
-        move r_t2 pc
-        lea r_t2 $\var{ofc}_\var{end}$ 
-        move r_t3 pc
-        lea r_t3 $\var{ofc}_\var{iter}$
+  move r_t $r$
+  getb r_t1 r_t
+  geta r_t2 r_t
+  minus r_t2 r_t1 r_t2
+  lea r_t r_t2
+  gete r_t2
+  minus r_t1 r_t2 r_t1
+  plus r_t1 r_t1 1
+  move r_t2 pc
+  lea r_t2 $\var{ofc}_\var{end}$ 
+  move r_t3 pc
+  lea r_t3 $\var{ofc}_\var{iter}$
 iter:
-        jnz r_t2 r_t1
-        store r_t 0
-        lea r_t 1
-        plus r_t1 r_t1 1
-        jmp r_t3
+  jnz r_t2 r_t1
+  store r_t 0
+  lea r_t 1
+  plus r_t1 r_t1 1
+  jmp r_t3
 end:
-        move r_t 0
-        move r_t1 0
-        move r_t2 0
-        move r_t3 0
+  move r_t 0
+  move r_t1 0
+  move r_t2 0
+  move r_t3 0
 \end{lstlisting}
 Where $\var{ofc}_\var{end}$ and $\var{ofc}_\var{iter}$ are the offsets to the
 label \texttt{end} % 9?
@@ -4493,6 +4643,7 @@ and \texttt{iter}, % 2?
 respectively.
 
 \subsection{Reasoning about programs definitions}
+\label{app:programs-definitions}
 \begin{definition}
   We say that $(\reg,\ms) \text{ is looking at } [i_0,\cdots,i_n] \text{ followed by } c_{\mathit{next}}$ 
   iff
@@ -4506,7 +4657,7 @@ respectively.
 \end{definition}
 
 \begin{definition}
-  We say that ``\linksto{(\reg,\ms)}{\var{key}}{j}{c_\malloc}'' 
+  We say that ``\linksto{(\reg,\ms)}{\var{key}}{j}{c}'' 
   iff
   \begin{itemize}
   \item $\reg(pc) = \stdcap$
@@ -4719,6 +4870,7 @@ respectively.
 
 
 \subsection{Awkward example}
+\label{app:awkward-example}
 \textbf{The region for variable $x$} The region $\iota_x$, is the region omitted from the proof sketch for the awkward example.
 \figurename~\ref{fig:x-reg} illustrates the transition system of $\iota_x$.
   \begin{figure}[tb]
@@ -4760,9 +4912,9 @@ It is safe to give adversarial code read capabilities for this region.
   \iota^{\sta,u} (v,\ms) &= (v,1,=,=,H^{\sta,u}\;\ms)\\
   H^{\sta,u} \; \ms \; s \; \hat{W} = & \left\{\npair{\ms'} \middle|
     \begin{aligned}
-      &\ms' = \ms \land\\
+      &\ms' = \ms \land{}\\
       &\forall \addr \in \dom(\ms) \ldotp\\
-      & \quad \nonlocal{\ms(\addr)} \land\\
+      & \quad \nonlocal{\ms(\addr)} \land{}\\
       & \quad \npair[n-1]{\ms(\addr)} \in \stdvr(\xi(\hat{W}))
     \end{aligned}
         \right\} \union \{\npair[0]{\ms'} \mid \ms' \in \Mems \}
