@@ -587,19 +587,14 @@ than private state in ML-like languages). And even if such a scheme were
 defined, a formal proof depends on a formalization of the encapsulation provided
 by the capability machine at hand.
 
-A similar problem is the enforcement of control-flow correctness on capability
-machines. An interesting approach is taken in CheriBSD~\citep{Watson2015Cheri}:
-the standard contiguous C stack is split into a central, trusted stack, managed
-by trusted call and return instructions, and disjoint, private, per-compartment
-stacks. To prevent illegal use of stack references, the approach relies on
-\emph{local capabilities}, a type of capabilities offered by CHERI to
-\emph{temporarily} relinquish authority, namely for the duration of a function
-invocation whereafter the capability can be revoked. However, details are scarce
-(how does it work precisely? what features are supported?) and a lot remains to
-be investigated (e.g., combining disjoint stacks with cross-domain function
-pointers seems like it will scale poorly to large numbers of components?).
-Finally, there is no argument that the approach is watertight and it is not even
-clear what security property is targeted exactly.
+A similar problem is the enforcement of control-flow correctness on capability machines.
+An interesting approach is taken in CheriBSD~\citep{Watson2015Cheri}: the standard contiguous C stack is split into a central, trusted stack and disjoint, private, per-compartment stacks.
+The trusted stack is managed by trusted call and return instructions.
+To prevent illegal use of stack references, the approach relies on \emph{local capabilities}, a type of capabilities offered by CHERI to \emph{temporarily} relinquish authority, namely for the duration of a function invocation whereafter the capability can be revoked.
+However, details are scarce (how does it work precisely?
+what features are supported?)
+and a lot remains to be investigated (e.g., combining disjoint stacks with cross-domain function pointers seems like it will scale poorly to large numbers of components).
+Finally, there is no argument that the approach is watertight and it is not even clear what security property is targeted exactly.
 
 \dominique{I think we should include a comparison with the conference paper, and explain what the delta is for this journal version.}
 In this paper, we make two main contributions: (1) an alternative calling
@@ -910,125 +905,15 @@ both the M-Machine~\citep{Carter:1994:HSF:195473.195579} and
 CHERI~\citep{Watson2015Cheri}. To avoid uninteresting details, we assume an
 infinite address space and unbounded integers.
 
-\begin{figure}[hb]
-\[\arraycolsep=1.4pt
-  \begin{array}{rlrcl l rlrcl}
-    \addr   &\in& \Addrs &\isdef& \nats &\phantom{mak}                                & r    &\in & \RegName     &\bnfdef& \pcreg\mid r_0\mid r_1\mid\ldots\\
-    w &\in&\Words &\isdef& \ints + \Caps &                                                   & \reg &\in & \Regs        &\isdef& \RegName \rightarrow \Words \\
-    \perm   &\in& \Perms &::= & \noperm \mid \readonly\mid \readwrite\mid \readwritel\mid  & & m    &\in & \Heaps       &\isdef& \Addrs \rightarrow \Words \\
-    & & & &\exec\mid \entry\mid \rwx\mid \rwlx &                                             & \Phi &\in & \ExecConfs   &\isdef& \Regs \times \Heaps \\
-    \gl&\in&\Globals & ::= &\glob \mid \local &                                              & \ms  &\in & \MemSegments &::= & \Addrs \parfun \Words \\
-    &&\Confs &::=& \multicolumn{6}{l}{\ExecConfs + \{\failed \} + \{\halted\} \times \Heaps}\\
-     && \Caps  &\isdef & \multicolumn{6}{l}{\left\{
-                         ((\perm,\gl),\start,\addrend,\addr)\mid
-                         \start,\addr\in\Addrs,\addrend \in
-                         \Addrs\cup \{\infty\}\right\}}
-  \end{array}
-\]
-  \begin{equation*}
-  \begin{array}{rcl}
-    \rv    &\in& \ints + \RegName \\
-    i      &::=& 
-                 \jmp{\lv} \mid 
-                 \jnz{\lv}{\rv} \mid
-                 \move{\lv}{\rv} \mid 
-                 \load{\lv}{\hv} \mid 
-                 \store{\hv}{\rv} \mid \plus{\lv}{\rv}{\rv} \mid 
-                 \minus{\lv}{\rv}{\rv} \mid \\
-          &   &  \lt{\lv}{\rv}{\rv} \mid
-                \lea{\lv}{\rv} \mid 
-                \restricttwo{\lv}{\rv} \mid
-                 \subseg{\lv}{\rv}{\rv} \mid  
-                 \isptr{\lv}{\rv} \mid 
-                 \getl{\lv}{\lv} \mid \\
-          &   &  \getp{\lv}{\lv} \mid 
-                 \getb{\lv}{\lv} \mid
-                 \gete{\lv}{\lv} \mid 
-                 \geta{\lv}{\lv} \mid 
-                 \fail \mid
-                 \halt 
-  \end{array}
-\end{equation*}
-  \caption{The syntax of our capability machine assembly language.}
-  \label{fig:syntax}
-\end{figure}
-
-\begin{figure}[htb]
-  \centering
-  \begin{equation*}
-    \Phi  \rightarrow
-    \begin{cases}
-      \sem{\decode(n)}(\Phi) & \arraycolsep=0pt
-      \begin{array}[t]{l}
-        \text{if $\memreg(\pcreg) = \stdcap$ and $\start \leq \addr \leq \addrend$}\\ 
-        \text{\;\;and $\perm \in \{ \exec,\rwx, \rwlx \}$ and $\memheap(\addr) = n$ }
-      \end{array}
-\\
-      \failed                                 & \text{otherwise}
-    \end{cases}
-  \end{equation*}
-  \begin{align*}
-    \stdUpdatePc{\Phi} &=
-                         \begin{cases}
-                           \updateReg{\pcreg}{\var{newPc}} & \arraycolsep=0pt
-                           \begin{array}[t]{l}
-                             \text{if $\memreg(\pcreg) = \stdcap$}\\
-                             \text{\;\;and $\var{newPc} = ((\perm,\gl),\start,\addrend,\addr + 1)$}
-                           \end{array}
-\\
-                             \failed & \text{otherwise}
-                         \end{cases}
-  \end{align*}
-  \begin{tabular}{|c|p{3.4cm}|>{\raggedright\arraybackslash}p{7.3cm}|}
-    \hline
-    $i$&$\sem{i}(\Phi)$&Conditions\\
-    \hline 
-    $\fail$&$\failed$&\\
-    \hline
-    $\halt$&$(\halted,\memheap)$&\\
-    \hline
-    $\move{\refreg{r_1}}{r_2}$& $\stdUpdatePc{}(\updateReg{r_1}{w})$&$r_2 \in \Regs \Rightarrow w = \memreg(r_2)$ and $r_2 \in \ints \Rightarrow w = r_2$\\
-    \hline
-    $\load{\refreg{r_1}}{\refheap{r_2}}$&$\stdUpdatePc{\updateReg{r_1}{w}}$&$\memreg(r_2) = \stdcap{}$ and  $w = \memheap(\addr)$ and $\start \leq \addr \leq \addrend$ and $\perm \in \{ \rwx, \rwlx, \exec, \readwrite, \readwritel, \readonly \}$ \\
-    \hline
-    $\store{\refheap{r_1}}{\refreg{r_2}}$&$\stdUpdatePc{\updateHeap{\addr}{\var{w}}}$&$\memreg(r_1) = \stdcap$ and $\perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\}$  and $\start \leq \addr \leq \addrend$ and $\var{w} = \memreg(r_2)$
-                                                                                       and if $\var{w} = ((\_,\local),\_,\_,\_)$, then $\perm \in \{\rwlx,\readwritel \}$\\
-    \hline
-    $\jmp{\lv}$&$\updateReg{\pcreg}{\var{newPc}}$& if $\memreg(r) = ((\entry,\gl),\start,\addrend,\addr)$, then $\var{newPc} = ((\exec,\gl),\start,\addrend,\addr)$ otherwise $\var{newPc} = \memreg(r)$\\
-    \hline
-    $\restricttwo{\refreg{r_1}}{r_2}$&$\stdUpdatePc{}(\updateReg{r_1}{w})$  & $\memreg(r_2) = \stdcap$ and $(\perm',g') = \decodePermPair{\memreg(r_2)}$
-                                                                              and $(\perm',g') \sqsubseteq (\perm,g)$ and  $w =((\perm',g'),\start,\addrend,\addr)$\\
-    \hline
-    \itoplas{$\subseg{\refreg{r_1}}{r_2}{r_3}$} & \itoplas{$\stdUpdatePc{\updateReg{r_1}{\var{w}}}$} &  \itoplas{$\memreg(r_1) = \stdcap$ and for $i \in \{2,3\}$ $n_i = \memreg(\rv_i)$ and $n_2 \in \nats$ and $\start \leq n_2$ and $n_3 \leq \addrend$ where either $n_3 \in \nats$ or ($n_3=\inftyend$ and $\addrend = \infty$) and $\perm \neq \entry$ and $w = ((\perm,\gl),n_1,n_2,\addr)$}\\
-    \hline
-    \itoplas{$\lea{\refreg{r_1}}{r_2}$} & \itoplas{$\stdUpdatePc{\updateReg{r_1}{\var{c}}}$} &\itoplas{$\memreg(r_1) = \stdcap$ and $n = \memreg(r_2)$ and $n \in \ints $ and $\perm \neq \entry$ and $\var{c} = ((\perm,\gl),\start,\addrend,\addr + n)$} \\
-    \hline
-    $\geta{\refreg{r_1}}{\refreg{r_2}}$ & $\stdUpdatePc{\updateReg{r_1}{\addr}}$ &
-                                                $\memreg(r_2) = ((\_,\_),\_,\_,\addr)$\\
-    \hline
-    \multicolumn{3}{|c|}{$\cdots$}\\
-    \hline
-    \_&$\failed$&otherwise\\
-    \hline
-  \end{tabular}
-  \caption{An excerpt from the operational semantics.}
-  \label{fig:op-sem}
-\end{figure}
-
 We define the syntax of our capability machine in \figurename~\ref{fig:syntax}.
-We assume an infinite set of addresses $\Addrs$ and define machine words as
-either integers or capabilities of the form
-$((\perm,\gl),\var{base},\var{end},\addr)$. Such a capability represents the
-authority to execute permissions $\perm$ on the memory range
-$[\var{base},\var{end}]$, together with a current address $\addr$ and a locality tag
-$\gl$ indicating whether the capability is global or local. There is no notion
-of pointers other than capabilities, so we will use the terms interchangeably.
-The available permissions are null permission
-($\noperm$), readonly ($\readonly$), read/write ($\readwrite$), read/execute
-($\exec$) and read/write/execute ($\rwx$) permissions. Additionally, there are
-three special permissions: read/write-local ($\readwritel$), read/write-local/execute
-($\rwlx$) and enter ($\entry$), which we will explain below.
-\itoplas{Permissions and locality are ordered and both orderings are depicted in \figurename~\ref{fig:perm-hier}. We denote the pairwise ordering of permission and locality with $\sqsubseteq$.}
+We assume an infinite set of addresses $\Addrs$ and define machine words as either integers or capabilities of the form $((\perm,\gl),\var{base},\var{end},\addr)$.
+Such a capability represents the authority to execute permissions $\perm$ on the memory range $[\var{base},\var{end}]$, together with a current address $\addr$ and a locality tag $\gl$ indicating whether the capability is global or local.
+There is no notion of pointers other than capabilities, so we will use the terms interchangeably.
+The available permissions are null permission ($\noperm$), readonly ($\readonly$), read/write ($\readwrite$), read/execute ($\exec$) and read/write/execute ($\rwx$) permissions.
+Additionally, there are three special permissions: read/write-local ($\readwritel$), read/write-local/execute ($\rwlx$) and enter ($\entry$), which we will explain below.
+\itoplas{Permissions and locality are ordered and both orderings are depicted in \figurename~\ref{fig:perm-hier}.
+  The write permission is subsumed by the write-local permission, i.e.\ a write-local capability can be used to store both $\local$ and $\glob$ capabilities to memory.
+  We denote the pairwise ordering of permission and locality with $\sqsubseteq$.}
 
 \begin{wrapfigure}{R}{.4\textwidth}
   \centering
@@ -1089,6 +974,112 @@ Finally, the instruction $\isptr{}{}$ tests whether a word is a capability or a
 number and instructions $\getp{}{}$, $\getl{}{}$, $\getb{}{}$, $\gete{}{}$ and
 $\geta{}{}$ provide access to a capability's permissions, local/global tag, base,
 end and current address, respectively.
+
+\begin{figure}[b]
+\[\arraycolsep=1.4pt
+  \begin{array}{rlrcl l rlrcl}
+    \addr   &\in& \Addrs &\isdef& \nats &\phantom{mak}                                & r    &\in & \RegName     &\bnfdef& \pcreg\mid r_0\mid r_1\mid\ldots\\
+    w &\in&\Words &\isdef& \ints + \Caps &                                                   & \reg &\in & \Regs        &\isdef& \RegName \rightarrow \Words \\
+    \perm   &\in& \Perms &::= & \noperm \mid \readonly\mid \readwrite\mid \readwritel\mid  & & m    &\in & \Heaps       &\isdef& \Addrs \rightarrow \Words \\
+    & & & &\exec\mid \entry\mid \rwx\mid \rwlx &                                             & \Phi &\in & \ExecConfs   &\isdef& \Regs \times \Heaps \\
+    \gl&\in&\Globals & ::= &\glob \mid \local &                                              & \ms  &\in & \MemSegments &::= & \Addrs \parfun \Words \\
+    &&\Confs &::=& \multicolumn{6}{l}{\ExecConfs + \{\failed \} + \{\halted\} \times \Heaps}\\
+     && \Caps  &\isdef & \multicolumn{6}{l}{\left\{
+                         ((\perm,\gl),\start,\addrend,\addr)\mid
+                         \start,\addr\in\Addrs,\addrend \in
+                         \Addrs\cup \{\infty\}\right\}}
+  \end{array}
+\]
+  \begin{equation*}
+  \begin{array}{rcl}
+    \rv    &\in& \ints + \RegName \\
+    i      &::=& 
+                 \jmp{\lv} \mid 
+                 \jnz{\lv}{\rv} \mid
+                 \move{\lv}{\rv} \mid 
+                 \load{\lv}{\hv} \mid 
+                 \store{\hv}{\rv} \mid
+                 \lt{\lv}{\rv}{\rv} \mid
+                 \plus{\lv}{\rv}{\rv} \mid 
+                 \minus{\lv}{\rv}{\rv} \mid \\
+          &   &  \lea{\lv}{\rv} \mid 
+                 \restricttwo{\lv}{\rv} \mid
+                 \subseg{\lv}{\rv}{\rv} \mid  
+                 \isptr{\lv}{\rv} \mid 
+                 \getl{\lv}{\lv} \mid
+                 \getp{\lv}{\lv} \mid
+                 \getb{\lv}{\lv} \mid\\
+          &   &  \gete{\lv}{\lv} \mid 
+                 \geta{\lv}{\lv} \mid 
+                 \fail \mid
+                 \halt 
+  \end{array}
+\end{equation*}
+  \caption{The syntax of our capability machine assembly language.}
+  \label{fig:syntax}
+\end{figure}
+
+\begin{figure}[htb]
+  \centering
+  \begin{equation*}
+    \Phi  \rightarrow
+    \begin{cases}
+      \sem{\decode(n)}(\Phi) & \arraycolsep=0pt
+      \begin{array}[t]{l}
+        \text{if $\memreg(\pcreg) = \stdcap$ and $\start \leq \addr \leq \addrend$}\\ 
+        \text{\;\;and $\perm \in \{ \exec,\rwx, \rwlx \}$ and $\memheap(\addr) = n$ }
+      \end{array}
+\\
+      \failed                                 & \text{otherwise}
+    \end{cases}
+  \end{equation*}
+  \begin{align*}
+    \stdUpdatePc{\Phi} &=
+                         \begin{cases}
+                           \updateReg{\pcreg}{\var{newPc}} & \arraycolsep=0pt
+                           \begin{array}[t]{l}
+                             \text{if $\memreg(\pcreg) = \stdcap$}\\
+                             \text{\;\;and $\var{newPc} = ((\perm,\gl),\start,\addrend,\addr + 1)$}
+                           \end{array}
+\\
+                             \failed & \text{otherwise}
+                         \end{cases}
+  \end{align*}
+  \begin{tabular}{|c|p{3.4cm}|>{\raggedright\arraybackslash}p{7.3cm}|}
+    \hline
+    $i$&$\sem{i}(\Phi)$&Conditions\\
+    \hline 
+    $\fail$&$\failed$&\\
+    \hline
+    $\halt$&$(\halted,\memheap)$&\\
+    \hline
+    $\move{\refreg{r_1}}{r_2}$& $\stdUpdatePc{}(\updateReg{r_1}{w})$&$r_2 \in \Regs \Rightarrow w = \memreg(r_2)$ and $r_2 \in \ints \Rightarrow w = r_2$\\
+    \hline
+    $\load{\refreg{r_1}}{\refheap{r_2}}$&$\stdUpdatePc{\updateReg{r_1}{w}}$&$\memreg(r_2) = \stdcap{}$ and  $w = \memheap(\addr)$ and $\start \leq \addr \leq \addrend$ and $\perm \in \{ \rwx, \rwlx, \exec, \readwrite, \readwritel, \readonly \}$ \\
+    \hline
+    $\restricttwo{\refreg{r_1}}{r_2}$&$\stdUpdatePc{}(\updateReg{r_1}{w})$  & $\memreg(r_2) = \stdcap$ and $(\perm',g') = \decodePermPair{\memreg(r_2)}$
+                                                                              and $(\perm',g') \sqsubseteq (\perm,g)$ and  $w =((\perm',g'),\start,\addrend,\addr)$\\
+    \hline
+    \itoplas{$\subseg{\refreg{r_1}}{r_2}{r_3}$} & \itoplas{$\stdUpdatePc{\updateReg{r_1}{\var{w}}}$} &  \itoplas{$\memreg(r_1) = \stdcap$ and for $i \in \{2,3\}$ $n_i = \memreg(\rv_i)$ and $n_2 \in \nats$ and $\start \leq n_2$ and $n_3 \leq \addrend$ where either $n_3 \in \nats$ or ($n_3=\inftyend$ and $\addrend = \infty$) and $\perm \neq \entry$ and $w = ((\perm,\gl),n_1,n_2,\addr)$}\\
+    \hline
+    $\jmp{\lv}$&$\updateReg{\pcreg}{\var{newPc}}$& if $\memreg(r) = ((\entry,\gl),\start,\addrend,\addr)$, then $\var{newPc} = ((\exec,\gl),\start,\addrend,\addr)$ otherwise $\var{newPc} = \memreg(r)$\\
+    \hline
+    \itoplas{$\lea{\refreg{r_1}}{r_2}$} & \itoplas{$\stdUpdatePc{\updateReg{r_1}{\var{c}}}$} &\itoplas{$\memreg(r_1) = \stdcap$ and $n = \memreg(r_2)$ and $n \in \ints $ and $\perm \neq \entry$ and $\var{c} = ((\perm,\gl),\start,\addrend,\addr + n)$} \\
+    \hline
+    $\geta{\refreg{r_1}}{\refreg{r_2}}$ & $\stdUpdatePc{\updateReg{r_1}{\addr}}$ &
+                                                $\memreg(r_2) = ((\_,\_),\_,\_,\addr)$\\
+    \hline
+    $\store{\refheap{r_1}}{\refreg{r_2}}$&$\stdUpdatePc{\updateHeap{\addr}{\var{w}}}$&$\memreg(r_1) = \stdcap$ and $\perm \in \{ \rwx, \rwlx, \readwrite, \readwritel\}$  and $\start \leq \addr \leq \addrend$ and $\var{w} = \memreg(r_2)$
+                                                                                       and if $\var{w} = ((\_,\local),\_,\_,\_)$, then $\perm \in \{\rwlx,\readwritel \}$\\
+    \hline
+    \multicolumn{3}{|c|}{$\cdots$}\\
+    \hline
+    \_&$\failed$&otherwise\\
+    \hline
+  \end{tabular}
+  \caption{An excerpt from the operational semantics.}
+  \label{fig:op-sem}
+\end{figure}
 
 \begin{comment}
   \begin{figure}
@@ -1165,14 +1156,14 @@ next instruction using the meta-function $\stdUpdatePc{}$.
 \dominique{Follow order of figure in discussion?}
 The $\load{}{}$ instruction loads the contents of the requested memory location
 into a register, but only if the capability has appropriate authority (i.e.\
-read permission and an appropriate range). $\restricttwo{}{}$ updates a
+read permission and an appropriate range). The $\restricttwo{}{}$ instruction updates a
 capability's permissions and global/local tag in the register file, but only if the new permissions are weaker than the original. 
 %\itoplassug{Reviewer E, popl, would like $\sqsubseteq$ and $\decodePermPair{}$ explained. If we explain all of these details, this section becaomes a bit long and cluncky. (see tex for suggestion)}
 %\itoplassug{As the permissions and global/local tag are not words on the machine, we decode the word in register $r_2$ as a pair of permission and locality which is done with the function $\decodePermPair{}$.}
 % Reviewer E, popl: Figure 3: how is decodePermPair defined, and what is the relation between (perm', g') and (perm, g)?
-It also never turns local
-capabilities into global ones. $\geta{}{}$ queries the current address of a
-capability and stores it in a register.
+It also never turns local capabilities into global ones.
+The $\subseg{}{}{}$ instruction reduces the range of authority of a capability.
+In order to represent the unbounded address space, we use $-42$ to represent infinity.
 
 The $\jmp{}$ instruction updates the program counter to a requested location,
 but it is complicated by the presence of \emph{enter capabilities}, modeled
@@ -1186,10 +1177,15 @@ state. Such a package can be built as an enter capability $c =
 contains local state (data or capabilities) and $[\addr,\addrend]$ contains
 instructions. The package is opaque to an adversary holding $c$ but when $c$ is
 jumped to, the instructions can start executing and have access to the local
-data through the updated version of $c$ that is then in $\pcreg$. 
+data through the updated version of $c$, now in the $\pcreg$-register. 
 \lau{As we talked about what is described here, is not how we make closures in
 the TR, so we should consider whether we should refrain from using that word
 here. }
+
+The instruction $\lea{}{}$ manipulates the current address of non enter-capabilities.
+It is fine for a capability to have a current address outside its range of authority as long as it is not used with an instruction that requires a specific capability.
+The instruction $\geta{}{}$ queries the current address of a capability and stores it in a register.
+
 
 Finally, the $\store{}{}$ instruction updates the memory to the requested value
 if the capability has write authority for the requested location. However, the
@@ -1198,7 +1194,7 @@ after the ones in the CHERI processor~\citep{Watson2015Cheri}. Basically, local
 capabilities are special in that they can only be kept in registers, i.e.\ they
 cannot be stored to memory. This means that local capabilities can be
 \emph{temporarily} given to an adversary, for the duration of an invocation: if
-we take care to clear the capability from the register file after control is
+we make sure to clear the capability from the register file after control is
 passed back to us, they will not have been able to store the capability.
 However, there is one exception to the rule above: local capabilities can be
 stored to memory for which we have a capability with write-local authority
@@ -1283,7 +1279,7 @@ by the adversary.
 
 \textbf{Program start-up} We assume that the language runtime initializes the
 memory as follows: a contiguous array of memory is reserved for the stack, for
-which we receive a stack pointer in a special register $r_\stk$. We stress that
+which we receive a stack pointer in the register $r_\stk$. We stress that
 the stack is not built-in, but merely an abstraction we put on this piece of the
 memory. The stack pointer is local and has $\rwlx$ permission. Note that this
 means that we will be placing and executing instructions on the stack.
@@ -1510,19 +1506,17 @@ second invocation.
 % \lau{It seemed did not seem to add anything to adopt the terminlogy - we
 %   often highlight that the return pointer is local which in most cases
 %   is so important that we do not want to leave it out.}
-By making the return pointer local, we prevent such attacks: the adversary can
-only store local capabilities through write-local capabilities, which means (because
-of our assumptions above): on the stack. Since the stack pointer itself is
-also local, it can also only be stored on the stack. Because we clear the part
-of the stack that the adversary has had access to before we pass control back,
-there is no way for them to recover either of these local capabilities.
+By making the return pointer local, we prevent such attacks.
+The adversary can only store local capabilities with a write-local capability, and the only piece of memory governed by a write-local capability is the stack.
+Since the stack pointer itself is also local, it can also only be stored on the stack.
+There is no way for the adversary to recover either of these local capabilities because we clear the part of the stack that they had access to before we pass control back to them.
 
 Note that storing stack pointers for use during future invocations would also be
 dangerous in itself, i.e. not just because it can be used to store return
-pointers. Imagine the adversary stores their stack pointer (\ref{fig:illu-adv-store-sp}), invokes trusted code
-that uses part of the stack to store private data (\ref{fig:illu-adv-call}) and then invokes the adversary
+pointers. Imagine the adversary stores their stack pointer (\figurename~\ref{fig:illu-adv-store-sp}), invokes trusted code
+that uses part of the stack to store private data (\figurename~\ref{fig:illu-adv-call}) and then invokes the adversary
 again with a stack pointer restricted to exclude the part containing the private
-data (\ref{fig:illu-adv-called}). If the adversary had a way of keeping hold of their old stack pointer, it
+data (\figurename~\ref{fig:illu-adv-called}). If the adversary had a way of keeping hold of their old stack pointer, it
 could access the private data stored there by the trusted code and break
 local-state encapsulation.  
 % \lau{Do we say anything about arguments to the callback? Specifically, it should not be okay to uncritically pass on argument we recieved from an adversary. Can we even to any extend allow local arguments that we pass on from an unknown source?}
@@ -1638,7 +1632,7 @@ adversary. Instead, it should be stored as part of the activation record.
   \label{fig:activ-rec-struct}
 \end{figure}
 
-Clearly, neither of these capabilities should be accessible by the adversary. In
+Clearly, neither the old program counter or the old stack pointer should be accessible by the adversary. In
 other words, the return pointer provided to the adversary must be a capability
 that they can jump to but not read from, i.e.\ an enter capability. To make this
 work, we construct the activation record as depicted in
@@ -1882,50 +1876,20 @@ definition can be accommodated using techniques from the
 literature (essentially an advanced application of step-indexing).
 
 \paragraph{Local capabilities}
-A final thing we provide informal intuition for is how our results take into account local
-capabilities and their special treatment by the hardware. Normally, when we
-invoke an untrusted piece of code and provide it with certain global
-capabilities, it may have stored those capabilities in memory and we will only
-be able to reinvoke the code if we can guarantee that those values are still
-valid. Formally, worlds represent the invariants that global capabilities'
-safety relies on and the reinvocation is only safe in future worlds, where the
-invariants are respected.
+The last thing we provide informal intuition about is how our results handle local capabilities and their special treatment by the hardware.
+Normally, when we invoke an untrusted piece of code and provide it with certain global capabilities, it may have stored those capabilities in memory and we will only be able to reinvoke the code if we can guarantee that those values are still valid.
+Formally, worlds represent the invariants that global capabilities' safety relies on and the reinvocation is only safe in future worlds, where the invariants are respected.
 
-However, if we provide the adversary with local capabilities in that first
-invocation, then the situation is a bit different. The adversary has no way to
-store these local capabilities, so if we make sure that there are also no old
-local capabilities in the register file for the second invocation (including the
-capability being invoked), then the adversary cannot use them any more.%
-\footnote{We are ignoring write-local capabilities in this discussion. If the
-  adversary does have access to write-local capabilities in the first and second
-  invocation, then the memory they address must entirely be cleared before the
-  second invocation in order for the reinvocation to remain safe.} Therefore, we
-can allow the second invocation to happen in \emph{private} future worlds ($W'
-\futurestr W$), in which safe global capabilities remain safe, but local ones
-don't. This private future world relation is more liberal than the standard,
-public one ($W' \futurewk W$, in which \emph{all} safe capabilities remain
-safe). Concretely, worlds may contain \emph{temporary} regions, representing
-invariants that only local capabilities may rely on for their safety, and which
-may be revoked (disabled) in private future worlds.
+However, if we provide the adversary with local capabilities in that first invocation, then the situation is a bit different. The adversary has no way to store these local capabilities, so if we make sure that there are also no old local capabilities in the register file for the second invocation (including the capability being invoked), then the adversary cannot use them any more.%
+\footnote{We are ignoring write-local capabilities in this discussion.
+  If the adversary does have access to write-local capabilities in the first and second invocation, then the memory they address must entirely be cleared before the second invocation in order for the reinvocation to remain safe.}
+Therefore, we can allow the second invocation to happen in \emph{private} future worlds ($W' \futurestr W$), in which safe global capabilities remain safe, but local ones don't.
+This private future world relation is more liberal than the standard, public one ($W' \futurewk W$, in which \emph{all} safe capabilities remain safe).
+Concretely, worlds may contain \emph{temporary} regions, representing invariants that only local capabilities may rely on for their safety, and which may be revoked (disabled) in private future worlds.
 
-Interestingly, this idea is a variant of a notion of public/private future
-worlds that has been previously used in the literature (see
-\sectionname~\ref{sec:discussion}). However, temporary regions are new in our setting
-and there is an interesting interplay with the recursiveness of the worlds: for
-a temporary region, the predicate $H \in \Worlds \rightarrow
-\powerset{\MemSegments}$ (which defines the safe memory segments in the
-current world) is only required to be monotone w.r.t.\ public
-future worlds (i.e.\ safe memory segments remain safe in public future worlds),
-but for permanent regions, it must be monotone w.r.t.\ private future worlds.
-As a consequence, the memory for a permanent region may not contain local
-capabilities (as their safety would be broken in private future worlds), which
-in turn implies that only local capabilities may have write-local permission (a
-general sanity requirement when using local capabilities\footnote{In fact, local
-  capabilities become useless as soon as the adversary has access to a single
-  global, write-local capability.})\footnote{For explanation purposes, this
-  discussion ignores certain ways to allow for local capabilities in a permanent
-  region, for example, by not requiring that they are valid or requiring that
-  they are local versions of valid global capabilities.}.
+Interestingly, this idea is a variant of a notion of public/private future worlds that has been previously used in the literature (see \sectionname~\ref{sec:discussion}).
+However, temporary regions are new in our setting and there is an interesting interplay with the recursiveness of the worlds: for a temporary region, the predicate $H \in \Worlds \rightarrow \powerset{\MemSegments}$ (which defines the safe memory segments in the current world) is only required to be monotone w.r.t.\ public future worlds (i.e.\ safe memory segments remain safe in public future worlds), but for permanent regions, it must be monotone w.r.t.\ private future worlds.
+As a consequence, the memory for a permanent region may not contain local capabilities (as their safety would be broken in private future worlds), which in turn implies that only local capabilities may have write-local permission (a general sanity requirement when using local capabilities\footnote{In fact, local capabilities become useless as soon as the adversary has access to a single global, write-local capability.})\footnote{For explanation purposes, this discussion ignores certain ways to allow for local capabilities in a permanent region, for example, by not requiring that they are valid or requiring that they are local versions of valid global capabilities.}.
 \end{toplas}
 \subsection{Worlds}
 \label{subsec:worlds}
@@ -3248,10 +3212,10 @@ as a specification for scall.
 
       \tikzset{capa/.style={decoration={markings,mark=at position 0 with %
             {\fill[black] circle(1.5pt);}}}}
-      \draw[capa] (8.5,6.5) edge[-latex,postaction={decorate},out=180,in=0] node[above] {\tiny{$(g,l)$}} (5,7.25);
+      \draw[capa] (8.5,6.5) edge[-latex,postaction={decorate},out=180,in=0] node[above] {\tiny{$(p,\gl)$}} (5,7.25);
 
       \node[anchor=west] at (7.75,2) {$c_\var{next}$};
-      \draw[capa] (7.75,2) edge[-latex,postaction={decorate},out=180,in=0] node[right] {\tiny{$(g,l)$}}  (5.4,5.26);
+      \draw[capa] (7.75,2) edge[-latex,postaction={decorate},out=180,in=0] node[right] {\tiny{$(p,\gl)$}}  (5.4,5.26);
     \end{tikzpicture}
     \caption{Visualization of ``$(\reg,\ms)$ is looking at $[i_0\dots i_n]$
       followed by $c_{\var{next}}$''.}
