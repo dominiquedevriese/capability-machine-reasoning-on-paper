@@ -3386,18 +3386,11 @@ unintelligible without the macros, as each macro expands to multiple basic instr
 technical details in the technical appendix~\citep{technical_appendix}.
 
 \subsection{Encapsulation of Local State}
-\texttt{f1} and \texttt{f2} in
-\figurename~\ref{fig:prog-f1-and-f2} demonstrate the capability
-machine's encapsulation of local state. They are very similar: both
-store some local state, call an untrusted piece of code ($\adv$), and
-then test whether the local state is unchanged. They differ in the way
-they do this. Program \texttt{f1} uses our stack-based
-calling convention (captured by \texttt{scall}) to call
-the adversary, so it can use the available stack to store its local
-state.  On the other hand, \texttt{f2} uses malloc to
-allocate memory for its local state and uses a calling convention based on heap
-allocated activation records (described in the technical appendix) to invoke
-the adversarial code.
+\texttt{f1} and \texttt{f2} in The programs in \figurename~\ref{fig:prog-f1-and-f2} demonstrate the capability machine's encapsulation of local state.
+They are very similar: both store some local state, call an untrusted piece of code ($\adv$), and then test whether the local state is unchanged.
+They differ in the way they do this.
+Program \texttt{f1} uses our stack-based calling convention (captured by \texttt{scall}) to call the adversary, so it can use the available stack to store its local state.
+On the other hand, \texttt{f2} uses malloc to allocate memory for its local state and uses \texttt{call} a calling convention based on heap allocated activation records (described in Appendix~\ref{app:macros}) to invoke the adversarial code.
 
 \begin{figure}[t]
   \centering
@@ -4576,30 +4569,30 @@ Theorem~\ref{thm:world-existence}.
 
 
 \subsection{Macros}
+\label{app:macros}
 Implementation of the macros used in \texttt{scall}. Implementations of the
 macros not presented here can be found in the technical
 appendix~\citep{technical_appendix}.\\
-\label{app:macros}
 \texttt{push $r$}
-\begin{lstlisting}
+\begin{lstlisting}[xleftmargin=0.4cm]
   lea r_stk 1
   store r_stk r
 \end{lstlisting}
 \texttt{pop $r$}
-\begin{lstlisting}
+\begin{lstlisting}[xleftmargin=0.4cm]
   load r r_stk
   minus r_t1 0 1
   lea r_stk r_t1
 \end{lstlisting}
 \texttt{rclear $r_1,\dots, r_n$}
-\begin{lstlisting}
+\begin{lstlisting}[xleftmargin=0.4cm]
   move $r_1$ 0
   move $r_2$ 0
   $\dots$
   move $r_n$ 0
 \end{lstlisting}
 \texttt{mclear $r$}
-\begin{lstlisting}
+\begin{lstlisting}[xleftmargin=0.4cm]
   move r_t $r$
   getb r_t1 r_t
   geta r_t2 r_t
@@ -4624,10 +4617,76 @@ end:
   move r_t2 0
   move r_t3 0
 \end{lstlisting}
-Where $\var{ofc}_\var{end}$ and $\var{ofc}_\var{iter}$ are the offsets to the
-label \texttt{end} % 9?
-and \texttt{iter}, % 2?
+Where $\var{ofc}_\var{end}$ and $\var{ofc}_\var{iter}$ are the offsets to the label \texttt{end} % 9
+and \texttt{iter}, % 2
 respectively.
+\newline\newline
+\texttt{call} $r(\bar{r}_{\var{args}},\bar{r}_{\var{priv}})$
+\newline
+The \texttt{call} macro constitutes a calling convention based on heap allocated activation records.
+This alternative to \texttt{scall} is included to illustrate that the logical relation can be used to reason about other calling conventions.
+In the following, $\bar{r}_{\var{args}}$ and $\bar{r}_{\var{priv}}$ are lists of registers. An overview of this call:
+\begin{itemize}
+\item Set up activation record
+\item Create local enter capability for activation (protected return pointer)
+\item Clear unused registers
+\item Jump
+\item Upon return: Run activation code
+  \begin{itemize}
+  \item Restore private registers
+  \item Jump to return capability
+  \end{itemize}
+\end{itemize}
+\begin{lstlisting}[xleftmargin=0.4cm]
+  malloc r_t $size$ 
+// store private state in activation record
+  store r_t r_priv,1
+  lea r_t 1
+  store r_t r_priv,2
+  lea r_t 1
+  ...
+  lea r_t 1
+  store r_t r_priv,n
+  lea r_t 1
+// store old pc
+  move r_t1 pc
+  lea r_t1 $\var{off}_\var{end}$ 
+  store r_t r_t1
+  lea r_t1 1
+// store activation record
+  store r_t encode(i_1)
+  lea r_t1 1
+  ...
+  lea r_t1 1  
+  store r_t encode(i_m)
+  lea r_t1 $k$ 
+  restrict r_t1 encodePermPair(($\local$,e))
+  move r_0 r_t1
+// Clear unused registers
+  rclear R // R = RegisterName - {r,pc,r_0,r_args}
+  jmp r
+end:
+\end{lstlisting}
+Where $\bar{r_{\var{priv}}} = r_{\var{priv},1}, \dots, r_{\var{priv},n}$, $size$ is the size of the activation record, $\var{off}_\var{end}$ is the offset to the \texttt{end} label, and $k$ is $m-1$, i.e. the offset to the first instruction of the activation code.\newline
+The activation record. The instructions correspond to $i_1,\dots,i_m$ in the above.
+\begin{lstlisting}[xleftmargin=0.4cm]
+  move r_t pc
+  getb r_t1 r_t
+  geta r_t2 r_t
+  minus r_t1 r_t1 r_t2
+// load private state
+  lea r_t r_t1
+  load r_priv,1 r_t
+  lea r_t 1
+  load r_priv,2 r_t
+  lea r_t 1
+  ...
+  lea r_t 1
+  load r_priv,n r_t
+  lea r_t 1
+// load old pc
+  load pc r_t
+\end{lstlisting}
 
 \subsection{Reasoning about programs definitions}
 \label{app:programs-definitions}
