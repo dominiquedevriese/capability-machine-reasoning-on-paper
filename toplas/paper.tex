@@ -888,21 +888,19 @@ additional details and proofs left out from this paper.
 
 \section{A Capability Machine with Local Capabilities}
 \label{sec:capab-mach-with}
-In this paper, we work with a formal capability machine with all the
-characteristics of real capability machines, as well as local capabilities much
-like CHERI's. Otherwise, it is kept as simple as possible. It is inspired by
-both the M-Machine~\citep{Carter:1994:HSF:195473.195579} and
-CHERI~\citep{Watson2015Cheri}. To avoid uninteresting details, we assume an
-infinite address space and unbounded integers.
+In this paper, we work with a formalization of a capability machine with all the characteristics of real capability machines as well as local capabilities much like CHERI's.
+Otherwise, it is kept as simple as possible.
+It is inspired by both the M-Machine~\citep{Carter:1994:HSF:195473.195579} and CHERI~\citep{Watson2015Cheri}.
+To avoid tedious details irrelevant to the focus of this paper, we assume an infinite address space and unbounded integers.
 
 We define the syntax of our capability machine in \figurename~\ref{fig:syntax}.
 We assume an infinite set of addresses $\Addrs$ and define machine words as either integers or capabilities of the form $((\perm,\gl),\var{base},\var{end},\addr)$.
 Such a capability represents the authority to execute permissions $\perm$ on the memory range $[\var{base},\var{end}]$, together with a current address $\addr$ and a locality tag $\gl$ indicating whether the capability is global or local.
-There is no notion of pointers other than capabilities, so we will use the terms interchangeably.
-The available permissions are null permission ($\noperm$), readonly ($\readonly$), read/write ($\readwrite$), read/execute ($\exec$) and read/write/execute ($\rwx$) permissions.
+On a capability machine, there is no notion of pointers other than capabilities, so we will use the terms interchangeably.
+The available permissions are null permission ($\noperm$), readonly ($\readonly$), read/write ($\readwrite$), read/execute ($\exec$), and read/write/execute ($\rwx$) permissions.
 Additionally, there are three special permissions: read/write-local ($\readwritel$), read/write-local/execute ($\rwlx$) and enter ($\entry$), which we will explain below.
-\itoplas{Permissions and locality are ordered and both orderings are depicted in \figurename~\ref{fig:perm-hier}.
-  The write permission is subsumed by the write-local permission, i.e.\ a write-local capability can be used to store both $\local$ and $\glob$ capabilities to memory.
+\itoplas{The orderings of permissions and locality are displayed in \figurename~\ref{fig:perm-hier}.
+  The write permission is subsumed by the write-local permission, i.e.\ a write-local capability can be used to store both $\local$ and $\glob$ capabilities to memory which is why write-local is above write in the permission hierarchy.
   We denote the pairwise ordering of permission and locality with $\sqsubseteq$.}
 
 \begin{wrapfigure}{R}{.4\textwidth}
@@ -939,31 +937,21 @@ Additionally, there are three special permissions: read/write-local ($\readwrite
   \label{fig:perm-hier}
 \end{wrapfigure}
 
-We assume a finite set of register names $\RegName$. We define register files
-$\reg$ and memories $\ms$ as functions mapping register names resp. addresses to
-words. The state of the entire machine is represented as a configuration that is
-either a running state $\Phi \in \ExecConfs$ containing a memory and a register file,
-or a failed or halted state, where the latter keeps hold of the final state of
-memory.
+We assume a finite set of register names $\RegName$.
+We define register files $\reg$ and memories $\ms$ as functions mapping register names resp.\ addresses to words.
+The state of the entire machine is represented as a configuration that is either a running state $\Phi \in \ExecConfs$ containing a memory and a register file or a failed or halted state, where the latter is paired with the final state of memory.
+
 % We also define memory segments $\ms$:
 % parts of memory represented as partial functions mapping addresses to words.
+
 %\lau{we don't really make the distinction between memory and memory segments in the rest of the paper, so maybe we should leave this out?}
 
-The machine's instruction set is rather basic. Instructions $i$ include
-relatively standard jump ($\jmp{}$), conditional jump ($\jnz{}{}$) and move
-($\move{}{}$, copies words between registers) instructions. Also familiar are
-load and store instructions for reading from and writing to memory ($\load{}{}$
-and $\store{}{}$) and arithmetic operators ($\lt{}{}{}$ (less than), $\plus{}{}{}$ and
-$\minus{}{}{}$, operating only on numbers). There are three instructions for
-modifying capabilities: $\lea{}{}$ (modifies the current address),
-$\restricttwo{}{}$ (modifies the permission and local/global tag) and
-$\subseg{}{}{}$ (modifies the range of a capability). Importantly, these
-instructions take care that the resulting capability always carries less
-authority than the original (e.g. $\restricttwo{}{}$ will only weaken a permission).
-Finally, the instruction $\isptr{}{}$ tests whether a word is a capability or a
-number and instructions $\getp{}{}$, $\getl{}{}$, $\getb{}{}$, $\gete{}{}$ and
-$\geta{}{}$ provide access to a capability's permissions, local/global tag, base,
-end and current address, respectively.
+The machine's instruction set is rather basic.
+Instructions $i$ include relatively standard jump ($\jmp{}$), conditional jump ($\jnz{}{}$), and move ($\move{}{}$, copies words between registers) instructions.
+Also familiar are load and store instructions for reading from and writing to memory ($\load{}{}$ and $\store{}{}$) and arithmetic operators ($\lt{}{}{}$ (less than), $\plus{}{}{}$ and $\minus{}{}{}$, operating only on numbers).
+There are three instructions for modifying capabilities: $\lea{}{}$ (modifies the current address), $\restricttwo{}{}$ (modifies the permission and local/global tag), and $\subseg{}{}{}$ (modifies the range of a capability).
+Importantly, these instructions take care that the resulting capability always carries less authority than the original (e.g.\ $\restricttwo{}{}$ will only weaken a permission according to the hierarchy in \figurename~\ref{fig:perm-hier}).
+Finally, the instruction $\isptr{}{}$ tests whether a word is a capability or a number and instructions $\getp{}{}$, $\getl{}{}$, $\getb{}{}$, $\gete{}{}$ and $\geta{}{}$ provide access to a capability's permissions, local/global tag, base, end and current address, respectively.
 
 \begin{figure}[b]
 \[\arraycolsep=1.4pt
@@ -1134,29 +1122,25 @@ end and current address, respectively.
 \end{comment}
 \figurename~\ref{fig:op-sem}
 %\itoplassug{Suggestion: extend this figure with more (all?) of the operational semantics. In general, should we add all the missing definitions and make this document closer to being self-contained.} 
-shows the operational semantics for a
-few representative instructions. Essentially, a configuration $\Phi$ either
-decodes and executes the instruction at $\memreg(\pcreg)$ if it is executable
-and its address is in the valid range or otherwise fails. The table in the
-figure shows for instructions $i$ the result of executing them in configuration
-$\Phi$. The instructions $\fail$ and $\halt$ obviously fail and halt respectively. $\move{}{}$
-simply modifies the register file as requested and updates the $\pcreg$ to the
-next instruction using the meta-function $\stdUpdatePc{}$.
+shows the operational semantics for a few instructions representative of the machine.
+Essentially, a configuration $\Phi$ either decodes and executes the instruction pointed to by $\memreg(\pcreg)$ if it is an executable capability with its address in the valid range; otherwise it fails.
+The table in the figure shows for instructions $i$ the result of executing them in configuration $\Phi$.
+The instructions $\fail$ and $\halt$ obviously fail and halt respectively.
+$\move{}{}$ simply modifies the register file as requested and updates the $\pcreg$ to the next instruction using the meta-function $\stdUpdatePc{}$.
 
 \dominique{Follow order of figure in discussion?}
 The $\load{}{}$ instruction loads the contents of the requested memory location
 into a register, but only if the capability has appropriate authority (i.e.\
 read permission and an appropriate range). The $\restricttwo{}{}$ instruction updates a
-capability's permissions and global/local tag in the register file, but only if the new permissions are weaker than the original. 
+capability's permissions and global/local tag in the register file, but only if the new permissions are weaker than the original according to the permission hierarchy in \figurename~\ref{fig:perm-hier}. 
 %\itoplassug{Reviewer E, popl, would like $\sqsubseteq$ and $\decodePermPair{}$ explained. If we explain all of these details, this section becaomes a bit long and cluncky. (see tex for suggestion)}
 %\itoplassug{As the permissions and global/local tag are not words on the machine, we decode the word in register $r_2$ as a pair of permission and locality which is done with the function $\decodePermPair{}$.}
 % Reviewer E, popl: Figure 3: how is decodePermPair defined, and what is the relation between (perm', g') and (perm, g)?
-It also never turns local capabilities into global ones.
 The $\subseg{}{}{}$ instruction reduces the range of authority of a capability.
 In order to represent the unbounded address space, we use $-42$ to represent infinity.
 
 The $\jmp{}$ instruction updates the program counter to a requested location,
-but it is complicated by the presence of \emph{enter capabilities}, modeled
+but it is complicated by the presence of \emph{enter capabilities} 
 after the M-Machine's~\citep{Carter:1994:HSF:195473.195579}. Enter capabilities
 cannot be used to read, write or execute and their address and range cannot be
 modified. They can only be used to jump to, but when that happens, their
@@ -1246,10 +1230,10 @@ One of the contributions in this paper is a
 demonstration that local capabilities on a capability machine support a calling
 convention that enforces control-flow correctness in a way that is provably
 watertight, potentially efficient, does not rely on a trusted central stack
-manager and supports higher-order interfaces to an adversary, where an adversary
-is just some unknown piece of code. In this section, we explain this
-convention's high-level approach, the security measures to be taken in a number
-of situations (motivating each separately with a summary table at the end).
+manager, and supports higher-order interfaces to an adversary, where an adversary
+is just some unknown piece of code. In this section, we explain the high-level
+approach of this calling convention. We motivate each security measures with a
+situation we want to avoid (motivating each measure separately with a summary table at the end).
 After that, we define a number of reusable macro-instructions that can be used
 to conveniently apply the proposed convention in subsequent examples.
 
@@ -1261,7 +1245,7 @@ not-always-obvious safety measures. The safety measures are presented in terms
 of what \emph{we} need to do to protect ourselves against an \emph{adversary},
 but this is only for presentation purposes as our code assumes no special status on
 the machine. In fact, an adversary can apply the same safety measures to protect
-themselves against us. In the next paragraphs, we will explain the issues to be
+themselves against us. In the following paragraphs, we will explain the issues to be
 considered in all the relevant situations: when (1) starting our program, (2)
 returning to the adversary, (3) invoking the adversary, (4) returning from the
 adversary, (5) invoking an adversary callback and (6) having a callback invoked
@@ -1283,33 +1267,34 @@ regions as requested (no $\rwlx$ or $\rwl$ permissions). For simplicity, we
 assume that memory allocated through malloc cannot be freed.
 
 \textbf{Returning to the adversary} Perhaps the simplest situation is returning
-to the adversary after they invoked our code (\figurename~\ref{fig:illu-intro}). In this case, we have received a
+to the adversary after they invoked our code \itoplas{(\figurename~\ref{fig:illu-intro})}. In this case, we have received a
 return pointer from them, and we just need to jump to it as usual. An obvious
 security measure to take care of is properly clearing the non-return-value
 registers before we jump (since they may contain data or capabilities that the
 adversary should not get access to). Additionally, we may have used the stack
 for various purposes (register spilling, storing local state when invoking other
 functions etc.), so we also need to clear that data before returning to the
-adversary (\figurename~\ref{fig:illu-priv-data} and \figurename~\ref{fig:illu-clear-priv}).
+adversary \itoplas{(\figurename~\ref{fig:illu-priv-data} and \figurename~\ref{fig:illu-clear-priv})}.
 
 However, if we are returning from a function that has itself invoked adversary
-code (\figurename~\ref{fig:illu-call-adv}), then clearing the used part of the stack is not enough. The \emph{unused}
+code \itoplas{(\figurename~\ref{fig:illu-call-adv})}, then clearing the used part of the stack is not enough. The \emph{unused}
 part of the stack may also contain data and capabilities, left there by the
 adversary, including local capabilities since the stack is write-local. As we
 will see later, we rely on the fact that the adversary cannot keep hold of local
 capabilities when they pass control to the trusted code and receive control
 back. In this case, the adversary could use the unused part of the stack to
-store local pointers and load them from there after they get control back (\figurename~\ref{fig:illu-adv-data}). To
+store local pointers and load them from there after they get control back
+\itoplas{(\figurename~\ref{fig:illu-adv-data})}. To
 prevent this, we need to clear (i.e.\ overwrite with zeros) the entire part of
 the stack that the adversary has had access to, not just the parts that we have
-used ourselves (\figurename~\ref{fig:illu-clear-all}). Since we may be talking about a large part of memory, this
+used ourselves \itoplas{(\figurename~\ref{fig:illu-clear-all})}. Since we may be talking about a large part of memory, this
 requirement is the most problematic aspect of our calling convention for
 performance, but see \sectionname~\ref{sec:discussion} for how this might be
 mitigated.
 
-\begin{figure}[htb]
+\begin{figure}[tb]
   \centering
-  \begin{subfigure}{0.32\linewidth}
+  \begin{subfigure}[t]{0.3\linewidth}
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
     % recurrent parts
     \stdstackstart
@@ -1329,10 +1314,15 @@ mitigated.
         \capbrace{(4.6,5)}{(4.6,12)}{sp}
       \end{scope}
     \end{tikzpicture}
-    \caption{}
+    \caption{The stack just before we return to the adversary. Our stack frame
+      is the topmost, and we do not have access to the adversary stack frame.}
   \label{fig:illu-intro}
   \end{subfigure}
-  \begin{subfigure}{0.333\linewidth}
+\begin{subfigure}{0.043\linewidth}
+  % padding
+  \phantom{a}
+\end{subfigure}
+  \begin{subfigure}[t]{0.3\linewidth}
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
     % recurrent parts
     \stdstackstart
@@ -1357,10 +1347,15 @@ mitigated.
         \capbrace{(4.6,2)}{(4.6,12)}{sp}
       \end{scope}
     \end{tikzpicture}
-  \caption{}
+    \caption{The stack just after we returned to the adversary but did not take
+      care to clear our local stack frame.}
   \label{fig:illu-priv-data}
   \end{subfigure}
-  \begin{subfigure}{0.333\linewidth}
+\begin{subfigure}{0.043\linewidth}
+  % padding
+  \phantom{a}
+\end{subfigure}
+  \begin{subfigure}[t]{0.3\linewidth}
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
     % recurrent parts
     \stdstackstart
@@ -1385,12 +1380,11 @@ mitigated.
         \capbrace{(4.6,2)}{(4.6,12)}{sp}
       \end{scope}
     \end{tikzpicture}
-  \caption{}
+    \caption{The stack just after we returned to the adversary and did take
+      care to clear our local stack frame.}
   \label{fig:illu-clear-priv}
   \end{subfigure}
-
-
-  \begin{subfigure}{0.32\linewidth}
+  \begin{subfigure}[t]{0.33\linewidth}
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
     % recurrent parts
     \stdstackstart
@@ -1411,10 +1405,14 @@ mitigated.
         \capbrace{(4.6,5)}{(4.6,13)}{sp}
       \end{scope}
     \end{tikzpicture}
-  \caption{}
+  \caption{The stack after an adversary has called us and we have called the adversary.}
   \label{fig:illu-call-adv}
-  \end{subfigure}
-  \begin{subfigure}{0.333\linewidth}
+\end{subfigure}
+\begin{subfigure}[t]{0.043\linewidth}
+  % padding
+  \phantom{a}
+\end{subfigure}
+  \begin{subfigure}[t]{0.3\linewidth}
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
     % recurrent parts
     \stdstackstart
@@ -1438,10 +1436,16 @@ mitigated.
         \capbrace{(4.6,2)}{(4.6,13)}{sp}
       \end{scope}
     \end{tikzpicture}
-  \caption{}
+  \caption{The stack after the adversary has returned to us, and we have
+    returned from the first adversary call. At this point, the adversary has
+    access to the local state from the nested adversary call.}
   \label{fig:illu-adv-data}
-  \end{subfigure}
-  \begin{subfigure}{0.333\linewidth}
+\end{subfigure}
+\begin{subfigure}[t]{0.043\linewidth}
+  % padding
+  \phantom{a}
+\end{subfigure}
+  \begin{subfigure}[t]{0.3\linewidth}
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
     % recurrent parts
     \stdstackstart
@@ -1462,12 +1466,16 @@ mitigated.
         \capbrace{(4.6,2)}{(4.6,13)}{sp}
       \end{scope}
     \end{tikzpicture}
-  \caption{}
+  \caption{The stack after the adversary has returned to us, and we have
+    returned from the first adversary call after we took care to clear the
+    unused part of the stack.}
   \label{fig:illu-clear-all}
   \end{subfigure}
-  \caption{Illustration of the situations related to stack clearing when returning to an adversary.
-    The greyed out areas are parts of the stack that are not accessible at the time.}
-  \label{fig:ret-adv}
+  \caption{Depictions of the stack in relation to stack clearing.
+    The greyed out areas are parts of the stack that are not accessible at the
+    time.
+    The sp capability is the stack pointer.}
+  \label{fig:ret-adv2}
 \end{figure}
 \textbf{Invoking the adversary} A slightly more complex case is invoking the
 adversary. As above, we clear all the non-argument registers, as well as the
@@ -1477,14 +1485,14 @@ the same way). We leave a copy of the stack pointer in $r_\stk$, but only after
 we have used the $\subseg{}{}{}$ instruction to shrink its authority to the part
 that we are not using ourselves.
 
-In one of the registers, we also provide a return pointer, which must be a local
+In one of the registers, we also provide a return pointer which must be a local
 capability. If it were global, the adversary would be able to store away the
 return pointer in a global data structure (i.e.\ there exists a global capability for it), and jump to it later, in
 circumstances where this should not be possible. For example, they could store
-the return pointer, legally jump to it a first time, wait to be invoked again
+the return pointer, legally jump to it a first time, wait to be invoked again,
 and then jump to the old return pointer a second time, instead of the new return
 pointer received for the second invocation. Similarly, they could store the
-return pointer, invoke a function in our code, wait for us to invoke them again
+return pointer, invoke a function in our code, wait for us to invoke them again,
 and then jump to the old return pointer rather than the new one, received for the
 second invocation.
 % \lau{If we need space, then maybe one of the examples is sufficient.}
@@ -1503,8 +1511,10 @@ There is no way for the adversary to recover either of these local capabilities 
 
 Note that storing stack pointers for use during future invocations would also be
 dangerous in itself, i.e. not just because it can be used to store return
-pointers. Imagine the adversary stores their stack pointer (\figurename~\ref{fig:illu-adv-store-sp}), invokes trusted code
-that uses part of the stack to store private data (\figurename~\ref{fig:illu-adv-call}) and then invokes the adversary
+pointers. Imagine that the adversary stores their stack pointer
+(\figurename~\ref{fig:illu-adv-store-sp}), invokes trusted code
+that uses part of the stack to store private data
+(\figurename~\ref{fig:illu-adv-call}) and then invokes the adversary
 again with a stack pointer restricted to exclude the part containing the private
 data (\figurename~\ref{fig:illu-adv-called}). If the adversary had a way of keeping hold of their old stack pointer, it
 could access the private data stored there by the trusted code and break
@@ -1514,7 +1524,7 @@ local-state encapsulation.
 
 \begin{figure}[htb]
   \centering
-  \begin{subfigure}{0.32\linewidth}
+  \begin{subfigure}[t]{0.3\linewidth}
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
     % recurrent parts
     \stdstackstart
@@ -1528,10 +1538,15 @@ local-state encapsulation.
         \capbracebot{(4.6,2)}{(4.6,12)}{sp}
       \end{scope}
     \end{tikzpicture}
-    \caption{}
+    \caption{The stack after the adversary has its stored the stack pointer in
+      far up on the stack.}
   \label{fig:illu-adv-store-sp}
-  \end{subfigure}
-  \begin{subfigure}{0.333\linewidth}
+\end{subfigure}
+\begin{subfigure}{0.043\linewidth}
+  % padding
+  \phantom{a}
+\end{subfigure}
+  \begin{subfigure}[t]{0.3\linewidth}
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
     % recurrent parts
     \stdstackstart
@@ -1549,15 +1564,19 @@ local-state encapsulation.
         \capbracebotred{(4.6,2)}{(4.6,12)}{sp}
       \end{scope}
       \begin{scope}
-        \clip (5.6,5) rectangle (9,11.5);
-        \capbrace{(5.6,5)}{(5.6,12)}{sp'}
+        \clip (5.1,5) rectangle (9,11.5);
+        \capbrace{(5.1,5)}{(5.1,12)}{sp'}
       \end{scope}
 
     \end{tikzpicture}
-  \caption{}
+  \caption{The stack after the adversary have called some trusted code.}
   \label{fig:illu-adv-call}
   \end{subfigure}
-  \begin{subfigure}{0.333\linewidth}
+\begin{subfigure}{0.043\linewidth}
+  % padding
+  \phantom{a}
+\end{subfigure}
+  \begin{subfigure}[t]{0.3\linewidth}
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
     % recurrent parts
     \stdstackstart
@@ -1580,11 +1599,12 @@ local-state encapsulation.
         \capbracebotred{(4.6,2)}{(4.6,12)}{sp}
       \end{scope}
       \begin{scope}
-        \clip (5.6,6.6) rectangle (9,11.5);
-        \capbrace{(5.6,6.5)}{(5.6,12)}{sp'}
+        \clip (5.1,6.6) rectangle (9,11.5);
+        \capbrace{(5.1,6.5)}{(5.1,12)}{sp'}
       \end{scope}
     \end{tikzpicture}
-  \caption{}
+  \caption{The stack after the trusted code has called the adversary. The
+    adversary's old stack pointer is still stored on the stack.}
   \label{fig:illu-adv-called}
   \end{subfigure}
   \caption{Illustration of the situations related to stack clearing when invoking an adversary.
