@@ -2455,8 +2455,8 @@ temporary) region.  Revoked regions are not taken into account as their memory p
 %   has access to values respecting the invariants in a world, then it will
 %   respect them itself too.} 
 The logical relation defines semantically when values, program
-counters, and configurations are capability safe. The definition is
-found in \figurename{}s~\ref{fig:logrel} and~\ref{fig:perm-conds} and
+counters, and configurations are capability safe. The logical relation is defined
+found in \figurename{}s~\ref{fig:logrel} and~\ref{fig:perm-conds}, and
 we provide some explanations in the following paragraphs. For space
 reasons, we omit some definitions and explain them only verbally, but
 precise definitions can be found in the appendix.
@@ -2468,50 +2468,39 @@ the memory protocols of the world. Roughly speaking, this means that when the
 execution of a configuration halts, then there is a private future world that
 the resulting memory satisfies. Notice that failing is considered safe behavior.
 In fact, the machine often resorts to failing when an unauthorized access is
-attempted, such as loading from a capability without read permission. This is
+attempted such as loading from a capability without read permission. This is
 similar to \citet{Devriese:2016ObjCap}'s logical relation for an untyped
-language, but unlike typical logical relations for typed languages, which
-require that programs do not fail.
+language but unlike typical logical relations for typed languages that
+require programs to not fail.
 
-The \emph{register-file relation} $\stdrr$ defines safe register-files as those
-that contain safe words (i.e.\ words in the $\stdvr$-relation defined below) in all registers but $\pcreg$.
-The \emph{expression relation} $\stder$ defines that a word is safe to use as a
-program counter if it can be plugged into a safe register file (i.e.\ a register
-file in $\stdrr$) and paired with a memory satisfying the world to become a safe
-configuration. Note that integers and non-executable capabilities (e.g.
-$\readonly$ and $\entry$ capabilities) are considered safe program counters
-because when they are plugged into a register file and paired with a memory, the
-execution will immediately fail, which is safe.
+The \emph{register-file relation} $\stdrr$ defines safe register-files as those that contain safe words (i.e.\ words in the $\stdvr$-relation defined below) in all registers but the $\pcreg$-register.
+The \emph{expression relation} $\stder$ defines what words are safe to use as a program counter.
+A word is safe to use as a program counter when it can be used to form a safe configuration by plugging it into the $\pcreg$-register of a safe register file (i.e.\ a register file in $\stdrr$) and pairing it with a memory satisfying the world.
+Note that integers and non-executable capabilities (e.g.\ $\readonly$ and $\entry$ capabilities) are considered safe program counters because when they are plugged into a register file and paired with a memory, the execution will immediately fail, which is safe.
 
 The \emph{value relation} $\stdvr$ defines when words are safe.
 \itoplassug{Explain why we use $\UPred{}$ with reference to the introduction of this section.}
-We make the
-value relation as liberal as possible by considering what is the most we can
-allow an adversary to use a capability for without breaking the memory
-protocols. Non-capability data is always safe because it provides no
-authority. Capabilities give the authority to manipulate memory and potentially
-break memory protocols, so they need to satisfy certain conditions to be
-safe. In \figurename~\ref{fig:perm-conds}, we define such a condition for each
-kind of permission a capability can have.
+We make the value relation as liberal as possible by defining it based on the principle ``what is the most we can allow an adversary to use a capability for without breaking the memory protocols.''
 
-For capabilities with read permission, the $\readCond{}$ ensures that it can
-only be used to read safe words, i.e.\ words in the value relation. To guarantee
-this, we require that the addressed memory is governed by a region $W(r)$ that
-imposes safety as a requirement on the values contained. This safety requirement
-is formulated in terms of a standard region $\iota^\pwl_{[\start,\addrend]}$. It simply
-requires all the words in the range $[\start,\addrend]$ to be safe, i.e.\ in the
-value relation. Requiring that $W(r)\nsubsim[n]\iota^\pwl_{[\start,\addrend]}$
-means that $W(r)$ must accept only memory segments containing safe values like
-$\iota^\pwl_{[\start,\addrend]}$, but can be even more restrictive if needed
-(the $\nsubsim[n]$-relation is defined in Appendix~\ref{app:logical-relation}). The
-read condition also takes into account the locality of the capability because,
-generally speaking, global capabilities should only depend on permanent regions.
-Concretely, we use the function $\var{localityReg}(\gl,W)$, which projects out
-all active (non-revoked) regions when the locality $\gl$ is local, but only the
-permanent regions when $\gl$ is global. The definition of the standard region
-$\iota^\pwl_{[\start,\addrend]}$ can be found
-in \figurename~\ref{fig:std-reg}; it makes use of the isomorphism $\xi$ from
-Theorem~\ref{thm:world-existence}.
+Non-capability data is always safe because it provides no authority.
+Capabilities give the authority to manipulate memory and potentially break memory protocols, so they need to satisfy certain conditions to be safe.
+In \figurename~\ref{fig:perm-conds}, we define such a condition for each kind of permission a capability can have.
+
+Capabilities with read permission cannot directly break memory protocols because they cannot make changes to the memory.
+However, a read capability could be used to read a capability that can break memory protocols.
+For this reason, a capability with read permissions is only safe when it can be used only to read safe capabilities.
+This is captured by the $\readCond{}$-condition. 
+More precisely, the condition requires the memory addressed by the capability to actually be governed by some region $W(r)$.
+This region should at least require all the memories accepted by the state interpretation function to contain safe words but stricter requirements may be imposed on the memories.
+This is expressed in terms of an upper bound on the possibly permitted memories defined in terms of a so called ``standard region''.
+In this case, the standard region is $\iota^\pwl_{[\start,\addrend]}$ (defined in \figurename~\ref{fig:std-reg}). 
+The standard region only accept memories with address range $[\start,\addrend]$.
+More importantly, the standard region's state interpretation function only accepts memory segments that only contain safe words.
+The relation the actual region $W(r)$ and the upper bound $\iota^\pwl_{[\start,\addrend]}$ is $\iota^\pwl_{[\start,\addrend]}$ (defined in Appendix~\ref{app:logical-relation}).
+Essentially, the relation requires the two regions state transition systems to be the same. Further in the current state of region $W(r)$ and in any world, the state interpretation function should only allow memories that are also allowed in the standard region.
+
+The read condition also takes the locality of a read capability into account because, generally speaking, generally speaking, global capabilities should only depend on permanent regions.
+In $\readCond{}$, this is manifested by $\var{localityReg}(\gl,W)$ which projects out all active (non-revoked) regions when the locality $\gl$ is local, but only the permanent regions when $\gl$ is global.
 
 For a capability with write permission, $\writeCond{}$ must be satisfied for the
 capability's range of authority. An adversary can use such a capability to write
