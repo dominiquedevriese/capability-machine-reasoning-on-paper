@@ -1993,30 +1993,25 @@ As a consequence, the memory for a permanent region may not contain local capabi
 % \lau{this may not be an important enough point to include it.}
 
 %As describe above, worlds are a collection of invariants. Formally, 
+A world is a semantic model of the memory that carves out memories with a particular shape from all the possible memories.
+In our correctness proofs, worlds allow us to rely on the memory having a particular shape, but sometimes we will also have to guarantee that the memory has a certain shape.
+Essentially, a world is a collection of invariants. The memory satisfies the world when part of the memory satisfy each of the invariants.
 
-A world is a
-finite map from region names, modeled as natural numbers, to regions that each
-correspond to an invariant of part of the memory.  We have three types of
-regions: \emph{permanent}, \emph{temporary}, and \emph{revoked}.
-%$\perma$, $\temp$, and $\revoked$. The
-%$\perma$ and $\temp$ 
-Each permanent and temporary region contains a state transition system, with
-public and private transitions, to describe how the invariants are allowed to
-change over time. In other words, they are protocols for the region's
-memory. Protocols
-imposed by permanent regions stay in place indefinitely. Any capability, local
-or global, can depend on these protocols. Protocols imposed by temporary regions
-can be revoked in private future worlds. Doing this may break the safety of
-local capabilities but not global ones. This means that local capabilities
-can safely depend on the protocols imposed by temporary regions, but global
-capabilities cannot since a global capability may outlive a temporary region
-that is revoked. This is illustrated in \figurename~\ref{fig:cap-world}.
+Worlds are represented as a finite map from region names, modeled as natural numbers, to regions that each correspond to an invariant on part of the memory.
+We have three types of regions: \emph{permanent}, \emph{temporary}, and \emph{revoked}.
+Each permanent and temporary region contains a state transition system with public and private transitions that describe how the invariant is allowed to change over time.
+In other words, they are protocols for the region's memory.
+Protocols imposed by permanent regions stay in place indefinitely.
+Any capability, local or global, can depend on these protocols.
+Protocols imposed by temporary regions can be revoked in private future worlds.
+Doing this may break the safety of local capabilities but not global ones.
+This means that local capabilities can safely depend on the protocols imposed by temporary regions, but global capabilities cannot since a global capability may outlive a temporary region that is revoked.
+This is illustrated in \figurename~\ref{fig:cap-world}.
 
-For technical reasons, we do not actually remove a revoked temporary region from
-the world, but we turn it into a special revoked region that exists for this purpose.
-Such a revoked region contains no state transition system and puts no
-requirements on the memory. It simply serves as a mask for a revoked temporary
-region. Masking a region like this goes back to earlier work of \citet{Ahmed2004semantics} and was also used by \citet{Thamsborg:2011:KLR:2034773.2034831}.
+For technical reasons, we do not actually remove a revoked temporary region from the world, but we turn it into a special revoked region that exists for this purpose.
+Such a revoked region contains no state transition system and puts no requirements on the memory.
+It simply serves as a mask for a revoked temporary region.
+Masking a region like this goes back to earlier work of \citet{Ahmed2004semantics} and was also used by \citet{Thamsborg:2011:KLR:2034773.2034831}.
 
 % Recursive worlds intuition
 % The worlds end up being defined recursively: The memory can contain
@@ -2035,16 +2030,10 @@ region. Masking a region like this goes back to earlier work of \citet{Ahmed2004
 % world-dependent. 
 %As described in \sectionname~\ref{sec:formalizing-guarantees}, regions define sets of
 
-Regions are used to define safe memory segments, but this set may itself be world-dependent. In other
-words, our worlds are defined recursively. Recursive worlds are common
-in Kripke models and the following theorem uses the method of
-\citet{Birkedal:2011:SKM:1926385.1926401,Birkedal:tutorial-notes} for
-constructing them. The formulation of the lemma is technical, so we recommend
-that non-expert readers ignore the technicalities and accept that there exists a
-set of worlds $\Wor$ and two relations $\futurestr$ and $\futurewk$ satisfying
-the (recursive) equations in the theorem (where the $\blater$ operator can be
-safely ignored\footnote{The interested reader can find a brief coverage of \cofe{}'s
-and $\blater$ in the appendix.}).
+Regions are used to define safe memory segments, but this set may itself be world-dependent.
+In other words, our worlds are defined recursively.
+Recursive worlds are common in Kripke models and the following theorem uses the method of \citet{Birkedal:2011:SKM:1926385.1926401,Birkedal:tutorial-notes} for constructing them.
+The formulation of the lemma is technical, so we recommend that non-expert readers ignore the technicalities and accept that there exists a set of worlds $\Wor$ and two relations $\futurestr$ and $\futurewk$ satisfying the (recursive) equations in the theorem (where the $\blater$ operator can be safely ignored\footnote{The interested reader can find a brief coverage of \cofe{}'s and $\blater$ in Appendix~\ref{app:cofe}.}).
 % Short technical explanation
 % The recursiveness of the worlds gives rise to a recurisve domain
 % equation. Theorem~\ref{thm:world-existence} gives the solution to this
@@ -2093,14 +2082,16 @@ definition instead:
 
 \subsubsection{Future Worlds}
 \label{subsec:future-worlds} 
-The future world relations model how memory may evolve over time. 
-The \emph{public future world} $W' \futurewk W$ requires that $\dom(W') \supseteq
-\dom(W)$ and $\forall r \in \dom(W) \ldotp W'(r) \futurewk W(r)$. That is, in a
-public future world, new regions may have been allocated, and existing regions
-may have evolved according to the public future region relation (defined below).
-The \emph{private future world} relation $W' \futurestr W$ is defined similarly,
-using a private future region relation. The \emph{public future} region relation is the simplest. It satisfies
-% \dominique{is defined by?} 
+The future world relations model how memory may evolve over time.
+We have a \emph{public} and a \emph{private} future world relation that respectively what changes any capability can rely on and what changes only temporary regions can rely on.
+As temporary capabilities fall within the category of all capabilities, the public future relation is subsumed in the private future relation.
+
+The public future world $W' \futurewk W$ requires that $\dom(W') \supseteq \dom(W)$ and $\forall r \in \dom(W) \ldotp W'(r) \futurewk W(r)$.
+That is in a public future world, new regions may have been allocated, and existing regions may have evolved according to the public future region relation (defined below).
+The private future world relation $W' \futurestr W$ is defined similarly, using a private future region relation.
+The public future region relation is the simplest.
+It satisfies
+% \dominique{is defined by?}
 % \lau{As I have understood it, the relation from the theorem defines the future world relations and indirectly the future region relations. It can be shown that these will have the properties mentioned below}
 the following properties:
 \begin{mathpar}
@@ -2113,11 +2104,10 @@ the following properties:
   \inferrule{ }
   { \revoked \futurewk \revoked }
 \end{mathpar}
-Both temporary and permanent regions are only allowed to transition according to
-the public part of their transition system. Additionally, revoked regions must
-either remain revoked or be replaced by a temporary region. This means that the
-public future world relations allows us to reinstate a region that has been revoked
-earlier. The \emph{private future region} relation satisfies:
+In public future worlds, both temporary and permanent regions are only allowed to transition according to the public part of their transition system.
+Additionally, revoked regions must either remain revoked or be replaced by a temporary region.
+This means that the public future world relations allows us to reinstate a region that has been revoked earlier.
+The private future region relation satisfies:
 \begin{mathpar}
   \inferrule{ (s,s') \in \phi} 
   {  (v,s',\phi_\pub,\phi,H) \futurestr (v,s,\phi_\pub,\phi,H) }
@@ -2128,11 +2118,11 @@ earlier. The \emph{private future region} relation satisfies:
   \inferrule{ r \in \Regions }
   { r \futurestr \revoked }
 \end{mathpar}
-Here, revocation of temporary regions is allowed. In fact, temporary regions can
-be replaced by an arbitrary other region, not just the special $\revoked$.
-Conversely, $\revoked$ regions may also be replaced by any other region. On
-the other hand, permanent regions cannot be masked away. They are only allowed
-to transition according to the private part of the transition system.
+Here, revocation of temporary regions is allowed.
+In fact, temporary regions can be replaced by an arbitrary region not just the special $\revoked$.
+Conversely, $\revoked$ regions may also be replaced by any other region.
+On the other hand, permanent regions cannot be masked away.
+They are only allowed to transition according to the private part of the transition system.
 
 \begin{toplas}
   In order to be able to solve the recursive domain equation, we want the future world relations to be extensional.
@@ -2140,13 +2130,11 @@ to transition according to the private part of the transition system.
   This is the reason we use masks rather than deleting the regions altogether.
   It does not, however, matter what kind of region is used as a mask; it is the region name we must retain.
   This is why we allow revoked regions to be replaced by other regions in the two future world relations.
-  This may seem unnecessary as the future world relation allows new regions to be added, but in private future worlds, for technical reasons, we need to be able to reinstate old regions with the same region names as they had in a past world.
+  This may seem unnecessary as the future world relation allows new regions to be added. However, for technical reasons in private future worlds, we need to be able to reinstate old regions with the same region names as they had in a past world.
   Further, we do not want public future worlds to be able to prevent reinstation in private future worlds.
-  Private future worlds cannot revoke permanent regions, so we cannot allow public future worlds to us permanent regions as a mask for a revoked region.
+  Private future worlds cannot revoke permanent regions, so we cannot allow public future worlds to use permanent regions as masks for revoked regions.
 \end{toplas}
 
-Notice that the public future region relation is a subset of the private future
-region relation.
 %domi: the below seems hard to understand at this moment.
 % The public future region relation only allows revoked regions
 % to be reused as temporary region. This means that it is always possible to turn
