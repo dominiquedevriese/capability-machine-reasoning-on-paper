@@ -416,6 +416,9 @@
 % Macros
 \newcommand{\scall}[3]{\mathtt{scall} \; #1([#2],[#3])}
 
+% Text
+\newcommand{\tpwl}{permit-write-local standard region}
+\newcommand{\tnwl}{no-write-local standard region}
 
 \newcommand{\isdef}{\mathrel{\overset{\makebox[0pt]{\mbox{\normalfont\tiny\sffamily def}}}{=}}}
 \newcommand\bnfdef{\mathrel{::=}}
@@ -2493,46 +2496,44 @@ This is captured by the $\readCond{}$-condition.
 More precisely, the condition requires the memory addressed by the capability to actually be governed by some region $W(r)$.
 This region should at least require all the memories accepted by the state interpretation function to contain safe words but stricter requirements may be imposed on the memories.
 This is expressed in terms of an upper bound on the possibly permitted memories defined in terms of a so called ``standard region''.
-In this case, the standard region is $\iota^\pwl_{[\start,\addrend]}$ (defined in \figurename~\ref{fig:std-reg}). 
-The standard region only accept memories with address range $[\start,\addrend]$.
-More importantly, the standard region's state interpretation function only accepts memory segments that only contain safe words.
-The relation the actual region $W(r)$ and the upper bound $\iota^\pwl_{[\start,\addrend]}$ is $\iota^\pwl_{[\start,\addrend]}$ (defined in Appendix~\ref{app:logical-relation}).
+In this case, it is a \tpwl{} $\iota^\pwl_{[\start,\addrend]}$ (defined in \figurename~\ref{fig:std-reg}). 
+The \tpwl{} only accept memories with address range $[\start,\addrend]$.
+More importantly, the \tpwl{}'s state interpretation function only accepts memory segments that only contain safe words.
+The relation between the actual region in the world and the upper bound is $W(r) \nsubsim[n] \iota^\pwl_{[\start,\addrend]}$ (defined in Appendix~\ref{app:logical-relation}).
 Essentially, the relation requires the two regions state transition systems to be the same. Further in the current state of region $W(r)$ and in any world, the state interpretation function should only allow memories that are also allowed in the standard region.
 
-The read condition also takes the locality of a read capability into account because, generally speaking, generally speaking, global capabilities should only depend on permanent regions.
-In $\readCond{}$, this is manifested by $\var{localityReg}(\gl,W)$ which projects out all active (non-revoked) regions when the locality $\gl$ is local, but only the permanent regions when $\gl$ is global.
+The locality of capabilities play a role in whether or not they are safe.
+Generally speaking, global capabilities should only depend on permanent regions.
+This is expressed in $\readCond{}$ with $\var{localityReg}(\gl,W)$ which projects out all the regions the capability can depend on based on its locality.
+Specifically, if the capability is local, then all active regions (non-revoked) are project.
+On the other hand, if the capability is global, then only the permanent regions are projected.
 
-For a capability with write permission, $\writeCond{}$ must be satisfied for the
-capability's range of authority. An adversary can use such a capability to write
-any word they can get a hold of, and we can safely assume that they can only get
-a hold of safe words, so the region governing the relevant memory must allow any
-safe word to be written there. In order to make the logical relation as liberal
-as possible, we make this a lower bound of what the region may allow. 
-% LB: omitted the following for brevity:
-% From another point of view, this lower bound is also an upper bound on the amount of
-% trust that can be placed in the contents of memory that an adversary has been
-% given write access to. 
-For write capabilities, we also have to take into account
-the two flavours of write permissions: write and write-local. In the case of
-write-local capabilities, the region needs to allow (at least) any safe word to
-be written, but in the case of write capabilities, the capability cannot be used
-to write local capabilities, so the region only needs to allow safe non-local
-values. In the write condition, this is handled by parameterizing it with a
-region. For the write-local capabilities the write condition is applied with the
-standard region $\iota^\pwl_{[\start,\addrend]}$ that we described previously. For
-the write capabilities we use a different standard region
-$\iota^\nwl_{[\start,\addrend]}$ which requires that the words in
-$[\start,\addrend]$ are non-local and safe. As before, we use
-$\var{localityReg}$ to pick an appropriate region based on the capability's
-locality. Finally, there is a technical requirement that the region must be
-\emph{address-stratified}. Intuitively, this means that if a region accepts two
-memory segments, then it must also accept every memory segment ``in between'',
-that is every memory segment where each address contains a value from one of the
-two accepted memory segments. An interesting property of the write condition is
-that it prohibits global write-local capabilities which, as discussed in
-\sectionname~\ref{sec:stack-and-return-pointer}, is necessary for any safe use of
-local capabilities.
-The standard region $\iota^\nwl_{[\start,\addrend]}$ is defined in \figurename~\ref{fig:std-reg}.
+Capabilities with write permission can be used to write to memory, so to define when a capability with write permission is safe we ask ourselves what an adversary should be allowed to do with it.
+An adversary should at least be able to write safe words to memory.
+Safe words cannot be used to break memory invariants, so we will permit any safe word to be written.
+A capability with write permission\footnote{On the capability machine we consider, write permission always comes with read permission, so we could have made a stricter condition for write capabilities.}
+only allows you to write to memory not read from it, so we can allow anything to be written to memory as long as it cannot be read back and used to break memory protocols.
+For this reason, the condition on capabilities with write-permission is defined as a lower bound on what can be written where the lower bound is ``any safe word''.
+
+The condition on write capabilities is complicated by the fact that we have two flavours of write permission: write and write-local.
+A write-local capability can be used to write both local and global capabilities, so it is (at least) allowed to write any safe capabilities.
+Write capabilities, on the other hand, cannot write local capabilities, so we set the lower-bound as non-local safe words.
+
+The requirements on write-capabilities are captured by the $\writeCond{}$-condition, and it is defined in a similar fashion to the $\readCond{}$-condition.
+The regions the write-capability may depend on are projected from the world with the $\var{localityReg}$-function, and $\nsupsim[n-1]$ is used to relate the actual region to the lower bound.
+We need a different lower-bound depending on whether the permission of the capability is write or write-local, so $\writeCond{}$ is parameterized with the region it actually uses.
+If the capability has write-local permission, then we use the \tpwl{}.
+If capability only has write permission, then we use a \tnwl{} $\iota^\nwl_{[\start,\addrend]}$ (defined in \figurename~\ref{fig:std-reg}).
+In addition to the requirements of a \tpwl, the \tnwl{} requires all words in the accepted memory segments to be non-local.
+
+Finally, there is a technical requirement that the region must be \emph{address-stratified}.
+Intuitively, this means that if a region accepts two memory segments, then it must also accept every memory segment ``in between'' in the sense that it should be possible to come from one memory segment to the other.
+Our capability machine can only update one memory address at a time, so it should be accepted to construct a memory that is on its way to become the one we want to accept.
+Specifically, if two memory segments are accepted by a region, then the region must also accept every memory segment where each address contains a value from one of the two accepted memory segments.
+
+Due to the permission combinations on the capability machine we consider, a $\writeCond{}$ always comes with a $\readCond{}$ which creates a somewhat tight bound for the possible regions that make a capability safe.
+Further, we could have made the $\writeCond{}$ based on the fact that a writer permission always comes with a read permission, but we opted to make the logical relation as general as possible, so it can be reused in a setting with a richer permission hierarchy.
+An interesting property of the write condition is that it prohibits global write-local capabilities which, as discussed in \sectionname~\ref{sec:stack-and-return-pointer}, is necessary for any safe use of local capabilities.
 
 The conditions $\entryCond{}$ and $\execCond{}$ are very similar. Both require
 that the capability can be safely jumped to. However, executable capabilities
