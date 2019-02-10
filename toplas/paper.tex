@@ -2676,46 +2676,75 @@ The relation between Theorem~\ref{thm:ftlr} and local-state encapsulation and co
 \begin{toplas}
   \section{Malloc}
   \label{sec:malloc}
-  In the examples we present in \sectionname~\ref{sec:examples}, we will assume
-  the existence of a trusted malloc routine so that both the trusted code and
-  the adversary can allocate new memory. Malloc is considered part of the
-  trusted computing base, as mentioned in
-  \sectionname~\ref{sec:capab-mach-with}. This is unavoidable: if we cannot
-  trust malloc, then we cannot use the memory it allocates as we have no idea
-  whether it is aliased by some untrusted program.
+  In the examples presented in \sectionname~\ref{sec:examples}, we will assume the existence of a trusted malloc routine, so that both the trusted code and the adversary are able to allocate new memory.
+  Malloc is considered part of the trusted computing base as mentioned in \sectionname~\ref{sec:capab-mach-with}.
+  This is unavoidable: if we cannot trust malloc, then we cannot use the memory it allocates as we have no idea whether it is aliased by some untrusted program.
 
-  Our semantic model is not specific to a particular implementation of malloc,
-  so rather than providing the implementation, we provide a specification that
-  malloc must satisfy. The specification expresses standard expectations of how
-  malloc should behave, but making it realistic requires using some of the
-  technical machinery from the logical relation. As such, this section is a bit
-  technical and can safely be skipped on first read. The malloc specification is
-  presented in \figurename~\ref{fig:malloc-spec}, and in the following, we will
-  connect the description of the specification by referring to the item
-  described.
+  Our semantic model is not specific to a particular implementation of malloc, so rather than providing the implementation we provide a malloc specification.
+  The specification expresses standard expectations about the behaviour of malloc, but making the specification realistic requires some of the technical machinery from the logical relation.
+  As such, this section is a bit technical and can safely be skipped on first read.
+  Definition~\ref{spec:malloc} is the malloc specification.
+  Following the definition, we provide an informal description of the definition with references to each of the items in the definition.
 
-We require a global capability for
-invoking malloc (because if the capability were local, then a program with
-access to malloc would have to give up this access when invoking untrusted
-code, \ref{item:malloc-spec:eg}). The capability is assumed to have enter
-permission (\ref{item:malloc-spec:eg}), so that malloc can
-protect its internal state even when the capability is shared with untrusted
-code.
+\begin{definition}[Malloc Specification]
+  \label{spec:malloc}
+  $c_\malloc$ satisfies the specification for malloc iff the following
+  conditions hold:
+  \begin{enumerate}
+  \item \label{item:malloc-spec:eg} $c_\malloc = ((\entry,\glob),\_,\_,\_)$
+  \item \label{item:malloc-spec:reg} There exists a $\iota_{\malloc,0}$ such that
+    \begin{enumerate}
+    \item \label{item:malloc-spec:perm} $\iota_{\malloc,0}.v = \perma$
+    \item \label{item:malloc-spec:independent} For all $\iota' \futurestr \iota_{\malloc,0}, W,i$ with
+      $W(i)=\iota'$, we have that
+      \begin{equation*}
+        \iota'.H (\iota'.s) (\xi^{-1}(W)) = \iota'.H (\iota'.s) (\xi^{-1}([i \mapsto W(i)]))
+      \end{equation*}
+    \item \label{item:malloc-spec:correct-exec} For all $\Phi \in \ExecConfs$, $\ms_{\var{footprint}}, \hsframe \in
+      \HeapSegments$, $i, n, \size \in \nats$, $w_{\var{ret}} \in \Words$,
+      $\iota_\malloc \futurestr \iota_{\malloc,0}$, we have that
+      \[
+        \begin{array}{l}
+          \text{If }
+          \memheap = \ms_{\var{footprint}} \uplus \hsframe \land \heapSat[\ms_{\var{footprint}}]{n}{[i \mapsto \iota_\malloc]} \land{} \\
+          \quad\memreg(r_1) = \size \land \size \geq 0 \land  \memreg(r_0) = w_{\var{ret}} \land{} \\
+          \quad \memreg(\pcreg) = \updatePcPerm{c_\malloc} \\ %and this needs to change with ABI.
+          \text{Then, } \\
+          \quad \exists \Phi' \in \ExecConfs \ldotp \exists \ms_{\var{footprint}}', \ms_{\var{alloc}} \in \HeapSegments\ldotp\\
+          \qquad \exists j \in \nats \ldotp j > 0 \land \exists b',e'\in \Addrs \ldotp \exists \iota_\malloc' \in \Regions \ldotp \\
+          \qquad \quad \Phi \step[j] \Phi' \land{} \\
+          \qquad \quad \memheap[\Phi']=\ms_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land{}\\
+          \qquad \quad \iota_{\malloc}' \futurewk \iota_\malloc \land{} \\
+          \qquad \quad \heapSat[\ms_{\var{footprint}}']{n-j}{[i \mapsto \iota_\malloc']} \land{} \\
+          \qquad \quad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land{} \\
+          \qquad \quad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{w_{\var{ret}}}}\update{r_1}{((\rwx,\glob),b',e',b')} \land{} \\
+          \qquad \quad \size - 1 = e'-b'
+        \end{array}
+      \]
+    \item \label{item:malloc-spec:fail} For all $\Phi \in \ExecConfs$,
+      \[
+        \begin{array}{l}
+          \text{If } (\memreg(r_1) \notin \ints \vee \memreg(r_1) < 0) \land
+          \memreg(\pcreg) = \updatePcPerm{c_\malloc} \\
+          \text{Then } \exists j \in \nats \ldotp \Phi \step[j] \failed
+        \end{array}
+      \]
+    \end{enumerate}
+  \end{enumerate}
+\end{definition}
 
-In addition to these syntactic requirements, we also specify standard
-expectations for how malloc behaves. Intuitively, we require that when malloc is
-invoked with a length argument, then it will return a capability for a fresh
-piece of memory of that size. It should be fresh in the sense that malloc has
-not already given out a capability for any part of that memory before and will
-not do so in the future. Also, when invoked with a nonsensical length argument
-such as a negative integer or a capability, malloc should simply fail. However,
-formulating these requirements is harder than one might expect. The problem is
-that a realistic implementation of malloc needs to rely on internal state that
-changes after every invocation and relies on invariants on that state. We can
-only expect that malloc behaves according to its specification, if its internal
-state satisfies the current state of the invariants in an executing system. To
-express this, we will use the semantic model defined in
-Section~\ref{sec:logical-relation}.
+
+  We require a global capability for invoking malloc (because if the capability were local, then a program with access to malloc would have to give up this access when invoking untrusted code, \ref{item:malloc-spec:eg}).
+  The capability is assumed to have enter permission (\ref{item:malloc-spec:eg}), so malloc can protect its internal state even when the capability is shared with untrusted code.
+
+  In addition to these syntactic requirements, we also specify standard behavioural expectations of malloc.
+  Intuitively, we require that when malloc is invoked with a length argument, then it will return a capability for a fresh piece of memory of that size.
+  It should be fresh in the sense that malloc has not already allocated any of that memory and will not do so in the future.
+  Also, when invoked with a nonsensical length argument such as a negative integer or a capability, malloc should simply fail.
+  However, formulating these requirements is harder than one might expect.
+  The problem is that a realistic implementation of malloc needs to rely on internal state that changes after every invocation and relies on invariants on that state.
+  We can only expect that malloc behaves according to its specification if its internal state satisfies the current state of the invariants in an executing system.
+  We express this in terms of the semantic model from \sectionname~\ref{sec:logical-relation}.
 
 To allow malloc implementations to rely on internal state and invariants for
 that state, we assume an initial region for malloc (\ref{item:malloc-spec:reg}). The region is assumed to be
@@ -2729,15 +2758,15 @@ presence, \ref{item:malloc-spec:perm}).
 % priv future means that malloc should not depend on local capabilities?
 Furthermore, we want to express that malloc does not depend on any other memory
 than its own internal state. This is expressed by a restriction on the malloc
-region's state interpretation function, which (as explained in
+region's state interpretation function which (as explained in
 \sectionname~\ref{subsec:worlds}) defines what memory segments it permits in a
 given world. We require that the accepted memory segments only depend on the
-presence of the malloc region itself, i.e.\ that in any world, the same memory
+presence of the malloc region itself, i.e.\ in any world the same memory
 segments are accepted if we remove all regions except the malloc region. This
 property should continue to hold throughout execution, so it must hold true for
 any private future region of the initial malloc region (\ref{item:malloc-spec:independent}).
 
-The malloc specification then dictates what malloc should do when invoked in a
+The malloc specification also dictates what malloc should do when invoked in a
 memory with its internal state valid according to the malloc region (some future
 evolution of the initial malloc region). If malloc is invoked with an invalid
 length argument (that is, a negative integer or a capability), then we simply
@@ -2758,69 +2787,17 @@ of the register-file unchanged after the call. This allows the caller to keep
 private capabilities in the register file, without having to protect them by
 storing them in a private stack frame.
 
-\begin{figure}[htb]
-  \centering
-  \begin{definition}[Malloc Specification]
-    \label{spec:malloc}
-    $c_\malloc$ satisfies the specification for malloc iff the following
-    conditions hold:
-    \begin{enumerate}
-    \item \label{item:malloc-spec:eg} $c_\malloc = ((\entry,\glob),\_,\_,\_)$
-    \item \label{item:malloc-spec:reg} There exists a $\iota_{\malloc,0}$ such that
-      \begin{enumerate}
-      \item \label{item:malloc-spec:perm} $\iota_{\malloc,0}.v = \perma$
-      \item \label{item:malloc-spec:independent} For all $\iota' \futurestr \iota_{\malloc,0}, W,i$ with
-        $W(i)=\iota'$, we have that
-        \begin{equation*}
-          \iota'.H (\iota'.s) (\xi^{-1}(W)) = \iota'.H (\iota'.s) (\xi^{-1}([i \mapsto W(i)]))
-        \end{equation*}
-      \item \label{item:malloc-spec:correct-exec} For all $\Phi \in \ExecConfs$, $\ms_{\var{footprint}}, \hsframe \in
-        \HeapSegments$, $i, n, \size \in \nats$, $w_{\var{ret}} \in \Words$,
-        $\iota_\malloc \futurestr \iota_{\malloc,0}$, we have that
-        \[
-          \begin{array}{l}
-            \text{If }
-            \memheap = \ms_{\var{footprint}} \uplus \hsframe \land \heapSat[\ms_{\var{footprint}}]{n}{[i \mapsto \iota_\malloc]} \land{} \\
-            \quad\memreg(r_1) = \size \land \size \geq 0 \land  \memreg(r_0) = w_{\var{ret}} \land{} \\
-            \quad \memreg(\pcreg) = \updatePcPerm{c_\malloc} \\ %and this needs to change with ABI.
-            \text{Then, } \\
-            \quad \exists \Phi' \in \ExecConfs \ldotp \exists \ms_{\var{footprint}}', \ms_{\var{alloc}} \in \HeapSegments\ldotp\\
-            \qquad \exists j \in \nats \ldotp j > 0 \land \exists b',e'\in \Addrs \ldotp \exists \iota_\malloc' \in \Regions \ldotp \\
-            \qquad \quad \Phi \step[j] \Phi' \land{} \\
-            \qquad \quad \memheap[\Phi']=\ms_{\var{footprint}}' \uplus \hs_{\var{alloc}} \uplus \hsframe \land{}\\
-            \qquad \quad \iota_{\malloc}' \futurewk \iota_\malloc \land{} \\
-            \qquad \quad \heapSat[\ms_{\var{footprint}}']{n-j}{[i \mapsto \iota_\malloc']} \land{} \\
-            \qquad \quad \dom(\hs_{\var{alloc}}) = [b',e'] \land \forall a \in [b',e']\ldotp \hs_{\var{alloc}}(a) = 0  \land{} \\
-            \qquad \quad \memreg[\Phi'] = \memreg[\Phi]\update{\pcreg}{\updatePcPerm{w_{\var{ret}}}}\update{r_1}{((\rwx,\glob),b',e',b')} \land{} \\
-            \qquad \quad \size - 1 = e'-b'
-          \end{array}
-        \]
-      \item \label{item:malloc-spec:fail} For all $\Phi \in \ExecConfs$,
-        \[
-          \begin{array}{l}
-            \text{If } (\memreg(r_1) \notin \ints \vee \memreg(r_1) < 0) \land
-            \memreg(\pcreg) = \updatePcPerm{c_\malloc} \\
-            \text{Then } \exists j \in \nats \ldotp \Phi \step[j] \failed
-          \end{array}
-        \]
-      \end{enumerate}
-    \end{enumerate}
-  \end{definition}
-  
-  \caption{The specification of malloc.}
-  \label{fig:malloc-spec}
-\end{figure}
 As described previously, the specification of malloc ensures that malloc has no
-capabilities pointing \emph{out} of malloc. It does not, however, say anything about
-capabilities that point \emph{in} to malloc. We obviously cannot
-allow this if we want to trust malloc. We have chosen to keep the malloc
-specification simple and let this assumption be in the lemmas that use malloc.
-It is sufficient for these lemmas to require that there are no outside
-capabilities for malloc in the initial configuration as capabilities cannot
-appear out of thin air and the malloc specification makes sure that capabilities
-are not leaked.
+capabilities pointing \textit{out} of malloc. It does not, however, say anything
+about capabilities that point \textit{in} to malloc. If we want to be able to
+trust malloc, we obviously cannot allow arbitrary capabilities to point in to
+it. We have chosen to keep the malloc specification simple and let this
+assumption be in the lemmas that use malloc. It is sufficient for these lemmas
+to require that there are no outside capabilities for malloc in the initial
+configuration as capabilities cannot appear out of thin air, and the malloc
+specification makes sure that capabilities are not leaked.
 
-Malloc should not just be available to trusted programs, but also to possibly
+Malloc should not just be available to trusted programs but also to possibly
 malicious programs. This is safe as it follows from the specification that the malloc
 capability is always safe in a world with the malloc region:
 \begin{lemma}[Malloc is safe to pass to adversary]
