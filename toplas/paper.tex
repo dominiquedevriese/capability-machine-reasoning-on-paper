@@ -2832,36 +2832,39 @@ With the calling convention and logical relation defined, we would like to show 
 the correctness of a series of examples that rely
 on well-bracketedness and local-state encapsulation and use the calling
 convention to enforce these properties. However, the programs that
-run on our capability machine are assembly programs and even program examples that would
+run on our capability machine are assembly programs. Program examples that would
 be small in a high-level language become big and unintelligible at this
 low level. Thus to make our program examples intelligible, we introduce a
 series of low-level abstractions in the form of macros.
 We define a number of reusable macros capturing the calling convention as well
-as other conveniences. The macros that utilise the stack assume that it is
+as other conveniences. The macros that utilize the stack assume that it is
 available in register $r_\stk$.
 \itoplassug{Lau, suggestion: should we mention temporary registers? They are
   used in the macros, but it seems like a minor technical detail.}
 
 The macro \texttt{scall
-    $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)} captures
-those parts of the calling convention related to actually transferring control
-to some adversarial code. Specifically, it pushes the contents of the private
-registers, $\overline{r_{\var{priv}}}$, to the stack. Then it pushes the
-``restoration'' code to the stack. The restoration code will be executed as the
-first thing upon return, and restores the stack pointer and the old program
-counter. After the restoration code is pushed to the stack, a copy of the pc is
-pushed to the stack after it has been adjusted to point to the first instruction
-after the jump. From the stack pointer, a protected return pointer is created by
-adjusting it to point to the return code and encapsulating it by restricting its
-permission to $\entry$. Next, the stack pointer is restricted to the unused
-part, and the unused part of the stack is cleared (as discussed in
-Section~\ref{sec:stack-and-return-pointer}). Finally, the non-argument registers
-are cleared and we jump to $r$. Upon return after the restoration code has been
-executed, the restoration code is popped from the stack and the private words we
-pushed to the stack before the call are popped to the private registers. The
+  $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)} captures the
+parts of the calling convention related to actually transferring control to
+adversarial code. Specifically, it pushes the contents of the private registers,
+$\overline{r_{\var{priv}}}$, to the stack and pushes the ``restoration'' code to
+the stack. The restoration code is executed as the first thing upon return; it
+restores the stack pointer and the old program counter. After the restoration
+code is pushed to the stack, \texttt{scall
+  $r$($\overline{r_{\var{args}}}$,$\overline{r_{\var{priv}}}$)} adjusts the pc
+to point to the first instruction after the jump and pushes it to the stack. The
+\texttt{scall}macro constructs a protected return pointer from a stack pointer by
+adjusting it to point to the first instruction of the return code and
+encapsulating it by restricting its permission to $\entry$. Next, the \texttt{scall}
+macro reduces the range of authority of the stack pointer to the unused part of
+the stack and clears it(as discussed in
+Section~\ref{sec:stack-and-return-pointer}). Finally, the \texttt{scall} macro clears
+non-argument registers and jumps to $r$. Upon return after the restoration code
+on the stack has been executed, the \texttt{scall} macro pops the restoration code from
+the stack and restores the private state by popping it from the stack to the
+appropriate registers. \figurename~\ref{fig:scall-impl} displays the
 implementation of \texttt{scall} and the restoration code used by
-\texttt{scall} are presented in \figurename~\ref{fig:scall-impl}. The implementation of \texttt{scall} uses
-some of the macros we present next.
+\texttt{scall}. The implementation of \texttt{scall} uses some of the macros we
+present next.
 
 \begin{figure}[htb]
   \begin{toplas}
@@ -2910,7 +2913,7 @@ return:
 \end{lstlisting}      
     \end{minipage}
     \begin{minipage}[t]{.29\linewidth}
-\begin{lstlisting}[title=\footnotesize{The restoration code used in \texttt{scall}.}, captionpos=b,xleftmargin=2em,frame=single,framexleftmargin=1.5em]
+\begin{lstlisting}[title=\footnotesize{The restoration code used in \texttt{scall}.}, captionpos=b,frame=single,numbers=none]
  $i_1$ = move r_t1 pc
  $i_2$ = lea r_t1 $\var{ofc}_\var{stk}$
  $i_3$ = load r_stk r_t1
@@ -2930,7 +2933,7 @@ return:
   \end{toplas}
 \end{figure}
 
-The macro \texttt{mclear $r$} clears all the memory the
+The macro \texttt{mclear $r$} clears all the memory addresses that the
 capability in register $r$ has authority over. It is used by \texttt{scall} to
 clear the unused part of the stack before control is transferred. It should also
 be used to clear the stack before returning to adversarial code. Similarly, the
@@ -2941,8 +2944,8 @@ returning to adversarial code.
 The macros \texttt{prepstack $r$} and \texttt{reqglob
     $r$} are the last macros related to the calling convention. The former,
 \texttt{prepstack} should be used when one receives a stack from an unknown
-source. The \texttt{prepstack} macro first ensures the stack has permission
-read/write-local/execute, and then it adjusts the stack capability, so it
+source. The \texttt{prepstack} macro first ensures the stack capability has permission
+read/write-local/execute. Then, it adjusts the stack capability, so it
 follows the convention for the stack\footnote{The stack capability should always
 point to the topmost word on the stack. A stack received from an unknown source
 can be treated as empty, so the stack capability should point just outside its
@@ -2953,15 +2956,14 @@ stack pointer.
 
 The remaining macros are not directly related to the calling convention, but
 they help making the examples in \sectionname~\ref{sec:examples} intelligible.
-The macros \texttt{push $r$} and \texttt{pop $r$}
-add and remove elements from the stack. The macro \texttt{fetch
-    $r$ $\var{name}$} fetches the capability related to $\var{name}$ from the
-linking table and stores it in register $r$. The macro
-\texttt{malloc $r$ $n$} invokes malloc with size argument $n$.
-The \texttt{malloc} macro assumes that a capability for malloc resides in the
-linking table and is basically a fetch of the malloc capability followed by a
-setup of a return pointer. Finally, the macro \texttt{crtcls
-    $\overline{(x_i,r_i)}$ $r$} allocates a closure where $r$ points to the
+The macros \texttt{push $r$} and \texttt{pop $r$} respectively add and remove
+elements from the stack. The macro \texttt{fetch $r$ $\var{name}$} fetches the
+capability related to $\var{name}$ from the linking table and stores it in
+register $r$. The macro \texttt{malloc $r$ $n$} invokes malloc with size
+argument $n$. The \texttt{malloc} macro assumes that a capability for malloc
+resides in the linking table and is basically a fetch of the malloc capability
+followed by a setup of a return pointer. Finally, the macro \texttt{crtcls
+  $\overline{(x_i,r_i)}$ $r$} allocates a closure where $r$ points to the
 closure's code and a new environment is allocated (using malloc) and the
 contents of $\overline{r_i}$ are stored in the environment. In the code referred
 to by $r$, an implicit load from the environment happens when an instruction
@@ -2972,7 +2974,7 @@ The Appendix contains the implementation of all the macros used in
 detailed descriptions of all the macros as well as all implementations.
 %\itoplassug{Suggestion: Add the call implementation (and possibly other macros?) in the above?}
 We stress that the macros correspond to series of instructions as seen in
-\figurename~\ref{fig:scall-impl}, and that they
+\figurename~\ref{fig:scall-impl}; the macros
 are introduced for intelligibility. The examples of
 \sectionname~\ref{sec:examples}, the program examples are stated using the
 macros, but the proofs work on the expanded macros.
@@ -3891,7 +3893,7 @@ potentially large region of memory must be cleared.
 
 First, contrary to what we explained before, we actually suspect that this overhead can be avoided in one of the two cases: when returning to the adversary.
 In that case, we now think it would suffice to clear only the (much smaller) part of the stack used by the trusted code itself.
-To understand this, it is useful to take another look at the illustrations in Figure~\ref{fig:ret-adv} related to this case.
+To understand this, it is useful to take another look at the illustrations in Figure~\ref{fig:ret-adv2} related to this case.
 If we do not clear the stack upon return (as illustrated in Figure~\ref{fig:illu-clear-all}), then the adversary might have used that stack to store local capabilities they received in a previous invocation (see Figure~\ref{fig:illu-adv-data}).
 In other words, the stack clearing is necessary for revoking those local capabilities: the stack pointer and return pointer for the invocation illustrated in Figure~\ref{fig:illu-adv-data}.
 While this approach is safe, we now suspect that we could do without the revocation in this case.
