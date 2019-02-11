@@ -600,7 +600,7 @@ in particular. More specifically, we make the following contributions:
   %domi: don't mention this here. I think some CSF reviewers misunderstood that we were claiming this as a strength of the approach
   It supports higher-order cross-component calls (e.g., cross-component function
   pointers) and can be efficient assuming only one additional piece of processor
-  support (wrt CHERI): an efficient instruction for clearing a range of memory.
+  support (w.r.t. CHERI): an efficient instruction for clearing a range of memory.
 \item We present a novel step-indexed Kripke logical relation for reasoning
   about programs on the capability machine. It is an untyped logical relation,
   inspired by previous work on object capabilities \citep{Devriese:2016ObjCap}.
@@ -2992,22 +2992,20 @@ macros, but the proofs work on the expanded macros.
 %     \end{itemize}
 %   \end{itemize}
 % }
-There are many details to get right when programming in assembly. These details
-carry over to proofs about assembly programs, so many of the proofs in the next
-section about example programs are a bit cumbersome. It is especially annoying
-when the same line of reasoning is applied in multiple places. To mitigate this,
-we have defined a number of lemmas that capture common reasoning patterns in
-these proofs. We present the most important such lemmas in this section, to give
-the reader an idea of how they work.
+There are many details to get right when programming in assembly.
+These details carry over to proofs about assembly programs, so many of the proofs in \sectionname~\ref{sec:examples} about example programs are a bit cumbersome.
+It is especially annoying when the same line of reasoning is applied in multiple places.
+To mitigate this, we have define a number of lemmas that capture common reasoning patterns in these proofs.
+In this section, we present the most central lemmas used to reason about assembly programs.
 
 % Anti-reduction lemma
 Our capability machine only allows the final memory of an execution to be observed, so naturally the correctness lemmas we prove in \sectionname~\ref{sec:examples} are statements about the memory in the halted configuration.
-In order to prove something about some part of the final memory, we establish an invariant for it as a region in a world and show that the initial configuration is in the $\observations$-relation w.r.t.\ that world.
-The invariants we are interested in must be permanent regions so that they are not revoked during execution.
+In order to prove a property about part of the final memory, we create a world with a region the ensures the desired property and show that the initial configuration is in the $\observations$-relation w.r.t.\ that world.
+The region that ensures the property must be permanent, so it is not revoked during execution.
 The $\observations$-relation says that if the initial configuration halts successfully, then the memory in the halting state must still respect a private future world of the initial world.
 It is, however, bothersome and error prone to try to argue about the entire execution in one go.
-Instead we want to reason modularly, in the sense that we only want to reason about parts of the execution at a time.
-To this end, we prove an anti-reduction lemma that essentially says that if we can show that an initial configuration, $\Phi$, steps to a configuration $\Phi'$ and that $\Phi'$ is in the $\observations$-relation, then $\Phi$ is also in the observation relation.
+Instead we want to reason modularly in the sense that we only want to reason about parts of the execution at a time.
+To this end, we prove an anti-reduction lemma that essentially says that if we can show that an initial configuration $\Phi$ steps to a configuration $\Phi'$ and $\Phi'$ is in the $\observations$-relation, then $\Phi$ must also be in the observation relation.
 \begin{lemma}[Anti-reduction for $\observations$]
 \label{lem:anti-red-obs}
   \begin{align*}
@@ -3020,36 +3018,26 @@ To this end, we prove an anti-reduction lemma that essentially says that if we c
 \end{lemma}
 
 % FTLR
-The anti-reduction works when we reason about the execution of known code,
-because we can execute it. When we want to reason about unknown code, the
-anti-reduction lemma does not apply because we do not know what instructions are
-being executed. This is where the FTLR (Theorem~\ref{thm:ftlr}) comes into play.
-As a reminder, the FTLR says that if a capability only has access to safe values
-with respect to a world, then it is safe to use it for execution in the same
-world. The unknown code we consider will be assumed to only have access to safe
-values, which typically means that we assume it has access to a linking table
-with a malloc capability and otherwise consists of instructions. This allows us
-to use the FTLR seeing as malloc is a safe value (cf.
-Lemma~\ref{lem:malloc-in-vr}) and instructions are really just integers and they
-are always safe values. Here, it is important to remember that the FTLR gives us
-that the capability for the untrusted code is safe w.r.t. some world, so even
-though we described the usual assumption on the unknown code's memory, it is the
-semantic model of the memory, i.e.\ the world, that the FTLR considers. In order
-to argue that a specific configuration is safe, we need to argue that the
-configuration is safe with respect to the world. That is, we need to argue that
-the memory satisfies the world and the register-file is in the
-$\stdrr$-relation. For instance, in the case where the untrusted code assumes
-control first, we will use the FTLR to show that the capability for the unknown
-code can be used for execution. The unknown code will get access to some known,
-trusted code through a capability in the initial register-file. Because the
-capability is in the register-file, we will have to argue that it is safe which
-we do using Lemma~\ref{lem:anti-red-obs}.
+We use the anti-reduction lemma when we reason about the execution of known code.
+When we want to reason about unknown code, the anti-reduction lemma does not apply because we do not know what instructions are being executed.
+This is where the FTLR (Theorem~\ref{thm:ftlr}) comes into play.
+As a reminder, the FTLR says that if a capability only has access to safe values with respect to a world, then it is safe to use the capability for execution in the same world.
+The unknown code we consider will be assumed to only have access to safe values which typically means it has access to a linking table with a malloc capability and otherwise consists of instructions.
+These assumptions allow us to use the FTLR to reason about the unknown code as malloc is a safe value (cf.\ Lemma~\ref{lem:malloc-in-vr}) and instructions are integers; integers are always safe values.
+It is important to remember that safety is relatively to the semantic model of a memory and not the actual memory itself.
+For this reason, the assumptions we make on unknown code must be expressed as a region in a world.
+
+In order to argue that a specific configuration is safe, we need to argue that the configuration is safe with respect to the world.
+That is, we need to argue that the memory satisfies the world and the register-file is in the $\stdrr$-relation.
+For instance in the case where the untrusted code assumes control first, we will use the FTLR to show that the capability for the unknown code can be used for execution.
+The unknown code will get access to some known, trusted code through a capability in the initial register-file, so we will have to argue that the known code is safe.
+We argue about the known code with Lemma~\ref{lem:anti-red-obs}.
 
 % Many details to get right when reasoning about low-level programs.
-Another common pattern in proofs about programs on our capability machine
-concerns the use of scall. The following lemma captures the commonalities of
-reasoning about programs using scall. From another point of view, it can be seen
-as a specification for scall.
+Another common pattern in proofs about programs on our capability machine concerns the use of \texttt{scall}.
+The following lemma captures the commonalities of reasoning about programs using \texttt{scall}.
+For instance, setting up the local stack frame and constructing stack pointers and protected return pointers for the callee always amount to the same line of reasoning which is captured by the lemma.
+From another point of view, it can be seen as a specification for \texttt{scall}.
 \begin{lemma}[$\mathtt{scall}$ works]
   \label{lem:scall-works}
   For all $n \in \nats$, $\ms, \ms_\stk, \ms_\var{unused}, \ms_f \in \MemSegments$, $W
@@ -3081,14 +3069,14 @@ as a specification for scall.
     \item $\npair[n-1]{c_\stk} \in \stdvr(W')$
     \end{itemize}
 
-    then we have that $\npair[n-1]{(\reg',\ms'')} \in \observations(W')$
+    then we have $\npair[n-1]{(\reg',\ms'')} \in \observations(W')$
   \item \label{item:scall:hyp-cont} \emph{Hyp-Cont} For all $n' \in \nats$, $W''
     \in \Worlds$, $\ms'', \ms_\var{unused}''$, and $\reg' \in \Regs$, if
     \begin{itemize}
     \item $n' \leq n-2$
     \item $W'' \futurewk \revokeTemp{W}$
     \item $\memSat[n']{\ms''}{\revokeTemp{W''}}$ 
-    \item for all $r$, we have that:
+    \item for all $r$, we have:
       \begin{equation*}
         \reg'(r)
         \begin{cases}
@@ -3100,7 +3088,7 @@ as a specification for scall.
     \item $\reg' \text{ points to stack with $\ms_\stk$ used and $\ms_{\mathit{unused}}''$ unused}$
     \end{itemize}
 
-    then we have that $\npair[n']{(\reg',\ms'' \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{unused}}'')} \in \observations(W'')$
+    then we have $\npair[n']{(\reg',\ms'' \uplus \ms_f \uplus \ms_\stk \uplus \ms_{\var{unused}}'')} \in \observations(W'')$
   \end{enumerate}
   Then 
   \begin{itemize}
@@ -3111,7 +3099,26 @@ as a specification for scall.
   % words for stack pointer and return pointer and some fixed number of words for
   % the standard return instructions).
 \end{lemma}
-\begin{figure}[htb]
+\begin{toplas}
+  The \texttt{scall} lemma is stated in terms of a number of auxiliary definitions found in the appendix.
+  The region $\iota^{sta}(\gl,\ms)$ is a static region with locality $\gl$.
+  It is static in the sense that it only accepts the memory segment $\ms$ (\appendixname~\ref{app:awkward-example}).
+  The function $\revokeTemp{} : \Worlds \fun \Worlds$ yields the input world but with all the temporary regions replaced with revoked regions (\appendixname~\ref{app:logical-relation}).
+  The definition of \textit{$(\reg,\ms)$ is looking at $[i_0\dots i_n]$ followed by $c_{\var{next}}$} is visualized in \figurename~\ref{fig:def-intuition-looking-at}; it requires the capability in $\pcreg$ of $\reg$ to point to the first address of the instructions $[i_0\dots i_n]$ in $\ms$ and $c_{\var{next}}$ to point to the address immediately after the instructions.
+  The definition of \textit{$\reg$ points to stack with $\ms_\stk$ used and $\ms_{\stk,\var{unused}}$ unused} is visualized in \figurename~\ref{fig:def-intuition-points-to-stack}; it requires $\ms_\stk$ and $\ms_{\stk,\var{unused}}$ to be adjacent and continuous memory segments with the local $\rwlx$-capability in \texttt{r\_stk} of $\reg$ governing the two memory segments and pointing to the top most address of $\ms_\stk$ (\appendixname~\ref{app:programs-definitions}).
+\end{toplas}
+
+Roughly, the \texttt{scall} lemma (Lemma~\ref{lem:scall-works}) states that an invocation of scall is safe if \texttt{scall} is executed in a reasonable state (\ref{item:scall:memsat}-\ref{item:scall:stack}), the callee is safe to execute (\ref{item:scall:hyp-callee}), and returning to the code after the scall is safe (\ref{item:scall:hyp-cont}).
+
+In the common case, \texttt{scall} is used to reason about untrusted code that we only have general assumptions about.
+As explained previously, we use the FTLR (Theorem~\ref{thm:ftlr}) to argue about unknown code; this is no exception.
+That is, when we argue that we assumption~\ref{item:scall:hyp-callee} in the \texttt{scall} lemma satisfied, we use the FTLR along with the assumptions we have (e.g.\ linking table, malloc capability etc.).
+In Hyp-Callee, we assume the memory is safe, so it suffices to show that the register-file contains safe values, which amounts to showing that the arguments in the call are safe.
+
+By using Lemma~\ref{lem:scall-works} to reason about \texttt{scall}, the proofs become agnostic to the actual implementation of \texttt{scall}.
+In other words, should we change the implementation of \texttt{scall}, then we just need to prove that Lemma~\ref{lem:scall-works} holds for the new implementation in order to get that all our results still hold true.
+
+\begin{figure}[bt]
   \centering
   \begin{subfigure}{0.43\linewidth}
     \begin{tikzpicture}[scale=.5, every node={scale=.5}]
@@ -3161,7 +3168,8 @@ as a specification for scall.
       \draw[capa] (7.75,2) edge[-latex,postaction={decorate},out=180,in=0] node[right] {\tiny{$(p,\gl)$}}  (5.4,5.26);
     \end{tikzpicture}
     \caption{Visualization of ``$(\reg,\ms)$ is looking at $[i_0\dots i_n]$
-      followed by $c_{\var{next}}$''.}
+      followed by $c_{\var{next}}$''. $\reg(\pcreg)$ points to $i_0$ and
+      $c_{\var{next}}$ points to the address after $i_n$}
   \label{fig:def-intuition-looking-at}
   \end{subfigure}
   \begin{subfigure}{.12\linewidth}
@@ -3208,64 +3216,21 @@ $\phantom{te}$
 
     \end{tikzpicture}
     \caption{Visualization of ``$\reg$ points to stack with $\ms_\stk$ used and
-      $\ms_{\stk,\var{unused}}$ unused''.}
+      $\ms_{\stk,\var{unused}}$ unused''. $\reg(r_{\var{stk}})$ is a local
+      $\rwlx$-capability that points to the
+      top most address of $\ms_\stk$.}
   \label{fig:def-intuition-points-to-stack}
   \end{subfigure}
 
-  \caption{
-  }
+  \caption{}
   \label{fig:def-intuition}
 \end{figure}
-\begin{toplas}
-The \texttt{scall} lemma is stated in terms of a number of auxiliary definitions
-found in the appendix. The region $\iota^{sta}(\gl,\ms)$ is a static region with
-locality $\gl$. It is static in the sense that it only accepts the region $\ms$
-(\appendixname~\ref{app:awkward-example}).
-The function $\revokeTemp{} : \Worlds \fun \Worlds$ yields the input world but
-with all the temporary regions replaced with revoked regions (\appendixname~\ref{app:logical-relation}). The definition of \textit{$(\reg,\ms)$ is looking at $[i_0\dots i_n]$
-      followed by $c_{\var{next}}$} is visualized in
-    \figurename~\ref{fig:def-intuition-looking-at};
-    it requires the capability in $\pcreg$ of
-    $\reg$ to point to the first address of the instructions $[i_0\dots i_n]$ in
-    $\ms$ and $c_{\var{next}}$ to point to the address immediately after the
-    instructions. The definition of \textit{$\reg$ points to stack with $\ms_\stk$ used and
-      $\ms_{\stk,\var{unused}}$ unused} is visualized in
-    \figurename~\ref{fig:def-intuition-points-to-stack};
-    it requires $\ms_\stk$ and $\ms_{\stk,\var{unused}}$ to be adjacent and
-    continuous memory segments with the local $\rwlx$-capability in
-    \texttt{r\_stk} of $\reg$ governing the two memory segments and pointing to
-    the top most address of $\ms_\stk$ (\appendixname~\ref{app:programs-definitions}).
-\end{toplas}
 
-Roughly, the \texttt{scall} lemma states that an invocation of scall is safe if
-\texttt{scall} is executed in a reasonable state
-(\ref{item:scall:memsat}-\ref{item:scall:stack}), the callee is safe to execute
-(\ref{item:scall:hyp-callee}), and returning to the code after the scall is safe
-(\ref{item:scall:hyp-cont}).
 
-In the common case, \texttt{scall} is used to invoke untrusted code, and we will
-only have very general assumptions about that code, in which case we will use
-the FTLR (Theorem~\ref{thm:ftlr}) to argue
-Assumption~\ref{item:scall:hyp-callee}, using what we know about the values it
-has access to (e.g.\ linking table, malloc capability etc.). By assumption in
-Hyp-Callee, the memory is safe, so it suffices to show that the register-file
-contains safe values, which amounts to showing that the arguments in the call
-are safe.
-
-By using Lemma~\ref{lem:scall-works} to reason about \texttt{scall}, the proofs
-become agnostic to the actual implementation of \texttt{scall}. In other words,
-should we change the implementation of \texttt{scall}, then we just need to
-prove that Lemma~\ref{lem:scall-works} holds for the new implementation in order
-to gain that all our results still hold true. 
-
-Also often used is the \texttt{malloc} instruction, so we also prove
-Lemma~\ref{lem:malloc-works} to help reason about it. The structure of the
-\texttt{malloc} lemma is close to that of the \texttt{scall} lemma. It also has
-requirements on the configuration just before \texttt{malloc} is executed
-(\ref{item:malloc:looking-at}-\ref{item:malloc:malloc-sat}) as well as
-requirements on the execution afterwards (\ref{item:malloc:hyp-cont}). It does
-not have any requirements on the callee as the \texttt{malloc} specification
-defines its behavior.
+The \texttt{malloc} macro is also common in our examples, so we prove Lemma~\ref{lem:malloc-works} to help reason about it.
+The structure of the \texttt{malloc} lemma is close to that of the \texttt{scall} lemma.
+It also has requirements on the configuration just before \texttt{malloc} is executed (\ref{item:malloc:looking-at}-\ref{item:malloc:malloc-sat}) as well as requirements on the execution afterwards (\ref{item:malloc:hyp-cont}).
+It does not have any requirements on the callee as the \texttt{malloc} specification defines its behavior.
 \begin{lemma}[$\mathtt{malloc}$ works]
   \label{lem:malloc-works}
   If
@@ -3304,12 +3269,14 @@ defines its behavior.
     \npair{(\reg,\ms)} \in \observations(W)
   \]
 \end{lemma}
-In the technical appendix~\citep{technical_appendix}, we also define a lemma for
-the macro used to create closures, \texttt{crtcls}.
+In the technical appendix~\citep{technical_appendix}, we also define a lemma for the macro used to create closures, \texttt{crtcls}.
+
 % The below remark seems unnecessary: isn't this true about any lemma in any proof?
+
 % We stress that these lemmas
 % are conveniences and are not strictly necessary to reason about programs for the
-% capability machine. In principle, one could reason solely in the semantic model
+% capability machine.
+In principle, one could reason solely in the semantic model
 % without the use of these lemmas, but that would lead to a lot of repetition.
 \end{toplas}
 
