@@ -3808,20 +3808,13 @@ prove that compiling such code to our machine using our calling convention is
 fully abstract~\citep{abadi_protection_1998}.
 \itoplassug{Maybe elaborate on why full-abstractness and not weaker properties like ``robust safety''.}
 
-\emph{Performance and the requirement for stack clearing} The additional
-security measures of the calling convention described in
-\sectionname~\ref{sec:stack-and-return-pointer} impose an overhead compared to a
-calling convention without security guarantees. However, most require only a few
-atomic checks or register clearings on boundary crossings between trusted code
-and adversary, which should produce an acceptable performance overhead. The only
-exception are the requirements for stack clearing that we have in two
-situations: when returning to the adversary and when invoking an adversary
-callback. As we have explained, we need to clear all of the stack that we are
-not using ourselves, not just the part that we have actually used. In other
-words, on every boundary cross between trusted code and adversary code, a
-potentially large region of memory must be cleared.
+\emph{Performance and the requirement for stack clearing} The additional security measures of the calling convention described in \sectionname~\ref{sec:stack-and-return-pointer} impose an overhead compared to a calling convention without security guarantees.
+However, most require only a few atomic checks or register clearings on boundary crossings between trusted code and adversary, which should produce an acceptable performance overhead.
+The only exception is the stack clearing requirement that we have in two situations: when returning to the adversary and when invoking an adversary callback.
+As we have explained, we need to clear all of the stack that we are not using ourselves not just the part that we have actually used.
+In other words on every boundary cross between trusted code and adversary code, a potentially large region of memory must be cleared.
 
-First, contrary to what we explained before, we actually suspect that this overhead can be avoided in one of the two cases: when returning to the adversary.
+First, contrary to what we explained before, we actually suspect that this overhead can be avoided when returning to the adversary.
 In that case, we now think it would suffice to clear only the (much smaller) part of the stack used by the trusted code itself.
 To understand this, it is useful to take another look at the illustrations in Figure~\ref{fig:ret-adv2} related to this case.
 If we do not clear the stack upon return (as illustrated in Figure~\ref{fig:illu-clear-all}), then the adversary might have used that stack to store local capabilities they received in a previous invocation (see Figure~\ref{fig:illu-adv-data}).
@@ -3842,9 +3835,9 @@ From this perspective, local capabilities are a general feature enabling this te
 However, our requirement for stack clearing on boundary crossings is also general.
 Revoking authority that was granted temporarily using local capabilities requires clearing all memory for which the invokee had write-local authority (or at least erasing all local capabilities from that memory).
 Without micro-architectural support for efficiently clearing large ranges of memory, local capabilities can only be used for revocation in scenarios where the duration of a revocation is unimportant or the adversary only has write-local access to small amounts of memory.
-In future work, we are planning to investigate an alternative notion of \emph{linear} capabilities that offer a limited form of revocation without such limitations.
+In future work, we are planning to investigate an alternative notion of \textit{linear} capabilities that offer a limited form of revocation without such limitations.
 
-Note, by the way, that CheriBSD's use of local capabilities in CCall does not actually involve a form of revocation.
+CheriBSD's use of local capabilities in CCall does not actually involve a form of revocation.
 CheriBSD's model involves a trusted stack manager that gives every compartment access to its own private stack using a local, write-local capability \citep{Watson2015Cheri}.
 The locality of the stack capability allows the trusted stack manager to prevent compartments from leaking their stack pointer in a boundary crossing, but those capabilities are never actually revoked.
 In fact, a compartment can easily store away such local capabilities in its own private stack and recover them there during future invocations.
@@ -3857,16 +3850,10 @@ Recent work suggests that such a feature could perhaps be added to processors li
 % https://www.usenix.org/legacy/event/osdi08/tech/full_papers/zeldovich/zeldovich_html/index.html
 % http://users.ece.utexas.edu/~tiwari/pubs/MICRO-08-rangecache.pdf
 
-\emph{Modularity} It is important that our calling convention is modular, i.e.\
-we do not assume that our code is specially privileged w.r.t.\ the adversary,
-and they can apply the same measures to protect themselves from us as we do to
-protect ourselves from them. More concretely, the requirements we have on
-callbacks and return pointers received from the adversary are also satisfied by
-callbacks and return pointers that we pass to them. For example, our return
-pointers are local capabilities because they must point to memory where we can
-store the old stack pointer, but the adversary's return pointers are also
-allowed to be local. Adversary callbacks are required to be global but the
-callbacks we construct are allocated on the heap and also global.
+\emph{Modularity} It is important that our calling convention is modular, i.e.\ we do not assume that our code is specially privileged w.r.t.\ the adversary, and they can apply the same measures to protect themselves from us as we do to protect ourselves from them.
+More concretely, the requirements we have on callbacks and return pointers received from the adversary are also satisfied by callbacks and return pointers that we pass to them.
+For example, our return pointers are local capabilities because they must point to memory where we can store the old stack pointer, but the adversary's return pointers are also allowed to be local.
+Adversary callbacks are required to be global, but the callbacks we construct are allocated on the heap and also global.
 
 \emph{Arguments and local capabilities} 
 %Stack and return pointer
@@ -3947,17 +3934,12 @@ in some instruction sets.
 \itoplassug{We could also include a brief discussion of concurrency and the fact that this probably wouldn't scale to it (but well-bracktedness is not the same in that case anyway.) }
 \itoplassug{Reviewer C, esop, wants to know what happens when there are several stack blocks (see tex for comment). We could here emphasize that while we talk about a single stack there could be multiple local read/write-local/execute-capabilities. If we get the stack from an untrusted source, which is the case in the awkward example, then we will use anything that \emph{looks like} the stack as the stack. However, due to the operational semantics for local capabilities all other ``stack blocks'' would have to be stored on the stack or in the register file. As the calling convention dictates that we clear these, the only place the alternative stack blocks will not be cleared is on a part of the stack that we do not have access to. The return capability would basically have to encapsulate this part of memory (perhaps indirectly) which means that from the moment we have been called, we will make sure there is only one stack available until our program returns from the initial call to it.}
 %p.10 "to prevent this from happening, we need to make sure the stack capability carries RWLX authority since the system wide assumption then tells us that the adversary cannot have global capabilities to our local stack".  It feels like the "L" capabitility is being overloaded to mean not just "this memory block has write-local authority and can contain local capabilities", but also to mean "this memory block is my stack and no other block is".  What happens when there are several stack blocks, e.g. one per thread?
-\emph{Single stack} A single stack is a good choice for the simple capability
-machine presented here, because it works well with higher-order functions. An
-alternative to a single stack would be to have a separate stack per component.
-The trouble with this approach is that, with multiple stacks and local stack
-pointers, it is not clear how components would retrieve their stack pointer upon
-invocation without compromising safety. A safe approach could be to have stack
-pointers stored by a central, trusted stack management component, but it is not
-clear how that could scale to large numbers of separate components. Handling
-large numbers of components is a requirement if we want to use
-capability machines to enforce encapsulation of, for example, every object in an
-object-oriented program or every closure in a functional program.
+\emph{Single stack} A single stack is a good choice for the simple capability machine presented here because it works well with higher-order functions.
+An alternative to a single stack would be to have a separate stack per component.
+The trouble with this approach is that, with multiple stacks and local stack pointers, it is not clear how components would retrieve their stack pointer upon invocation without compromising safety.
+A safe approach could be to have stack pointers stored by a central, trusted stack management component, but it is not clear how that could scale to large numbers of separate components.
+Handling large numbers of components is a requirement if we want to use capability machines to enforce encapsulation of, for example, every object in an object-oriented program or every closure in a functional program.
+
 \\\\
 \begin{toplas}
   \noindent \textbf{Capability machine formalization}\\
@@ -3966,20 +3948,20 @@ object-oriented program or every closure in a functional program.
   By making these simplifications, we avoid tedious details but end up with a less realistic machine.
   However, the intend of this work is to gain ground in the formal work necessary to prove properties about low-level assembly programs on a capability machine not to apply it to a full fledged capability machine.
 
-  We do not believe that any of our simplifications are beyond reason.
+  We do not believe that any of our simplifications are beyond reason and expanding the result seems plausible.
   If we added unbounded integers, we would have to change the operational
-  semantics to take over- and under flows into account. This could be achieved
+  semantics to take over and under flows into account. This could be achieved
   by changing the \texttt{plus} and \texttt{minus} instruction to use modulo
   arithmetic.
   If we added a bounded address space, then we would have to take memory out of
   bounds into account. This would require changes to the memory
-  operations (\texttt{store} and \texttt{load}) and the step relation.
+  operations (\texttt{store} and \texttt{load}) and the step relation of the operational semantics.
   The malloc specification would also need to be updated as it would have to
-  fail when it runs out of memory.
+  signal failure when it runs out of memory.
   Finally, expanding the instruction set to a realistic ISA would add a handful
-  of instructions that we would need to reason about.
+  of instructions that we would need to reason about in the proofs.
   All in all, it would add a lot of tedious work to expand this result to a
-  realistic machine. The amount of details in the proofs are already at the
+  realistic machine. The amount of details in the proofs is already at the
   threshold for what should be done with pen and paper, so expanding this work
   to a realistic machine would require mechanized proofs that can take care of
   the tedious details.
@@ -3990,7 +3972,7 @@ object-oriented program or every closure in a functional program.
 \emph{Limitations} The logical relation defined in
 \sectionname~\ref{sec:logical-relation} allows us to reason about capability machine
 programs. A limitation w.r.t. previous work is that the logical relation is
-tailored towards a specific class of problems.
+tailored towards proofs of a specific class of properties.
 
 Imagine, for example, that we invoke a block of adversary code in such a way
 that it only ever receives capabilities within a specific range of memory. After
@@ -3999,43 +3981,34 @@ the registers are still confined to that range of memory. The property talks
 about a the specific implementation of a higher-order value rather than its behavior,
 like the invariants that are required/preserved when we use it.
 
-Such properties are hard to prove in our system.
+Such properties are hard to prove in our model.
 For the example, it would be easy to conclude that the returned values are in the value relation (see \figurename~\ref{fig:logrel}).
-This gives us a lot of behavioral information, like conditions under which they are safe to use and invariants that will be preserved when we do, but it does not tell us much about the address of the capability.
-As a very concrete example, capabilities with permission $\noperm$ are always in the value relation irrespective of their address.
+This gives us a lot of behavioral information, like conditions under which the capabilities are safe to use and invariants that will be preserved when we do, but it does not tell us much about the range of authority of the capability.
+As a very concrete example, capabilities with permission $\noperm$ are always in the value relation irrespective of their range of authority.
 Behaviorally, this makes perfect sense; $\noperm$-capabilities cannot be used
 for anything.
 
 For our purposes, this restriction is unproblematic since we are only interested in proving behavioral properties (e.g., an assertion will never fail).
 In other situations, however, we may be interested in proving properties like the ones that are often considered in object capability literature: confinement, no authority amplification etc.
-Although such properties are more restrictive and less easy to use for reasoning, \citet{Devriese:2016ObjCap} have demonstrated how a logical relation like ours can be adapted to also support them by quantifying the logical relation over a custom interpretation of effectful computations and the type of references.
+Although such properties are more restrictive and tough to use for reasoning, \citet{Devriese:2016ObjCap} have demonstrated how a logical relation like ours can be adapted to also support them by quantifying the logical relation over a custom interpretation of effectful computations and the type of references.
 We expect their solution can be readily adapted to our setting modulo some details (like the fact that we do not just have read-write capabilities but also others).
 \end{toplas}
 % % \emph{No program logic} TODO: discuss this? 
 \\\\
 \noindent\textbf{Logical relation}\\
-\emph{Single orthogonal closure} The definitions of $\stder$ and $\stdvr$ in
-\figurename~\ref{fig:logrel} apply a single orthogonal closure, a new variant of an
-existing pattern called biorthogonality. Biorthogonality is a pattern for
-defining logical relations~\citep{krivine_classical_1994,pitts_operational_1998}
-in terms of an observation relation of safe configurations (like we do). The
-idea is to define safe evaluation contexts as the set of contexts that produce
-safe observations when plugging safe values and define safe terms as the set of
-terms that can be plugged into safe evaluation contexts to produce safe
-observations. This is an alternative to more direct definitions where safe terms
-are defined as terms that evaluate to safe values. An advantage of
-biorthogonality is that it scales better to languages with control effects like
-call/cc. Our definitions can be seen as a variant of biorthogonality, where we
-take only a single orthogonal closure: we do not define safe evaluation contexts
-but immediately define safe terms as those that produce safe observations when
-plugged with safe values. This is natural because we model arbitrary assembly
-code that does not necessarily respect a particular calling convention: return
-pointers are in principle values like all others and there is no reason to treat
-them specially in the logical relation.
+\emph{Single orthogonal closure} The definitions of $\stder$ and $\stdvr$ in \figurename~\ref{fig:logrel} apply a single orthogonal closure, a new variant of an existing pattern called biorthogonality.
+Biorthogonality is a pattern for defining logical relations~\citep{krivine_classical_1994,pitts_operational_1998} in terms of an observation relation of safe configurations (like we do).
+The idea is to define safe evaluation contexts as the set of contexts that produce safe observations when plugged with safe values and define safe terms as the set of terms that can be plugged into safe evaluation contexts to produce safe observations.
+This is an alternative to more direct definitions where safe terms are defined as terms that evaluate to safe values.
+An advantage of biorthogonality is that it scales better to languages with control effects like call/cc.
+Our definitions can be seen as a variant of biorthogonality; we take only a single orthogonal closure.
+We do not define safe evaluation contexts but immediately define safe terms as those that produce safe observations when plugged with safe values.
+This is natural because we model arbitrary assembly code that does not necessarily respect a particular calling convention.
+Return pointers are in principle values like all others and there is no reason to treat them specially in the logical relation.
 
 Interestingly, \citet{Hur:2011:KLR:1926385.1926402} also use a step-indexed,
 Kripke logical relation for an assembly language (for reasoning about correct
-compilation from ML to assembly), but because they only model non-adversarial
+compilation from ML to assembly). However, because they only model non-adversarial
 code that treats return pointers according to a particular calling convention,
 they can use standard biorthogonality rather than a single orthogonal closure
 like us.
@@ -4082,17 +4055,17 @@ to what we provide for local capabilities.
 
 \begin{toplas}
   \emph{Why use a logical relation and not a simpler proof technique?}
-  The concept of a capability exists on different levels of the computer stack, so capabilities have been studied and safety properties proven about them in other contexts than assembly languages.
+  The concept of a capability exists on different levels of abstraction on computers, so capabilities have been studied and safety properties proven about them in other contexts than assembly languages.
   Traditionally, logical relations have not been used for safety property proofs, so why do we need one here?
   To answer this question let's compare this work to \citet{sewel_integrity_2011} where they prove \textit{integrity} and \textit{authority confinement} for the seL4 Microkernel.
   % Describe what they prove
   The security properties they show are relative to a security policy that specifies the upperbound of capabilities a subject in the system can posses.
   The security policy is expressed as a collection of possible capabilities in the system, e.g.\ \textit{subject a can have a write capability for memory B.}
-  However, their policy are, in a sense, binary: either subject a can not write to memory B, or it can write anything.
-  Our approach is much more fine-grained, allowing us to define, for example, a policy that subject a can write to memory B, but only if the value being written is an even number.
+  However, their policy are, in a sense, binary: subject a can either not write or write anything to memory B.
+  Our approach is much more fine-grained and allows us to define, for example, a policy that subject a can write to memory B, but only if the value is an even number.
   Because our invariants are indexed by worlds themselves, we can even define a policy that capabilities written to memory B must respect certain other invariants themselves.
   It is exactly the expressive invariants that enable us to prove the awkward example.
-  We place a protocol on the memory where variable \texttt{x} is stored that says that it sometimes can be either $0$ or $1$, and at other times it has to be $1$.
+  We place a protocol on the memory where variable \texttt{x} is stored that says that it sometimes can be either $0$ or $1$ and at other times it has to be $1$.
   
   Capability safety is not just about the permission a capability carries, it is also about how the capability is used.
   Say for instance, a program has a write capability that will only be used to write even numbers.
@@ -4103,37 +4076,21 @@ to what we provide for local capabilities.
 
 \section{Related Work}
 \label{sec:related-work}
+In this section, we summarize how our work relates to previous work.
+We do not repeat the work we discussed in \sectionname~\ref{sec:discussion}.
 
-Finally, we summarize how our work relates to previous work. We do not
-repeat the work we discussed in \sectionname~\ref{sec:discussion}.
+Capability machines originate with \citet{Dennis:1966:PSM:365230.365252} and we refer to \citet{Levy1984capability} and \citet{Watson2015Cheri} for an overview of previous work.
+The capability machine formalized in \sectionname~\ref{sec:capab-mach-with} is a simple but representative model modeled mainly after the M-Machine~\citep{Carter:1994:HSF:195473.195579} (the enter pointers resemble the M-Machine's) and CHERI~\citep{Watson2015Cheri,Woodruff:2014:CCM:2665671.2665740} (the memory and local capabilities resemble CHERI's).
+The latter is a recent and relatively mature capability machine. CHERI combines capabilities with a virtual memory approach in the interest of backwards compatibility and gradual adoption.
+As discussed, our local capabilities can cross module boundaries contrary to what is enforced by CHERI's default CCall implementation.
 
-Capability machines originate with \citet{Dennis:1966:PSM:365230.365252} and we refer to \citet{Levy1984capability} and \citet{Watson2015Cheri} for an overview
-of previous work. The capability machine formalized in
-\sectionname~\ref{sec:capab-mach-with} is a simple but representative
-model modeled mainly after the
-M-Machine~\citep{Carter:1994:HSF:195473.195579} (the enter pointers
-resemble the M-Machine's) and
-CHERI~\citep{Watson2015Cheri,Woodruff:2014:CCM:2665671.2665740} (the
-memory and local capabilities resemble CHERI's). The latter is a
-recent and relatively mature capability machine, which combines
-capabilities with a virtual memory approach, in the interest of
-backwards compatibility and gradual adoption. As discussed, our local
-capabilities can cross module boundaries, 
-contrary to what is enforced by CHERI's default CCall implementation.
-
-Plenty of other papers\lau{If there are plenty, then I guess we should cite more
-  than one?} enforce well-bracketed control flow at a low level, but most are
-restricted to preventing particular types of attacks and enforce only partial
-correctness of control flow. This includes particularly the line of work on
-\emph{control-flow integrity}~\citep{abadi_control-flow_2005}. Those use a quite
-different attacker model than us: they assume an attacker that is not able to
-execute code, but can overwrite arbitrary data at any time during execution (to
-model buffer overflows). By checking the address of every indirect jump and
-using memory access control to prevent overwriting code, this work enforces what
-they call control-flow integrity, formalized as the property that every jump
-will follow a legal path in the control-flow graph. As discussed in
-\sectionname~\ref{sec:discussion}, such a property ignores temporal properties and
-seems hard to use for reasoning.
+Plenty of other papers\lau{If there are plenty, then I guess we should cite more than one?}
+enforce well-bracketed control flow at a low level but most are restricted to preventing particular types of attacks and enforce only partial correctness of control flow.
+This includes particularly the line of work on \emph{control-flow integrity}~\citep{abadi_control-flow_2005}.
+This line of work uses a quite different attacker model than us.
+They assume an attacker that is not able to execute code but can overwrite arbitrary data at any time during execution (to model buffer overflows).
+By checking the address of every indirect jump and using memory access control to prevent overwriting code, this work enforces what they call control-flow integrity formalized as the property that every jump will follow a legal path in the control-flow graph.
+As discussed in \sectionname~\ref{sec:discussion}, such a property ignores temporal properties and seems hard to use for reasoning.
 
 More closely related to our work are papers that use a trusted stack manager and
 some form of memory isolation to enforce control-flow correctness as part of a
@@ -4141,10 +4098,10 @@ secure compilation
 result~\citep{patrignani_modular_2016-1,juglaret_beyond_2016-1}. Our work
 differs from theirs in that we use a different form of low-level security
 primitive (a capability machine with local capabilities rather than a machine
-with a primitive notion of compartments) and we do not use a trusted stack
-manager, but a decentralized calling convention based on local
+with a primitive notion of compartments). Further, we do not use a trusted stack
+manager but a decentralized calling convention based on local
 capabilities. Also, both prove a secure compilation result from a high-level
-language, which clearly implies a general form of control-flow correctness,
+language which clearly implies a general form of control-flow correctness
 while we define a logical relation that can be used to reason about
 specific programs that rely on well-bracketed control flow.
 
@@ -4162,7 +4119,7 @@ Fundamental Theorem is similar to theirs and expresses capability safety of the
 capability machine. Because we are not interested in externally observable
 side-effects (like console output or memory access traces), we do not require
 their notion of effect parametricity. Our logical relation uses several ideas
-from previous work, like Kripke worlds with regions containing state transition
+from previous work like Kripke worlds with regions containing state transition
 systems \citep{Ahmed:popl09}, public/private future worlds \citep{Dreyer:jfp12}
 (see \sectionname~\ref{sec:discussion} for a discussion), and biorthogonality
 \citep{pitts_operational_1998,benton_biorthogonality_2009-1,Hur:2011:KLR:1926385.1926402}.
@@ -4170,29 +4127,29 @@ systems \citep{Ahmed:popl09}, public/private future worlds \citep{Dreyer:jfp12}
 \citet{swasey:2017} have recently developed a \emph{logic}, OCPL, for verification
 of object capability patterns. The logic is based on
 Iris~\citep{iris,iris2,iris3}, a state of the art higher-order concurrent
-separation logic and is formalized in Coq, building on the Iris Proof Mode for
+separation logic, and is formalized in Coq building on the Iris Proof Mode for
 Coq~\citep{ipm}. OCPL gives a more abstract and modular way of proving
 capability safety for a lambda-calculus (with concurrency) compared to the
 earlier work by \citet{Devriese:2016ObjCap}.
 % domi: rest of the paragraph could be cut?
 \begin{toplas}
-In the future, we would also like to investigate a new program logic for
+In the future, we would like to develop a new program logic for
 reasoning about capability safety for our capability machine model. In fact,
 we think the lemmas in Section~\ref{sec:reasoning} are suggestive of the style
 of results that could be captured in such a logic. We think Iris would also be
 a natural starting point for such an endeavour since Iris is a
 framework that can be instantiated with different programming languages. OCPL
-was able to leverage existing Iris specifications for a high-level language;
+was able to leverage existing Iris specifications for a high-level programming language;
 for our capability machine model, however, it would be necessary to devise new
 kinds of specifications for our low-level programs with unstructured
 control-flow. It is likely that we could get inspiration from earlier work on
 logics for assembly programming languages, such as XCAP~\citep{xcap}. Building a logic around the semantic model presented here would remove some of the tedious repetitive proof details making it more realistic to prove properties about larger more realistic programs.
 
 If we want to scale this approach even further, we would like to reason at a higher level of abstraction namely at the level of a high-level language.
-That is, we would rather construct a program logic for a high-level language, so we can reason about the programs the language we actually write them in and at the same time get the guarantees for the programs we are going to execute, i.e.\ the compiled programs.
+That is, we would rather construct a program logic for a high-level programming language, so we can reason about the programs in the language we actually write them in and at the same time get guarantees about the compiled program.
 To achieve this, we would have to construct a secure compilation \citep{patrignani_secure_compilation_2019} that preserves the security abstraction of the high-level language.
-The experiences made about logical relations for capability machines here has been used by \citet{skorstengaard_stktokens_2019} to prove make advances in the direction of building a secure compilation targeting capability machines.
-They present a calling convention based on linear capabilities rather than local capabilities, and they provide a fully abstract compilation that can be used as the last phase in a secure compilation.
+The experiences made about logical relations for capability machines here has been used by \citet{skorstengaard_stktokens_2019} to make advances in the direction of building a secure compilation targeting capability machines.
+They present a calling convention based on linear capabilities rather than local capabilities, and they provide a fully-abstract compilation that can be used as the last phase in a secure compilation.
 The full-abstraction proof uses a logical relation.
 \end{toplas}
 \itoplassug{We could further add that this is not the level of abstraction that
