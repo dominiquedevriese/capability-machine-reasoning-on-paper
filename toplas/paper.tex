@@ -3554,26 +3554,59 @@ f4:  reqglob $r_1$
 \end{lemma}
 
 The final example, \texttt{g1} with \texttt{f4}, is a faithful translation of a tricky example known from the literature (known as the awkward example)~\citep{pitts_operational_1998,Dreyer:jfp12}.
-It consists of two parts, \texttt{g1} and \texttt{f4}.
-The program \texttt{g1} is a closure generator that generates closures with one variable $x$ set to $0$ in its environment and \texttt{f4} as the program (note we omit some calling convention security measures because the stack is not used in the closure generator).
-The program\texttt{f4} expects one argument, a callback.
-\texttt{f4} sets $x$ to $0$ and calls the callback.
-When the callback returns, \texttt{f4} sets $x$ to $1$ and calls the callback again.
-When the callback returns again, \texttt{f4} asserts $x$ is $1$ and returns.
-This example is more complicated than the previous ones because it involves a closure invoked by the adversary and an adversary callback invoked by us.
-\itoplassug{ Suggestion: Maybe give some more intuition as to why it is difficult.
-} As explained in \sectionname~\ref{sec:stack-and-return-pointer}, we need to check that (1) the stack pointer that the closure receives from the adversary has write-local permission and (2) the adversary callback is global.
+For comparison, we show a version of the original example in Figure~\ref{fig:awkward}, highlighting the code locations corresponding to \texttt{g1} and \texttt{f4}.
 
-To illustrate how subtle this program is, consider how an adversary could try to
-make the assertion fail. In the second callback an adversary can get to the
-first callback by invoking the closure one more time. If there were any way for
-the adversary to transfer the return pointer from the point where it reinvokes
-the closure to where the closure reinvokes the callback, then the assertion
-could be made to fail. Similarly, if there were any way for the adversary to
-store a stack pointer or trick the trusted code into preserving it across an
-invocation, the assertion could be made to fail too. However, our calling
-convention prevents any of this from happening, as we prove in the following
-lemma.
+\begin{wrapfigure}{R}{.35\textwidth}
+  \centering
+  \begin{tabular}{c} % see https://tex.stackexchange.com/questions/5818/how-to-center-a-listing
+  \begin{lstlisting}[gobble=2,escapeinside=||]
+  fun _ => 
+  |\color{gray}{g1:}| let x = ref 0 in
+      fun adv =>
+  |\color{gray}{f4:}|   x := 0;
+        adv();
+        x := 1;
+        adv();
+        assert(x == 1)
+  \end{lstlisting}
+  \end{tabular}
+  \caption{The original awkward example from \citet{pitts_operational_1998,Dreyer:jfp12}, in ML notation.}
+  \label{fig:awkward}
+\end{wrapfigure}
+
+Let us first look at this ML program.
+At the top-level, it is a lambda function that can be invoked by the context.
+When it is invoked, it allocates a fresh mutable variable $x$ of integer type, initially containing the value $0$.
+Next, the function returns a second closure (let's call this $\textit{cl}_x$) that can be invoked by the context whenever it chooses.
+$\textit{cl}_x$ itself takes a callback function \texttt{adv} that it will invoke twice, after setting $x$ to $0$ and $1$ respectively.
+After the second invocation of \texttt{adv}, $\textit{cl}_x$ will verify that $x$ is still set to $1$.
+
+This last assertion, at line 8 of Figure~\ref{fig:awkward}, should never fail.
+From the code, this seems natural, since \texttt{adv} does not have access to $x$.
+Therefore, after the second invocation at line 7, $x$ should still be in the state it was before that invocation.
+However, consider that \texttt{adv} may have access to $\textit{cl}_x$ and within that second invocation of \texttt{adv}, it may invoke $\textit{cl}_x}$ again.
+Then $\textit{cl}_x$ would set $x$ to $0$ again (on line 5) and reinvoke another callback.
+If that second callback were somehow able to skip its own caller and return directly to the caller of \texttt{adv}, it would end up at line 8 of Figure~\ref{fig:awkward} with $x$ set to $1$, causing the assertion to fail.
+Without going into details, such an attack is perfectly possible if \texttt{adv} has access to a call/cc primitive (or equivalent).
+In other words, if we are able to prove that the assertion will never fail, this attack, and other similar attacks, on well-bracketed control flow are adequately prevented.
+
+Our low-level version of the awkward example in Figure~\ref{fig:prog-f3-and-g1}, consists of two parts, \texttt{g1} and \texttt{f4}, corresponding to the code locations marked in Figure~\ref{fig:awkward}.
+The program \texttt{g1} corresponds to the top-level closure in the ML code.
+It is a closure generator that generates closures with a mutable variable $x$ set to $0$ in its environment and \texttt{f4} as the program (note that we omit some calling convention security measures because the stack is not used in the closure generator).
+
+The program \texttt{f4} expects one argument, the callback \texttt{adv}, in \texttt{r1}.
+\texttt{f4} sets $x$ to $0$ and invokes \texttt{adv}.
+When it returns, \texttt{f4} sets $x$ to $1$ and calls \texttt{adv} again.
+When it returns the second time, \texttt{f4} asserts $x$ is still $1$ and returns.
+
+This example is more complicated than the previous ones because it involves a closure invoked by the adversary and an adversary callback invoked by us.
+As explained in \sectionname~\ref{sec:stack-and-return-pointer}, we need to check that (1) the stack pointer that the closure receives from the adversary has write-local permission and (2) the adversary callback is global.
+
+The attack that we explained above is actually more natural at this low-level.
+The callback \texttt{adv} now gets a return capability.
+As explained, it could invoke $\mathit{cl}_x$ again, during its second invocation, with a second callback function $\texttt{adv}'$ for $\mathit{cl}_x$ to invoke.
+If \texttt{adv} had some way of passing its return capability to $\texttt{adv}'$ (by storing it somewhere on the stack or in the heap, or hide it an unused register), then the assertion could be made to fail.
+However, our calling convention prevents any of this from happening, as we prove in the following lemma.
 
 \begin{lemma}
   \label{lem:correctness-g1}
