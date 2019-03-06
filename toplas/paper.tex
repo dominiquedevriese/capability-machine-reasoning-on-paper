@@ -3579,17 +3579,17 @@ For comparison, we show a version of the original example in Figure~\ref{fig:awk
 
 Let us first look at this ML program.
 At the top-level, it is a lambda function that can be invoked by the context.
-When it is invoked, it allocates a fresh mutable variable $x$ of integer type, initially containing the value $0$.
+When it is invoked, it allocates a fresh mutable variable $x$ of integer type that initially contains the value $0$.
 Next, the function returns a second closure (let's call this $\textit{cl}_x$) that can be invoked by the context whenever it chooses.
 $\textit{cl}_x$ itself takes a callback function \texttt{adv} that it will invoke twice after setting $x$ to $0$ and $1$ respectively.
 After the second invocation of \texttt{adv}, $\textit{cl}_x$ will verify that $x$ is still set to $1$.
 
-This last assertion, at line 8 of Figure~\ref{fig:awkward}, should never fail.
-From the code, this seems natural, since \texttt{adv} does not have access to $x$.
-Therefore, after the second invocation at line 7, $x$ should still be in the state it was before that invocation.
-However, consider that \texttt{adv} may have access to $\textit{cl}_x$ and within that second invocation of \texttt{adv}, it may invoke $\textit{cl}_x$ again.
+The assertion on line 8 of Figure~\ref{fig:awkward} should never fail.
+From the code, this seems natural since \texttt{adv} does not have access to $x$.
+Therefore after the second invocation on line 7, $x$ should still be in the state it was before that invocation.
+However, \texttt{adv} could have access to $\textit{cl}_x$ and could invoke $\textit{cl}_x$ again within the second invocation of \texttt{adv}.
 Then $\textit{cl}_x$ would set $x$ to $0$ again (on line 5) and reinvoke another callback.
-If that second callback were somehow able to skip its own caller and return directly to the caller of \texttt{adv}, it would end up at line 8 of Figure~\ref{fig:awkward} with $x$ set to $1$, causing the assertion to fail.
+If that second callback were somehow able to skip its own caller and return directly to the caller of \texttt{adv}, it would end up on line 8 of Figure~\ref{fig:awkward} with $x$ set to $1$, causing the assertion to fail.
 Without going into details, such an attack is perfectly possible if \texttt{adv} has access to a call/cc primitive (or equivalent).
 In other words, if we are able to prove that the assertion will never fail, this attack, and other similar attacks, on well-bracketed control flow are adequately prevented.
 
@@ -3608,8 +3608,8 @@ As explained in \sectionname~\ref{sec:stack-and-return-pointer}, we need to chec
 The attack that we explained above is actually more natural at this low-level.
 The callback \texttt{adv} now gets a return capability.
 As explained, it could invoke $\mathit{cl}_x$ again, during its second invocation, with a second callback function $\texttt{adv}'$ for $\mathit{cl}_x$ to invoke.
-If \texttt{adv} had some way of passing its return capability to $\texttt{adv}'$ (by storing it somewhere on the stack or in the heap, or hide it an unused register), then the assertion could be made to fail.
-However, our calling convention prevents any of this from happening, as we prove in the following lemma.
+If \texttt{adv} had some way of passing its return capability to $\texttt{adv}'$ (by storing it on the stack or in the heap, or hide it in an unused register), then the assertion could be made to fail.
+However, our calling convention prevents any of this from happening as we prove in the following lemma.
 
 \begin{lemma}
   \label{lem:correctness-g1}
