@@ -69,6 +69,15 @@
 \tikzset{capa/.style={decoration={markings,mark=at position 0 with %
       {\fill[black] circle(1.5pt);}}}}
 
+\tikzset{capar/.style={decoration={markings,mark=at position 0 with %
+      {\fill[myred] circle(1.5pt);}}}}
+
+
+\usepackage{tikz-cd}
+\pgfdeclarelayer{bg}
+\pgfdeclarelayer{mg}
+\pgfsetlayers{bg,mg,main}
+
 
 % \draw <coord> pic {lock};
 
@@ -88,7 +97,7 @@
 \institute{\inst{1} Aarhus University \and %
   \inst{2} Vrije Universiteit Brussel}
 
-\date{POPL, January 16, 2019}
+\date{Cambridge, March, 2019}
 
 
 \begin{document}
@@ -416,35 +425,40 @@ int main()
       \draw[fill=white] (0,2.5) rectangle (6,5.5) node[pos=.5] {\footnotesize current stack frame};
     \end{onlyenv}
     \begin{onlyenv}<.-.(3)>
-      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
-      (6.5,2.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt] (6.5,2.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
       \draw node[right=0cm of sp1] { stack capability };
+      \draw[capa] (r1) edge[->,postaction={decorate},bend left] (sp1);
     \end{onlyenv}
     \begin{onlyenv}<.-.(1)>
       % \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       % (6,0) -- (6,16) node (oldframe1) [black,midway,xshift=0.5cm] {};
-      \draw (7.5,4) node[right,fill=gray!50] (rp1l) {return capability data};
+      \begin{pgfonlayer}{bg}
+        \draw<.-.(1)> (7.5,4) node[right,fill=gray!50] (rp1l) {return capability data};
+      \end{pgfonlayer}
       \draw (7.4,4.3) pic {lock};
     \end{onlyenv}
 
     % prepare call: store old return capability
-    \begin{onlyenv}<+-+(3)>
+    \draw<+-+(3)>[fill=gray!50] (0,6) rectangle node {\tiny old return cap code} (6,6.5);
+    \begin{onlyenv}<+-+(2)>
       \draw[fill=gray!50] (0,5.5) rectangle node {\tiny old return cap data} (6,6);
       % \draw [decorate,decoration={brace,amplitude=10pt,raise=4pt},yshift=0pt]
       % (0,0) -- (0,16) node (oldframe1) [black,midway,xshift=-0.5cm] {};
       % \draw (0,5.75) edge[->,out=180,in=225] (oldframe1);
     \end{onlyenv}
-    \draw<+-+(2)>[fill=gray!50] (0,6) rectangle node {\tiny old return cap code} (6,6.5);
+
     \begin{onlyenv}<+->
-      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt,aspect=.4},yshift=0pt]
-      (6,2.5) -- (6,16) node (callerframe1) [draw=black,pos=.4,xshift=0.8cm] {};
-      \draw node[fill=gray!50,right=0cm of callerframe1] (rp1l) {new return capability data};
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt,aspect=.35},yshift=0pt] (6,2.5) -- (6,16) node (callerframe1) [draw=black,pos=.35,xshift=0.8cm] {};
+      \begin{pgfonlayer}{bg}
+        \draw<.-> node[fill=gray!50,right=0cm of callerframe1] (rp1l) {new return capability data};
+      \end{pgfonlayer}
+      \draw[capa] (r2) edge[->,postaction={decorate},bend left] (callerframe1);
       \draw ($(rp1l.west) + (-.1,.3)$) pic {lock};
     \end{onlyenv}
     \begin{onlyenv}<+->
-      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
-      (6.5,6.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt] (6.5,6.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
       \draw node[right=0cm of sp1] (nsp) { new stack capability };
+      \draw[capa] (r1) edge[->,postaction={decorate},bend left] (sp1);
     \end{onlyenv}
     
     % call using capabilities
@@ -461,7 +475,6 @@ int main()
   \begin{tikzpicture}[scale=.45, every node={scale=.5}]
     % recurrent parts
     \stdstackstart
-    \draw (20,14) node {\phantom{heap memory}};
     \regfile
 
     % attacker...
@@ -470,7 +483,9 @@ int main()
       \actadv{(0,6.5)}{(6,9.5)}{callee stack frame}
       \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       (6.5,6.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+
       \draw node[right=0cm of sp1] { stack pointer };
+%      \draw[capa] (r1) edge[->,postaction={decorate},bend left] (sp1);
     \end{onlyenv}
 
     % stores stack pointer in heap
@@ -495,6 +510,7 @@ int main()
       \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       (6.5,2.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
       \draw node[right=0cm of sp1] { stack pointer };
+      \draw[capa] (r1) edge[->,postaction={decorate},bend left] (sp1);
       \draw[fill=white] (0,2.5) rectangle (6,6.5) node[pos=.5] {\footnotesize current stack frame};
     \end{onlyenv}
 
@@ -502,10 +518,10 @@ int main()
     \begin{onlyenv}<+>
       \draw[fill=gray!50] (0,2.5) rectangle (6,10.5) node[pos=.5] {\footnotesize caller stack frame};
       \actadv{(0,10.5)}{(6,13.5)}{callee stack frame}
-      \draw (18,8.25) edge[->,color=myred,very thick,out=235,in=0] node[sloped, below] {read/write} (6,8);
-      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
-        (6.5,10.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt] (6.5,10.5) -- (6.5,16) node[draw=black] (sp1) [black,midway,xshift=0.8cm] {};
+      \draw[capa] (r1) edge[->,postaction={decorate},bend left] (sp1);
       \draw node[right=0cm of sp1] { stack pointer };
+      \draw (18,8.25) edge[->,color=myred,very thick,out=235,in=0,near end] node[sloped, below] {read/write} (6,8);
       % \draw [decorate,decoration={brace,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       % (6,2.5) -- (6,16) node (callerframe1) [draw=black,midway,xshift=0.8cm] {};
       % \draw node[fill=gray!50,right=0cm of callerframe1] (rp1l) {return pointer data};
@@ -519,130 +535,153 @@ int main()
     \begin{column}{.6\textwidth}
       \begin{tikzpicture}[scale=.45, every node={scale=.5}]
         \scope
-          \clip (-.1,-.1) rectangle (6.1,14.9);
+          \clip (-.1,.1) rectangle (6.1,14.9);
           \fill[draw,fill=white] (0,0) rectangle (6,15);
         \endscope
         % \draw[->] (-2,0) -- node[midway,sloped,above] {stack grows upward}
         % (-2,15);
-        \foreach \X in {0,0.5,...,14} {
+        \foreach \X in {0.5,1,...,14} {
           \fill[draw,fill=white] (0,\X) rectangle (6,\X+.5) node[pos=.5] { };
         };
-        \draw (-0.5,0.25) node[align=right] { \scriptsize 0 };
-        \draw (-0.5,4.25) node[align=right] { \scriptsize 8 };
-        \draw (-0.5,8.25) node[align=right] { \scriptsize 16 };
-        \draw (-0.5,12.25) node[align=right] { \scriptsize 24 };
 
-  \begin{scope}
-    \clip (11.9,2.6) rectangle (13.6,11.6);
-    \foreach \X in {0,1.5,...,7.5} {
-      \fill[draw,fill=white] (12,10 - \X) rectangle (13.5,11.5-\X) node[pos=.5] { };
-    };
-  \end{scope}
-  \draw (12.75,12.25) node[align=center] {Register File};
-  \draw (6.5,14.325) node[anchor=west, align=left] {Memory}; \draw[->] (-1.5,0) -- (-1.5,4.5);
+        \begin{scope}
+          \clip (11.9,2.6) rectangle (13.6,11.6);
+          \foreach \X in {0,1.5,...,7.5} {
+            \fill[draw,fill=white] (12,10 - \X) rectangle (13.5,11.5-\X) node[pos=.5] { };
+          };
+        
+        \end{scope}
+        \coordinate (r1) at (12.75,10.75) {};
+        \node[anchor=west] at (13.6,10.75) {$r_1$};
+        \coordinate (r2) at (12.75,9.25) {};
+        \node[anchor=west] at (13.6,9.25) {$r_2$};
+        \coordinate (r3) at (12.75,7.75) {};
+        \node[anchor=west] at (13.6,7.75) {$r_3$};
+        \coordinate (r4) at (12.75,6.25) {};
+        \node[anchor=west] at (13.6,6.25) {$r_4$};
 
-  % Mem data
-  \draw<1-> (3,0.75) node { \scriptsize 42 };
-  \draw<1-> (3,1.25) node { \scriptsize 2 };
-  \draw<1-> (3,1.75) node { \scriptsize 14 };
-  \draw<1-> (3,2.75) node { \scriptsize 10 };
-  \draw<1-> (3,2.25) node { \scriptsize 19 };
-  \draw<1-> (3,3.75) node { \scriptsize 0 };
-  \draw<1-> (3,3.25) node { \scriptsize 0 };
-  \draw<1-> (3,4.25) node { \scriptsize 0 };
-  \draw<1-> (3,4.75) node { \scriptsize 0 };
-  \draw<1-> (3,5.75) node { \scriptsize 3 };
-  \draw<1-> (3,6.25) node { \scriptsize 20 };
-  \draw<1-> (3,6.75) node { \scriptsize 21 };
-  \draw<1-> (3,7.25) node { \scriptsize 11 };
-  \draw<1-> (3,7.75) node { \scriptsize 10 };
-  \draw<1-> (3,8.25) node { \scriptsize 15 };
-  \draw<1-> (3,8.75) node { \scriptsize 19 };
-  \draw<1-> (3,9.25) node { \scriptsize 29 };
-  \draw<1-> (3,9.75) node { \scriptsize 0 };
-  \draw<1-> (3,10.25) node { \scriptsize 0 };
-  \draw<1-> (3,10.75) node { \scriptsize 0 };
-  \draw<1-> (3,11.25) node { \scriptsize 0 };
-  \draw<1-> (3,11.75) node { \scriptsize 0 };
-  \draw<1-> (3,12.75) node { \scriptsize 0 };
-  \draw<1-> (3,13.25) node { \scriptsize 0 };
-  \draw<1-> (3,13.75) node { \scriptsize 64 };
-  \draw<1-> (3,14.25) node { \scriptsize 5 };
-  % Reg data
-  \draw<1-> (12.75,10.75) node { \scriptsize 8 };
-  \draw<1-> (12.75,7.75) node { \scriptsize 24 };
-  \draw<1-> (12.75,6.25) node { \scriptsize 16 };
-  \draw<1-> (12.75,4.75) node { \scriptsize 2 };
+        \draw (12.75,12.25) node[align=center] {Register File};
+        \draw (6.5,14.325) node[anchor=west, align=left] {Memory};
+        
+        % move
+        \draw<1-2>[capa] (r2) edge[->,postaction={decorate},out=180,in=0,dashed] (6.3,11.25);
+        \draw<1-5>[decorate,decoration={brace,amplitude=2pt,raise=0pt,aspect=0.5,mirror},yshift=0pt] (6.1,10) -- (6.1,12.5) node (e) [black,midway,xshift=0.8cm] {};
+        \draw<3-4>[capa] (r1) edge[->,postaction={decorate},out=180,in=0,dashed] (6.3,11.25);
+        \node<3> at (r2) {0};
 
-  % Mem pointers
-  \draw<1> (3,12.25) node { \scriptsize 16 };
-  \draw<1> (3,5.25) node { \scriptsize 9 };
-  \draw<1> (3,0.25) node { \scriptsize 8 };
-  % Reg pointers
-  \draw<1> (12.75,9.25) node { \scriptsize 0 };
+        % store 
+        \draw<4-5>[capa] (r4) edge[->,postaction={decorate},out=180,in=0] node[above] {\tiny\textsc{rw}} (6.3,7.75);
+        \draw<4-5>[decorate,decoration={brace,amplitude=2pt,raise=0pt,aspect=0.5,mirror},yshift=0pt] (6.1,6.5) -- (6.1,9) node (e) [black,midway,xshift=0.8cm] {};
+        \draw<5>[capa] (3,8.25) edge[postaction={decorate},dashed] (6.3,8.25);
+        \draw<5> (6.3,8.25) edge[->,out=0,in=0,dashed] (6.3,11.25);
+        \node<5> at (r1) {0};
 
-  % Mem pointers HL
-  \draw<2> (3,12.25) node { \color{red} \scriptsize 16 };
-  \draw<2> (3,5.25) node { \color{red} \scriptsize 11 };
-  \draw<2> (3,0.25) node { \color{red} \scriptsize 8 };
-  % Reg pointers HL
-  \draw<2> (12.75,9.25) node { \color{red} \scriptsize 0 };
+        % split
+        \draw<6>[capa] (r3) edge[->,postaction={decorate},out=180,in=0,dashed] (6.3,10);
+        \draw<6>[decorate,decoration={brace,amplitude=2pt,raise=0pt,aspect=0.5,mirror},yshift=0pt] (6.1,7.5) -- (6.1,12.5) node (e) [black,midway,xshift=0.8cm] {};
 
-  \draw<3> (12.75,9.25) node { };
+        \draw<7-8>[capa] (r2) edge[->,postaction={decorate},out=180,in=0,dashed] (6.3,8.75);
+        \draw<7-8>[decorate,decoration={brace,amplitude=2pt,raise=0pt,aspect=0.5,mirror},yshift=0pt] (6.1,7.5) -- (6.1,10) node (e) [black,midway,xshift=0.8cm] {};
+        \draw<7-8>[capa] (r1) edge[->,postaction={decorate},out=180,in=0,dashed] (6.3,11.25);
+        \draw<7-8>[decorate,decoration={brace,amplitude=2pt,raise=0pt,aspect=0.5,mirror},yshift=0pt] (6.1,10) -- (6.1,12.5) node (e) [black,midway,xshift=0.8cm] {};
+        \node<7-8> at (r3) {0};
 
-  % Mem capabilities
-  \draw<4->[capa] (3,12.25) edge[postaction={decorate}] (6.1,12.25 );
-  \draw<4> (6.1,12.25) edge[-latex,in=0,out=0] (6.1,8.25);
-  \draw<4->[capa] (3,5.25) edge[postaction={decorate}] (6.1,5.25);
-  \draw<4> (6.1,5.25) edge[-latex,in=0,out=0] (6.1,6.75);
-  \draw<4->[capa] (3,0.25) edge[postaction={decorate}] (6.1,0.25);
-  \draw<4> (6.1,0.25) edge[-latex,in=0,out=0] (6.1,4.25);
+        % splice
+        \draw<9>[capa] (r3) edge[->,postaction={decorate},out=180,in=0,dashed] (6.3,10);
+        \draw<9>[decorate,decoration={brace,amplitude=2pt,raise=0pt,aspect=0.5,mirror},yshift=0pt] (6.1,7.5) -- (6.1,12.5) node (e) [black,midway,xshift=0.8cm] {};
 
-  % Reg pointers HL
-  \draw<4->[capa] (12.75,9.25) edge[postaction={decorate}] (12.0,9.25);
-  \draw<4> (12.0,9.25) edge[-latex,in=0,out=180] (6.1,0.25);
+        \node<9> at (r1) {0};
+        \node<9> at (r2) {0};
+        
+        % splice fail
+        \draw<10->[capa] (r1) edge[->,postaction={decorate},out=180,in=0,dashed] (6.3,11.25);
+        \draw<10->[decorate,decoration={brace,amplitude=2pt,raise=0pt,aspect=0.5,mirror},yshift=0pt] (6.1,10) -- (6.1,12.5) node (e) [black,midway,xshift=0.8cm] {};
+        \draw<10->[capa] (r2) edge[->,postaction={decorate},out=180,in=0,dashed] (6.3,7.75);
+        \draw<10->[decorate,decoration={brace,amplitude=2pt,raise=0pt,aspect=0.5,mirror},yshift=0pt] (6.1,6.5) -- (6.1,9) node (e) [black,midway,xshift=0.8cm] {};
 
-  % Mem capabilities \w auth
-  \draw<5> (6.1,12.25) edge[-latex,in=0,out=0] (6.5,8.25);
-  \draw<5->[decorate,decoration={brace,amplitude=2pt,raise=0pt,aspect=0.55,mirror},yshift=0pt] (6.3,5.5) -- (6.3,10.5) node (e) [black,midway,xshift=0.8cm] {};
-
-  \draw<5> (6.1,5.25) edge[-latex,in=0,out=0] (6.3,6.75);
-  \draw<5-> [decorate,decoration={brace,amplitude=2pt,raise=0pt,aspect=0.5,mirror},yshift=0pt] (6.1,6) -- (6.1,7.5) node (e) [black,midway,xshift=0.8cm] {};
-
-
-  \draw<5> (6.1,0.25) edge[-latex,in=0,out=0] (6.5,4.25);
-  \draw<5-> [decorate,decoration={brace,amplitude=2pt,raise=0pt,aspect=0.5,mirror},yshift=0pt] (6.3,3) -- (6.3,5.5) node (e) [black,midway,xshift=0.8cm] {};
-
-
-  % Reg pointers HL \w auth
-  \draw<5> (12.0,9.25) edge[-latex,in=0,out=180] (6.3,0.355);
-  \draw<5-> [decorate,decoration={brace,amplitude=2pt,raise=0pt,aspect=0.1,mirror},yshift=0pt] (6.1,0) -- (6.1,3.5) node (e) [black,midway,xshift=0.8cm] {};
-
-  % Mem capabilities \w auth & perm
-  \draw<6-> (6.1,12.25) edge[-latex,in=0,out=0] node[right] {\scriptsize \textsc{r}} (6.5,8.25);
-
-  \draw<6-> (6.1,5.25) edge[-latex,in=0,out=0] node[right] {\scriptsize \textsc{rw}} (6.3,6.75);
-
-  \draw<6-> (6.1,0.25) edge[-latex,in=0,out=0] node[right] {\scriptsize \textsc{r}} (6.5,4.25);
-
-  % Reg pointers HL \w auth & perm
-  \draw<6-> (12.0,9.25) edge[-latex,in=0,out=180] node[right] {\scriptsize \textsc{rx}} (6.3,0.355);
-\end{tikzpicture}
-\end{column}
+        \draw<11>[mygreen,very thick] (5.6,10) -- (6.6,9);
+        \draw<11>[mygreen,very thick] (5.6,9) -- (6.6,10);
+        \draw<11> node[mygreen,cloud,cloud puffs=10.8,cloud puff arc=110, aspect=3, draw, fill=white, anchor=west] () at (7,9.5) { Splice fails};  
+        
+      \end{tikzpicture}
+    \end{column}
 \begin{column}{0.4\textwidth}
-  \onslide<3->{Replace pointers with capabilities}
+  \onslide<1->{Linear capabilities}
   \begin{itemize}
-  \item<4-> Pointer
-  \item<5-> Range of authority
-  \item<6-> Permission
-  \end{itemize}
-  \onslide<7->{Dynamically enforced}
-  \begin{itemize}
-  \item<8-> Cap. aware instructions
-  \item<9-> Tagged memory
+  \item<1-> Non-duplicable
+  \item<2-> \texttt{move $r_1$ $r_2$}
+  \item<4-> \texttt{store $r_4$ $r_1$}
+  \item<6-> \texttt{split $r_1$ $r_2$ $r_3$ $n$}
+  \item<8-> \texttt{splice $r_3$ $r_1$ $r_2$}
   \end{itemize}
 \end{column}
 \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Call with \stktokens{}}
+  % Emphazise that it is dynamically enforced.
+  % Other cases, see paper.
+  \centering
+  \begin{tikzpicture}[scale=.45, every node={scale=.5}]
+    % recurrent parts
+    \stdstackstart
+    \draw (20,14) node {\phantom{heap memory}};
+
+    \regfile
+
+    % Caller 
+    \actsf{(0,2.5)}{(6,5)}{caller stack frame} 
+    \begin{onlyenv}<+>
+      \capbrace[sp1]{(6.5,2.5)}{(6.5,16)}
+      \draw node[right=0cm of sp1] { stack pointer };
+      \draw[capar] (r1) edge[->,myred,thick,bend left,dashed,postaction={decorate}] (sp1);
+    \end{onlyenv}
+
+
+    % Split the stack pointer
+    \begin{onlyenv}<+>
+      \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
+      \draw[capar] (r2) edge[->,myred,thick,bend left, dashed,postaction={decorate}] (sp2);
+      \draw node[right=0cm of sp2] { private stack pointer };
+      \draw [decorate,decoration={brace,aspect=0.2,amplitude=10pt,mirror,raise=4pt},yshift=0pt] (6.5,5) -- (6.5,16) node[draw=black] (usp) [black,pos=0.2,xshift=0.8cm] {};
+      \draw[capar] (r1) edge[->,myred,thick,bend left,dashed,postaction={decorate}] (usp);
+      \draw node[right=0cm of usp] { stack pointer };
+    \end{onlyenv}
+
+
+    % Callee called
+    \begin{onlyenv}<+>
+
+      \draw node[fill=gray,opacity=0.5, right=0cm of sp2] { \phantom{return token} };
+      \draw node[right=0cm of sp2] (rdp) { return token };
+      \draw ($(rdp.west) + (-.1,.3)$) pic {lock};
+      \inactsf{(0,2.5)}{(6,5)}{caller stack frame} 
+      \actsf{(0,5)}{(6,8)}{callee stack frame}
+    \end{onlyenv}
+    \begin{onlyenv}<.-.(1)>
+      \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
+    \draw[capar] (r2) edge[->,myred,bend left,dashed,postaction={decorate}] (sp2);
+
+    \draw [decorate,decoration={brace,aspect=0.2,amplitude=10pt,mirror,raise=4pt},yshift=0pt] (6.5,5) -- (6.5,16) node[draw=black] (usp) [black,pos=0.2,xshift=0.8cm] {};
+    \draw[capar] (r1) edge[->,myred,bend left,dashed,postaction={decorate}] (usp);
+    \draw node[right=0cm of usp] { stack pointer };
+    \end{onlyenv}
+
+    % Return from callee
+    \begin{onlyenv}<+>
+      \actsf{(0,2.5)}{(6,5)}{caller stack frame} 
+      \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
+      \draw node[right=0cm of sp2] { private stack pointer };
+    \end{onlyenv}
+
+    \begin{onlyenv}<+>
+      \actsf{(0,2.5)}{(6,5)}{caller stack frame} 
+      \capbrace[sp1]{(6.5,2.5)}{(6.5,16)}
+      \draw node[right=0cm of sp1] { stack pointer };
+      \draw[capar] (r1) edge[->,myred,thick,bend left,dashed,postaction={decorate}] (sp1);
+    \end{onlyenv}
+  \end{tikzpicture}  
 \end{frame}
 
 \begin{frame}
@@ -662,17 +701,16 @@ int main()
     \begin{onlyenv}<+>
       \capbrace[sp1]{(6.5,2.5)}{(6.5,16)}
       \draw node[right=0cm of sp1] { stack pointer };
-      \draw (r1) edge[->,myred,thick,bend left,dashed] (sp1);
+      \draw[capar] (r1) edge[->,myred,thick,bend left,dashed,postaction={decorate}] (sp1);
     \end{onlyenv}
 
 
     % Split the stack pointer
     \begin{onlyenv}<+>
       \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
-      \draw (r2) edge[->,myred,thick,bend left, dashed] (sp2);
-      \draw [decorate,decoration={brace,aspect=0.2,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
-      (6.5,5) -- (6.5,16) node[draw=black] (usp) [black,pos=0.2,xshift=0.8cm] {};
-      \draw (r1) edge[->,myred,thick,bend left,dashed] (usp);
+      \draw[capar] (r2) edge[->,myred,thick,bend left, dashed,postaction={decorate}] (sp2);
+      \draw [decorate,decoration={brace,aspect=0.2,amplitude=10pt,mirror,raise=4pt},yshift=0pt] (6.5,5) -- (6.5,16) node[draw=black] (usp) [black,pos=0.2,xshift=0.8cm] {};
+      \draw[capar] (r1) edge[->,myred,thick,bend left,dashed,postaction={decorate}] (usp);
       \draw node[right=0cm of usp] { stack pointer };
       \draw node[right=0cm of sp2] { private stack pointer };
     \end{onlyenv}
@@ -683,7 +721,7 @@ int main()
       \capbrace[sp2]{(6.5,2.5)}{(6.5,5)}
       \draw [decorate,decoration={brace,aspect=0.2,amplitude=10pt,mirror,raise=4pt},yshift=0pt]
       (6.5,5) -- (6.5,16) node[draw=black] (usp) [black,pos=0.2,xshift=0.8cm] {};
-      \draw (r1) edge[->,myred,bend left,dashed] (usp);
+      \draw[capar] (r1) edge[->,myred,bend left,dashed,postaction={decorate}] (usp);
       \draw node[right=0cm of usp] { stack pointer };
 
       \draw node[fill=gray,opacity=0.5, right=0cm of sp2] { \phantom{return token} };
@@ -692,7 +730,7 @@ int main()
       \inactsf{(0,2.5)}{(6,5)}{caller stack frame} 
       \actadv{(0,5)}{(6,8)}{callee stack frame}
     \end{onlyenv}
-    \draw<.-> (r2) edge[->,myred,bend left,dashed] (sp2);
+    \draw<.->[capar] (r2) edge[->,myred,bend left,dashed,postaction={decorate}] (sp2);
 
 
     \begin{onlyenv}<+->
@@ -991,17 +1029,48 @@ int main()
 \end{frame}
 
 \begin{frame}
-  \frametitle{Paper overview}
-\begin{itemize}
-\item LCM: A formalization of a simple CHERI-like capability machine with linear capabilities
-\item \stktokens{}, a new calling convention that provably guarantees LSE and WBCF on LCM
-\item A better way to formalize these guarantees based on a novel technique called \textit{fully-abstract overlay semantics}
-\item Proof of LSE and WBCF which includes
-  \begin{itemize}
-  \item oLCM: an overlay semantics for LCM with built-in LSE and WBCF
-  \item proving full-abstraction for the embedding of oLCM into LCM by
-  \item defining and using a cross-language, step-indexed, Kripke logical relation with recursive worlds
+  \frametitle{Full abstraction}
+  \begin{theorem}[Full abstraction]
+  For \tikz[remember picture] \node[inner sep=0pt, outer sep=0pt] (rea) {reasonable};, \tikz[remember picture] \node[inner sep=0pt, outer sep=0pt] (wf) {well-formed};\ $\comp_1$ and $\comp_2$, we have
+  \begin{gather*}
+    \src{\comp_1} \sconeq \src{\comp_2} \quad \Leftrightarrow \quad    \src{\comp_1} \tconeq \src{\comp_2} \qedhere
+  \end{gather*}
+\end{theorem}
+\vspace{-0.5cm}
+\rule{1\textwidth}{0.4pt}
+\begin{columns}
+  \begin{column}{0.5\textwidth}
+    \begin{itemize}[<3->]
+    \item \stktokens{} reasonable use of return seals
+      \begin{itemize}
+      \item Return seals are only used to seal old program pointers.
+      \item Every return seal is only used for one call site.
+      \item Return seals are not leaked.
+      \end{itemize}
+    \item<4-> No measures against us
   \end{itemize}
+  \end{column}
+  \begin{column}{0.5\textwidth}
+    \begin{itemize}[<6->]
+    \item Component structure.
+    \item Sane linker behaviour.
+    \end{itemize}
+  \end{column}
+\end{columns}
+\vspace{0.5cm}
+\onslide<7>{\centering Should be handled in earlier compiler phase}
+\begin{tikzpicture}[remember picture, overlay]
+  \draw<2-4> node[rectangle, fit=(rea), draw=myred, rounded corners, inner sep=2pt, yshift=-1pt, xshift=0.75pt] (n1) {};
+  \draw<5> node[rectangle, fit=(wf), draw=myred, rounded corners, inner sep=2pt, yshift=-1pt, xshift=0.75pt] (n1) {};
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Conclusion}
+\begin{itemize}
+\item \stktokens{} ensures well-bracketed control flow and local-state encapsulation.
+\item Overlay semantics used to define well-bracketed calls and local state encapsulation.
+\item Capability machines may be a good target for secure compilation.
 \end{itemize}
   % \begin{description}
   % \item[Formalization of CHERI-like capability machine with linear capabilities]
@@ -1059,4 +1128,27 @@ int main()
   \end{itemize}
 \end{frame}
 
+\begin{frame}
+  \frametitle{\stktokens{} vs. CHERI stack}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \textbf{\stktokens{}}
+      \begin{itemize}
+      \item No built-in stack
+      \item Fine granularity of security domains
+      \item No context switch on call
+      \item Caller has the full responsibility for securing call
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{CHERI stack}
+      \begin{itemize}
+      \item Central, built-in stack
+      \item Call and return instructions interact with stack
+      \item Context switch on call/return
+      \item Local capabilities cannot cross security boundary
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
 \end{document}
