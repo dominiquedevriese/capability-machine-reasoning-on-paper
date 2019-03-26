@@ -1413,7 +1413,7 @@ In other words, WBCF and LSE are natively enforced in this semantics.
 %   \caption{The return condition in the operational semantics of \srccm{}.}
 %   \label{fig:source-op-sem-return}
 % \end{figure}
-\subsection{Well-Formedness and Reasonability}
+\subsection{Well-Formedness}
 \label{sec:well-form-reas}
 % Well-formed components
 % \begin{figure}[htb]
@@ -1462,23 +1462,231 @@ In other words, WBCF and LSE are natively enforced in this semantics.
 % Imports
 % - Address must be in data memory
 The judgement $\wdjud[\ta]{\comp}$ specifies what components are well formed, i.e.\ satisfy the initial syntactic requirements necessary to be able to rely on system guarantees.
-We elide the details of the judgement here and describe the main points:
-For components with a main pair, the main pair must come from the exports and the remainder of the component must be well-formed.
-As a reminder, a base component looks like this: $(\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)$.
-The return seals $\sigrets$ are the seals supposed to be used to seal return pointers and the closure seals $\sigcloss$ all the other seals in a component.
-If a component is adversarial, i.e.\ the domain of the code memory $\mscode$ is disjoint from the set of trusted addresses $\ta$, then there should be no return seals.
-The code memory may contain sets of seals but only for the seals in $\sigrets$ and $\sigcloss$.
-Other than that, code memory only contains instructions in the form of integers.
-When a sequence of instructions in the code memory corresponds to a call (Figure~\ref{fig:call-code}), the call must have access to the return seal it specifies.
-The return seal also needs to be unique to that call; that is, no other call can specify the same seal as its return seal.
-The data memory $\msdata$ may contain data, capabilities, and sealed capabilities.
-The capabilities in the data memory can only have authority over the data memory itself.
-This allows components to have initial data structures.
-In order to respect Write-XOR-Execute, the capabilities in data memory cannot have execute permission.
-The capabilities also need to respect linearity which means that linear capabilities cannot be aliased by any other capability, and they must be for a range of the predetermined linear addresses $A_\linear$.
-The sealed capabilities must be sealed with a closure seal, and the sealable can be anything that is allowed to reside in data memory.
-The exports $\overline{\var{export}}$ can be anything non-linear allowed to reside in data memory or a sealed capability for the code memory sealed with one of the closure seals.
+The judgement is defined in \figurename~\ref{fig:well-formed} with auxiliary judgements in \figurename~\ref{fig:well-formed-aux}.
 
+\begin{jversion}
+  Informally, a well-formed component respects Write-XOR-Execute.
+  This means that there are no execute capabilities for the data memory and no write capability for the code memory.
+  The data memory of a well-formed component respects linearity and it may come with preset data structures.
+  It may, however, not contain capabilities for the code memory and sets of seals.
+  All the available seals of a component should reside in the code memory.
+  Both adversarial and trusted components can be well-formed.
+  Adversarial components are components where the range of addresses for the code memory is disjoint from the trusted address space Further, adversarial code does not have access to return seals.
+  On the other hand, trusted components must make return seals available to all its calls in a way that is consistent with \stktokens{}.
+  This means that each return seal is only used for one call.
+  Finally, well-formed components can export what corresponds to closures, i.e.,  capabilities for data and code memory sealed with a closure seal.
+\end{jversion}
+
+% We first highlight the main points of the $\wdjud[\ta]{\comp}$ judgement.
+% For components with a main pair, the main pair must come from the exports and the remainder of the component must be well-formed.
+% As a reminder, a base component looks like this: $(\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)$.
+% The return seals $\sigrets$ are the seals supposed to be usedto seal return pointers and the closure seals $\sigcloss$ all the other seals in a component.
+% If a component is adversarial, i.e.\ the domain of the code memory $\mscode$ is disjoint from the set of trusted addresses $\ta$, then there should be no return seals.
+% The code memory may contain sets of seals but only for the seals in $\sigrets$ and $\sigcloss$.
+% Other than that, code memory only contains instructions in the form of integers.
+% When a sequence of instructions in the code memory corresponds to a call (Figure~\ref{fig:call-code}), the call must have access to the return seal it specifies.
+% The return seal also needs to be unique to that call; that is, no other call can specify the same seal as its return seal.
+% The data memory $\msdata$ may contain data, capabilities, and sealed capabilities.
+% The capabilities in the data memory can only have authority over the data memory itself.
+% This allows components to have initial data structures.
+% In order to respect Write-XOR-Execute, the capabilities in data memory cannot have execute permission.
+% The capabilities also need to respect linearity which means that linear capabilities cannot be aliased by any other capability, and they must be for a range of the predetermined linear addresses $A_\linear$.
+% The sealed capabilities must be sealed with a closure seal, and the sealable can be anything that is allowed to reside in data memory.
+% The exports $\overline{\var{export}}$ can be anything non-linear allowed to reside in data memory or a sealed capability for the code memory sealed with one of the closure seals.
+
+\begin{jversion}
+The judgement $\wdjud[\ta]{\comp}$ specifies what components are well formed, i.e.\ satisfy the initial syntactic requirements necessary to be able to rely on system guarantees.
+The judgement is defined in \figurename~\ref{fig:well-formed} with auxiliary judgements in \figurename~\ref{fig:well-formed-aux}.
+
+%TODO distinguish closure seals from return seals.
+The $\wdjud[\ta]{\comp}$ judgement has two rules: \textsc{Main} and \textsc{Base}. The \textsc{Main} rule requires the component to have a main pair picked from the exports. Further, the component should be a base component that satisfies judgement. The \textsc{Base} judgement makes sure that the component has a bit of structure. Roughly speaking, the \textsc{Base} rule requires the following:
+\begin{itemize}
+\item \textit{Code and data memory are disjoint.}
+\item \textit{Code memory is enclosed in a memory segment $\ms_\var{pad}$ that contains zero's.} This prevents the memory of two code memories from being spliced together.
+\item \textit{Data memory can be partitioned in a linear part $A_\var{linear}$ and a non-linear part $A_\var{non-linear}$.} The component judgement ensure that the linear address space of a component is at most referenced by one capability. This means that any capability for the linear address space is unique.
+\item \textit{There is a partition $A_\var{own}$ of $A_\var{linear}$ that assigns a set of linear-addressed to each address of data memory.} The partitions are used by the component word judgement ($\vdash_\mathrm{comp-word}$) which ensures linear capabilities only address the addresses in the linear address space that is owned by the address where the capability resides in memory.
+\item \textit{All import addresses are part of the data memory.} 
+\item \textit{Import and export symbols are disjoint.}
+\item \textit{One of the following two are true}
+  \begin{itemize}
+  \item \textit{The code memory is disjoint from the trusted address space $\ta$ and in that case there are no return seals.} In this case, the component contains untrusted code. We are interested in WBCF and LSE from the perspective of the trusted code, so we do not let untrusted memory have return seals.
+  \item \textit{The code memory is part of the trusted address space $\ta$.} In this case, the component contains trusted code. We do not impose requirements on the return seals here (the auxiliary judgements will impose restrictions on them), so the trusted component can have the return seals necessary for its calls.
+  \end{itemize}
+\item \emph{The data memory is disjoint from the trusted address space $\ta$.} We are not looking to execute data, so the trusted addresses never include the data memory addresses.
+\item \textit{The code memory satisfies the component-code judgement (\figurename~\ref{fig:well-formed-code}).}
+\item \textit{Each word in the data memory satisfies the component-word judgement (\figurename~\ref{fig:well-formed-word}). In particular, this must be with respect to the linear addresses assigned to this address. }
+\item \textit{All the exports satisfies the components-export judgement (\figurename~\ref{fig:well-formed-export}).}
+\end{itemize}
+
+\figurename~\ref{fig:well-formed-word} defines the judgement $\vdash_{\mathrm{comp-word}}$ the words that are well-formed in a component's data memory.
+The judgement is defined by three rules: \textsc{W-Data}, \textsc{W-Capability}, and \textsc{W-Sealed-Capability}.
+The \textsc{W-Data} rule says all data, i.e.\ integers, are well-formed words.
+The \textsc{W-Capability} rule specifies that all well-formed capabilities in data memory must at most have read and write permission.
+Further, if the capability is linear, then the range of authority must be within the linear address space owned by this address.
+Finally, if it is non-linear, then it must be in the non-linear address space.
+The \textsc{W-Sealed-Capability} specifies that well-formed sealed capabilities in data memory are sealed with a closure seal and whatever is sealed is itself a well-formed word.
+Because of the last requirement, the data memory cannot initially contain sealed code capabilities.
+However, a component is free to place sealed data capabilities in memory during execution.
+
+\figurename~\ref{fig:well-formed-export} defines the well-formed exports $\vdash_{\mathrm{comp-export}}$.
+\textsc{E-Word} says that any well-formed word for data memory is well-formed as an export.
+In particular, this means that sealed capabilities for the data memory are acceptable exports which allows components to export the data part of a sealed capability pair.
+The \textsc{E-Sealed-Code} rule allows the code part of a sealed capability pair to be export.
+In particular, it allows a capability with read-execute permission and its range of authority within the component's code address space to be exported when it has been sealed with a closure seal.
+Together, these two rules allow components to have closures that they export.
+
+\figurename~\ref{fig:well-formed-code} defines the well-formed code memories $\vdash_{\mathrm{comp-code}}$.
+The well-formed code memories are defined by two judgements.
+One judgement considers the entire memory $\sigrets,\sigcloss,\ta\vdash_{\mathrm{comp-code}} \mscode$ while the other considers the contents of each code memory address $\sigrets,\sigrets[\mathrm{owned}],\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode,a$.
+Unlike data memory and exports, we cannot say whether code memory is well-formed by considering each of its words in isolation.
+The well-formedness of code memory depends on whether seals for calls are located in the place we expect them to be located.
+The $\sigrets,\sigrets[\mathrm{owned}],\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode,a$ judgement has two rules.
+The \textsc{C-Seal} judgement requires address $a$ in $\mscode$ to contain a set of seals that is a subset of the closure seals and the return seals.
+\textsc{C-Instr} requires address $a$ to contain an integer, which may be interpreted as instruction.
+If address $a$ is the first address of a series of instructions that may be interpreted as a call, and all the addresses are within the trusted address space, then there must be a set of seals available at the address the call in question expects it and that set of seals must contain the return seal that corresponds to the return seal of this call.
+The return seal in question must be in the $\sigrets[\mathrm{owned}]$ to ensure that no other call uses it.
+In order to ensure that return seals are at most used by one call, the $\sigrets,\sigcloss,\ta\vdash_{\mathrm{comp-code}} \mscode$ judgement takes all the available return seals and partitions them over code addresses. 
+This means that no other call can use the same seal.
+Further, return seals cannot be used to seal non-return capabilities, so the \textsc{C-Mem} judgement requires the set of return seals to be disjoint from the set of closure seals.
+To limit the amount of corner cases we have to consider, we require the code memory to have no \textit{hidden calls}.
+\lau{Do we actually use the hidden calls in the proofs? I vaguely recall this was added to make sure that splicing would not create a call. However, we also have the padding which, at least in part, takes care of this.}
+\begin{definition}[No hidden calls]
+  \label{def:no-hidden-calls}
+  We say that a memory segment $\mscode$ has no hidden calls iff
+  \[
+    \begin{array}{l}
+      \forall \aaddr \in \dom(\mscode) \ldotp \\
+      \quad \forall i \in [0,\calllen - 1] \\
+      \qquad \mscode(a + i) = \scall[i]{\offpc,\offsigma}{r_1}{r_2} \Rightarrow \\
+      \qquad \quad (\dom(\mscode) \supseteq [\aaddr-i,\aaddr + \calllen - i - 1] \wedge\\
+      \qquad \qquad \mscode([\aaddr-i,\aaddr + \calllen - i -1]) =
+      \scall[0..\calllen-1]{\offpc,\offsigma}{r_1}{r_2}) \vee\\
+      \qquad \quad \exists j \in [\aaddr-i,\aaddr + \calllen - i -1] \cap \dom(\mscode) \ldotp \mscode(j) \neq  \scall[j-\aaddr-i]{\offpc,\offsigma}{r_1}{r_2}
+    \end{array}
+  \]
+\end{definition}
+This definition says that if code memory contains an instruction that may be part of a call, then either it is a part of a call or there is some other instruction that witnesses the fact that it is not part of a call.
+Finally, the \textsc{C-Mem} judgement requires that the code at least have one non-empty set of seals available.
+
+\begin{figure}
+\begin{mathpar}
+  \inferrule*[Right=Base]{
+    \dom(\mscode) = [\baddr,\eaddr]\\
+    [\baddr-1,\eaddr+1] \mathrel{\#} \dom(\msdata)\\
+    \mspad = [\baddr-1\mapsto 0] \uplus [\eaddr+1 \mapsto 0]\\
+    \exists A_\mathrm{own} : \dom(\msdata) \rightarrow \powerset{\dom(\msdata)}\\
+    \dom(\msdata) = A_{\mathrm{non-linear}} \uplus A_\linear \\
+    A_\linear = \biguplus_{a \in \dom(\msdata)} A_{\mathrm{own}}(a) \\
+    \overline{\var{export}} = \overline{s_{\mathrm{export}} \mapsto w_{\mathrm{export}}} \\
+    \overline{\var{import}} = \overline{a_{\mathrm{import}} \mapsfrom s_{\mathrm{import}}} \\
+    \{\overline{a_{\mathrm{import}}}\} \subseteq \dom(\msdata)\\
+    \overline{s_{\mathrm{import}}} \mathrel{\#} \overline{s_{\mathrm{export}}} \\
+    (\emptyset \neq \dom(\mscode) \subseteq \ta) \vee (\dom(\mscode) \mathrel{\#} \ta \wedge \sigrets = \emptyset) \\
+    \dom(\msdata) \mathrel{\#} \ta \\
+    \sigrets,\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode \\
+    \forall a \in \dom(\msdata)\ldotp \dom(\mscode),A_{\mathrm{own}}(a),A_{\mathrm{non-linear}},\sigcloss \vdash_{\mathrm{comp-word}} \msdata(a)\\
+    \overline{\dom(\mscode), A_{\mathrm{non-linear}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-export}} w_{\mathrm{export}}}
+  }{
+    \ta \vdash (\mscode\uplus \mspad,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
+  }
+  \and
+  \inferrule*[Right=Main]{
+    \var{comp}_0 = (\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)\\
+    \ta \vdash \var{comp}_0 \\
+    (\_ \mapsto c_{\mathrm{main},c}), (\_ \mapsto c_{\mathrm{main},d}) \in \overline{\var{export}}
+  }{
+    \ta \vdash (\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})
+  }
+\end{mathpar}
+\caption{Well-formedness judgement.}
+\label{fig:well-formed}
+\end{figure}
+
+\begin{figure}[h]
+  \begin{subfigure}[h]{1.0\linewidth}
+    \begin{mathpar}
+  \inferrule*[Right=C-Seals]{
+    \mscode(a) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr} \\ [\sigma_\baddr,\sigma_\eaddr] = (\sigrets \cup \sigcloss)
+  }{
+    \sigrets,\sigrets[\mathrm{owned}],\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode,a
+  }
+  \and
+  \inferrule*[Right=C-Instr]{
+    \mscode(a) \in \ints\\
+{    \begin{multlined}
+      ([a \cdots a + \calllen-1] \subseteq \ta \wedge \mscode([a \cdots a + \calllen-1]) = \scall[0..\calllen-1]{\offpc,\offsigma}{r_1}{r_2})
+      \Rightarrow\\ (\mscode(a+\offpc) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr} \wedge \sigma_\baddr+\offsigma \in \sigrets[\mathrm{owned}])
+    \end{multlined}
+}  }{
+    \sigrets,\sigrets[\mathrm{owned}],\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode,a
+  }
+  \and
+  \inferrule*[Right=C-Mem]{
+    \text{$\mscode$ has no hidden calls}\\
+    \sigrets \mathrel{\#} \sigcloss \\
+    \exists d_\sigma : \dom(\mscode) \rightarrow \powerset{\Seal} \ldotp
+    \sigrets = \biguplus_{a \in \dom(\mscode)} d_\sigma(a) \tand\\
+    \forall a \in \dom(\mscode) \ldotp 
+    \sigrets,d_\sigma(a),\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode,a\\
+    \exists a \ldotp \mscode(a) = \seal{\sigma_\baddr,\sigma_\eaddr,\_} \wedge [\sigma_\baddr,\sigma_\eaddr] \neq \emptyset
+  }{
+    \sigrets,\sigcloss,\ta\vdash_{\mathrm{comp-code}} \mscode
+  }
+    \end{mathpar}
+    \caption{Code well-formedness.}
+    \label{fig:well-formed-code}
+  \end{subfigure}
+  
+  \begin{subfigure}[h]{1.0\linewidth}
+    \begin{mathpar}
+      \inferrule*[Right=W-Data]{
+        z \in \ints
+  }{
+    A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\sigcloss \vdash_{\mathrm{comp-word}} z
+  }
+  \and
+  \inferrule*[Right=W-Capability]{
+    \permbnf \sqsubseteq \rw\\
+    \lin = \linear \Rightarrow \emptyset \subset [\baddr,\eaddr] \subseteq A_{\mathrm{own}} \\\\
+    \lin = \normal \Rightarrow [\baddr,\eaddr] \subseteq A_{\mathrm{non-linear}}
+  }{
+    A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\sigcloss \vdash_{\mathrm{comp-word}} ((\perm,\lin),\baddr,\eaddr,\aaddr)
+  }
+  \and
+  \inferrule*[Right=W-Sealed-Capability]{
+    A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\sigcloss \vdash_{\mathrm{comp-word}} \vsc \\
+    \sigma \in \sigcloss
+  }{
+    A_{\mathrm{code}},A_{\mathrm{own}},A_{\mathrm{non-linear}},\sigcloss \vdash_{\mathrm{comp-word}} \sealed{\sigma,\vsc}
+  }
+    \end{mathpar}
+    \caption{Word well-formedness.}
+    \label{fig:well-formed-word}
+  \end{subfigure}
+  
+  \begin{subfigure}[h]{1.0\linewidth}
+    \begin{mathpar}
+  \inferrule*[Right=E-Sealed-Code]{
+    [\baddr,\eaddr] \subseteq A_{\mathrm{code}} \\
+    \sigma \in \sigcloss
+  }{
+    A_{\mathrm{code}},A_{\mathrm{non-linear}},\sigcloss \vdash_{\mathrm{comp-export}} s \mapsto \sealed{\sigma,((\rx,\normal),\baddr,\eaddr,\aaddr)}
+  }
+  \and
+  \inferrule*[Right=E-Word]{
+    A_{\mathrm{code}},\emptyset,A_{\mathrm{non-linear}},\sigcloss \vdash_{\mathrm{comp-word}} w
+  }{
+    A_{\mathrm{code}},A_{\mathrm{non-linear}},\sigcloss \vdash_{\mathrm{comp-export}} s \mapsto w
+  }
+    \end{mathpar}
+    \caption{Export well-formedness}
+    \label{fig:well-formed-export}
+  \end{subfigure}
+  \caption{Well-formedness judgement for code, words, and export. $\calllen$ it the length of the call code.}
+  \label{fig:well-formed-aux}
+\end{figure}
+\end{jversion}
+\subsection{Reasonability}
 % Reasonability
 The static guarantees given by $\wdjud[\ta]{\comp}$ makes sure that components initially don't undermine the security measures needed for \stktokens{}, but it does not prevent a component from doing something silly during execution that undermines \stktokens{}.
 In order for \stktokens{} to provide guarantees for a component, we expect it to not shoot itself in the foot and perform certain necessary checks not captured by the call code (Figure~\ref{fig:call-code}).
