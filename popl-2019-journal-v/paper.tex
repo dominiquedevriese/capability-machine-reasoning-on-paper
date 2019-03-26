@@ -256,10 +256,10 @@
 \label{sec:introduction}
 \todo[inline]{TODOS ENABLED!!!}
 \todo[inline]{Lau: for camera ready version update reference to technical report (and upload the technical report).}
-Secure compilation is an active topic of research (e.g.~\citep{devriese_modular_2017,patrignani_hyper_2017,Abate:2018:GCG:3243734.3243745,new_universal_embedding_2016,juglaret_beyond_2016}), but a real secure compiler is yet to be made.
+Secure compilation is an active topic of research (e.g.~\citep{devriese_modular_2017,patrignani_hyper_2017,Abate:2018:GCG:3243734.3243745,new_universal_embedding_2016,juglaret_beyond_2016}), but a real secure compiler is yet to be built.
 Secure compilers preserve source-language (security-relevant) properties even when the compiled code interacts with arbitrary target-language components.
 Generally, properties that hold in the source language but not in the target language need to be somehow enforced by the compiler.
-Two properties that hold in many high-level source languages, but not in the assembly languages they are compiled to, are well-bracketed control flow and encapsulation of local state.
+Two properties that hold in many high-level source languages are well-bracketed control flow and encapsulation of local state, but they are not enforced after compilation to assembly.
 
 Well-bracketed control flow (WBCF) expresses that invoked functions must either return to their callers, invoke other functions themselves or diverge, and generally holds in programming languages that do not offer a primitive form of continuations. 
 At the assembly level, this property does not hold immediately. 
@@ -307,7 +307,7 @@ Instead of CHERI's local capabilities, it builds on {\itshape linear} capabiliti
 Concurrently with our work, Watson et al. have developed a (more realistic) design for linear capabilities in CHERI that is detailed in the latest CHERI ISA reference~\citep{watson2018ISA}.
 % KJAA: Perhaps make it clear by who and when/where?
 The hardware prevents these capabilities from being duplicated.
-We propose to make stack and return pointers linear and require components to hand them out in cross-component invocations and to return them in returns.
+We propose to make stack and return pointers linear and require components to hand them out in cross-component invocations and to give them back on return.
 The non-duplicability of linear capabilities together with some security checks allow us to guarantee WBCF and LSE without large overhead on boundary crossings and in particular without the need for clearing large blocks of memory.
 
 A second contribution of this work is the way in which we formulate these two properties.
@@ -373,7 +373,7 @@ A linear capability is a capability that cannot be duplicated.
 This is enforced dynamically on the capability machine, so when a linear capability is moved between registers or memory, the source is cleared.
 The non-duplicability of linear capabilities means that a linear capability cannot become aliased if it wasn't to begin with.
 
-\begin{wrapfigure}{r}{0.19\linewidth}
+\begin{wrapfigure}{r}{0.30\linewidth}
   \centering
   \begin{tikzpicture}[main node/.style={}]
     \node[main node] (rwx) {$\rwx$};
@@ -406,13 +406,13 @@ It also must have a way to cross these boundaries such that (1) the security dom
 %The M-Machine~\citep{Dally1997Memo59} inspired capability machine in \citet{skorstengaard_reasoning_2017} uses enter-capabilities to achieve this.
 On \trgcm{} we have CHERI-like sealed capabilities to achieve this~\cite{watson_cheri:_2015,watson_fast_2016}.
 % seals
+A sealed capability $\sealed{\sigma,\vsc}$ is a pair of a seal $\sigma$ and a capability $\vsc$.
 A sealed capability makes an underlying capability opaque which means that the underlying capability cannot be changed or used for the operations it normally gives permission to.
 In other words, the authority the underlying capability represents is encapsulated under the seal.
-Syntactically, the sealed capability is represented as $\sealed{\sigma,\vsc}$ where $\vsc$ is a sealable and $\sigma$ is the seal used to seal the capability.
-In order to seal a sealable with a seal $\sigma$, it is necessary to have the right to do so.
-The right to make sealed capabilities is represented by a sets of seals $\seal{\sigma_\var{base},\sigma_\var{end},\sigma_{\var{current}}}$.
+In order to seal a sealable with a seal $\sigma$, it is necessary to have the permission to do so.
+The permission to make sealed capabilities is represented by a sets of seals $\seal{\sigma_\var{base},\sigma_\var{end},\sigma_{\var{current}}}$.
 A set of seals is a capability that represents the authority to seal sealables with seals in the range $[\sigma_\var{base},\sigma_\var{end}]$.
-In spirit of memory capabilities, a set of seals has an active seal $\sigma_{\var{current}}$ that is selected for use in the next seal operation.
+In spirit of memory capabilities, a set of seals has a current seal $\sigma_{\var{current}}$ that is selected for use in the next seal operation.
 % On \trgcm{}, we represent seals in sets rather than single seals to have a more compact representation of multiple seals and make it possible to have seal allocation (not described here).
 As we will see later, sealed capabilities can be unsealed with an \texttt{xjmp}, an operation that operates on a pair of capabilities sealed with the same seal.
 The instruction will be explained in more detail below, but essentially, it unseals the pair of capabilities, transfers control to one of them (the code part of the pair) and makes the other one (the data part of the pair) available to the invoked code.
@@ -450,8 +450,9 @@ The combination of sealed capabilities and \texttt{xjmp} gives (1) and (2).
 \end{figure}
 
 %%% Domains
-Words on \trgcm{} are capabilities and data (represented by integers ($\ints$)).
-We assume a finite set of register names $\RegName$ containing at least $\pcreg$, $\rretd$, $\rretc$, $\rstk$, $\rdata$, $\rtmp{1}$, and $\rtmp{2}$, and we define register files as functions from register names to words.
+Words on \trgcm{} are capabilities and data (represented by integers $\ints$).
+We assume a finite set of register names $\RegName$ containing at least the registers $\pcreg$, $\rretd$, $\rretc$, $\rstk$, $\rdata$, $\rtmp{1}$, and $\rtmp{2}$.
+We define register files as functions from register names to words.
 Complete memories map all addresses to words and memory segments map some addresses to words (i.e.\ partial functions).
 $\trgcm{}$ has two terminated configurations $\halted$ and $\failed$ that respectively signify a successful execution and an execution where something went wrong, e.g.,\ an out-of-bounds memory access.
 An executable configuration is a register file and memory pair.
@@ -559,7 +560,7 @@ For instance, the \texttt{halt} and \texttt{fail} instructions are simply interp
 % move w/ lin
 The \texttt{move} instruction simply moves a word from one register to another.
 It is, however, complicated slightly by the presence of the non-duplicable linear capabilities.
-When a linear capability is moved, the source register must be cleared, so the capability is not duplicated.
+When a linear capability is moved, the source register must be cleared to prevent duplication of the capability.
 This is done uniformly in the semantics using the function $\linCons{}$ that returns $0$ for linear capabilities and is the identity for all other words.
 When a word $w$ is transferred on the machine, then the source of $w$ is overwritten with $\linCons{w}$ which clears the source if $w$ was linear and leaves it unchanged otherwise.
 In the case of \texttt{move}, the source register $\rn$ is overwritten with $\linCons{\Phi(\rn)}$.
