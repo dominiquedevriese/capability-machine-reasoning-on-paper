@@ -1414,7 +1414,7 @@ In other words, WBCF and LSE are natively enforced in this semantics.
 %   \caption{The return condition in the operational semantics of \srccm{}.}
 %   \label{fig:source-op-sem-return}
 % \end{figure}
-\subsection{Well-Formedness}
+\subsection{Well-Formed Components}
 \label{sec:well-form-reas}
 % Well-formed components
 % \begin{figure}[htb]
@@ -1687,19 +1687,66 @@ Finally, the \textsc{C-Mem} judgement requires that the code at least have one n
   \label{fig:well-formed-aux}
 \end{figure}
 \end{jversion}
-\subsection{Reasonability}
+\subsection{Reasonable Components}
 % Reasonability
 The static guarantees given by $\wdjud[\ta]{\comp}$ makes sure that components initially don't undermine the security measures needed for \stktokens{}, but it does not prevent a component from doing something silly during execution that undermines \stktokens{}.
 In order for \stktokens{} to provide guarantees for a component, we expect it to not shoot itself in the foot and perform certain necessary checks not captured by the call code (Figure~\ref{fig:call-code}).
-More precisely, we expect four things of a reasonable component: (1) It checks the stack base address before performing a call.
+More precisely, we expect four things of a reasonable component:
+\begin{enumerate}[label=(\arabic*)]
+\item It checks the stack base address before performing a call.
 As explained in Section~\ref{sec:stktokens-explained}, we do not include this check in the call code as it often would be redundant.
-(2) It uses the return seals only for calls and the closure seals in an appropriate way which means that they should only be used to seal executable capabilities for code that behaves reasonably or non-executable things that do not undermine the security mechanisms \stktokens{} relies on.
-(3) It does not leak return and closure seals or means to retrieve them.
+\item It uses the return seals only for calls and the closure seals in an appropriate way which means that they should only be used to seal executable capabilities for code that behaves reasonably or non-executable things that do not undermine the security mechanisms \stktokens{} relies on.
+\item It does not leak return and closure seals or means to retrieve them.
 This means that sets of seals with return or closure seals cannot be left in registers when transferring control to another module.
 There are also indirect ways to leak seals such as leaking a capability for code memory or leaking a capability for code memory sealed with an unknown seal.
-(4) It does not store return and closure seals or means to get them.
+\item It does not store return and closure seals or means to get them.
 By disallowing this, we make sure that data memory always can be safely shared as it does not contain seals or means to get them to begin with.
-We elide the details here and refer to~\citet{technical_report}
+\end{enumerate}
+\begin{jversion}
+  We capture these properties in 4 definitions.
+  Definition~\ref{def:reasonable-word} defines the reasonable words which means that they cannot be used to leak seals directly as well as indirectly.
+  Definition~\ref{def:reasonable-pc} defines the reasonable pc's which means that if it is plugged into a configuration with a register file filled with reasonable words, then  the configuration behaves reasonable.
+  Definition~\ref{def:reasonable-conf} defines the reasonable configurations which captures the four informal behavioural properties.
+  Finally, definition~\ref{def:reasonable-component} lifts the notion of reasonability to components.
+
+  \subsubsection{Reasonable words}
+  To provide any guarantees, \stktokens{} rely on the program to no leak return seals in any way.
+  But what does it mean to ``leak'' a return seal.
+  This means that sets of seals that contain return seals as well as any means to obtain such sets cannot be leaked.
+  The following definition makes this more precise.
+\begin{definition}[Reasonable word]
+  \label{def:reasonable-word}
+  Take a set of trusted addresses $\ta$ and sets of return pointer and closure seals $\gsigrets$ and $\sigcloss$.
+We define that a word $w$ is reasonable up to $n$ steps in memory $\ms$ and
+free stack $\ms_\stk$ if $n=0$
+or the following implications hold.
+  \begin{itemize}
+  \item If $w = \seal{\sigma_\baddr,\sigma_\eaddr,\_}$, then
+    $[\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\gsigrets \cup \gsigcloss)$
+  \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$, then $[\baddr,\eaddr] \mathrel{\#} \dom(\ta)$
+  \item If $w = \sealed{\sigma,\vsc}$ and $\sigma \not\in (\gsigrets\cup
+    \gsigcloss)$ then $\vsc$ is reasonable up to $n - 1$ steps.
+  \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\perm \in \readAllowed{}$
+    and $n > 0$, then $\ms(\aaddr)$ is reasonable up to $n - 1$ steps for all
+    $\aaddr \in ([\baddr,\eaddr] \setminus \ta)$
+  \item If $w = \stkptr{\perm,\baddr,\eaddr,\_}$ and $\perm \in \readAllowed{}$
+    and $n > 0$, then $\ms_\stk(\aaddr)$ is reasonable up to $n - 1$ steps for
+    all $\aaddr \in [\baddr,\eaddr]$
+  \end{itemize}
+\end{definition}
+According to the definition, sets of seals that contain return or closure seals are not reasonable.
+\stktokens{} need the return seals to be unique in order to work, but it does not need the closure seals.
+However, it defeats the purpose of the closure seals if they are leaked to malicious code as it allows the malicious code to fabricate data capabilities for the code capabilities or code capabilities for the data capabilities which effectually allows malicious code to unseal the data capability.
+Further, it makes reasoning about leakage of return seals difficult because the closures have to be well-behaved no matter what data they are executed in the context of.
+
+% TODO Mention sealed capabilities?
+
+A reasonable word is defined relative to a memory and a stack because for capabilities it depends on what they give access to whether they are reasonable.
+For instance, if a read capability gave access to a piece of memory that contains a set of seals with a return seal, then it would not be reasonable.
+This is why stack pointers and memory capabilities with read permission must only give access to memory with reasonable words.
+
+The definition is cyclic, but the step-index ensures that it is well-founded.
+
 
 In our result, we assume that adversarial components are well-formed, but not necessarily reasonable. The well-formedness assumption ensures that the trusted component can rely on basic security guarantees provided by the capability machine. For instance, if we did not require linearity to be respected initially, then adversarial code could start with an alias for the stack capability. The adversary is not assumed to be reasonable as we do not expect them to obey the calling convention in any way. Can adversarial code call into trusted components? The answer to that question is yes but not with LSE and WBCF guarantees. Formally, adversarial code can contain the instructions that constitute a call. However, for untrusted code, \srccm{} will not execute those instructions as a "native call" but execute the individual instructions separately. The callee then executes in the same stack frame as the caller, so WBCF and LSE do not follow (for that call).
 
@@ -1722,6 +1769,7 @@ We will assume trusted components, for which WBCF and LSE are guaranteed, to be 
 % Reasonable configuration
 % Reasonable component
 
+\end{jversion}
 
 \subsection{Full Abstraction}
 All that is left before we state the full-abstraction theorem is to define how components are combined with contexts and executed, so that we can define contextual equivalence.
