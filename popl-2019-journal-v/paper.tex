@@ -88,6 +88,7 @@
 \renewcommand{\Reg}{\shareddom{RegFile}}
 \renewcommand{\RegName}{\shareddom{RegName}}
 \renewcommand{\decInstr}[1]{\plainfun{decode}{#1}}
+\renewcommand{\encInstr}[1]{\plainfun{encode}{#1}}
 \renewcommand{\updPcAddr}[1]{\plainfun{updPc}{#1}}
 \renewcommand{\linCons}[1]{\plainfun{linClear}{#1}}
 \renewcommand{\nonExec}[1]{\plainfun{nonExec}{#1}}
@@ -605,6 +606,44 @@ The two instructions work in the same way for seal sets.
 We do not provide special support for lossless reduction of capability permissions, but this could probably be achieved with more fine-grained permissions.
 This would also allow linear capabilities to have aliases, but only by linear capabilities with disjoint permissions.
 
+\begin{jversion}
+\subsection{Decoding and encoding functions}
+The operational semantics of the capability machine uses $\decInstr{}$ to decode instructions.
+We also assume an $\encInstr{}$ which is used to put programs onto the capability machine.
+Rather than specifying a decode function and an encode function, we assume that they are given with certain properties.
+The $\decInstr{} : \Word \fun \Instr$ should be injective and surjective for all non-$\fail$ instructions.
+Further, it should decode all capabilities as the $\fail$ instruction, i.e.\
+\[
+\forall c \in \Cap \ldotp \decInstr{c} = \fail
+\]
+The $\encInstr{} : \Instr \fun \ints$ function should be injective, and it should be defined so $\decInstr{}$ is its left inverse, i.e.
+\[
+\forall i \in \Instr \ldotp \decInstr{}(\encInstr{i}) = i
+\]
+
+These assumptions are sufficient to construct program examples and run them on the machine.
+The $\encInstr{}$ function allows us to specify the program ``abstractly'' in terms of instructions rather than machine words.
+As the $\decInstr{}$ function is the left inverse of $\encInstr{}$, we can even execute the program in the operational semantics without ever worrying about what the actual encoding is.
+%This is not to say that encoding is an easy problem. There are many things to get.
+
+The machine also assumes decode and encode functions for permissions $\decPerm{} : \Perm \fun \ints$ and $\encPerm{} : \ints \fun \Perm$.
+We assume the $\decPerm{}$ function to be the left inverse of $\encPerm{}$ and surjective. For $\encPerm{}$, we assume it is surjective and that it does not encode anything to the error value -1, i.e.
+\[
+  \forall \perm \in \Perm \ldotp \encPerm{\perm} \neq -1
+\]
+For linearity we assume similar functions.
+
+Finally, the machine uses an encode function for word types $\encType{}$ in the interpretation of $\tisptr{}{}$.
+This function encodes each kind type of word as an integer.
+This is very much like the previous functions.
+It encodes each kind of word differently and all words of the same kind to the same integer.
+In Section~\ref{subsec:overlay-semantics}, we present an overlay semantics which changes the set of words compared to this machine.
+The overlay semantics also has a type encoding function which must encode the new words, so they correspond to their representation on this machine.
+For instance, the encoding of the type of a stack-pointer in the overlay semantics should be the same as the encoding of a capability on this machine.
+All the new words correspond to a word on this machine, and their encodings should match.
+\end{jversion}
+
+\subsection{Components, linking, programs, and contexts }
 The executable configuration describes the machine state, but it does not make it clear what components run on the machine and how they interact with each other.
 To clarify this, we introduce notions of components and programs from which we construct executable configurations.
 A component (defined in Figure~\ref{fig:target-component-and-linking}) is basically a program with entry points in the form of imports that need to be linked.
