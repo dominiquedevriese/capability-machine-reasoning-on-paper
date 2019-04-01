@@ -1747,29 +1747,135 @@ This is why stack pointers and memory capabilities with read permission must onl
 
 The definition is cyclic, but the step-index ensures that it is well-founded.
 
+\subsubsection{Reasonable pc and configuration}
+In order to define desired behaviour, we need to say specify what may happen on a machine during execution.
+The execution steps between executable configurations, so we need to define when a configuration is reasonable.
+While the step relation is defined over configurations, it is the pc that decides what instruction is executed.
+It therefore only seem natural to also define when a pc is reasonable.
+Definition~\ref{def:reasonable-pc} roughly says that a pc is reasonable when you can plug it into a configuration where all the words in the register file is reasonable and the result is a reasonable configuration.
+  \begin{definition}[Reasonable pc]
+    \label{def:reasonable-pc}
+    We say that an executable capability $c =
+    ((\perm,\normal),\baddr,\eaddr,\aaddr)$ behaves reasonably up to $n$ steps
+    if for any $\Phi$ such that
+    \begin{itemize}
+    \item $\Phi.\reg(\pcreg) = c$
+    \item $\Phi.\reg(r)$ is reasonable up to $n$ steps in memory $\Phi.\mem$ and
+      free stack $\Phi.\ms_\stk$ for all $r \neq \pcreg$
+    \item $\Phi.\mem$, $\Phi.\ms_\stk$ and $\Phi.\stk$ are all disjoint
+    \end{itemize}
+    We have that $\Phi$ is reasonable up to $n$ steps.
+  \end{definition}
+  With Definition~\ref{def:reasonable-word} and \ref{def:reaonable-pc} in place, we are all set to define when a configuration is reasonable.
+  \begin{definition}[Reasonable configuration]
+    \label{def:reasonable-conf}
+    We say that an execution configuration $\Phi$ is reasonable up to $n$ steps with $(\ta,\stkb,\gsigrets,\gsigcloss)$ 
+    iff for $n' \leq n$:
+    \begin{enumerate}
+    \item \label{item:guarantee-stk-base} \emph{Guarantee stack base address before call...} \\
+      If $\Phi$ points to $\src{\scall{\offpc,\offsigma}{r_1}{r_2}}$ in $\ta$
+      for some $\src{r_1}$ and $\src{r_2}$,
+      then all of the following hold:
+      \begin{itemize}
+      \item $\src{\Phi}(\src{r_\stk}) =
+        \src{\stkptr{\_,\stkb,\_,\_}}$
+      \item $r_1 \neq \rtmp{1}$
+      \item $n' = 0$ or $\Phi(\pcreg) + \calllen$ behaves reasonably up to $n'-1$ steps (Definition~\ref{def:reasonable-pc})
+      \end{itemize}
+    \item \label{item:return-seal-usage} \emph{Use return seals only for calls, use closure seals appropriately...} \\
+      If $\src{\Phi}$ points to $\src{\tcseal{r_1}{r_2}}$ in $\ta$ and $\Phi(r_2) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$,
+      then one of the following holds:
+      \begin{itemize}
+      \item $\src{\Phi}$ is inside $\src{\scall{\offpc,\offsigma}{r_1'}{r_2'}}$ and $\sigma \in \gsigrets$
+      \item $\sigma \in \gsigcloss$ and one of the following holds:
+        \begin{itemize}
+        \item $\exec{\Phi(r_1)}$ and $n' = 0$ or $\Phi(r_1)$ behaves reasonably up to $n' - 1$ steps (Definition~\ref{def:reasonable-pc}).
+        \item $\nonExec{\Phi(r_1)}$ and $n' = 0$ or $\Phi(r_1)$ is reasonable up to $n' - 1$ steps in memory $\Phi.\ms$ and free stack $\Phi.\ms_\stk$ (Definition~\ref{def:reasonable-word}).
+        \end{itemize}
+      \end{itemize}
+    \item \label{item:dont-store-private}\emph{Don't store private stuff...}\\
+      If $\src{\Phi}$ points to $\src{\tstore{r_1}{r_2}}$ in $\ta$,
+      then $n' = 0$ or $\Phi.\reg(r_2)$ is reasonable in memory $\Phi.\mem$ up to $n' -1$ steps.
+    \item \label{item:dont-leak-private}\emph{Don't leak private stuff...}\\
+      If $\Phi \step[\ta,\stkb] \Phi'$, then one of the following holds:
+      \begin{itemize}
+      \item All of the following hold:
+        \begin{itemize}
+        \item $\Phi'.\reg(\pcreg) =
+          ((\perm,\lin),\baddr,\eaddr,\aaddr')$ and $\Phi.\reg(\pcreg) =
+          ((\perm,\lin),\baddr,\eaddr,\aaddr)$
+        \item $\Phi$ does not point to $\src{\txjmp{r_1}{r_2}}$ for some $\src{r_1}$ and $\src{r_2}$
+        \item $\Phi$ does not point to $\src{\scall{\offpc,\offsigma}{r_1}{r_2}}$ for some $\src{r_1}$ and $\src{r_2}$, $\offpc$, $\offsigma$
+        \item $n' = 0$ or $\Phi'$ is reasonable up to $n'-1$ steps
+        \end{itemize}
+        % \dominique{the following seems unnecessary: why would we allow trusted code to use a jump instruction to jump out of a trusted component? it can use call and xjmp for calls/returns/tailcalls}
+        % \item $\Phi'.\reg(r)$ is reasonable in memory $\Phi'.\mem$ and free stack $\Phi'.\ms_\stk$ up to $n'-1$ steps for all $r$ (including $\pcreg$)
+      \item All of the following hold:
+        \begin{itemize}
+        \item $\Phi$ points to $\src{\scall{\offpc,\offsigma}{r_1}{r_2}}$ for some $\src{r_1}$ and $\src{r_2}$
+        \item $n' = 0$ or $\Phi.\reg(r)$ is reasonable in memory $\Phi.\mem$ and free stack $\Phi.\ms_\stk$ up to $n'-1$ steps for all $r \neq \pcreg$
+        \end{itemize}
+      \item All of the following hold:
+        \begin{itemize}
+        \item $\Phi$ points to $\src{\txjmp{r_1}{r_2}}$ for some $\src{r_1}$ and $\src{r_2}$
+        \item $n' = 0$ or $\Phi.\reg(r)$ is reasonable in memory $\Phi.\mem$ and free stack $\Phi.\ms_\stk$ up to $n'-1$ steps for all $r \neq \pcreg$
+        \end{itemize}
+      \end{itemize}
+    \end{enumerate}
+  \end{definition}
+The four items in Definition~\ref{def:reasonable-conf} correspond to the four informal items from the introduction of this section.
 
-In our result, we assume that adversarial components are well-formed, but not necessarily reasonable. The well-formedness assumption ensures that the trusted component can rely on basic security guarantees provided by the capability machine. For instance, if we did not require linearity to be respected initially, then adversarial code could start with an alias for the stack capability. The adversary is not assumed to be reasonable as we do not expect them to obey the calling convention in any way. Can adversarial code call into trusted components? The answer to that question is yes but not with LSE and WBCF guarantees. Formally, adversarial code can contain the instructions that constitute a call. However, for untrusted code, \srccm{} will not execute those instructions as a "native call" but execute the individual instructions separately. The callee then executes in the same stack frame as the caller, so WBCF and LSE do not follow (for that call).
+Item~\ref{item:dont-store-private} and Item~\ref{item:don't-leak-private} makes sure that return seals are not leaked.
+Item~\ref{item:dont-store-private} says that only reasonable words can be stored to memory.
+This means that sets of return seals or execute capabilities cannot be stored to memory by a reasonable component.
+Intuitively, a well-formed and reasonable component has its seals available in the code memory, so it can always retrieve them from the code memory.
+In other words, it is not necessary to store them in the data memory.
+Further, by making sure that seals are not stored to memory, we can allow capabilities for data memory to be passed away if there is a need for that (for instance to have a shared buffer).
+Item~\ref{item:dont-leak-private} makes sure that seals are not leaked when transferring control to another component (i.e. on security boundary crossings).
+With the component setup, there are two ways to transfer control: xjmp and call.
+In both cases, we require that all of the argument registers contain reasonable words.
+An execution configuration may need to do other operations than calling other code, and seals should no be leaked at any point during execution.
+For this reason, Item~\ref{item:don-leak-private} also says that if the next step is not a call and a jump, then the next execution configuration should also be reasonable.
+
+Item~\ref{item:guarantee-stk-base} makes sure that the stack has the correct base before a call.
+In order to not have to reason about unreasonably generated code, we also add the requirement $r_1 \neq \rtmp{1}$.
+If we allowed $r_1=\rtmp{1}$, then the call would be sure to fail as the first instruction of a call moves 42 to $\rtmp{1}$.
+Finally, this promises that the code after the call will behave reasonably.
+
+A well-formed component makes sure that a return seal is uniquely available to every call.
+This is, however, not sufficient as it does not ensure that other parts of a program don't use the return seals.
+We do not want to specify what non-call code should look like, so we just require it to not use the call seals.
+This is what Item~\ref{item:return-seal-usage} ensures.
+It says that if the configuration points to a seal-instruction, then either the instruction is part of a call and uses a return seal or the instruction is used to seal part of a closure which means that it should be using one of the closure seals.
+In order to construct a closure, one must seal a code capability and a data capability.
+If this is an executable capability, then it should be reasonable as a pc.
+On the other hand, if it is not an executable capability, then this must be the data part of the pair, so it should just be a reasonable word.
+
+Definition~\ref{def:reasonable-conf} is cyclic through Definition~\ref{def:reasonable-pc}, so both definitions are step-indexed to break the cycle. If 
+
+  \subsubsection{Reasonable component}
+  A reasonable component has the informal behavioural properties from the introduction.
+  Reasonability is captured by the previous definitions. These definitions are lifted to components by the following definition.
+  \begin{definition}[Reasonable component]
+    \label{def:reasonable-component}
+    We say that a component
+    $(\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)$
+    is reasonable if the following hold: For all $(s \mapsto \sealed{\sigma,\vsc}) \in
+    \overline{c_{\mathrm{export}}}$, with $\exec{\vsc}$, we have that $\vsc$
+    behaves reasonably up to any number of steps $n$.
+
+    We say that a component
+    $(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})$ is reasonable if $\var{comp}_0$ is reasonable.
+    % \lau{Is this reasonable as a word? In that case, it should  mention the
+    %   memory and free stack.}
+    % \dominique{No: this is reasonable as a  pc.}
+  \end{definition}
+\end{jversion}
+
+In our result, we assume that adversarial components are well-formed, but not necessarily reasonable. The well-formedness assumption ensures
+ that the trusted component can rely on basic security guarantees provided by the capability machine. For instance, if we did not require linearity to be respected initially, then adversarial code could start with an alias for the stack capability. The adversary is not assumed to be reasonable as we do not expect them to obey the calling convention in any way. Can adversarial code call into trusted components? The answer to that question is yes but not with LSE and WBCF guarantees. Formally, adversarial code can contain the instructions that constitute a call. However, for untrusted code, \srccm{} will not execute those instructions as a "native call" but execute the individual instructions separately. The callee then executes in the same stack frame as the caller, so WBCF and LSE do not follow (for that call).
 
 We will assume trusted components, for which WBCF and LSE are guaranteed, to be both well-formed and reasonable. 
-%The reasonability definition has also been left out for space reasons, and we refer to the technical report~\citep{technical_report} for full definitions.
-
-% \begin{definition}[Reasonable configuration]
-%   \label{def:reasonable-conf}
-%   We say that an execution configuration $\Phi$ is reasonable up to $n$ steps with $(\ta,\stkb,\gsigrets,\gsigcloss)$ 
-%   iff for $n' \leq n$:
-%   \begin{itemize}
-%   \item \emph{Guarantee stack base address before call...}
-%   \item \emph{Use return seals only for calls, use closure seals appropriately...}
-%   \item \emph{Don't store private stuff...} If $\src{\Phi}$ points to $\src{\tstore{r_1}{r_2}}$ in $\ta$, then
-
-%     Then $n' = 0$ or $\Phi.\reg(r_2)$ is reasonable in memory $\Phi.\mem$ up to $n' -1$ steps.
-%   \item \emph{Don't leak private stuff...}
-%   \end{itemize}
-% \end{definition}
-% Reasonable configuration
-% Reasonable component
-
-\end{jversion}
 
 \subsection{Full Abstraction}
 All that is left before we state the full-abstraction theorem is to define how components are combined with contexts and executed, so that we can define contextual equivalence.
