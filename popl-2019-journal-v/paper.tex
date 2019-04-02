@@ -400,7 +400,6 @@ The non-duplicability of linear capabilities means that a linear capability cann
 \end{wrapfigure}%
 %
 %%% Seals
-% KJAA: Here I am still missing an intuition of what a seal 'is' -- why the range, why the seal as an 'entity'?
 
 Any reasonable capability machine needs a way to set up boundaries between security domains with different authorities.
 It also must have a way to cross these boundaries such that (1) the security domain we move from can encapsulate and later regain its authority and (2) the security domain we move to regains all of its authority. 
@@ -410,7 +409,7 @@ On \trgcm{} we have CHERI-like sealed capabilities to achieve this~\cite{watson_
 A sealed capability $\sealed{\sigma,\vsc}$ is a pair of a seal $\sigma$ and a capability $\vsc$.
 A sealed capability makes an underlying capability opaque which means that the underlying capability cannot be changed or used for the operations it normally gives permission to.
 In other words, the authority the underlying capability represents is encapsulated under the seal.
-In order to seal a sealable with a seal $\sigma$, it is necessary to have the permission to do so.
+In order to seal a sealable with a seal $\sigma$, it is necessary to have the authority to do so.
 The permission to make sealed capabilities is represented by a sets of seals $\seal{\sigma_\var{base},\sigma_\var{end},\sigma_{\var{current}}}$.
 A set of seals is a capability that represents the authority to seal sealables with seals in the range $[\sigma_\var{base},\sigma_\var{end}]$.
 In spirit of memory capabilities, a set of seals has a current seal $\sigma_{\var{current}}$ that is selected for use in the next seal operation.
@@ -605,6 +604,24 @@ Given two capabilities with adjacent ranges of authority and the same permission
 The two instructions work in the same way for seal sets.
 We do not provide special support for lossless reduction of capability permissions, but this could probably be achieved with more fine-grained permissions.
 This would also allow linear capabilities to have aliases, but only by linear capabilities with disjoint permissions.
+
+\begin{jversion}
+  \subsection{The purpose of sealing}
+  % Sealing example:
+  To motivate the necessity of an encapsulation mechanism like sealing, consider the following example.
+  We want to transfer control to code that we do not trust, and we want to give them the means to return to us.
+  That is, we need to give them a return capability.
+  If we did not have an encapsulation mechanism, our only option would be to give them an executable capability for the address we want them to return to.
+  The code we give the return capability could use it as intended, but it could also manipulate the return capability to point to a different point and return to an unintended point of our code.
+  Further in order to be able to retrieve our capabilities from before transferring control, we would have to store them somewhere accessible from the return capability.
+  However, the untrusted code would have access to all this through the return capability because it does not give less authority to the untrusted code than it does to us.
+  For this reason, any reasonable capability machine must have an encapsulation mechanism to enable programs to make boundaries between security domains.
+  
+  In the example, if we use sealing, we can seal the return capability which does two things.
+  It prevents the untrusted code from changing the target of the return capability forcing them to return to the point we intended.
+  It also prevents the untrusted code from reading our capabilities.
+  All in all, this means that we can transfer control to another domain without giving up our capabilities or handing them over.
+\end{jversion}
 
 \begin{jversion}
 \subsection{Decoding and encoding functions}
@@ -1212,6 +1229,7 @@ Well-formedness is a requirement for all components (trusted and untrusted), but
 % \todo[inline]{Dominique: I think it would be less confusing and more in line with the overlay semantics story to not add an extra instruction in Figure~\ref{fig:source-syntax} but rather present it as just a special case of the overlay semantics for the same underlying instructions.}
 
 \subsection{Overlay Semantics}
+\label{subsec:overlay-semantics}
 % Describe the things added to the syntax
 The overlay semantics \srccm{} for \trgcm{} views part of the memory as a built-in stack (Figure~\ref{fig:source-syntax}).
 % Built-in stack
