@@ -1,0 +1,56 @@
+\section{\trgcm{} instruction interpretation}
+\label{app:instr-interpretation}
+In this section, we present the interpretation of the \trgcm{} instructions left out of \figurename~\ref{fig:target-op-sem} as well as the interpretation of the \srccm{} specific interpretation.
+The two interpretations have everything in black in common, and everything in blue is specific to \srccm{}.
+
+ \begin{tabular}{|>{$}c<{$}|>{$}p{3.7cm}<{$}|>{\raggedright\arraybackslash}p{6.2cm}|}
+    \hline
+    i \in \Instr                                 & \sem{i}(\Phi) & Conditions\\
+    \hline
+    \tgetb{r_1}{r_2}                                        & \updPcAddr{\Phi\updReg{r_1}{w}} & If $\Phi(r_2) = ((\_,\_),\baddr,\_,\_)$, $\Phi(r_2) = \seal{\baddr,\_,\_}$, \src{or $\Phi(r_2) = ((\_,\_),\baddr,\_,\_)$}, then $w = \baddr$ and otherwise $w = -1$\\
+    \hline
+    \tgete{r_1}{r_2}                                        & \updPcAddr{\Phi\updReg{r_1}{w}} & If $\Phi(r_2) = ((\_,\_),\_,\eaddr,\_)$, or $\Phi(r_2) = \seal{\_,\eaddr,\_}$, \src{or $\Phi(r_2) = ((\_,\_),\_,\eaddr,\_)$}, then $w = \eaddr$ and otherwise $w = -1$\\
+    \hline
+    \tisptr{r_1}{r_2} & \updPcAddr{\Phi\updReg{r_1}{w}} & $w = \encType{\Phi(r_2)}$\footnote{The $\encType$ function differs for the two machines. Depending on the machine, the appropriate function is used.}\\
+    \hline
+    \tgetlin{r_1}{r_2} &\updPcAddr{\Phi\updReg{r_1}{w}} & If $\isLinear{\Phi(r_2)}$, then $w = \encLin{\linear}$, otherwise $w= \encLin{\normal}$\\
+    \hline
+    \tgetp{r_1}{r_2} & \updPcAddr{\Phi\updReg{r_1}{w}} & If $\Phi(r_2) = ((\perm,\_),\_,\_,\_)$ \src{or $\Phi(r_2) = ((\perm,\_),\_,\_,\_)$}, then $w = \encPerm{\perm}$ and otherwise $w = -1$\\
+    \hline
+    \tjnz{r}{\rn} & \Phi\updReg{r}{w}\update{\pcreg}{\Phi(r)} & $\nonZero{\Phi(\rn)}$ and $w = \linCons{\Phi(r)}$\\
+    \hline
+    \tjnz{r}{\rn} & \updPcAddr{\Phi}& If not $\nonZero{\Phi(\rn)}$ \\
+    \hline
+    \tplus{r}{\rn_1}{\rn_2} & \updPcAddr{\Phi\updReg{r}{n_1+n_2}} & If for $i \in \{1,2\}$ $\Phi(\rn_i) = n_i \in \ints$ \\
+    \hline
+    \tminus{r}{\rn_1}{\rn_2} & \updPcAddr{\Phi\updReg{r}{n_1-n_2}} & If for $i \in \{1,2\}$ $\Phi(\rn_i) = n_i \in \ints$ \\
+    \hline
+    \tlt{r}{\rn_1}{\rn_2} & \updPcAddr{\Phi\updReg{r}{1}} & If for $i \in \{1,2\}$ $\Phi(\rn_i) = n_i \in \ints$ and $n_1 < n_2$ \\
+    \hline
+    \tlt{r}{\rn_1}{\rn_2} & \updPcAddr{\Phi\updReg{r}{0}} & If for $i \in \{1,2\}$ $\Phi(\rn_i) = n_i \in \ints$ and $n_1 \not< n_2$ \\
+    \hline
+    \tsetatob{r} & \updPcAddr{\Phi\updReg{r}{c}} & $r \neq \pcreg$, $\Phi(r) = ((\perm,\lin),\baddr,\eaddr,\_)$, and $c = ((\perm,\lin),\baddr,\eaddr,\baddr)$ \\
+    \hline
+    \tsetatob{r} & \updPcAddr{\Phi\updReg{r}{c}} & $r \neq \pcreg$, $\Phi(r) = \seal{\sigma_\baddr,\sigma_\eaddr,\_}$, and $c = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr}$ \\
+    \hline
+    \src{\texttt{seta2b}\; r} & \src{\updPcAddr{\Phi\updReg{r}{c}}} &\srcalt{$r \neq \pcreg$, $\Phi(r) = \stkptr{\perm,\baddr,\eaddr,\_}$, and $c = \stkptr{\perm,\baddr,\eaddr,\baddr}$} \\
+    \hline
+    \trestrict{r}{\rn} & \updPcAddr{\Phi\updReg{r}{c}} & If $\Phi(r) = ((\perm,\lin),\baddr, \eaddr,\aaddr)$ and $\Phi(\rn) = n$ and $\decPerm{n} \le \perm$ and $c = ((\decPerm{n},\lin),\baddr, \eaddr, \aaddr)$\\
+    \hline
+    \src{\texttt{restrict} \; r \; \rn} & \src{\updPcAddr{\Phi\updReg{r}{c}}} & \srcalt{If $\Phi(r) = \stkptr{\perm,\baddr, \eaddr,\aaddr}$ and $\Phi(\rn) = n$ and $\decPerm{n} \le \perm$ and $c = \stkptr{\decPerm{n},lin),\baddr, \eaddr, \aaddr}$}\\
+    \hline
+  \end{tabular}
+
+Where $\nonZero{}$ is defined as follows
+\[
+  \nonZero{w} \defeq
+  \begin{cases}
+    \bot & w \in \ints \tand w = 0 \\
+    \top & \totherwise
+  \end{cases}
+\]
+
+  
+%%% Local Variables:
+%%% TeX-master: "paper"
+%%% End:
