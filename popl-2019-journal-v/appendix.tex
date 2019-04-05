@@ -1,21 +1,20 @@
 \section{\trgcm{} instruction interpretation}
 \label{app:instr-interpretation}
-In this section, we present the interpretation of the \trgcm{} instructions left out of \figurename~\ref{fig:target-op-sem} as well as the interpretation of the \srccm{} specific interpretation.
-The two interpretations have everything in black in common, and everything in blue is specific to \srccm{}.
+In this section, we present the interpretation of the \trgcm{} instructions left out of \figurename~\ref{fig:target-op-sem}.
 
  \begin{tabular}{|>{$}c<{$}|>{$}p{3.7cm}<{$}|>{\raggedright\arraybackslash}p{6.2cm}|}
     \hline
     i \in \Instr                                 & \sem{i}(\Phi) & Conditions\\
     \hline
-    \tgetb{r_1}{r_2}                                        & \updPcAddr{\Phi\updReg{r_1}{w}} & If $\Phi(r_2) = ((\_,\_),\baddr,\_,\_)$, $\Phi(r_2) = \seal{\baddr,\_,\_}$, \src{or $\Phi(r_2) = ((\_,\_),\baddr,\_,\_)$}, then $w = \baddr$ and otherwise $w = -1$\\
+    \tgetb{r_1}{r_2}                                        & \updPcAddr{\Phi\updReg{r_1}{w}} & If $\Phi(r_2) = ((\_,\_),\baddr,\_,\_)$ or$\Phi(r_2) = \seal{\baddr,\_,\_}$, then $w = \baddr$ and otherwise $w = -1$\\
     \hline
-    \tgete{r_1}{r_2}                                        & \updPcAddr{\Phi\updReg{r_1}{w}} & If $\Phi(r_2) = ((\_,\_),\_,\eaddr,\_)$, or $\Phi(r_2) = \seal{\_,\eaddr,\_}$, \src{or $\Phi(r_2) = ((\_,\_),\_,\eaddr,\_)$}, then $w = \eaddr$ and otherwise $w = -1$\\
+    \tgete{r_1}{r_2}                                        & \updPcAddr{\Phi\updReg{r_1}{w}} & If $\Phi(r_2) = ((\_,\_),\_,\eaddr,\_)$ or $\Phi(r_2) = \seal{\_,\eaddr,\_}$, then $w = \eaddr$ and otherwise $w = -1$\\
     \hline
     \tisptr{r_1}{r_2} & \updPcAddr{\Phi\updReg{r_1}{w}} & $w = \encType{\Phi(r_2)}$\footnote{The $\encType$ function differs for the two machines. Depending on the machine, the appropriate function is used.}\\
     \hline
     \tgetlin{r_1}{r_2} &\updPcAddr{\Phi\updReg{r_1}{w}} & If $\isLinear{\Phi(r_2)}$, then $w = \encLin{\linear}$, otherwise $w= \encLin{\normal}$\\
     \hline
-    \tgetp{r_1}{r_2} & \updPcAddr{\Phi\updReg{r_1}{w}} & If $\Phi(r_2) = ((\perm,\_),\_,\_,\_)$ \src{or $\Phi(r_2) = ((\perm,\_),\_,\_,\_)$}, then $w = \encPerm{\perm}$ and otherwise $w = -1$\\
+    \tgetp{r_1}{r_2} & \updPcAddr{\Phi\updReg{r_1}{w}} & If $\Phi(r_2) = ((\perm,\_),\_,\_,\_)$, then $w = \encPerm{\perm}$ and otherwise $w = -1$\\
     \hline
     \tjnz{r}{\rn} & \Phi\updReg{r}{w}\update{\pcreg}{\Phi(r)} & $\nonZero{\Phi(\rn)}$ and $w = \linCons{\Phi(r)}$\\
     \hline
@@ -33,12 +32,15 @@ The two interpretations have everything in black in common, and everything in bl
     \hline
     \tsetatob{r} & \updPcAddr{\Phi\updReg{r}{c}} & $r \neq \pcreg$, $\Phi(r) = \seal{\sigma_\baddr,\sigma_\eaddr,\_}$, and $c = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma_\baddr}$ \\
     \hline
-    \src{\texttt{seta2b}\; r} & \src{\updPcAddr{\Phi\updReg{r}{c}}} &\srcalt{$r \neq \pcreg$, $\Phi(r) = \stkptr{\perm,\baddr,\eaddr,\_}$, and $c = \stkptr{\perm,\baddr,\eaddr,\baddr}$} \\
-    \hline
     \trestrict{r}{\rn} & \updPcAddr{\Phi\updReg{r}{c}} & If $\Phi(r) = ((\perm,\lin),\baddr, \eaddr,\aaddr)$ and $\Phi(\rn) = n$ and $\decPerm{n} \le \perm$ and $c = ((\decPerm{n},\lin),\baddr, \eaddr, \aaddr)$\\
     \hline
-    \src{\texttt{restrict} \; r \; \rn} & \src{\updPcAddr{\Phi\updReg{r}{c}}} & \srcalt{If $\Phi(r) = \stkptr{\perm,\baddr, \eaddr,\aaddr}$ and $\Phi(\rn) = n$ and $\decPerm{n} \le \perm$ and $c = \stkptr{\decPerm{n},lin),\baddr, \eaddr, \aaddr}$}\\
+   %TODO change to seal
+    \tsplit{r_1}{r_2}{r_3}{\rn}                  & \updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_3}{w}\\ &\updReg{r_1}{c_1}\\ &\updReg{r_2}{c_2})\endarray & $\Phi(r_3) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ and $\Phi(\rn) = n \in \nats$ and $\baddr \le n < \eaddr$ and $c_1 = ((\perm,\lin),\baddr,n,\aaddr)$ and $c_2 = ((\perm,\lin),n+1,\eaddr,\aaddr)$ and $w = \linCons{\Phi(r_3)}$\\
     \hline
+   % TODO seal
+    \splice{r_1}{r_2}{r_3}                       & \updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_2}{w_2}\\ &\updReg{r_3}{w_3}\\ &\updReg{r_1}{c})\endarray& $\Phi(r_2) = ((\perm,\lin),\baddr,n,\_)$ and $\Phi(r_3) = ((\perm,\lin),n+1,\eaddr,\aaddr)$ and $\baddr \le n < \eaddr$ and $c = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ and $w_2,w_3 = \linCons{\Phi(r_2),\Phi(r_3)}$\\
+    \hline
+
   \end{tabular}
 
 Where $\nonZero{}$ is defined as follows
@@ -51,6 +53,38 @@ Where $\nonZero{}$ is defined as follows
 \]
 
   
+\section{\srccm{} instruction interpretation}
+In this section, we present the interpretation of the \srccm{} instructions left out of \figurename~\ref{fig:target-op-sem}.
+For the instructions that only change slightly on \srccm{} compared to \trgcm{}, we include the \srccm{} specific things in blue and the things both have in common in black.
+
+ \begin{tabular}{|>{$}c<{$}|>{$}p{3.7cm}<{$}|>{\raggedright\arraybackslash}p{6.2cm}|}
+    \hline
+    i \in \Instr                                 & \sem{i}(\Phi) & Conditions\\
+    \hline
+    \store{r_1}{r_2}                             & \updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_2}{w_2}\\ & \update{\mem.\aaddr}{\Phi(r_2)})\endarray & $\Phi(r_1) = ((\perm,\_),\baddr,\eaddr,\aaddr)$ and $\perm \in \{\rwx,\rw\}$ and $\baddr \le \aaddr \le \eaddr$ and $w_2 = \linCons{\Phi(r_2)}$ \src{and $\aaddr \in \dom(\Phi.\mem)$}\\
+    \hline
+    \load{r_1}{r_2}                              & \left.\sourcecolor\updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_1}{w_1}\\ &\update{\mem.\aaddr}{w_\aaddr})\endarray \right. & \srcalt{$\Phi(r_2) = \stkptr{\perm,\baddr,\eaddr,\aaddr}$ and $\baddr \le \aaddr \le \eaddr$ and $\perm \in \{\rwx,\rw,\rx,\ro\}$ and $\aaddr \in \dom(\Phi.\ms_\stk)$ and $w_1 = \Phi.\ms_\stk(\aaddr)$ and $\isLinear{w_1} \Rightarrow \perm \in \{\rwx,\rw\}$ and $w_a = \linCons{w_1}$}\\
+    \hline
+   \geta{r_1}{r_2}                                        & \src{\updPcAddr{\Phi\updReg{r_1}{w}}} & \srcalt{If $\Phi(r_2) = ((\_,\_),\_,\_,\aaddr)$, then $w = \aaddr$ and otherwise $w = -1$}\\
+    \hline
+   \tgetb{r_1}{r_2}                                        & \src{\updPcAddr{\Phi\updReg{r_1}{w}}} & \srcalt{If $\Phi(r_2) = ((\_,\_),\baddr,\_,\_)$, then $w = \baddr$ and otherwise $w = -1$}\\
+    \hline
+   \tgete{r_1}{r_2}                                        & \src{\updPcAddr{\Phi\updReg{r_1}{w}}} & \srcalt{If $\Phi(r_2) = ((\_,\_),\_,\eaddr,\_)$, then $w = \eaddr$ and otherwise $w = -1$}\\
+    \hline
+   \tgetp{r_1}{r_2} & \src{\updPcAddr{\Phi\updReg{r_1}{w}}} & \srcalt{If $\Phi(r_2) = ((\perm,\_),\_,\_,\_)$, then $w = \encPerm{\perm}$ and otherwise $w = -1$}\\
+   \hline
+   \tsetatob{r} & \src{\updPcAddr{\Phi\updReg{r}{c}}} &\srcalt{$r \neq \pcreg$, $\Phi(r) = \stkptr{\perm,\baddr,\eaddr,\_}$, and $c = \stkptr{\perm,\baddr,\eaddr,\baddr}$} \\
+    \hline
+   \trestrict{r}{\rn} & \src{\updPcAddr{\Phi\updReg{r}{c}}} & \srcalt{If $\Phi(r) = \stkptr{\perm,\baddr, \eaddr,\aaddr}$ and $\Phi(\rn) = n$ and $\decPerm{n} \le \perm$ and $c = \stkptr{\decPerm{n},lin),\baddr, \eaddr, \aaddr}$}\\
+   \hline
+   %TODO stk
+    \splice{r_1}{r_2}{r_3}                       & \left. \sourcecolor\updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_2}{w_2}\\ &\updReg{r_3}{w_3}\\ &\updReg{r_1}{c})\endarray\right.& \srcalt{$\Phi(r_2) = \stkptr{\perm,\baddr,n,\_}$ and $\Phi(r_3) = \stkptr{\perm,n+1,\eaddr,\aaddr}$ and $\baddr \le n < \eaddr$ and $c = \stkptr{\perm,\baddr,\eaddr,\aaddr}$ and $w_2,w_3 = \linCons{\Phi(r_2),\Phi(r_3)}$}\\
+    \hline
+    \tsplit{r_1}{r_2}{r_3}{\rn}                  & \sourcecolor\left.\updPcAddr{}\arraycolsep=0pt\array[t]{rl}(\Phi&\updReg{r_3}{0} \\ &\updReg{r_1}{c_1}\\ &\updReg{r_2}{c_2})\endarray\right. & \srcalt{$\Phi(r_3) = \stkptr{\perm,\baddr,\eaddr,\aaddr}$ and $\Phi(\rn) = n \in \nats$ and $\baddr \le n < \eaddr$ and $c_1 = \stkptr{\perm,\baddr,n,\aaddr}$ and $c_2 = \stkptr{\perm,n+1,\eaddr,\aaddr}$}\\
+    \hline
+
+  \end{tabular}
+
 %%% Local Variables:
 %%% TeX-master: "paper"
 %%% End:
