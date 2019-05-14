@@ -681,8 +681,17 @@ The most important relations are summarised in the following table, where we men
   \hline
 \end{tabular}\\
 These relations are defined using a set of mutually recursive equations, with cyclicity resolved through another use of step-indexing.
-For space reasons, we cannot show all of these definitions, but we will try to give an overview.
+In Section~\ref{subsubsec:mem-sat}, we already defined memory satisfaction, the relation for memories.
+In the following, we define each of the remaining relations and give some intuition about the definitions.
+The logical relation we define ends up as a recursive definition.
+The circularity is resolved by a step-index in the definitions, but the circularity also poses a chicken and egg kinda situation with respect to the order in which the definitions of the relations should be presented.
+There is no canonical way of presenting the logical relation as we are bound to make forward references.
+For this reason, we suggest making a cursorily first read through followed by a more thorough read.
 
+\subsubsection{Value Relations}
+% TODO rewrite the below text
+% Should in general terms describe value relation
+% Maybe have a figure that sketches it like now.
 Note first how we have two value relations, whose definitions are sketched in Figure~\ref{fig:value-relation}.
 The difference is that the untrusted value relation $\lrv(W)$ does not just express that the two values are related, but also that they are safe to pass to an untrusted adversary, i.e. they cannot be used to break LSE and WBCF.
 The trusted value relation does not have the latter requirement and is a superset of the former.
@@ -690,7 +699,7 @@ The trusted value relation does not have the latter requirement and is a superse
 Both relations trivially include numbers $(i,i)$ which are always related to themselves.
 The untrusted value relation also includes stack pointers and the underlying linear capability (with the same (non-executable) permission, range of authority, and current address), as well as syntactically equal memory capabilities, seals and sealed values, all under certain conditions involving the world $W$ and the capability's properties.
 
-Details are in the \cite{technical_report}, but roughly, for stack capabilities, the omitted condition requires that the world contains a $\spatialo$ region governing this part of the stack.
+Roughly, for stack capabilities, the omitted condition requires that the world contains a $\spatialo$ region governing this part of the stack.
 For memory capabilities $((\perm,\lin),\baddr,\eaddr,\aaddr)$, a region in the world must govern memory $[\baddr,\eaddr]$, either $\spatialo$ or $\pure$, depending on the linearity $\lin$ of the capability.
 If the capability is executable ($\perm \in \{\rx,\rwx\}$), then we additionally require that the governing region is a code region and that the two capabilities are related $\mathrm{jmp}$ targets, as expressed by the relation $\lre(W)$, in any future world (see below).
 
@@ -788,41 +797,407 @@ They are not in the untrusted value relation because the code memory contains co
 \label{fig:value-relation}
 \end{figure}
 
-\begin{figure}
-  \centering
-\begin{align*}
-  \lrrg{\trust}(W) &= \left\{ \npair{\stpair{\reg}{\reg}} \middle|
-    \begin{array}{l}
-    % Lau: Consider using \Wor instead of \World as we have not made a distinction between the two.
-      \exists S : (\RegName \setminus \{\pcreg \})\fun \World \ldotp \\
-      \quad W = \bigoplus_{r \in (\RegName\setminus (\{\pcreg \} \cup R))} S(r) \wedge \\
-      \quad \forall r \in \RegName \setminus \{\pcreg \}\ldotp \npair{\stpair[.]{\src{\reg_S(r)}}{\reg_T(r)}} \in \lrvg{\trust}(S(r))
-    \end{array}
-            \right\}\\
-  \lre(W)&= \left\{ \begin{array}{l}
-    \npair{\stpair[.]{w_{c,S}}{w_{c,T}}} | \\
-    \quad\forall \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk}, W_\lrrs , W_\lrm \ldotp \\
-    \qquad\npair{\stpair{\reg}{\reg}} \in \lrr(W_\lrrs ) \tand \memSat{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \tand\\
-    \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)} \tand \Phi_S' = \Phi_S \updReg{\pcreg}{w_{c,S}} \tand\\
-                     \qquad\Phi_T = (\ms_T,\reg_T) \tand \Phi_T' = \Phi_T\updReg{\pcreg}{w_{c,T}} \tand \\
-                     \qquad W \oplus W_\lrrs \oplus W_\lrm \text{ is defined }\\
-    \qquad\qquad\Rightarrow\npair{\left(\Phi_S', \Phi_T' \right)}\in \lro
-  \end{array}
-  \right\}
-\end{align*}
-  \begin{align*}
-  \lro[] ={}&\{ \npair{\left(\src{\Phi_S},\Phi_T\right)} \mid
-    \src{\Phi_S \sterm{}} \Leftrightarrow \Phi_T \trg{\term} \}
-\end{align*}
-\caption{Simplified sketches of the register file relation $\lrr(W)$, the relation
-  for $\com{jmp}$ targets $\lre(W)$  and the observation relation $\lro(W)$.}
-\label{fig:obs-rel}
-\end{figure}
+% \begin{figure}
+%   \centering
+% \begin{align*}
+%   \lrrg{\trust}(W) &= \left\{ \npair{\stpair{\reg}{\reg}} \middle|
+%     \begin{array}{l}
+%     % Lau: Consider using \Wor instead of \World as we have not made a distinction between the two.
+%       \exists S : (\RegName \setminus \{\pcreg \})\fun \World \ldotp \\
+%       \quad W = \bigoplus_{r \in (\RegName\setminus (\{\pcreg \} \cup R))} S(r) \wedge \\
+%       \quad \forall r \in \RegName \setminus \{\pcreg \}\ldotp \npair{\stpair[.]{\src{\reg_S(r)}}{\reg_T(r)}} \in \lrvg{\trust}(S(r))
+%     \end{array}
+%             \right\}\\
+%   \lre(W)&= \left\{ \begin{array}{l}
+%     \npair{\stpair[.]{w_{c,S}}{w_{c,T}}} | \\
+%     \quad\forall \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk}, W_\lrrs , W_\lrm \ldotp \\
+%     \qquad\npair{\stpair{\reg}{\reg}} \in \lrr(W_\lrrs ) \tand \memSat{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \tand\\
+%     \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)} \tand \Phi_S' = \Phi_S \updReg{\pcreg}{w_{c,S}} \tand\\
+%                      \qquad\Phi_T = (\ms_T,\reg_T) \tand \Phi_T' = \Phi_T\updReg{\pcreg}{w_{c,T}} \tand \\
+%                      \qquad W \oplus W_\lrrs \oplus W_\lrm \text{ is defined }\\
+%     \qquad\qquad\Rightarrow\npair{\left(\Phi_S', \Phi_T' \right)}\in \lro
+%   \end{array}
+%   \right\}
+% \end{align*}
+%   \begin{align*}
+%   \lro[] ={}&\{ \npair{\left(\src{\Phi_S},\Phi_T\right)} \mid
+%     \src{\Phi_S \sterm{}} \Leftrightarrow \Phi_T \trg{\term} \}
+% \end{align*}
+% \caption{Simplified sketches of the register file relation $\lrr(W)$, the relation
+%   for $\com{jmp}$ targets $\lre(W)$  and the observation relation $\lro(W)$.}
+% \label{fig:obs-rel}
+% \end{figure}
 
+\paragraph{Permission based conditions}
+\[
+  \addressable{\lin,W} =
+  \begin{cases}
+    \{ r \mid W(r) = (\pure,\_) \} & \text{if $\lin = \normal$} \\
+    \{ r \mid W(r) = (\spatialo,\_) \}  & \text{otherwise (i.e. $\lin = \linear$)} \\
+  \end{cases}
+\]
+
+\[
+  \readCond{\lin,W} = \left\{ \npair{A} \middle| 
+    \begin{array}{l}
+      \exists S \subseteq \addressable{\lin, \pwheap} \ldotp \\
+      \quad \exists R : S \fun \powerset{\nats} \ldotp\\
+      \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge\\
+      \qquad (\lin = \linear \Rightarrow \forall r\ldotp |R(r)|  = 1) \wedge\\
+      \qquad \forall r \in S \ldotp \pwheap(r).H \nsubeq \stdreg{R(r),\gc}{\pur}.H
+    \end{array}
+  \right\}
+\]
+\[
+  \stackReadCond{W} = \left\{ \npair{A} \middle| 
+    \begin{array}{l}
+      \exists S \subseteq \addressable{\linear, \pwfree} \ldotp \\
+      \quad \exists R : S \fun \powerset{\nats} \ldotp\\
+      \qquad \forall r \in S \ldotp |R(r)| = 1\\
+      \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge \\
+      \qquad \forall r \in S \ldotp \pwfree(r).H \nsubeq \stdreg{R(r),\gc}{\pur}.H
+    \end{array}
+  \right\}
+\]
+where $\iota_A$ is a standard region defined in Section~\ref{par:standard-regions}.
+\[
+  \xReadCond{W} = \left\{ \npair{A} \middle| 
+    \begin{array}{l}
+      \exists r \in \addressable{\normal, \pwheap} \ldotp \\
+      \qquad \pwheap(r) \nequal \codereg{\_,\_,\code,\gc}\wedge\\
+      \qquad \dom(\code) \supseteq A 
+    \end{array}
+  \right\}
+\]
+
+\begin{definition}
+  \label{def:address-stratified}
+  We say that a region $\iota = (\_,H,\_)$ is address stratified iff
+  \[
+    \begin{array}{l}
+      \forall n, \src{\ms_S},\ms_T,\src{\ms_S'},\ms_T',s,\hat{W}\ldotp \\
+      \quad \npair{\stpair{\ms}{\ms}}, \npair{\stpair[.]{\ms_S'}{\ms_T'}} \in H \; \hat{W} \wedge \\
+      \quad \dom(\src{\ms_S}) = \dom(\ms_T) = \dom(\src{\ms_S'}) = \dom(\ms_T') \\
+      \quad \Rightarrow \\
+      \qquad \forall \aaddr \in \dom(\ms_S) \ldotp \npair{(\src{\ms_S}\update{\aaddr}{\src{\ms_S'}(\aaddr)},\ms_T\update{\aaddr}{\ms_T'(\aaddr)})} \in H \; \hat{W}
+    \end{array}
+  \]
+\end{definition}
+\[
+  \writeCond{\lin,W} = \left\{ \npair{A} \middle| 
+    \begin{array}{l}
+      \exists S \subseteq \addressable{\lin, \pwheap} \ldotp \\
+      \quad \exists R : S \fun \powerset{\nats} \\
+      \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge\\
+      \qquad (\lin = \linear \Rightarrow \forall r\ldotp |R(r)|  = 1) \wedge\\
+      \qquad \forall r \in S \ldotp \pwheap(r).H \nsupeq \stdreg{R(r),\gc}{\pur}.H \wedge\\
+      \qquad \quad \pwheap(r) \text{ is address-stratified}
+    \end{array}
+  \right\}
+\]
+where $\iota_A$ is a standard region defined in Paragraph~\ref{par:standard-regions}.
+\[
+  \stackWriteCond{W} = \left\{ \npair{A}) \middle| 
+    \begin{array}{l}
+      \exists S \subseteq \addressable{\linear, \pwfree} \ldotp \\
+      \quad \exists R : S \fun \powerset{\nats} \\
+      \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge \\
+      \qquad \forall r \in S \ldotp |R(r)| = 1 \wedge \\
+      \qquad \forall r \in S \ldotp \pwfree(r).H \nsupeq \stdreg{R(r),\gc}{\pur}.H \wedge\\
+      \qquad \quad \pwfree(r) \text{ is address-stratified}
+    \end{array}
+  \right\}
+\]
+where $\iota_A$ is a standard region defined in Paragraph~\ref{par:standard-regions}.
+\begin{align*}
+  \execCond{W} &=
+  \left\{ \npair{A} \middle|
+    \begin{array}{l}
+      \forall n' < n, W' \future \purePart{W}, \aaddr \in [\baddr',\eaddr'] \subseteq A \ldotp\\
+      \quad \npair[n']{\stpair[.]{((\rx,\normal),\baddr',\eaddr',\aaddr)}{((\rx,\normal),\baddr',\eaddr',\aaddr)}} \in \lre(W')
+    \end{array}
+    \right\}
+\end{align*}
+
+\paragraph{Standard regions}
+\label{par:standard-regions}
+Standard region:
+\[
+  \stdreg{A,\gc}{v} \defeq (v,H_A^{\mathrm{std},\square} \; \gc) , v \in \{\spa,\spao\}
+\]
+for readability, we use $\spao$ short for $\spatialo$, $\spa$ short for $\spatial$, and $\pur$ as short for $\pure$.
+\[
+  \stdreg{A,\gc}{\pur} \defeq (\pur,H_A^{\mathrm{std},\square} \; \gc, \lambda \_ \; \_ \ldotp \emptyset)
+\]
+where $H^{\mathrm{std},\square}_A$ is defined as follows:
+\[
+  H_A^{\mathrm{std},\square} \; \gc \; \hat{W} \defeq \left\{ \npair{\ms_S,\ms_T} \middle|
+    \begin{array}{l}
+      \dom(\ms_S) = \dom(\ms_T) = A \wedge \\
+      \exists S : A \fun \World \ldotp \xi(\hat{W}) = \oplus_{\aaddr \in A} S(\aaddr) \wedge\\
+      \quad \forall \aaddr \in A \ldotp \npair{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
+    \end{array}
+  \right\}
+\]
+
+\[
+  \stareg[\stpair{\ms}{\ms},\gc]{v,\square} = (v,H^\mathrm{sta,\square}_{\stpair{\ms}{\ms}} \; \gc)
+\]
+\[
+  H^\mathrm{sta,\square}_{\stpair{\ms}{\ms}} \; \gc = \left\{ \npair{\stpair{\ms}{\ms}} \middle| 
+    \begin{array}{l}
+      \exists S : \dom(\ms) \fun \World \ldotp \xi(W) = \oplus_{\aaddr \in \dom(\ms)} S(\aaddr) \wedge\\
+      \quad \forall \aaddr \in \dom(\ms) \ldotp \npair{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
+    \end{array}
+\right\}
+\]
+
+
+\[
+  \codereg{\sigrets,\sigcloss,\code,\gc} \defeq (\pure,
+H^\mathrm{code,\square} \; \sigrets \; \sigcloss \; \code \; \gc,
+H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
+\]
+
+\begin{multline*}
+  H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; (\ta,\_,\gsigrets,\gsigcloss) \; \hat{W} =\\
+  \left\{\npair{\arraycolsep=0pt\left(\array{l}\code \uplus \mspad,\\ \code \uplus \mspad\endarray\right)} \middle|
+    \begin{array}{l}
+    \dom(\code) = [\baddr,\eaddr] \wedge \\
+      ([\baddr - 1, \eaddr + 1] \subseteq \ta \wedge \sigrets \subseteq \gsigrets \wedge \sigcloss \subseteq \gsigcloss \wedge \trust = \trusted) \vee \\
+      \quad ([\baddr-1,\eaddr+1]\mathrel{\#} \ta \wedge \sigrets = \emptyset \wedge \trust =\untrusted) \wedge \\
+      \mspad = [\baddr-1 \mapsto 0] \uplus [\eaddr + 1 \mapsto 0]\wedge\\
+      \sigrets,\sigcloss,\ta \vdash_{\mathrm{comp-code}} \code \wedge\\
+      \forall a \in \dom(\code)\ldotp\\
+      \quad\npair{(\code(a),\code(a))} \in \lrvg{\trust}(\purePart{\xi(\hat{W})})
+    \end{array}
+  \right\}
+\end{multline*}
+
+
+\begin{multline*}
+  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \;
+  (\ta,\stkb) \; \sigma \; \hat{W}= \\
+  \begin{array}[t]{l}
+\left\{
+    \begin{array}{l}
+\left. \npair{\arraycolsep=0pt\left(\array{l}\retptrc(\baddr,\eaddr,\aaddr'+\calllen),\\((\rx,\normal),\baddr,\eaddr,\aaddr)\endarray\right)} \middle| \right. \\
+      \begin{array}{l}
+        \sigrets \subseteq \gsigrets \tand \\
+        \dom(\code) \subseteq \ta \tand\\
+        \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
+        \aaddr = \aaddr' + \retoffset \tand \\
+        \code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand \sigma = \sigma_b + \offsigma \in \sigrets \tand\\
+        \lbrack \aaddr',\aaddr' + \calllen -1 \rbrack \subseteq \lbrack \baddr, \eaddr \rbrack
+      \end{array}
+    \end{array}
+      \right\} \uplus \\
+\left\{
+    \begin{array}{l}
+\left. \npair{\arraycolsep=0pt\left(\array{l}\retptrd(\baddr,\eaddr),\\((\rw,\linear),\baddr,\eaddr,\baddr-1)\endarray\right)} \middle| \right. \\
+      \begin{array}{l}
+        \sigrets \subseteq \gsigrets \tand \\
+        \dom(\code) \subseteq \ta \tand\\
+        \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]} \ldotp \pwpriv[\xi(\hat{W})](r).H \nequal (\stareg[(\ms_S,\ms_T),(\ta,\stkb)]{\spao,\square}, \aaddr'+\calllen) \tand \\
+        \quad \dom(\ms_S) = \dom(\ms_T) = [\baddr,\eaddr] \tand\\
+        \quad \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
+        \quad \code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand \sigma = \sigma_b + \offsigma \in \sigrets
+      \end{array}
+    \end{array}
+    \right\} \\
+  \end{array}\\
+    \text{ if } \sigma \in \sigrets\\
+\end{multline*}
+and
+\begin{multline*}
+  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \;
+  (\ta,\stkb) \; \sigma \; \hat{W}= \\
+  \left\{
+    \begin{array}{l}
+\left. \npair{(\vsc, \vsc' )} \middle| \right. \\
+      \begin{array}{l}
+        (\dom(\code) \mathrel{\#} \ta \tand \npair{(\vsc,\vsc')} \in \lrv \; \xi(\hat{W})) \tor\\
+        (\dom(\code) \subseteq \ta \tand \sigcloss \subseteq \gsigcloss \tand \sigrets \subseteq \gsigrets \tand \\
+         \quad((\exec{\vsc} \wedge \npair{(\vsc,\vsc')} \in \lrvtrusted \; \xi(\hat{W})) \vee\\
+         \quad\ (\nonExec{\vsc} \wedge\npair{(\vsc,\vsc')} \in \lrv \; \xi(\hat{W}))))
+      \end{array}
+    \end{array}
+  \right\}\\
+  \text{ if } \sigma \in \sigcloss
+\end{multline*}
+
+\paragraph{The untrusted value relation}
+\[
+  \lrv(W) =
+  \begin{array}[t]{l}
+    \left\{ \npair{\stpair[.]{i}{i}} \;\middle|\; i \in \ints \right\}\cup \\
+%
+    \hspace{-2cm}\left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\sealed{\sigma,\vsc_S}},\\ \sealed{\sigma,\vsc_T} \endarray\right)} \;\middle| \;
+    \begin{array}{l}
+      (\isLinear{\src{\vsc_S}} \text{ iff } \isLinear{\vsc_T}) \wedge\\
+      \exists r \in \dom(\pwheap), \sigrets,\sigcloss,\mscode \ldotp \pwheap(r) = (\pure,\_,H_\sigma) \tand \\
+      \quad H_\sigma \; \sigma \nequal H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; \gc \; \sigma \tand \\
+      \quad \npair[n']{\stpair[.]{\vsc_S}{\vsc_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W) \text{ for all $n' < n$}\wedge\\
+      \quad (\isLinear{\src{\vsc_S}} \Rightarrow \\
+      \qquad\forall W' \future W, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \\
+      \qquad \quad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o)) \wedge \\
+      \quad (\nonLinear{\src{\vsc_S}} \Rightarrow \\
+      \qquad \forall W' \future \purePart{W}, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \\
+      \qquad \quad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o))
+
+      % This case was never used (?) so it is not necessary.
+      % \wedge \\
+      % \quad \npair[n']{\src{\vsc_S'},\src{\vsc_S},\vsc_T',\vsc_T} \in \lrexj(W' \oplus W_o)
+    \end{array}
+    \right\}\cup\\
+    \hspace{-2cm}\left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma_\baddr,\sigma_\eaddr,\sigma}},\\ \seal{\sigma_\baddr,\sigma_\eaddr,\sigma} \endarray \right)} 
+    \; \middle| \;
+    \begin{array}{l}
+      [\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\gsigrets \cup \gsigcloss) \tand\\
+      \forall \sigma' \in [\sigma_\baddr,\sigma_\eaddr] \ldotp \exists r \in \dom(\pwheap) \ldotp \\
+      \quad \pwheap(r) = (\pure,\_,H_\sigma) \tand H_\sigma \; \sigma' \nequal (\lrv \circ \xi)
+    \end{array}
+    \right\} \cup \\
+    \hspace{-2cm}\left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\stkptr{\perm,\baddr,\eaddr,\aaddr}},\\ ((\perm,\linear),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\;
+    \begin{array}{l}
+      \begin{array}{r l l}
+        \perm \not\in \{\rx,\rwx\} \wedge\\
+        % \perm = \noperm & \Rightarrow & \npair{(\linear,\baddr,\eaddr)} \in \lrp(W) \wedge \\
+        \perm \in \readAllowed{} &\Rightarrow& \npair{[\baddr,\eaddr]} \in \stackReadCond{W} \wedge \\
+        \perm \in \writeAllowed{} &\Rightarrow& \npair{[\baddr,\eaddr]} \in \stackWriteCond{W}
+      \end{array}
+    \end{array}
+    \right\} \cup \\
+%
+    \hspace{-2cm}\left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{((\perm,\lin),\baddr,\eaddr,\aaddr)},\\ ((\perm,\lin),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\; 
+    \begin{array}{l}
+      [b,e] \mathrel{\#} \ta \tand\\
+      \begin{array}{r l l }
+        % \perm = \noperm & \Rightarrow & \npair{(\lin,\baddr,\eaddr)} \in \lrp(W) \wedge \\
+        \perm \in \readAllowed{} &\Rightarrow& \npair{[\baddr,\eaddr]} \in \readCond{\lin,W} \wedge\\
+        \perm \in \writeAllowed{} &\Rightarrow& \npair{[\baddr,\eaddr]} \in \writeCond{\lin,W} \wedge\\
+        % we are excluding rwx pointers.
+        \perm \neq \rwx \wedge \\
+        % \perm = \rwx &\Rightarrow& \array[t]{l}\npair{(\{\rwx,\rx\},\baddr,\eaddr)} \in \execCond{\lin,W} \wedge \\
+        %                            \npair{(\baddr,\eaddr)} \in \xReadCond{\lin,W} \endarray\\
+        \perm = \rx &\Rightarrow& \array[t]{l}\npair{[\baddr,\eaddr]} \in \execCond{W} \wedge\\
+        \npair{[\baddr,\eaddr]} \in \xReadCond{W} \wedge \\
+                                  \lin = \normal \\ \endarray
+      \end{array}
+    \end{array}
+    \right\}
+  \end{array}
+\]
+
+
+\paragraph{The trusted value relation}
+\[
+  \lrvtrusted[\square,\gc](W) =
+  \begin{array}[t]{l}
+    \lrv(W)\cup \\
+%
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{\seal{\sigma_\baddr,\sigma_\eaddr,\sigma}},\\ \seal{\sigma_\baddr,\sigma_\eaddr,\sigma} \endarray \right)} 
+    \; \middle| \;
+    \begin{array}{l}
+      \gc = (\ta,\stkb,\gsigrets,\gsigcloss)  \wedge \\
+      \exists r \in \dom(\pwheap) \ldotp \\
+      \quad \pwheap(r) \nequal \codereg{\sigrets,\sigcloss,\code,(\ta,\stkb,\gsigrets,\gsigcloss)} \wedge\\
+      \quad \dom(\code) \subseteq \ta \wedge [\sigma_\baddr,\sigma_\eaddr] \subseteq (\sigrets\cup\sigcloss) \wedge\\
+      \quad \sigrets \subseteq \gsigrets \wedge \sigcloss \subseteq \gsigcloss
+    \end{array}
+    \right\} \cup \\
+    \left\{ \npair{\left(\arraycolsep=0pt\array{l} \src{((\perm,\normal),\baddr,\eaddr,\aaddr)},\\ ((\perm,\normal),\baddr,\eaddr,\aaddr) \endarray \right)} \;\middle|\; 
+    \begin{array}{l}
+      \perm \sqsubseteq \rx \wedge \\
+      \gc = (\ta,\stkb,\gsigrets,\gsigcloss)  \wedge \\
+      {} [\baddr,\eaddr] \subseteq \ta \wedge\\
+      \npair{[\baddr,\eaddr]} \in \xReadCond[\square,\gc]{W} 
+    \end{array}
+    \right\}
+  \end{array}
+\]
+
+\subsubsection{Register file relation}
 In Figure~\ref{fig:obs-rel}, we show sketches of the register file relation $\lrr$, the relation between $\tjmp{}$ targets $\lre(W)$ and the observation relation $\lro$.
 The trusted/untrusted register file relation simply requires that all registers except $\pcreg$ are in the corresponding value relation (in a compatible world partition).
 Two execution configurations are in the observation relation $\lro$ if one terminates whenever the other does\footnote{The actual definition in the \cite{technical_report} is complicated a bit by step-indexing and the fact that we actually use two separate observation relations for left- and right-approximation.}.
 The $\lre(W)$ relation then includes any two words which can be plugged into related register files and memories (in compatible worlds), to obtain execution configurations in the observation relation.
+
+\[
+  \lrrg{\trust}(R)(W) = \left\{ \npair{\stpair{\reg}{\reg}} \middle|
+    \begin{array}{l}
+      \exists S : (\RegName \setminus (\{\pcreg \} \cup R))\fun \World \ldotp \\
+      \quad W = \bigoplus_{r \in (\RegName\setminus (\{\pcreg,\rdata \} \cup R))} S(r) \wedge \\
+      \quad \forall r \in \RegName \setminus (\{\pcreg \} \cup R)\ldotp\\
+      \qquad\npair{\stpair[.]{\src{\reg_S(r)}}{\reg_T(r)}} \in \lrvg{\trust}(S(r))
+    \end{array}
+            \right\}
+\]
+We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to exclude extra registers, then we simply omit that argument.
+
+
+\begin{lemma}[Untrusted is trusted]
+  \label{lem:untrusted-supset-trust}
+  \begin{itemize}
+  \item $\lrvtrusted(W) \supseteq \lrv(W)$
+  \item $\lrrtrusted(W) \supseteq \lrr(W)$
+  \end{itemize}
+\end{lemma}
+
+
+\subsubsection{Observation relation}
+\[
+  \lro[\preceq,(\ta,\stkb,\_,\_)] = \left\{ \npair{\left(\array{l}\src{(\ms_S,\reg_S,\stk_S,\ms_{\stk,S})},\\(\ms_T,\reg_T)\endarray\right)} \middle|
+    \begin{array}{l}
+      \forall i \leq n \ldotp \\
+      \quad \src{(\ms_S,\reg_S,\stk_S,\ms_{\stk,S})} \sterm[i]{\ta,\stkb} \\\qquad\Rightarrow (\ms_T,\reg_T) \term\\
+    \end{array}
+\right\}
+\]
+\[
+  \lro[\succeq,(\ta,\stkb,\_,\_)] = \left\{ \npair{\left(\array{l}\src{(\ms_S,\reg_S,\stk_S,\ms_{\stk,S})},\\(\ms_T,\reg_T)\endarray\right)} \middle|
+    \begin{array}{l}
+      \forall i \leq n \ldotp \\ 
+      \quad (\ms_T ,\reg_T) \term[i] \\\qquad\Rightarrow \src{(\ms_S,\reg_S,\stk_S,\ms_{\stk,S})} \sterm{\ta,\stkb}
+    \end{array}
+\right\}
+\]
+
+
+\subsubsection{Expression relations}
+% Two expression relations: one for sealed code-data pairs being jumped to and one for capabilities being jumped to in the regular way.
+% The argument for having one relation relate pairs of pairs of capabilities and the other relate pairs of capabilities is that that is how xjump and regular jumps work: xjump takes pairs while regular jumps take single capabilities.
+\begin{align*}
+  \lrexj(W) &= \left\{ \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} \middle| 
+    \begin{array}{l}
+      \forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk} \ldotp\\
+      \quad \forall W_\lrrs , W_\lrm \ldotp \\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\}) (W_\lrrs ) \wedge\\
+      \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \wedge \\
+      \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)}\wedge\\
+      \qquad\Phi_T = (\ms_T,\reg_T) \wedge\\
+      \qquad W \oplus W_\lrrs \oplus W_\lrm \text{ is defined }\\
+      \qquad\Rightarrow \exists \Phi_S',\Phi_T'\ldotp\\
+      \quad\qquad \Phi_S' = \xjumpResult{v_{c,S}}{v_{d,S}}{\Phi_S} \tand\\
+      \quad\qquad\Phi_T' = \xjumpResult{v_{c,T}}{v_{d,T}}{\Phi_T}\tand\\
+      \quad\qquad\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro
+    \end{array}
+    \right\}\\
+  \lre(W) &= \left\{ \npair{\stpair[.]{v_{c,S}}{v_{c,T}}} \middle| 
+    \begin{array}{l}
+      \forall n' \leq n, \src{\reg_S}, \reg_T, \src{\ms_S}, \ms_T, \src{\ms_\stk}, \src{\stk} \ldotp\\
+      \quad \forall W_\lrrs , W_\lrm \ldotp \\
+      \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrrs ) \wedge\\
+      \qquad\memSat[n']{\stpair[.]{\ms_S,\stk,\ms_\stk}{\ms_T}}{W_\lrm} \\
+      \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)}\\
+      \qquad \Phi_S' = \Phi_S \updReg{\pcreg}{v_{c,S}}\\
+      \qquad\Phi_T = (\ms_T,\reg_T)\\
+      \qquad\Phi_T' = \Phi_T\updReg{\pcreg}{v_{c,T}}\\
+      \qquad W \oplus W_\lrrs \oplus W_\lrm\\
+      \qquad\Rightarrow\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro
+    \end{array}
+    \right\}
+\end{align*}
 
 \subsection{Fundamental Theorem}
 An important lemma in our proof of full abstraction of the embedding of \srccm{} into \trgcm{}, is the fundamental theorem of logical relations (FTLR).
