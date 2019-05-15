@@ -656,7 +656,9 @@ This is enforced in the memory satisfaction by requiring that the addresses next
 % TODO add an introduction to c.o.f.e.'s that describe how standard c.o.f.e. constructions always can be used to construct something with a solution.
 \end{jversion}
 
+
 \subsection{The Logical Relation}
+\begin{jversion}
 \label{subsec:logical-relation}
 Using these Kripke worlds as assumptions, we can then define when different \srccm{} and \trgcm{} entities are related: values, jump targets, memories, execution configurations, components etc.
 The most important relations are summarised in the following table, where we mention the general form of the relations, what type of things they relate and extra conditions that some of them imply:\\
@@ -709,25 +711,46 @@ For this reason, we suggest making a cursorily first read through followed by a 
 
 
 \subsubsection{Value Relations}
-% TODO rewrite the below text
-% Should in general terms describe value relation
-% Maybe have a figure that sketches it like now.
-Note first how we have two value relations, whose definitions are sketched in Figure~\ref{fig:value-relation}.
-The difference is that the untrusted value relation $\lrv(W)$ does not just express that the two values are related, but also that they are safe to pass to an untrusted adversary, i.e. they cannot be used to break LSE and WBCF.
-The trusted value relation does not have the latter requirement and is a superset of the former.
+The value relation relates \trgcm{} words to \srccm{} words.
+The \srccm{} machine has special tokens that represent the stack capabilities and the return pointer components.
+These tokens do not exist on \trgcm{}, but all of the tokens correspond to capabilities on \trgcm{}, and the value relation establishes the link between then.
+\citet{skorstengaard_reasoning_2017} defines a logical relation that can be seen as a notion of capability safety.
+When they define their value relation, they define based on the question ``What is the most we can allow an adversary to do with this word without breaking memory guarantees?''
+This allows them to use the logical relation to reason about arbitrary (untrusted) programs.
+We also want to be able to say something about arbitrary (untrusted) programs, but we also want to be able to say something about somewhat arbitrary trusted programs.
+In our setting, a trusted program is a well-formed, reasonable program that follows the \stktokens{} calling convention, and an untrusted program is an arbitrary well-formed program.
+In order for \stktokens{} to work, it needs access to return seals, but we cannot allow untrusted programs access to the return seals.
+A value relation based on what an adversary could do should permit return seals, so such a relation cannot be used to reason about trusted programs.
+For this reason, we define two value relations a trusted $\lrvtrusted$ and an untrusted $\lrv$.
+It is safe to give trusted programs anything that is safe for an untrusted program, so the trusted value relation is defined as a super set of the untrusted value relation.
 
-Both relations trivially include numbers $(i,i)$ which are always related to themselves.
-The untrusted value relation also includes stack pointers and the underlying linear capability (with the same (non-executable) permission, range of authority, and current address), as well as syntactically equal memory capabilities, seals and sealed values, all under certain conditions involving the world $W$ and the capability's properties.
+In Figure~\ref{fig:value-relation}, we have sketched the two value relations.
+This shows that for the most part, words on \srccm{} are related to words on \trgcm{} that are syntactical identical.
+The only exception is stack pointers on \srccm{} that are related to linear capabilities on \trgcm{}.
+Note that the return pointers of \srccm{} are not related to anything as it is never safe for any program, trusted or not, to have them.
+The \srccm{} return pointers should only occur under a seal, and they should only be used to jump to in which case the \srccm{} semantics transforms them to the capabilities they correspond to.
 
-Roughly, for stack capabilities, the omitted condition requires that the world contains a $\spatialo$ region governing this part of the stack.
-For memory capabilities $((\perm,\lin),\baddr,\eaddr,\aaddr)$, a region in the world must govern memory $[\baddr,\eaddr]$, either $\spatialo$ or $\pure$, depending on the linearity $\lin$ of the capability.
-If the capability is executable ($\perm \in \{\rx,\rwx\}$), then we additionally require that the governing region is a code region and that the two capabilities are related $\mathrm{jmp}$ targets, as expressed by the relation $\lre(W)$, in any future world (see below).
+The value relation is defined in terms of a number of auxiliary definitions.
+In Paragraph~\ref{par:perm-cond} and Paragraph~\ref{par:standard-regions} we present the auxiliary definitions.
+In Paragraph~\ref{par:untrusted-val-rel} and Paragraph~\ref{par:trusted-val-rel}, we present the untrusted and trusted value relation, respectively.
 
-Seals allocated to trusted code are related to themselves only by $\lrvtrusted(W)$, but other seals are in both value relations.
-Sealed values are in both relations essentially when the sealed values satisfy the relation that was registered for the seal in a region of the world.
-Additionally, when they are combined with any other pair of values related by that relation, they must be related as $\txjmp{}{}$ targets (i.e. in $\lrexj(W)$).
-Finally, capabilities to code memory are related to themselves in the trusted value relation ($\lrvtrusted(W)$) when there is an appropriate code region in the world.
-They are not in the untrusted value relation because the code memory contains copies of the return seals used by the code, which must not end up in the hands of an adversary.
+% The old section:
+% Note first how we have two value relations, whose definitions are sketched in Figure~\ref{fig:value-relation}.
+% The difference is that the untrusted value relation $\lrv(W)$ does not just express that the two values are related, but also that they are safe to pass to an untrusted adversary, i.e. they cannot be used to break LSE and WBCF.
+% The trusted value relation does not have the latter requirement and is a superset of the former.
+
+% Both relations trivially include numbers $(i,i)$ which are always related to themselves.
+% The untrusted value relation also includes stack pointers and the underlying linear capability (with the same (non-executable) permission, range of authority, and current address), as well as syntactically equal memory capabilities, seals and sealed values, all under certain conditions involving the world $W$ and the capability's properties.
+
+% Roughly, for stack capabilities, the omitted condition requires that the world contains a $\spatialo$ region governing this part of the stack.
+% For memory capabilities $((\perm,\lin),\baddr,\eaddr,\aaddr)$, a region in the world must govern memory $[\baddr,\eaddr]$, either $\spatialo$ or $\pure$, depending on the linearity $\lin$ of the capability.
+% If the capability is executable ($\perm \in \{\rx,\rwx\}$), then we additionally require that the governing region is a code region and that the two capabilities are related $\mathrm{jmp}$ targets, as expressed by the relation $\lre(W)$, in any future world (see below).
+
+% Seals allocated to trusted code are related to themselves only by $\lrvtrusted(W)$, but other seals are in both value relations.
+% Sealed values are in both relations essentially when the sealed values satisfy the relation that was registered for the seal in a region of the world.
+% Additionally, when they are combined with any other pair of values related by that relation, they must be related as $\txjmp{}{}$ targets (i.e. in $\lrexj(W)$).
+% Finally, capabilities to code memory are related to themselves in the trusted value relation ($\lrvtrusted(W)$) when there is an appropriate code region in the world.
+% They are not in the untrusted value relation because the code memory contains copies of the return seals used by the code, which must not end up in the hands of an adversary.
 
 \begin{figure}
   \centering
@@ -813,7 +836,7 @@ They are not in the untrusted value relation because the code memory contains co
     \right\}
 %  \end{array}
 \end{align*}
-\caption{Sketches of the trusted and untrusted value relation.}
+\caption{Sketches of the trusted and untrusted value relation. The untrusted and trusted value relation both relates \srccm{} and \trgcm{} words. The untrusted value relation $\lrv$ relates words that are safe to give to untrusted programs and $\lrvtrusted$ relates words that are safe to give to trusted programs.}
 \label{fig:value-relation}
 \end{figure}
 
@@ -849,6 +872,7 @@ They are not in the untrusted value relation because the code memory contains co
 % \end{figure}
 
 \paragraph{Permission based conditions}
+\par{par:perm-cond}
 \[
   \addressable{\lin,W} =
   \begin{cases}
@@ -1047,6 +1071,7 @@ and
 \end{multline*}
 
 \paragraph{The untrusted value relation}
+\label{par:untrusted-val-rel}
 \[
   \lrv(W) =
   \begin{array}[t]{l}
@@ -1111,6 +1136,7 @@ and
 
 
 \paragraph{The trusted value relation}
+\label{par:trusted-val-rel}
 \[
   \lrvtrusted[\square,\gc](W) =
   \begin{array}[t]{l}
@@ -1201,7 +1227,7 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
     \end{array}
     \right\}
 \end{align*}
-
+\end{jversion}
 \subsection{Fundamental Theorem}
 An important lemma in our proof of full abstraction of the embedding of \srccm{} into \trgcm{}, is the fundamental theorem of logical relations (FTLR).
 The name indicates that it is an instance of a general pattern in logical relations proofs, but is otherwise unimportant.
