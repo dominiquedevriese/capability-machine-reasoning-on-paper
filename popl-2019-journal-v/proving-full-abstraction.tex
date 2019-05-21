@@ -96,6 +96,7 @@ For readability, we also add a tag $\pure$ to the shared regions:
 \[
   \Regionh = \{\pure \} \times (\World \fun \Rel{\MemSeg \times \MemSeg}) 
 \]
+For readability we will sometimes use $\spao$ as short for $\spatialo$, $\spa$ as short for $\spatial$, and $\pur$ as short for $\pure$.
 
 % What parts of memory are linear
 We will extend the regions further in Sections~\ref{subsubsec:seals}~and~\ref{subsubsec:ft-and-revocation}, but for now we have introduced enough to finish the definition of each of the three sub-worlds.
@@ -724,6 +725,9 @@ A value relation based on what an adversary could do should permit return seals,
 For this reason, we define two value relations a trusted $\lrvtrusted$ and an untrusted $\lrv$.
 It is safe to give trusted programs anything that is safe for an untrusted program, so the trusted value relation is defined as a super set of the untrusted value relation.
 
+In this section, we will from time to time refer to safety of a capability or a word.
+In some sense, our logical relation actually ends up as the definition of safety, so when we refer to a capability as \emph{safe} it is in an informal sense where it means that the capability cannot be used break memory invariants. 
+
 In Figure~\ref{fig:value-relation}, we have sketched the two value relations.
 This shows that for the most part, words on \srccm{} are related to words on \trgcm{} that are syntactical identical.
 The only exception is stack pointers on \srccm{} that are related to linear capabilities on \trgcm{}.
@@ -731,8 +735,7 @@ Note that the return pointers of \srccm{} are not related to anything as it is n
 The \srccm{} return pointers should only occur under a seal, and they should only be used to jump to in which case the \srccm{} semantics transforms them to the capabilities they correspond to.
 
 The value relation is defined in terms of a number of auxiliary definitions.
-In Paragraph~\ref{par:perm-cond} and Paragraph~\ref{par:standard-regions} we present the auxiliary definitions.
-In Paragraph~\ref{par:untrusted-val-rel} and Paragraph~\ref{par:trusted-val-rel}, we present the untrusted and trusted value relation, respectively.
+In the following, we introduce a number of \emph{standard regions} that express common requirements on memory. Based on the standard regions, we define what we call \emph{permission based conditions}, conditions that a capability with a specific permission must satisfy to be safe.
 
 % The old section:
 % Note first how we have two value relations, whose definitions are sketched in Figure~\ref{fig:value-relation}.
@@ -871,138 +874,62 @@ In Paragraph~\ref{par:untrusted-val-rel} and Paragraph~\ref{par:trusted-val-rel}
 % \label{fig:obs-rel}
 % \end{figure}
 
-\paragraph{Permission based conditions}
-\par{par:perm-cond}
-\[
-  \addressable{\lin,W} =
-  \begin{cases}
-    \{ r \mid W(r) = (\pure,\_) \} & \text{if $\lin = \normal$} \\
-    \{ r \mid W(r) = (\spatialo,\_) \}  & \text{otherwise (i.e. $\lin = \linear$)} \\
-  \end{cases}
-\]
-
-\[
-  \readCond{\lin,W} = \left\{ \npair{A} \middle| 
-    \begin{array}{l}
-      \exists S \subseteq \addressable{\lin, \pwheap} \ldotp \\
-      \quad \exists R : S \fun \powerset{\nats} \ldotp\\
-      \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge\\
-      \qquad (\lin = \linear \Rightarrow \forall r\ldotp |R(r)|  = 1) \wedge\\
-      \qquad \forall r \in S \ldotp \pwheap(r).H \nsubeq \stdreg{R(r),\gc}{\pur}.H
-    \end{array}
-  \right\}
-\]
-\[
-  \stackReadCond{W} = \left\{ \npair{A} \middle| 
-    \begin{array}{l}
-      \exists S \subseteq \addressable{\linear, \pwfree} \ldotp \\
-      \quad \exists R : S \fun \powerset{\nats} \ldotp\\
-      \qquad \forall r \in S \ldotp |R(r)| = 1\\
-      \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge \\
-      \qquad \forall r \in S \ldotp \pwfree(r).H \nsubeq \stdreg{R(r),\gc}{\pur}.H
-    \end{array}
-  \right\}
-\]
-where $\iota_A$ is a standard region defined in Section~\ref{par:standard-regions}.
-\[
-  \xReadCond{W} = \left\{ \npair{A} \middle| 
-    \begin{array}{l}
-      \exists r \in \addressable{\normal, \pwheap} \ldotp \\
-      \qquad \pwheap(r) \nequal \codereg{\_,\_,\code,\gc}\wedge\\
-      \qquad \dom(\code) \supseteq A 
-    \end{array}
-  \right\}
-\]
-
-\begin{definition}
-  \label{def:address-stratified}
-  We say that a region $\iota = (\_,H,\_)$ is address stratified iff
-  \[
-    \begin{array}{l}
-      \forall n, \src{\ms_S},\ms_T,\src{\ms_S'},\ms_T',s,\hat{W}\ldotp \\
-      \quad \npair{\stpair{\ms}{\ms}}, \npair{\stpair[.]{\ms_S'}{\ms_T'}} \in H \; \hat{W} \wedge \\
-      \quad \dom(\src{\ms_S}) = \dom(\ms_T) = \dom(\src{\ms_S'}) = \dom(\ms_T') \\
-      \quad \Rightarrow \\
-      \qquad \forall \aaddr \in \dom(\ms_S) \ldotp \npair{(\src{\ms_S}\update{\aaddr}{\src{\ms_S'}(\aaddr)},\ms_T\update{\aaddr}{\ms_T'(\aaddr)})} \in H \; \hat{W}
-    \end{array}
-  \]
-\end{definition}
-\[
-  \writeCond{\lin,W} = \left\{ \npair{A} \middle| 
-    \begin{array}{l}
-      \exists S \subseteq \addressable{\lin, \pwheap} \ldotp \\
-      \quad \exists R : S \fun \powerset{\nats} \\
-      \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge\\
-      \qquad (\lin = \linear \Rightarrow \forall r\ldotp |R(r)|  = 1) \wedge\\
-      \qquad \forall r \in S \ldotp \pwheap(r).H \nsupeq \stdreg{R(r),\gc}{\pur}.H \wedge\\
-      \qquad \quad \pwheap(r) \text{ is address-stratified}
-    \end{array}
-  \right\}
-\]
-where $\iota_A$ is a standard region defined in Paragraph~\ref{par:standard-regions}.
-\[
-  \stackWriteCond{W} = \left\{ \npair{A}) \middle| 
-    \begin{array}{l}
-      \exists S \subseteq \addressable{\linear, \pwfree} \ldotp \\
-      \quad \exists R : S \fun \powerset{\nats} \\
-      \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge \\
-      \qquad \forall r \in S \ldotp |R(r)| = 1 \wedge \\
-      \qquad \forall r \in S \ldotp \pwfree(r).H \nsupeq \stdreg{R(r),\gc}{\pur}.H \wedge\\
-      \qquad \quad \pwfree(r) \text{ is address-stratified}
-    \end{array}
-  \right\}
-\]
-where $\iota_A$ is a standard region defined in Paragraph~\ref{par:standard-regions}.
-\begin{align*}
-  \execCond{W} &=
-  \left\{ \npair{A} \middle|
-    \begin{array}{l}
-      \forall n' < n, W' \future \purePart{W}, \aaddr \in [\baddr',\eaddr'] \subseteq A \ldotp\\
-      \quad \npair[n']{\stpair[.]{((\rx,\normal),\baddr',\eaddr',\aaddr)}{((\rx,\normal),\baddr',\eaddr',\aaddr)}} \in \lre(W')
-    \end{array}
-    \right\}
-\end{align*}
-
 \paragraph{Standard regions}
 \label{par:standard-regions}
-Standard region:
-\[
-  \stdreg{A,\gc}{v} \defeq (v,H_A^{\mathrm{std},\square} \; \gc) , v \in \{\spa,\spao\}
-\]
-for readability, we use $\spao$ short for $\spatialo$, $\spa$ short for $\spatial$, and $\pur$ as short for $\pure$.
-\[
-  \stdreg{A,\gc}{\pur} \defeq (\pur,H_A^{\mathrm{std},\square} \; \gc, \lambda \_ \; \_ \ldotp \emptyset)
-\]
-where $H^{\mathrm{std},\square}_A$ is defined as follows:
+The notion of regions we defined in Section~\ref{subsec:worlds} is general enough to allow a wide variety of regions.
+There are, however, some regions that may seem more natural or standard than others.
+In particular, when it comes to capability safety, it seems natural to have a region that requires everything in memory to be safe.
+This is exactly what we refer to as a \emph{standard region} because we usually define a region like that along with a logical relation. 
+
+We define a $\pure$, $\spatial$, and $\spatialo$ standard. They all have the same invariant which is defined as follows:
 \[
   H_A^{\mathrm{std},\square} \; \gc \; \hat{W} \defeq \left\{ \npair{\ms_S,\ms_T} \middle|
     \begin{array}{l}
       \dom(\ms_S) = \dom(\ms_T) = A \wedge \\
-      \exists S : A \fun \World \ldotp \xi(\hat{W}) = \oplus_{\aaddr \in A} S(\aaddr) \wedge\\
+      \exists S : A \fun \World \ldotp \xi(\hat{W}) = \oplus_{\aaddr \in A} S(\aaddr) \wedge\\ % TODO there should be a later on the right side of the equality?
       \quad \forall \aaddr \in A \ldotp \npair{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
     \end{array}
   \right\}
 \]
-
+The standard region invariant requires the memory segment pairs to have a specific address space $A$.
+Further, the two memory segments must contain words from the untrusted value relation.
+The memory segments may contain linear capabilities, so we must distribute the ownership of the world between each memory cell which the function $S$ takes care of.
+Note that the invariant takes a $\hat{W}$ from $\Wor$ as argument which means that we must apply the isomorphism $\xi$ before the world can be used.
+Using this invariant, we define the standard $\spatial$ and $\spatialo$ regions as follows:
 \[
-  \stareg[\stpair{\ms}{\ms},\gc]{v,\square} = (v,H^\mathrm{sta,\square}_{\stpair{\ms}{\ms}} \; \gc)
+  \stdreg{A,\gc}{v} \defeq (v,H_A^{\mathrm{std},\square} \; \gc) , v \in \{\spatial,\spatialo\}
 \]
+and the standard $\pure$ regions as follows
 \[
-  H^\mathrm{sta,\square}_{\stpair{\ms}{\ms}} \; \gc = \left\{ \npair{\stpair{\ms}{\ms}} \middle| 
+  \stdreg{A,\gc}{\pure} \defeq (\pur,H_A^{\mathrm{std},\square} \; \gc, \lambda \_ \; \_ \ldotp \emptyset)
+\]
+Note that the standard $\pure$ region puts no requirements on seals.
+
+Sometimes we need to know that the contents of a memory segment stays the same.
+For instance, the contents of encapsulated stack frames don't change which we need to be able to rely on.
+To express this, we define a \emph{static region}.
+The static region is parameterised with a memory segment pair which is the only memory segment pair the region accepts.
+The memory invariant is defined as follows
+\[
+  H^\mathrm{sta,\square}_{\stpair{\ms}{\ms}} \; \gc \defeq \left\{ \npair{\stpair{\ms}{\ms}} \middle| 
     \begin{array}{l}
-      \exists S : \dom(\ms) \fun \World \ldotp \xi(W) = \oplus_{\aaddr \in \dom(\ms)} S(\aaddr) \wedge\\
-      \quad \forall \aaddr \in \dom(\ms) \ldotp \npair{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
+      \dom(\ms_S) = \dom(\ms_T) \wedge \\
+      \exists S : \dom(\ms_S) \fun \World \ldotp \xi(W) = \oplus_{\aaddr \in \dom(\ms)} S(\aaddr) \wedge\\
+      \quad \forall \aaddr \in \dom(\ms_S) \ldotp \npair{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
     \end{array}
 \right\}
 \]
-
-
+The region also requires the static memory to contain words from the untrusted value relation.
+Which just means that the stack shouldn't be used for return seals, closure seals, and code pointers for trusted code.
+With the memory invariant, we define the static region as follows:
 \[
-  \codereg{\sigrets,\sigcloss,\code,\gc} \defeq (\pure,
-H^\mathrm{code,\square} \; \sigrets \; \sigcloss \; \code \; \gc,
-H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
+  \stareg[\stpair{\ms}{\ms},\gc]{v,\square} \defeq (v,H^\mathrm{sta,\square}_{\stpair{\ms}{\ms}} \; \gc) , v \in \{\spatial,\spatialo\}
 \]
+A $\pure$ static region can be defined in a similar fashion to that of the standard region.
 
+In our results, we assume that we execute well-formed components which allows us to make certain assumptions about the code we execute.
+We express these assumption in what we call a \emph{code region}.
+The invariant of the code region is defined as
 \begin{multline*}
   H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; (\ta,\_,\gsigrets,\gsigcloss) \; \hat{W} =\\
   \left\{\npair{\arraycolsep=0pt\left(\array{l}\code \uplus \mspad,\\ \code \uplus \mspad\endarray\right)} \middle|
@@ -1017,11 +944,27 @@ H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
     \end{array}
   \right\}
 \end{multline*}
+The code region is a lot more restrictive that the standard region.
+It basically only allows one memory segment, namely $\code$ padded with zeroes to make sure that two capabilities cannot be spliced to cause unintended control-flow.
+We will use the relation to reason about trusted components (well-formed and reasonable) as well as untrusted components (well-formed).
+The assumptions we can make on the code depends on whether it is part of a trusted or untrusted component.
+This is captured by requiring the contents of the code memory to be in the trusted or untrusted value relation depending on the trustworthiness of the code.
+This is, if all the code memory addresses are in the trusted address space and the seals are from the global seals, then it is trusted.
+On the other hand, if the code memory addresses are disjoint from the trusted addresses and there are no return seals, then it is untrusted.
+In either case, the words should be in the value relation with respect to the $\purePart{}$ of the world which means that the code memory cannot contain linear capabilities.
+% TODO promote $\purePart{}$ from appendix to paper - used a few times.
 
-
-\begin{multline*}
+\stktokens{} rely on proper seal usage to guarantee well-bracketed control-flow and local state encapsulation.
+This means that components must use return and closure seals for their intended purpose.
+The code region has a seal invariant $H^\mathrm{code,\square}_\sigma$ to guarantee that the return and closure seals of the region are used correctly.
+The seal invariant is displayed in Figure~\ref{fig:code-reg-seal-inv}.
+The return seals $\sigrets$ in a code region should only be used to seal return pointers.
+That is on \srccm{} they should only be used to seal $\retptrc{}$ and $\retptrd{}$.
+\begin{figure}
+  \centering
+  \begin{multline*}
   H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \;
-  (\ta,\stkb) \; \sigma \; \hat{W}= \\
+  (\ta,\stkb,\_,\gsigrets) \; \sigma \; \hat{W} \defeq \\
   \begin{array}[t]{l}
 \left\{
     \begin{array}{l}
@@ -1035,14 +978,15 @@ H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
         \lbrack \aaddr',\aaddr' + \calllen -1 \rbrack \subseteq \lbrack \baddr, \eaddr \rbrack
       \end{array}
     \end{array}
-      \right\} \uplus \\
+      \right\} \cup \\
 \left\{
     \begin{array}{l}
 \left. \npair{\arraycolsep=0pt\left(\array{l}\retptrd(\baddr,\eaddr),\\((\rw,\linear),\baddr,\eaddr,\baddr-1)\endarray\right)} \middle| \right. \\
       \begin{array}{l}
         \sigrets \subseteq \gsigrets \tand \\
         \dom(\code) \subseteq \ta \tand\\
-        \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]} \ldotp \pwpriv[\xi(\hat{W})](r).H \nequal (\stareg[(\ms_S,\ms_T),(\ta,\stkb)]{\spao,\square}, \aaddr'+\calllen) \tand \\
+        \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]} \ldotp \\
+        \quad\pwpriv[\xi(\hat{W})](r).H \nequal (\stareg[(\ms_S,\ms_T),(\ta,\stkb)]{\spao,\square}, \aaddr'+\calllen) \tand \\
         \quad \dom(\ms_S) = \dom(\ms_T) = [\baddr,\eaddr] \tand\\
         \quad \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
         \quad \code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand \sigma = \sigma_b + \offsigma \in \sigrets
@@ -1050,12 +994,11 @@ H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
     \end{array}
     \right\} \\
   \end{array}\\
-    \text{ if } \sigma \in \sigrets\\
+    \text{ for } \sigma \in \sigrets
 \end{multline*}
-and
 \begin{multline*}
   H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \;
-  (\ta,\stkb) \; \sigma \; \hat{W}= \\
+  (\ta,\stkb,\gsigcloss,\gsigrets) \; \sigma \; \hat{W} \defeq \\
   \left\{
     \begin{array}{l}
 \left. \npair{(\vsc, \vsc' )} \middle| \right. \\
@@ -1067,8 +1010,202 @@ and
       \end{array}
     \end{array}
   \right\}\\
-  \text{ if } \sigma \in \sigcloss
+  \text{ for } \sigma \in \sigcloss
 \end{multline*}
+
+\caption{The seal invariant for code regions.}
+\label{fig:code-reg-seal-inv}
+\end{figure}
+% Code return pointer
+If we allowed any $\retptrc$ to be sealed, then we could not be sure that it comes from a call even though it should only be possible to get a return pointer from a call.
+For this reason, we require that the \srccm{} return pointer actually points to the first address after a call.
+For a \trgcm{} capability related to a \srccm{} code return pointer, we do not require that it points to the first address after the call because it needs to execute the return instructions first.
+
+% Data return pointer
+For sealed data return pointers, we need to know that the world contains a region that governs the local stack frame.
+That is, there should be a static region with the contents of the stack frame.
+The fact that it is static means that the contents will remain the same.
+The region that governs the stack frame must come from the private world which means that it is paired with a return address.
+We require that the return address actually corresponds to a return address for a call in the code. 
+
+% Closure seals
+Unlike return seals, both trusted and untrusted components can have closure seals.
+For untrusted components (components with their code address space disjoint from the trusted address space), we allow everything in the untrusted value relation to be sealed.
+Intuitively, untrusted components are assumed to have access to words from the untrusted value relation, but we cannot know how the words are used, so we need to assume that they may be sealed.
+% TODO trusted components
+Trusted components only use closure seals for sealed capability pairs that represent actual closures.
+The code capability for a closure must point to the code memory because it is the only part of memory that is executable.
+It is not safe for untrusted components to have a capability for a trusted components code (it could be used to read return capabilities or start execution in the middle of a call), so capabilities for the code memory of a trusted component is in the trusted value relation.
+While it is not safe to give a bare capability for a trusted components code memory, it can be perfectly safe to give a sealed capability for a trusted components code.
+For this reason, the seal invariant allows executable capabilities from the trusted value relation to be sealed with a closure seal.
+When it comes to the data capability of a closure, we just require that it comes from the untrusted value relation because the trusted value relation contains nothing that makes sense to seal as the data capability (we return to the specific contents of the two value relations in a later paragraph).
+
+With the memory invariant and seal invariant in hand, we define the code region as follows:
+\[
+  \codereg{\sigrets,\sigcloss,\code,\gc} \defeq (\pure, H^\mathrm{code,\square} \; \sigrets \; \sigcloss \; \code \; \gc, H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
+\]
+The code region is $\pure$ because it needs to contain a seal invatiant and because we assume that code pointers are non-linear.
+
+\paragraph{Permission based conditions}
+\label{par:perm-cond}
+% TODO add brief intro to paragraph
+
+The world can be seen as an authority specification which means that it dictates what kind of capabilities can address a certain part of memory.
+Specifically, linear capabilities can only address memory governed by a $\spatialo$ region, and non-linear capabilities can only address memory governed by a $\pure$ region.
+All the permission based condition we define project the regions that the capability may address from the world.
+The following $\addressable$ function takes care of the projection:
+\[
+  \addressable{\lin,W} \defeq
+  \begin{cases}
+    \{ r \mid W(r) = (\pure,\_) \} & \text{if $\lin = \normal$} \\
+    \{ r \mid W(r) = (\spatialo,\_) \}  & \text{otherwise (i.e. $\lin = \linear$)} \\
+  \end{cases}
+\]
+
+% TODO introduce read condition
+We capture the essence of what it means for a capability with read permission to be safe in the condition $\readCond{}$.
+% each of the regions upper bounded by std region
+The main purpose of $\readCond{}$ is to make sure that only safe words can be read from the memory the read capability governs.
+This is done by putting an upper bound on what requirements a region can impose on the memory segments governed by the capability.
+In particular a region that governs the memory a read capability has access to can at most allow safe values to be read.
+Without this requirement, a read capability could potentially be used to break memory invariants if were used to read capabilities that has the authority to break memory invariants.
+The condition is defined as follows
+\[
+  \readCond{\lin,W} = \left\{ \npair{A} \middle| 
+    \begin{array}{l}
+      \exists S \subseteq \addressable{\lin, \pwheap} \ldotp \\
+      \quad \exists R : S \fun \powerset{\nats} \ldotp\\
+      \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge\\
+      \qquad (\lin = \linear \Rightarrow \forall r \in S \ldotp |R(r)|  = 1) \wedge\\
+      \qquad \forall r \in S \ldotp \pwheap(r).H \nsubeq \stdreg{R(r),\gc}{\pur}.H
+    \end{array}
+  \right\}
+\]
+% splicing and what part of the range each region governs
+The $\readCond{}$ is compatible with all the operations that can be performed on capabilities.
+This means that if two capabilities, for which $\readCond{}$ holds, are spliced together, we should be able to establish that $\readCond{}$ holds for the resulting capability.
+To support this, we require the presence of a set of regions $S$ that governs the addresses the capability has authority over rather than just a single region.
+If we need to establish the $\readCond{}$ after a splice, we can simply use union of the regions that witnessed the $\readCond{}$ of the two individual capabilities.
+We also need to support splitting which is no problem for non-linear capabilities as the same $\pure$ region can be used to establish the $\readCond{}$ for multiple non-linear capabilities.
+On the other hand, a $\spatialo$ region can only be used to establish the $\readCond{}$ for one linear capability because the ownership of a spatial region can only go to one world when splitting the ownership.
+None the less, we need to support arbitrary splitting of linear capabilities, which means that $\readCond{}$ must make sure that the necessary regions are in the world to argue that the result of a split preserves $\readCond{}$.
+This is why, $\readCond{}$ requires all regions to only govern one address when the capability is linear.
+This means that after a split, the authority of the regions for the bottom half of the split result can go to one capability and the rest can go to the top half.
+
+The upper bound on requirements that can be imposed on the memory the read capability has access to is specified on all of the regions that govern the memory.
+The upper-bound is specified in terms of the standard region $\stdreg{R(r),\gc}{\pur}$.
+That is, the memory segments permitted by the region should be an $n$-subset (a subset that only takes into account elements with an index up to, but not including, $n$).
+This means that everything the region permits must at the very least be safe.
+
+% TODO is there a point to be made about limited write for reading of linear capabilities?
+% When a linear capability is read from memory, the source address must be cleared.
+% This means that a linear capability with read permission also has a very limited form of write authority which only permits it to write zeroes.
+
+Similarly to $\readCond{}$, we define a condition that captures the essence of what it means for a capability with writer permission to be safe.
+We call this condition $\writeCond{}$.
+A capability with write permission can be used to write to memory.
+The question is, what can we safely allow to be written to memory without any memory invariants being broken.
+It may come as a surprise that the answer to this is anything - even words that are unsafe.
+The intuition behind this is that if you managed to write something that can break memory invariants, it would not be possible to read it back again as you need read permission for that, and if the capability had read permission, then $\readCond{}$ would make sure that the word would have to be safe\footnote{It should not be possible to obtain a capability that can be used to break invariants, after all if one was obtained, memory invariants could be broken. However, the $\writeCond{}$ tries to capture the essence of safety and in principle it is safe to write an unsafe capability that cannot be read back.}.
+We do, however, impose a bound on what should be permitted to be written and that is a lower bound because it should at least be allowed to write anything that is safe.
+
+Before we get to the definition of $\writeCond{}$, we need to introduce one auxiliary definition.
+When a write capability makes a change to memory, the change must be permitted by the regions that govern the memory it has authority over for it to be safe.
+Given a write capability it should be possible to transform the memory from one allowed by the region to another also allowed by the region.
+However, only one memory address can be updated at a time, so in order to make such a transformation one has to update one address at a time.
+This should not break any memory invariants, so we require all the memories that we could go through to make the transformation to also be permitted by the region.
+This is captured by address stratification.
+\begin{definition}
+  \label{def:address-stratified}
+  We say that a region $\iota = (\_,H,\_)$ is address stratified iff
+  \[
+    \begin{array}{l}
+      \forall n, \src{\ms_S},\ms_T,\src{\ms_S'},\ms_T',s,\hat{W}\ldotp \\
+      \quad \npair{\stpair{\ms}{\ms}}, \npair{\stpair[.]{\ms_S'}{\ms_T'}} \in H \; \hat{W} \wedge \\
+      \quad \dom(\src{\ms_S}) = \dom(\ms_T) = \dom(\src{\ms_S'}) = \dom(\ms_T') \\
+      \quad \Rightarrow \\
+      \qquad \forall \aaddr \in \dom(\ms_S) \ldotp \npair{(\src{\ms_S}\update{\aaddr}{\src{\ms_S'}(\aaddr)},\ms_T\update{\aaddr}{\ms_T'(\aaddr)})} \in H \; \hat{W}
+    \end{array}
+  \]
+\end{definition}
+We define $\writeCond{}$ as follows
+\[
+  \writeCond{\lin,W} \defeq \left\{ \npair{A} \middle| 
+    \begin{array}{l}
+      \exists S \subseteq \addressable{\lin, \pwheap} \ldotp \\
+      \quad \exists R : S \fun \powerset{\nats}\\
+      \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge\\
+      \qquad (\lin = \linear \Rightarrow \forall r \in S \ldotp |R(r)|  = 1) \wedge\\
+      \qquad \forall r \in S \ldotp \pwheap(r).H \nsupeq \stdreg{R(r),\gc}{\pur}.H \wedge\\
+      \qquad \quad \pwheap(r) \text{ is address-stratified}
+    \end{array}
+  \right\}
+\]
+The definition of $\writeCond{}$ is very similar to $\readCond{}$.
+Support for split and splice is done in the same way, and the bound is defined in terms of the standard region.
+
+The $\readCond{}$ and $\writeCond{}$ specifically uses the heap sub-world which means that it can only be used for heap capabilities.
+This means that we cannot use it for stack capabilities.
+To take care of stack capabilities, we define two more conditions a $\stackReadCond{}$ and $\stackWriteCond{}$.
+The two new condition are essentially the same as the $\readCond{}$ and $\writeCond{}$ except that they use the free stack sub-world and assume that the capability is linear as all stack capabilities are linear.
+Note that we do not have any condition that talks about the stack-frames sub world because we should never have a capability that allows us to directly read or write from that part of memory.
+\[
+  \stackReadCond{W} = \left\{ \npair{A} \middle| 
+    \begin{array}{l}
+      \exists S \subseteq \addressable{\linear, \pwfree} \ldotp \\
+      \quad \exists R : S \fun \powerset{\nats} \ldotp\\
+      \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge \\
+      \qquad \forall r \in S \ldotp |R(r)| = 1\\
+      \qquad \forall r \in S \ldotp \pwfree(r).H \nsubeq \stdreg{R(r),\gc}{\pur}.H
+    \end{array}
+  \right\}
+\]
+\[
+  \stackWriteCond{W} = \left\{ \npair{A}) \middle| 
+    \begin{array}{l}
+      \exists S \subseteq \addressable{\linear, \pwfree} \ldotp \\
+      \quad \exists R : S \fun \powerset{\nats} \\
+      \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge \\
+      \qquad \forall r \in S \ldotp |R(r)| = 1 \wedge \\
+      \qquad \forall r \in S \ldotp \pwfree(r).H \nsupeq \stdreg{R(r),\gc}{\pur}.H \wedge\\
+      \qquad \quad \pwfree(r) \text{ is address-stratified}
+    \end{array}
+  \right\}
+\]
+The final permission, we define conditions for is the execute permission.
+We define two conditions $\execCond{}$ and $\xReadCond{}$.
+The $\execCond{}$ captures what operations an execute-capability can be used for, i.e.\ execution.
+The $\xReadCond{}$ captures some additional read assumptions we can make on a capability when we know the capability is executable.
+
+The $\execCond{}$ intuitively says that an execute capability is safe when any capability that can be derived from it is safe as a program counter now and in the future.
+We later define the $\lre$-relation which captures what it means for a word to be safe as a program counter, but for now it suffices to think of it as a program counter that causes an execution that does not break memory invariants.
+An executable capability can have its range of authority shrunk or its current address changed which changes what it does and thus potentially whether it keeps memory invariants.
+For this reason, the condition requires that any capability with a derived range of authority and a current address that range is safe to use for execution.
+The $\execCond{}$ is quantified over all future worlds of the $\purePart{}$ of $W$. The $\purePart{}$ function strips the world of all spatial ownership.
+This means that the capability cannot depend on linear capabilities, and when we define the logical relation, we even require the executable capability to not be linear.
+It is not clear whether a linear executable capability would even be useful because there is no way to move it out of the $\pcreg$-register without crashing the execution.
+This may sound like an ideal option for constructing something that can be executed once, however, most programs rely on loading other capabilities or seal sets for the program counter which is not possible.
+\begin{align*}
+  \execCond{W} &=
+  \left\{ \npair{A} \middle|
+    \begin{array}{l}
+      \forall n' < n, W' \future \purePart{W}\ldotp \forall b',e'\ldotp \forall \aaddr \in [b',e'] \subseteq A \ldotp\\
+      \quad \npair[n']{\stpair[.]{((\rx,\normal),\baddr',\eaddr',\aaddr)}{((\rx,\normal),\baddr',\eaddr',\aaddr)}} \in \lre(W')
+    \end{array}
+    \right\}
+\end{align*}
+
+% TODO Motivate the read execute condition (do this when description of code region done)
+\[
+  \xReadCond{W} = \left\{ \npair{A} \middle| 
+    \begin{array}{l}
+      \exists r \in \addressable{\normal, \pwheap}, \code \ldotp \\
+      \qquad \pwheap(r) \nequal \codereg{\_,\_,\code,\gc}\wedge\\
+      \qquad \dom(\code) \supseteq A 
+    \end{array}
+  \right\}
+\]
+% TODO Stack not executable, so no stack readx or stack exec cond.
 
 \paragraph{The untrusted value relation}
 \label{par:untrusted-val-rel}
