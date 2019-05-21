@@ -1032,7 +1032,6 @@ We require that the return address actually corresponds to a return address for 
 Unlike return seals, both trusted and untrusted components can have closure seals.
 For untrusted components (components with their code address space disjoint from the trusted address space), we allow everything in the untrusted value relation to be sealed.
 Intuitively, untrusted components are assumed to have access to words from the untrusted value relation, but we cannot know how the words are used, so we need to assume that they may be sealed.
-% TODO trusted components
 Trusted components only use closure seals for sealed capability pairs that represent actual closures.
 The code capability for a closure must point to the code memory because it is the only part of memory that is executable.
 It is not safe for untrusted components to have a capability for a trusted components code (it could be used to read return capabilities or start execution in the middle of a call), so capabilities for the code memory of a trusted component is in the trusted value relation.
@@ -1210,6 +1209,7 @@ The $\xReadCond{}$ requires that the memory segment an executable capability has
 Note that we do not define $\execCond{}$ and $\xReadCond{}$ for the stack because the stack is not executable.
 \paragraph{The untrusted value relation}
 \label{par:untrusted-val-rel}
+% TODO write section
 \[
   \lrv(W) =
   \begin{array}[t]{l}
@@ -1275,6 +1275,7 @@ Note that we do not define $\execCond{}$ and $\xReadCond{}$ for the stack becaus
 
 \paragraph{The trusted value relation}
 \label{par:trusted-val-rel}
+% TODO write section
 \[
   \lrvtrusted[\square,\gc](W) =
   \begin{array}[t]{l}
@@ -1332,6 +1333,7 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
 
 
 \subsubsection{Expression relations}
+% TODO write section
 % Two expression relations: one for sealed code-data pairs being jumped to and one for capabilities being jumped to in the regular way.
 % The argument for having one relation relate pairs of pairs of capabilities and the other relate pairs of capabilities is that that is how xjump and regular jumps work: xjump takes pairs while regular jumps take single capabilities.
 \begin{align*}
@@ -1367,6 +1369,8 @@ We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$. That is, if we do not need to e
 \end{align*}
 \end{jversion}
 \subsection{Fundamental Theorem}
+% TODO rewrite section
+% Include the actual FTLR
 An important lemma in our proof of full abstraction of the embedding of \srccm{} into \trgcm{}, is the fundamental theorem of logical relations (FTLR).
 The name indicates that it is an instance of a general pattern in logical relations proofs, but is otherwise unimportant.
 \begin{lemma}[FTLR (roughly)]
@@ -1384,6 +1388,53 @@ The conditions require that the capability points to a memory region where code 
 
 The proof of the lemma consists of a big induction where each possible instruction is proven to behave the same in source and target in related memories and register files.
 After that first step, the induction hypothesis is used for the rest of the execution.
+
+\subsection{Related Components}
+% TODO write section
+\begin{align*}
+  \lrcomp(W) &=
+  \left\{\begin{aligned}
+     &\npair{\var{comp},\var{comp}} \;\mid \;\\
+      &\qquad\var{comp} = (\mscode,\msdata,\overline{a_{\mathrm{import}} \mapsfrom s_{\mathrm{import}}},\overline{s_{\mathrm{export}} \mapsto w_{\mathrm{export}}},\sigrets,\sigcloss) \tand \\
+      &\qquad\text{For all } W' \future W \ldotp \\
+      &\qquad\quad\text{If } \overline{\npair[n']{(w_{\mathrm{import}},w_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$}\\
+      &\qquad\quad\text{and } \msdata' = \msdata{}[\overline{a_{\mathrm{import}} \mapsto w_{\mathrm{import}}}] \\
+      &\qquad\quad\text{then } \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata', \mscode\uplus\msdata')} \in \lrheap(\pwheap)(W') \tand\\
+      &\qquad\quad\overline{\npair{(w_{\mathrm{export}},w_{\mathrm{export}})}} \in \lrv(\purePart{W'})
+  \end{aligned}
+    \right\}\\
+  &\cup \left\{
+    \begin{multlined}
+     \npair{(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d}),(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})} \;\mid \;\\
+     \npair{(\var{comp}_0,\var{comp}_0)} \in \lrcomp(W) \tand\\
+     \{(\_ \mapsto c_{\mathrm{main},c}),(\_ \mapsto c_{\mathrm{main},d})\} \subseteq \overline{w_{\mathrm{export}}}
+       \end{multlined}
+    \right\} 
+\end{align*}
+% TODO include central lemmas?
+
+\subsection{Related Execution Configuration}
+% TODO write section
+\[
+  \lrec(W) = \left\{ \npair{\left(
+        \arraycolsep=0pt\array{l}
+        (\ms_S,\reg_S,\stk,\ms_\stk),\\
+        (\ms_T,\reg_T)\endarray\right)} \middle|
+    \begin{array}{l}
+      \gc = (\ta,\stkb) \tand\\
+      \exists W_M,W_R,W_\pcreg \ldotp W = W_M \oplus W_R \oplus W_\pcreg \tand\\
+      \npair{( (\reg_S(\pcreg),\reg_S(\rdata)), (\reg_T(\pcreg),\reg_T(\rdata)) )} \in \lrexj(W_\pcreg) \tand \\
+      \reg_S(\pcreg) \neq \retptrc(\_) \wedge 
+      \reg_S(\rdata) \neq \retptrd(\_) \wedge \\
+      \nonExec{\reg_S(\rdata)} \wedge
+      \nonExec{\reg_T(\rdata)}\\
+      \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W_M} \tand\\
+      \npair{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\})(W_R)
+    \end{array}
+            \right\}
+\]
+
+% TODO Include central lemmas?
 
 \subsection{Full Abstraction Proof Sketch}
 \label{subsec:proof-sketch}
