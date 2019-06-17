@@ -1230,17 +1230,16 @@ A capability with write permission can be used to write to memory.
 The question is, what can we safely allow to be written to memory without any memory invariants being broken.
 The answer to this is anything - even words that are unsafe.
 Say, you manage to write something that can break memory invariants, then it would not be possible to read it back again as write permission, generally speaking, does not entail read permission.
-Iff the capability had read permission, then $\readCond{}$ would make sure that the word would have to be safe\footnote{It should not be possible to obtain a capability that can be used to break invariants. After all, if such a capability was obtained, memory invariants could be broken.
+If the capability had read permission, then $\readCond{}$ would make sure that the word would have to be safe\footnote{It should not be possible to obtain a capability that can be used to break invariants. After all, if such a capability was obtained, memory invariants could be broken.
   However, the $\writeCond{}$ tries to capture the essence of safety and in principle it is safe to write an unsafe capability that cannot be read back.}.
 It should always be possible to write safe values, so we impose this as a lower bound.
-We do, however, impose a bound on what should be permitted to be written and that is a lower bound because it should at least be allowed to write anything that is safe.
 
-Before we get to the definition of $\writeCond{}$, we need to introduce one auxiliary definition.
-When a write capability makes a change to memory, the change must be permitted by the regions that govern the memory it has authority over for it to not break the invariant and thus be safe.
-Given a write capability, it should be possible to transform the memory from one allowed by the region to another also allowed by the region.
-However, only one memory address can be updated at a time, so in order to make such a transformation one has to update one address at a time.
-This should not break any memory invariants, so we require all the memories that we could go through to make the transformation to also be permitted by the region.
-This is captured by address stratification.
+A safe write capability must respect the memory invariant of the region that governs the memory the capability gives access to.
+Now consider the case, where the invariant permits two memory segments that differs in two or more addresses.
+In this case, the write capability cannot be used to transform the memory from one memory segment to the other because only one memory address can be updated at a time.
+If an adversary had such a capability, then it should be possible for them to transform the memory in a way that is consistent with the region.
+In other words, the adversarial code should be able to transform the memory segment to any memory segment permitted by the region.
+This is captured by address stratification (Definition~\ref{def:address-stratified}) which basically says that if a region permits two memory segments, then all the intermediate memory segments you may end up with when transforming one memory segment to the other must be permitted as will.
 \begin{definition}
   \label{def:address-stratified}
   We say that a region $\iota = (\_,H,\_)$ is address stratified iff
@@ -1254,7 +1253,8 @@ This is captured by address stratification.
     \end{array}
   \]
 \end{definition}
-We define $\writeCond{}$ as follows
+With address stratification defined, we define the write condition.
+\begin{definition}
 \[
   \writeCond{\lin,W} \defeq \left\{ \npair{A} \middle| 
     \begin{array}{l}
@@ -1267,6 +1267,7 @@ We define $\writeCond{}$ as follows
     \end{array}
   \right\}
 \]
+\end{definition}
 The definition of $\writeCond{}$ is very similar to $\readCond{}$.
 Support for split and splice is done in the same way, and the bound is defined in terms of the standard region.
 
@@ -1274,7 +1275,8 @@ The $\readCond{}$ and $\writeCond{}$ specifically uses the heap sub-world which 
 This means that we cannot use it for stack capabilities.
 To take care of stack capabilities, we define two more conditions a $\stackReadCond{}$ and $\stackWriteCond{}$.
 The two new condition are essentially the same as the $\readCond{}$ and $\writeCond{}$ except that they use the free stack sub-world and assume that the capability is linear as all stack capabilities are linear.
-Note that we do not have any condition that talks about the stack-frames sub world because we should never have a capability that allows us to directly read or write from that part of memory.
+Note that we do not have any condition that talks about the stack-frames sub world because we should never have a capability that allows us to directly read from or write to that part of memory.
+\begin{definition}
 \[
   \stackReadCond{W} = \left\{ \npair{A} \middle| 
     \begin{array}{l}
@@ -1286,6 +1288,8 @@ Note that we do not have any condition that talks about the stack-frames sub wor
     \end{array}
   \right\}
 \]
+\end{definition}
+\begin{definition}
 \[
   \stackWriteCond{W} = \left\{ \npair{A}) \middle| 
     \begin{array}{l}
@@ -1298,6 +1302,7 @@ Note that we do not have any condition that talks about the stack-frames sub wor
     \end{array}
   \right\}
 \]
+\end{definition}
 The final permission, we define conditions for is the execute permission.
 We define two conditions $\execCond{}$ and $\xReadCond{}$.
 The $\execCond{}$ captures what operations an execute-capability can be used for, i.e.\ execution.
@@ -1305,23 +1310,26 @@ The $\xReadCond{}$ captures some additional read assumptions we can make on a ca
 
 The $\execCond{}$ intuitively says that an execute capability is safe when any capability that can be derived from it is safe as a program counter now and in the future.
 We later define the $\lre$-relation which captures what it means for a word to be safe as a program counter, but for now it suffices to think of it as a program counter that causes an execution that does not break memory invariants.
-An executable capability can have its range of authority shrunk or its current address changed which changes what it does and thus potentially whether it keeps memory invariants.
-For this reason, the condition requires that any capability with a derived range of authority and a current address that range is safe to use for execution.
-The $\execCond{}$ is quantified over all future worlds of the $\purePart{}$ of $W$. The $\purePart{}$ function strips the world of all spatial ownership.
-This means that the capability cannot depend on linear capabilities, and when we define the logical relation, we even require the executable capability to not be linear.
-It is not clear whether a linear executable capability would even be useful because there is no way to move it out of the $\pcreg$-register without crashing the execution.
-This may sound like an ideal option for constructing something that can be executed once, however, most programs rely on loading other capabilities or seal sets for the program counter which is not possible.
+An executable capability can have its range of authority shrunk or its current address changed which changes what instructions are executed and thus potentially whether the code respects memory invariants.
+For this reason, the condition requires that any executable capability with a derived range of authority and a current address in that range is safe to use for execution.
+The $\execCond{}$ is quantified over all future worlds of the $\purePart{}$ of $W$.
+We do not know when the executable capability will be used, so it should be safe even in the future when the memory has changed.
+The $\purePart{}$ function strips the world of all spatial ownership.
+This means that the capability cannot depend on linear capabilities and thus the contents of the stack.
+When we define the logical relation, we even require the executable capability to not be linear.
+It is not clear whether a linear executable capability would even be useful because it cannot be moved from the $\pcreg$-register without crashing the execution.
+This may sound like an ideal primitive for constructing something that can be executed once, however, most programs rely on loading other capabilities or seal sets using the program counter capability which is not possible when the program counter is linear.
 \begin{align*}
   \execCond{W} &=
   \left\{ \npair{A} \middle|
     \begin{array}{l}
       \forall n' < n, W' \future \purePart{W}\ldotp \forall b',e'\ldotp \forall \aaddr \in [b',e'] \subseteq A \ldotp\\
-      \quad \npair[n']{\stpair[.]{((\rx,\normal),\baddr',\eaddr',\aaddr)}{((\rx,\normal),\baddr',\eaddr',\aaddr)}} \in \lre(W')
+      \quad \npair[n']{\left( \arraycolsep=0pt\array{l}((\rx,\normal),\baddr',\eaddr',\aaddr),\\((\rx,\normal),\baddr',\eaddr',\aaddr)\endarray\right)} \in \lre(W')
     \end{array}
     \right\}
 \end{align*}
-The $\readCond{}$ condition by itself allows many different regions and thus potentially many different memories.
-However, when we have a read capability with execute permission, we know that the capability must point to a piece of this code memory.
+The $\readCond{}$ condition by itself allows many different regions and thus potentially many different memory segments.
+However, when we have a read capability with execute permission, we know that the capability must point to a piece of code memory.
 For this reason, we define the $\xReadCond{}$ to capture the additional assumptions that we can make when a capability is executable.
 \[
   \xReadCond{W} = \left\{ \npair{A} \middle| 
@@ -1346,18 +1354,18 @@ In the following, we will give some intuition about why it is safe to give these
 
 The first case is data.
 It is always safe to posses data as data is just integers that grant no authority.
-Further, unlike capabilities, it is always possible to construct a new integer with the move instruction.
+Further unlike capabilities, it is always possible to construct a new integer with the move instruction.
 
-The next case is capabilities that do not have a special representation on \srccm{} unlike stack pointers and return pointers.
-For two capabilities to be related, they should be syntactically equal. That is, they should have same range of authority, linearity and so one.
-Generally speaking, untrusted components should not have direct access to a trusted components code.
-For this reason, we require that capabilities must have a range of authority outside the trusted address space if they are to be related.
+Next we have capabilities that do not have a special representation on \srccm{}, i.e.\ all capabilities but stack pointers and return pointers.
+For two capabilities to be related, they should be syntactically equal.
+That is, they should have the same range of authority, linearity and so one.
+Generally speaking, untrusted components should not have direct access to a trusted components code, so we require that capabilities must have a range of authority outside the trusted address space if they are to be related.
 The safety of a capability also depends on the world and whether the capability can be used to break the memory invariants of the world.
-For instance, if a capability has read-permission, then it should only by able to read safe values with it.
+For instance, if a capability has read-permission, then it should not be possible to read something unsafe, i.e.\ something that can break memory invariants.
 This condition and conditions for the other permissions are captured by the permission based conditions, so we use them to express the necessary conditions.
-That is, if a capability has read permission, then $\readCond{}$ must be satisfied, if it has writer permission, then the $\writeCond{}$ must be satisfied, and if it has execute permission, then $\execCond{}$ and $\xReadCond{}$ must be satisfied.
+That is, if a capability has read permission, then $\readCond{}$ must be satisfied, if it has write permission, then $\writeCond{}$ must be satisfied, and if it has execute permission, then $\execCond{}$ and $\xReadCond{}$ must be satisfied.
 If the capability has execute permission, then it must also be a non-linear capability.
-Finally, the capability cannot have read/write/execute permission because that would break the write-XOR-execute assumption.
+Finally, the capability cannot have read/write/execute permission because that would break the write-XOR-execute assumption, i.e.\ the code memory in non-writable and data memory is non-executable.
 
 Stack pointers on \srccm{} are represented with the special token $\stkptr{\perm,\baddr,\eaddr,\aaddr}$.
 The corresponding capability on \trgcm{} is a linear capability with the same permission and addresses.
@@ -1367,20 +1375,21 @@ Similarly to the normal capabilities, we use the permission based conditions for
 % Encapsulation
 A sealed capability encapsulates the authority of the underlying capability, and the authority is only released when the sealed capability is used in an $\txjmp{}{}$.
 The $\xjmp{}{}$ takes a pair of sealed capabilities, so the authority of a sealed capability depends on what other sealed capabilities it might be used with.
+The seal invariant defines what may be sealed with a given seal and thus which sealables we should consider.
 As discussed, closure seals and return seals must be used in specific ways, so we have defined a seal invariant that dictates what may be sealed with a given seal.
-In order for a pair of \srccm{} and \trgcm{} seals to be in the unsafe value relation, they must be sealed with the same seal $\sigma$, and they must be related by the seal invariant $\sigma$.
+In order for a pair of \srccm{} and \trgcm{} seals to be in the untrusted value relation, they must be sealed with the same seal $\sigma$, and they must be related by the seal invariant $\sigma$.
 % Sealed capability only useful with pairing. Sealed caps must be permitted.
-Further, if we take any sealed capabilities related under $\seal$ in the seal invariant, then they should produce a safe result.
+Further, if we take any sealed capabilities related under $\sigma$ in the seal invariant, then they should produce a safe result.
 We are yet to define what it means for an $\txjmp{}{}$ to produce a safe result, but we will do so later with the $\lrexj$-relation which basically says that if an x-jump happened with the capabilities in question, then the resulting configuration is in the observation relation, i.e.\ it respects the memory invariants.
 % Linear and non-linear case. Affects the future world we consider.
-It should be safe to use the sealed capability both now and later.
-This means that it should be safe in the world $W$, but also in future worlds $W' \future W$.
+It should be safe to use the sealed capability both now and in the future.
+This means that it should be safe in the current world $W$, but also in future worlds $W' \future W$.
 However, this only goes for non-linear words.
 For linear capabilities, it should only be in future worlds of the pure part of $W$.
 % TODO write why we have the two cases. (it allows us to have the "other" capability by the one we consider - and it feels like the only reason)
 
 For sets of seals to be related related in the untrusted relation they must be syntactically equal.
-Further, the seals in the set should be disjoint from the return seals and trusted closure seals ($\gsigrets$ and $\gsigcloss$ because trusted code relies on having the sole access to them.
+Further, the seals in the set should be disjoint from the return seals and trusted closure seals ($\gsigrets$ and $\gsigcloss$) because the trusted code relies on having the sole access to them.
 We do not know what an adversary may seal or what seal they may use, so, for every seal in the seal set, we require the seal invariant to be essentially equal to the untrusted value relation.
 
 % TODO add approx square to relation, add gc
@@ -1467,11 +1476,11 @@ This is why the trusted value relation only relates seal sets of trusted closure
 
 % Code pointers for trusted code
 Two capabilities are related as trusted code pointers if they are non-linear, has a permission derivable from read-execute, and has a range of authority within the trusted address space, $\ta$.
-Further, we need to know that they are actually capability which is why we require the $\xReadCond{}$ to be satisfied.
+Further, we need to know that the capabilities actually point to a piece of code which is why we require the $\xReadCond{}$ to be satisfied.
 This makes sure that the region that governs the memory the capability points to is a code region.
 Note that even though the capability has read permission, we do not require the read condition to hold.
-The code memory contains trusted closure seals and return seals that we cannot let untrusted code have, so the read condition would not hold.
-It is, however, fine to let trusted code have access to such seals because we expect it to treat the seals reasonably.
+The code memory contains trusted closure seals and return seals that we cannot let untrusted code have and the read condition requires everything to be in $\lrv[]$, so the read condition would not hold.
+It is, however, fine to let trusted code have access to such seals because we expect the trusted code to treat the seals reasonably.
 \begin{figure}
   \centering
   \[
@@ -1506,15 +1515,15 @@ It is, however, fine to let trusted code have access to such seals because we ex
 \subsubsection{Register file relation}
 The register file relation relates \srccm{} register files to \trgcm{} register files.
 Intuitively, two register files are related when they only contain safe words, i.e.\ words from the value relation.
-This raises the question ``which value relation''?
+This raises the question ``which value relation?''
 We only use the register file relation to relate register files for components we do not trust, so the answer is the untrusted value relation.
-The definition of the value relation is straightforward.
-It distributes the authority of the world among the registers and require each of the registers to contain a safe word with respect to the authority it is given.
+The definition of the register-file relation is straightforward.
+It distributes the authority of the world among the registers and requires each of the registers to contain a safe word with respect to the authority it is given.
 The register file never takes into account the $\pcreg$ and it can leave out further registers.
-We use this to not relate register content that we are going to overwrite with new values.
+We use this to not relate register content that will be overwritten anyway.
 We write $\lrr(W)$ to mean $\lrr(\emptyset)(W)$.
-That is, if we do not need to exclude extra registers, then we simply omit that argument.
-The register file relation is defined in \figurename~\ref{fig:reg-file-relation}.
+That is, if we do not need to exclude additional registers, then we simply omit that argument.
+The register file relation is defined in \figurename~\ref{fig:reg-file-rel}.
 
 \begin{figure}
   \centering
@@ -1534,17 +1543,17 @@ The register file relation is defined in \figurename~\ref{fig:reg-file-relation}
 
 \subsubsection{Expression relations}
 % TODO write section
-The expression relation $\lre$ defines when two capabilities can be used in the $\pcreg$-register to produce related executions, i.e. construct configurations in the observation relation.
-The $\lre$ relation can be used to reason about the safety of an executable capability, i.e.\ capabilities that can change the control-flow control-flow during execution when a $\tjmp{}$ instruction is executed.
+The expression relation $\lre$ defines when two capabilities can be used in the $\pcreg$-register to produce related executions, i.e. the capabilities can be used to construct configurations in the observation relation.
+The $\lre$ relation can be used to reason about the safety of an executable capability, i.e.\ capabilities that can change the control flow during execution when a $\tjmp{}$ instruction is executed.
 In the setting of \srccm{} and \trgcm{}, we can also use sealed capabilities to change the control flow by using the $\txjmp{}{}$ instruction.
-The $\txjmp{}{}$ updates the $\pcreg$ register and the $\rdata$ register, however, the $\lre$ relation only updates the $\pc$-register, so we cannot use $\lre$ to reason about sealed capabilities.
+The $\txjmp{}{}$ instruction updates the $\pcreg$ register and the $\rdata$ register, however, the $\lre$ relation only updates the $\pc$-register, so we cannot use $\lre$ to reason about sealed capabilities.
 Instead, we define the relation $\lrexj$ which relates two pairs of capabilities when they are safe to use with the $\txjmp{}{}$ instruction.
 
-In this case, related executions means that the observable effect of the executions should be permissible.
+Executions are related when the observable effect of the executions are permissible.
 The permissible observations are defined by the observation relation, so we define the expression relation in terms of the observation relation.
 However, the observation relation relates configurations, not capabilities.
 We lift the capabilities to configurations simply by plugging the two capabilities into the $\pcreg$-register of two configurations.
-We cannot pick arbitrary configurations because an arbitrary configuration may contain words that can be used to break memory invariants and create observable effects that we do not permit.
+We cannot pick arbitrary configurations because an arbitrary configuration may contain words that can be used to break memory invariants and thus create unacceptable observable effects.
 Instead, we need to pick configurations made out of related components, i.e.\ related register files and related memories that respect linearity.
 The type of execution captured by $\lre$ corresponds to a normal jump.
 When a $\tjmp r$ instruction is interpreted, the $\pcreg$-register is replaced with the contents of register $r$, i.e. the current configuration is plugged with a new pc.
@@ -1552,7 +1561,7 @@ The $\lre$ relation is defined in \figurename~\ref{fig:expr-rels}
 
 The $\lrexj$ relation looks very much like the $\lre$ relation.
 It takes related memories and register files (ignoring the $\rdata$ register) and combines them into two configurations.
-Each of the configurations are plugged with a code capability and a data capability just like the $\txjmp{}{}$ instruction would do it and requires the resulting configurations to be in the $\lrexj$ relation.
+Each of the configurations are plugged with a code capability and a data capability just like the $\txjmp{}{}$ instruction would do it and requires the resulting configurations to be in the $\lro$ relation.
 The $\lrexj$ relation is defined in \figurename~\ref{fig:expr-rels}.
 \begin{figure}
   \centering
@@ -1624,12 +1633,11 @@ After that first step, the induction hypothesis is used for the rest of the exec
 \subsection{Related Components}
 \label{subsec:component-rel}
 In order to show full abstraction (Theorem~\ref{thm:full-abstraction}), we need not only to relate the words on \srccm{} with words on \trgcm{} we also need to relate \srccm{} components with \trgcm{} components.
-Specifically, we say that two components are related when they are syntactically equal after all a \srccm{} component is in some sense the same as a \trgcm{} as we only see the difference during execution when a call happens and when we lift a component to a configuration which means that we need to introduce a stack pointer.
+Specifically, we say that two components are related when they are syntactically equal, after all, a \srccm{} component is in some sense the same as a \trgcm{} as we only see the difference during execution when a call happens and when we lift a component to a configuration where we need to introduce a stack pointer.
 However, we cannot take arbitrary components as they could potentially break memory invariants.
-For related components, we require that if the imports are satisfied with related words, then the resulting memory should be safe.
+For related base components, we require that if the imports are satisfied with related words, then the resulting memory should be safe.
 Further, related components must have safe exports.
-This roughly describes when a base components are related.
-A component with a main is related when the base component is related and the mains capabilities are in the exports.
+Components with a main are related when the base components are related and the main capabilities are in the public interface, that is they must be in the exports.
 
 \begin{definition}[Component relation]
   \label{def:component-rel}
@@ -1658,8 +1666,8 @@ A component with a main is related when the base component is related and the ma
 
 \subsection{Related Execution Configuration}
 The full abstraction theorem (Theorem~\ref{thm:full-abstraction}) is stated in terms of contextual equivalence.
-Contextual equivalence (Definition~\ref{def:contextual-equivalence}) plugs two components with a context and requires equitermination of the resulting executable configurations.
-This means that we need to lift relatedness one step further, namely to the level of execution configurations.
+Contextual equivalence (Definition~\ref{def:contextual-equivalence}) plugs two components into a context and requires equitermination of the resulting executable configurations.
+This means that we need to lift relatedness one step further than the components, namely to the level of execution configurations.
 To this end, we define $\lrec$.
 \begin{definition}[Related execution configuration]
 \label{def:exec-conf-rel}
@@ -1685,8 +1693,8 @@ To this end, we define $\lrec$.
 \]
 \end{definition}
 Definition~\ref{def:exec-conf-rel} essentially says that two executable configurations are related when they are made out of related components.
-That is, the authority of the world must be distributed such that the code and data pointer pairs are safe for execution, i.e.\ the contents of the $\pcreg$- and $\rdata$ registers are related by the $\lrexj$ relation.
-Further, the two memory and the two register files should be related.
+That is, the authority of the world must be distributed such that the code and data pointer pairs are safe for execution, i.e.\ the contents of the $\pcreg$ and $\rdata$ registers are related by the $\lrexj$ relation.
+Further, the two memories and the two register files should be related.
 This means that the executable configuration only contains words that respect memory invariants.
 
 % TODO Include central lemmas?
@@ -1695,7 +1703,7 @@ This means that the executable configuration only contains words that respect me
 \subsection{Full Abstraction Proof Sketch}
 \label{subsec:proof-sketch}
 Using Lemma~\ref{thm:ftlr}, we can now proceed to proving Theorem~\ref{thm:full-abstraction} (full abstraction).
-First, we extend the logical relation into an omitted relation on components $(\var{comp}_S,\var{comp}_T) \in \lrcomp(W)$.
+
 % Essentially, it relates a component to itself if instantiating their imports with related values produces related exports and code memory satisfying the appropriate code region in the world.
 % The component relation $\mathcal{C}(W)$ basically lifts the logical relation we have presented above to components.
 % The component relation relates a component $(\mscode,\msdata,\overline{\mathrm{import}},\overline{\mathrm{export}},\sigrets,\sigcloss)$ to itself when two conditions are satisfied.
@@ -1765,7 +1773,7 @@ Another lemma then relates the component relation and context plugging: plugging
 
 Finally, we use these two lemmas to prove Theorem~\ref{thm:full-abstraction}.
 \begin{proof}[Proof of Theorem~\ref{thm:full-abstraction}]
-  The proofs of both directions are similar, so we only show the right direction.
+  Both directions of the proof are similar, so we only show the right direction.
   To show the \trgcm{} contextual equivalence, assume w.l.o.g\ a well-formed context $\trg{\context}$ such that ${\plug{\trg{\context}}{\src{\comp_1}} \term[]{}}$.
   The proof is sketched in Figure~\ref{fig:fa-proof-sketch}.
   By the statement of Theorem~\ref{thm:full-abstraction}, we may assume that the trusted components $\src{\comp_1}$ and $\src{\comp_2}$ are well-formed and reasonable.
