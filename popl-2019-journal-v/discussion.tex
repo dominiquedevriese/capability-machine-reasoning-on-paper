@@ -31,14 +31,37 @@ Perhaps other reusable components of secure compilers could be formulated simila
 % ?
 
 \begin{jversion}
-  A compiler is fully abstract when it enforces all high-level properties of a high-level language which means that the high-level language that dictates what we need to enforce.
-  In other words to figure out what properties we want, we need to figure out what high-level language we want.
-  % TODO is this all we have to say about high-level properties? Maybe something about address hiding and the potential issues. Also other notions of control-flow, e.g. call/CC
-  % TODO say something about horizontal vs vertical composition.
+  A compiler is secure when it enforces the properties of high-level languages which begs the question what properties should we enforce.
+  When it comes to fully-abstract compilation, then the answer is that all the properties of the high-level language should be enforced which means that the real question is what high-level language we would like.
+  \stktokens{} ensures a standard call-return control-flow, but if we want a different kind of control-flow, for instance call/CC, then we need to come up with a different enforcement scheme.
+  Further, many high-level languages have exceptions which is yet another form of control-flow which is also not supported by \stktokens{}.
+  This goes to show how we must consider what high-level language we want in order to answer the question of what properties we must enforce to get a fully-abstract compiler.
+  % Lau: Say something about address hiding?
+  
+  % Say something about horizontal vs vertical composition.
+  Fully-abstract compilers compose vertically which means that if we defined a compiler phase that targets \srccm{}, then we could use the full-abstraction theorem immediately.
+  However, fully-abstract compilers do not extend vertically in the sense that if we add a new feature in the target and source language, then the full-abstraction theorem does not follow immediately.
+  Intuitively, this is the case because the new feature may have an unforeseen interaction with existing features that breaks a desired property.
+  In order to enforce more language properties on capability machines, it is reasonable to assume that new capability primitives may be necessary.
+  \stktokens{}, for instance, requires linear capabilities, and \citet{skorstengaard_reasoning_2017} uses local capabilities to enforce WBCF and LSE.
+  In order to implement address-hiding (i.e.\ have references that do not expose the address they actually point to), it is reasonable to believe that one would need a new capability primitive.
+  After all, the capabilities we use here do not hide the addresses in any meaningful way, so a new ``address hiding'' capability would be necessary to enforce this property.
+  If we extended \trgcm{} and \srccm{} with new such capabilities, then we would have to redo the entire full-abstraction proof.
 
-  % TODO new paragraph: conditional full-abstraction
+  % new paragraph: conditional full-abstraction
+  Our full-abstraction theorem, Theorem~\ref{thm:full-abstraction}, is not pure full-abstraction as it requires the components to be reasonable and well-formed.
+  In other words, if we were to define a compiler phase that targets \srccm{}, then we would also have to show that every program it generates is well-formed and reasonable in order to use the full-abstraction result.
+  However, even though the well-formed and reasonable conditions are fairly simple, it is too late to ensure them at this point of the compilation.
+  For instance, reasonability require that return seals are not passed to the adversary in calls.
+  In order to ensure this with \stktokens{}, we would have to add checks to the calling convention that ensures that seals are not passed as arguments in calls.
+  In other words, we would need to add protection to the trusted program against itself which of course shouldn't be necessary.
+  The calling convention should only include protection schemes that protects against untrusted programs.
+  The compiler should generate programs that are actually trustworthy, so we do not have to add protection against the generated programs.
+  However, when we consider \srccm{} components, we have already committed to a program consisting of low-level instructions.
+  The correct place to ensure that our programs are well-formed and reasonable is when we actually generate the instructions and commit to the low-level code which is the phase that goes from the high-level language (or some intermediate representation) to a low-level machine like \srccm{}.
 
-  % TODO new paragraph: Machine checked proof. MANY details, any future work should be machine checked.
+  % TODO new paragraph: Machine checked proof. MANY details, any future work should be machine checked?
+
 
   % TODO new subsection on construction of overlay semantics:
   % If we don't, we will have to come up with new syntax. Further, say we had
@@ -78,7 +101,12 @@ Because the stack is a region of memory with very high thread affinity (no other
 % If such memory could be (mostly) kept exclusively locked in a cache close to the processor, the overhead of atomic loads in \stktokens{} might be significantly less than \texttt{load}'s worst case.
 The processor could perhaps also (be told to) rely on the fact that race conditions should be impossible for loads from linear capabilities (which should in principle be non-aliased) and just use a non-atomic load in that case.
 
-% TODO passing pointers for stack allocated memory is not possible with linear stack
+\begin{jversion}
+Programs that use a C-like calling convention often allow programs to pass a stack reference in a call either to provide a reference for a piece of memory to work on or to indicate where the result of the call should be placed.
+\stktokens{} does not support this as it expects to get a stack pointer for the entire stack it handed out.
+However, if we have allocated part of the stack for a different purpose and handed out a reference for it, then the stack pointer cannot reference the same memory as the stack pointer is a linear capability.
+However, while it is not possible to allocate a reference for the stack, one can easily imagine that the stack could still be used to pass and return values.
+\end{jversion}
 
 %%% Local Variables:
 %%% TeX-master: "paper"
