@@ -281,11 +281,16 @@ I have written something, but it does not feel like the story really holds.}
   \label{fig:ft-reg-rel}
 \end{figure}
 
-With the future region relation in place, we define the future world relation as follows:
-\begin{mathpar}
-  \inferrule{ \text{for $i \in \{\mathrm{heap},\mathrm{free},\mathrm{priv} \}$} \\ \exists m_i : \RegionName \fun \RegionName, \text{ injective}\ldotp \dom(W'.i) \supseteq \dom(m_i(W.i)) \wedge \forall r \in \dom(W.i)\ldotp W'.i(m_i(r)) \future W.i(r) }
-            { W' \future W }
-\end{mathpar}
+With the future region relation in place, we define the future world relation as follows: For worlds $W$ and $W'$,
+\[
+  W' \future W \text{ iff } \left\{
+    \array{l}
+    \text{for $i \in \{\mathrm{heap},\mathrm{free},\mathrm{priv} \}$} \\
+    \quad\exists m_i : \RegionName \fun \RegionName, \text{ injective}\ldotp\\
+    \qquad \dom(W'.i) \supseteq \dom(m_i(W.i)) \wedge \forall r \in \dom(W.i)\ldotp W'.i(m_i(r)) \future W.i(r)
+     \endarray
+  \right.
+\]
 The relation says that each of the three worlds must be an extension of the past world and each of the existing region must have a future region.
 % injective function
 Note that the future world relation has a mapping function $m_i$ which allows us to change the naming of regions in future worlds.
@@ -322,7 +327,6 @@ Therefore, we need to move to a different domain with enough structure for a sol
 We move to a setting where instead of sets we have c.o.f.e.'s (complete ordered families of equivalences), instead of functions we have non-expansive functions, and instead of relations we have downwards-closed relations.
 Intuitively, a c.o.f.e. is a set with some extra structure.
 Specifically, c.o.f.e.'s have a step-index that must satisfy a set of conditions which provide sufficient structure for a solution to exist for the recursive domain equation.
-which provide sufficient structure for us to solve recursive domain equations.
 In this section we present the relevant definitions, the final world domain equation, and sketch what needs to be proven to get a solution to the recursive domain equation.
 
 % Cofe's
@@ -602,12 +606,11 @@ First when we see the world as a memory specification, we have a pretty standard
     \end{array}
   \]
 \end{definition}
-The $\uplus$ world join does not guarantee that the result is a sensible world with respect to authority.
-However, it does not guarantee that a join is a sensible memory specification.
+The $\uplus$ world join does not guarantee that the result is a sensible world with respect to authority or memory specification.
 In \sectionname~\ref{subsubsec:mem-sat}, we define memory satisfaction which also acts as a well-formedness judgement.
 
 When we view the world as a specification of authority, then the world join need to respect the region ownership.
-That is, when we join the authority of two worlds, then the ownership of the two worlds should be completely separate.
+That is, when we join the authority of two worlds, then the ownership of the two worlds should not overlap.
 This is expressed by the $\oplus$ operator.
 \begin{definition}[$\oplus$, disjoint union of ownership]
   \[
@@ -638,7 +641,7 @@ Linking two components then produces a new component with both components' data 
 The linked component is valid in a world that has the combined memory presence specifications, not the combined authority.
 
 Note also that this picture is further complicated by our usage of non-authority-carrying $\spatial$ regions.
-They are really only there in a world $W$ as a shadow copy of a $\spatialo$ region in another world $W'$ that $W$ will be combined with.
+They are really only in a world $W$ as a shadow copy of a $\spatialo$ region in another world $W'$ that $W$ will be combined with.
 The shadow copy is used for specifying when a memory satisfies a world: the memory should contain all memory ranges that anyone has authority over, not just the ones whose authority belongs to the memory itself.
 For example, if a register contains a linear pointer to a range of memory, then the register file will be valid in a world where the corresponding region is $\spatialo$, while the memory will be valid in a world with the corresponding region only $\spatial$.
 However, for the memory to satisfy the world, the block of memory needs to be there, i.e. the memory should contain blocks of memory satisfying every region that is $\spatialo$, $\pure$, but also just $\spatial$ (because it may be $\spatialo$ in, for example, the register file's world).
@@ -656,7 +659,7 @@ However, to be able to easily determine what invariants a memory segment must re
 The memory satisfaction relation makes sure that this is the case, so in a sense the memory satisfaction also acts as a well-formedness judgement for worlds.
 
 Memory satisfaction is split into four definitions.
-At the top-level we have $\memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W}$ which relates the source memory triple, $\ms_S$, $\ms_\stk$, and $\stk$, from \srccm{} to the target memory $\ms_T$ from \trgcm{}.
+At the top-level we have $\memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W}$ which relates the source memory triple, $\ms_S$ (heap), $\ms_\stk$ (free stack), and $\stk$ (stack frames), from \srccm{} to the target memory $\ms_T$ from \trgcm{}.
 The top-level definition of memory satisfaction splits the target memory in three parts, one for each of the three kinds of source memory.
 It also splits the world in three to distribute the authority of the world.
 The three $\ms_T$ partitions are related to $\ms_S$, $\ms_\stk$, and $\stk$ by the relations $\lrheap$, $\lrstk[]$, and $\lrfree[]$, respectively. 
@@ -710,7 +713,7 @@ Similar to memory segments, only one seal invariant should impose restrictions o
       \quad \ms_\stk = \biguplus_{r \in \dom(\activeReg{W_\var{stack}})} \pi_1(R_\ms(r)) \wedge \\
       \quad \stkb \in \dom(\ms_T) \wedge \stkb \in \dom(\ms_\stk) \wedge \\
       \quad \exists R_W : \dom(\activeReg{W_\var{stack}}) \fun \World\ldotp\\
-      \qquad W = \oplus_{r \in \dom(\activeReg{W_\var{stack}})} R_W(r) \wedge\\
+      \qquad W = \bigoplus_{r \in \dom(\activeReg{W_\var{stack}})} R_W(r) \wedge\\
       \qquad \forall r \in \dom(\activeReg{W_\var{stack}}),n' < n \ldotp \\
       \qquad \quad \npair[n']{R_\ms(r)} \in  W_\var{stack}(r).H \; \xi^{-1}(R_W(r))
     \end{array}
