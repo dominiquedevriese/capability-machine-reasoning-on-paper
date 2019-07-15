@@ -7,7 +7,11 @@
 To prove Theorem~\ref{thm:full-abstraction}, we will essentially show that trusted components in \srccm{} are related in a certain way to their embeddings in \trgcm{}, and that untrusted \trgcm{} components are similarly related to their embeddings in \srccm{}.
 We will then prove that these relations imply that the combined programs have the same observable behavior, i.e.\ one terminates if and only if the other does.
 The difficult part is to define when components are related.
-In the next section, we give an informal overview of the relation we define, and then we sketch the full-abstraction proof in Section~\ref{subsec:proof-sketch}.
+In the next section, we give an overview of the relation we define, and then we sketch the full-abstraction proof in Section~\ref{subsec:proof-sketch}.
+\begin{jversion}
+In this presentation, we try to include most of the details.
+We refer to the conference version of this paper for a presentation~\citep{skorstengaard_stktokens_2019} with emphasis on the intuition and fewer details.
+\end{jversion}
 
 \subsection{Kripke worlds}
 \label{subsec:worlds}
@@ -15,10 +19,6 @@ The relation between \srccm{} and \trgcm{} components is non-trivial: essentiall
 However, values are often only related under certain assumptions about the rest of the system.
 For example, the linear data part of a return capability should only be related to the corresponding \srccm{} capability if no other value in the system references the same inactive stack frame and it is sealed with a seal only used for return pointers to the same code location.
 To accommodate such conditional relatedness, we construct the relation as a step-indexed Kripke logical relation with recursive worlds.
-\begin{jversion}
-In this presentation, we try to include most of the details.
-We refer to the conference version of this paper for a presentation\lau{insert reference} with fewer details and emphasis on the intuition.
-\end{jversion}
 
 \begin{jversion}
 Assumptions about the system that relatedness is predicated on are gathered in (Kripke) worlds.
@@ -26,8 +26,8 @@ A world is a semantic model of the memory.
 In its simplest form, it is a collection of invariants that the memory must satisfy.
 The invariants of a world can vary in complexity and expressiveness depending on the application.
 The possible contents of the memory also influences what the world looks like.
-For instance, the uniqueness of the linear capabilities on \trgcm{} and \srccm{} are modelled by the worlds.
-In order to related \trgcm{} and \srccm{}, we model all the features of \srccm{} in the worlds which means we have to model:
+For instance, the uniqueness of the linear capabilities on \trgcm{} and \srccm{} is modelled by the worlds.
+In order to relate \trgcm{} and \srccm{}, we model all the features of \srccm{} in the world which means we have to model:
 \begin{itemize}
 \item Three kinds of memory: heap, stack of local frames, and free stack
 \item Linearity
@@ -36,73 +36,28 @@ In order to related \trgcm{} and \srccm{}, we model all the features of \srccm{}
 \end{itemize}
 The three kinds of memory are modelled by having three sub-worlds where each sub-world is its own little world in a traditional sense.
 Linearity is modelled by adding ownership to certain parts of the world, so capabilities can take ownership of part of the memory thus ensuring that they are the sole reference.
-The call stack is modelled by the memory satisfaction (the relation that decides whether two memories are related in the world) by ensuring that the memory is actually shaped like a stack
-Finally, the seals are modelled by seal invariants that make sure that seals only are used on permitted sealables.
-In the following, we present the world and go into details about how each of the four points are modelled.
+The call stack is modelled by the memory satisfaction (the relation that decides whether two memories are related in the world) by ensuring that the memory is actually shaped like a stack.
+Finally, the seals are modelled by seal invariants that make sure that seals are only used on permitted sealables.
+In the following, we present the world and go into details about how each of the four features are modelled.
 
 \subsubsection{Triple world and regions}
 \srccm{}s memory is split in three: heap, free stack and encapsulated local stack frames.
-The three kinds of memory and their relative position to each other are sketched in Figure~\ref{fig:mem-sketch}.
-Note how the encapsulated local stack frames are sparsely laid out in the stack with free stack in between.
-The free stack in between stack frames may be used by untrusted code for their local stack frames.
-Untrusted stack frames are not protected by \srccm{}, but this does not prevent untrusted code from securing their own stack frames.
-\begin{figure}
-  \centering
-  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
- 
-  \scope
-    \clip (-.1,-.1) rectangle (4.6,11.1);
-    \fill[fill=white] (0,0) rectangle (4.5,11);
-    \draw (0,0) -- (0,11);
-    \draw (4.5,0) -- (4.5,11);
-  \endscope
-  \draw (-1,0) node {};
-  \draw (-1,12) node {};
-
-  \draw[pattern=dots,draw=none] (0,0) rectangle (4.5,2);
-  \draw[pattern=dots,draw=none] (0,9.5) rectangle (4.5,11);
-
-  \draw[pattern=north west lines] (0,2) rectangle (4.5,4);
-  \draw[pattern=crosshatch] (0,4) rectangle (4.5,5);
-  \draw[pattern=north west lines] (0,5) rectangle (4.5,6);
-  \draw[pattern=crosshatch] (0,6) rectangle (4.5,7.5);
-  \draw[pattern=north west lines] (0,7.5) rectangle (4.5,8.5);
-  \draw[pattern=crosshatch] (0,8.5) rectangle (4.5,9.5);
-
-  \draw (5.75,2.25) node[anchor=west] {\tiny $\stkb$};
-  \draw (5.75,2.25) edge[-latex] (4.75,2.25);
-  \draw (5,9.5) edge[-latex] (5,8);
-  \draw [decorate,decoration={brace,amplitude=7pt,mirror,raise=4pt},yshift=0pt] (-0.25,9.5) -- (-0.25,2) node [black,midway,xshift=-.75cm,yshift=0.05cm,rotate=45] {\footnotesize stack};
-
-  \matrix [draw,below right] at (current bounding box.north east) {
-    \node[pattern=dots,draw,label=right:{\tiny Heap ($\ms$)}] {}; \\
-    \node[pattern=north west lines,draw,label=right:{\tiny Free stack ($\ms_\stk$)}] {}; \\
-    \node[pattern=crosshatch,draw,label=right:{\tiny Encapsulated stack frame ($\stk$)}] {}; \\
-};
-
-  \end{tikzpicture}
-  \caption{A sketch of how heap, encapsulated stack and free stack are laid out in memory.
-    The encapsulated stack frames and the free stack constitutes the stack.
-    The encapsulated stack frames may have free stack in between them where stack frames of non-trusted code may reside.
-    The stack grows downwards in memory with $\stkb$ as the top address (and the base address of the free stack capability).}
-  \label{fig:mem-sketch}
-\end{figure}
-
 In order to model the three kinds of memory, we simply have three sub-worlds.
-That is, our world is defined as
+That is, our world is defined as a product:
 \[
   \World = \Worldh \times \Worlds \times \Worldfs
 \]
 The sub-worlds are partial maps from names $\RegName$, modelled as natural numbers, to invariants.
 In order to define what this actually means, we need to be more precise about what we mean by invariants.
-We call the invariants regions because, as we will see later, they turn out to not be invariant.
+
+We call the invariants regions because, as we will see in Section~\ref{subsubsec:ft-and-revocation}, they turn out to not be invariant.
 A region describes a collection of related memory segments, so it is simply represented as a relation over memory segments (i.e.\ a relation in $\Rel{\MemSeg \times \MemSeg}$).
 Intuitively, we want to be able to say that two memory segments are related when their contents are related.
 That is, for every address in the two memory segments, the words that reside there must be related.
 In Section~\ref{subsec:logical-relation}, we define precisely what it means for words to be related, but for now we provide some the intuition.
-Say we have two integers, they are related if they are equal.
+If we have two integers, then they are related when they are equal.
 If we instead have two capabilities, then they should also be related if they, in some sense, are equal.
-But what does it mean for capabilities to be ``equal''?
+But what does it mean for capabilities to be \textit{equal}?
 Intuitively, it should mean that the capabilities give you the same authority, for instance, if you have two executable capabilities, they should observably perform the same computation.
 As a capability points to a piece of memory, the authority of the capability depends on the contents of that memory.
 In other words to say whether two capabilities are related, we must know the possible contents of the memory.
@@ -123,17 +78,17 @@ For the sake of readability, we introduce the following notation
 \end{gather*}
 \subsubsection{Linearity}
 % Linearity
-The linear capabilities of \srccm{} and \trgcm{} guarantee that they have the sole authority over the memory they can reference\footnote{Under the assumption that the system was initialised with unique linear capabilties.}.
+The linear capabilities of \srccm{} and \trgcm{} guarantee that they have the sole authority over the memory they reference\footnote{Under the assumption that the system was initialised with unique linear capabilties.}.
 In order to model this uniqueness, we need to keep track of which parts of memory that are uniquely referenced and make sure that only one linear capability references the unique parts.
 %% Bookkeeping done by worlds
 We use the world to keep track of what parts of memory must be uniquely referenced by having two kinds of regions: shared and spatial.
-If a memory segment is governed by a shared region, then non-linear capabilities may reference it.
+If a memory segment is governed by a shared region, then normal capabilities may reference it.
 On the other hand, if a memory segment is governed by a spatial region, then only a linear capability may reference it.
 %%% spatial/spatial_owned
 We cannot let multiple linear capabilities reference the same memory, so we add ownership to spatial regions.
-It is only the spatial owned regions that can be referenced by a capability.
+Only the spatial owned regions can be referenced by a capability.
 Even though only spatial owned regions can be referenced by linear capabilities, we still have unclaimed spatial regions that specify what part of memory looks like.
-When there is an unclaimed spatial region, then there may be a compatible world  that claims the ownership of that spatial region which means that the memory can be referenced (we return to the notion of compatible worlds w.r.t. ownership later).
+When there is an unclaimed spatial region, then there may be a compatible world  that claims the ownership of that spatial region which means that the memory may still be referenced (we return to the notion of compatible worlds w.r.t. ownership in Section~\ref{subsubsec:joining-worlds}).
 Specifically, we add tags $\spatial$ and $\spatialo$ to the spatial regions:
 \[
   \Regions = \left\{
@@ -146,12 +101,10 @@ For readability, we also add a tag $\pure$ to the shared regions:
 \[
   \Regionh = \{\pure \} \times (\World \fun \Rel{\MemSeg \times \MemSeg}) 
 \]
-% TODO is the below notation even used?
-For readability we will sometimes use $\spao$ as short for $\spatialo$, $\spa$ as short for $\spatial$, and $\pur$ as short for $\pure$.
 
 % What parts of memory are linear
-We will extend the regions further in Sections~\ref{subsubsec:seals}~and~\ref{subsubsec:ft-and-revocation}, but for now we have introduced enough to finish the definition of each of the three sub-worlds.
-The sub-world $\Worldh$ specifies the heap memory which can be referenced by both linear and non-linear capabilities, so it should contain both shared and spatial regions.
+We will extend the regions further in Sections~\ref{subsubsec:seals}~and~\ref{subsubsec:ft-and-revocation}, but for now we continue the definitions of the three sub-worlds.
+The sub-world $\Worldh$ specifies the heap memory which can be referenced by both linear and normal capabilities, so it should contain both shared and spatial regions.
 For this reason, it is defined as
 \[
   \Worldh = \RegName \parfun (\World \fun \Regionh + \Regions)
@@ -178,7 +131,8 @@ The spatial regions add the necessary bookkeeping to the worlds to model linear 
 The logical relation presented in Section~\ref{subsec:logical-relation} uses this bookkeeping to ensure that linear capabilities uniquely references part of memory.
 
 Given a world, we want to be able to express that a capability, that is otherwise valid with respect to the world, is not linear or indirectly depends on a linear capability.
-This is expressed by stripping the world of all its ownership, so the only active regions are the $\pure$ regions. We refer to this as the pure part of the world and define the function $\purePart{}$ which removes all ownership.
+This is expressed by stripping the world of all its ownership which corresponds to replacing all $\spatialo$ regions with $\spatial$ regions.
+We refer to this as the pure part of the world and define the function $\purePart{}$ which removes all ownership.
 \begin{definition}[The pure part of a world]
   \label{def:purePart}
   For any world $W$, we define
@@ -214,7 +168,7 @@ That is
 %% Shared region has a seal indexed invariant that specifies what sealables can be sealed with a specific seal
 In Section~\ref{subsubsec:ft-and-revocation}, we will see that not all regions are invariant.
 The seal interpretation function should be an invariant, so we need to add it to a type of region that is invariant.
-As we will see in Section~\ref{subsubsec:ft-and-revocation}, shared regions are invariant, so we add the seal interpretation function as follows
+Shared regions are invariant, so we add the seal interpretation function to it:
 \begin{multline*}
   \Regionh = 
   \{\pure \} \times (\World \fun \Rel{\MemSeg\times\MemSeg}) \times \\
@@ -228,26 +182,24 @@ We will also refer to the seal interpretation function as the seal invariant, an
 \subsubsection{Future worlds and revocation}
 \label{subsubsec:ft-and-revocation}
 % Memory evolves over time, we need to model this.
-The world specifies the contents of the memory.
-When a machine executes, the contents of the memory changes and parts of memory may be repurposed.
-The world must model these changes.
+During machine execution, the memory contents changes and parts of memory may be repurposed.
+The world must model such memory changes.
 % Future World
-To this end, we have a future world relation $\future$ that describes how worlds may change over time.
-For our purpose, relating \trgcm{} to \srccm{}, we are mainly interested in changes to the stack as it is the part that will be repurposed.
+To this end, we have a future world relation $\future$ that describes how worlds and thus memory may change over time.
+In order to relate \trgcm{} and \srccm{}, we are mainly interested in changes to the stack as it repurposes stack frames.
 Specifically, we need to introduce regions to govern new encapsulated stack frames, and we need to revoke regions that govern call frames that have been popped from the call stack, so the stack frame can be reused for a new call frame.
 We allow introduction of new regions simply by extension.
 That is, a future world can have new regions that was not present in a past world.
 Things are a bit more complicated when it comes to revocation.
 \lau{Can we give a more precise explanation of why regions cannot be removed from the world (still in terms of intuition).}
-For technical reasons, we need the worlds to be extensional which means that when it comes to removing regions in future worlds, we cannot simply forget about them.
-Instead of removing the regions, we keep them around and tag them as removed with a $\revoked$ tag.
+For technical reasons, we need the worlds to be extensional, so we cannot simply forget about regions that we want to remove.
+We keep removed regions in the world and tag them as removed with a $\revoked$ tag.
 This means that the regions should be able to get the $\revoked$ tag which we express in a future region relation.
-It is not all regions that need to be able to be revoked.
-Specifically, it should only be the regions that specify memory governed by linear capabilities as linear capabilities in some sense can be revoked.
-A linear capability is the sole authority over some memory, so when a program possesses a linear capability, it knows for sure that no one else has access to that memory.
-This means that it is safe to repurpose that part of memory.
-On the other hand, non-linear capabilities may have an alias, so it is not safe to repurpose the memory a non-linear capability has authority over.
-It is only spatial regions that specify memory governed by linear capabilities, so we only add the revoked tag to the $\Regions$.
+Not all regions that should be revocable.
+Specifically, it should only be the regions that specify memory governed by linear capabilities as linear capabilities, in some sense, can be revoked.
+A linear capability is the sole authority over some memory, so when a program possesses a linear capability, it knows for sure that no one else has access to that memory which makes it safe to repurpose.
+On the other hand, normal capabilities may have an alias, so it is not safe to repurpose the memory a normal capability has authority over.
+Only spatial regions specify memory governed by linear capabilities, so we only add the revoked tag to the $\Regions$.
 The $\revoked$ region does not specify any memory, so we drop the world indexed relation.
 That is, we have
 \[
@@ -301,7 +253,7 @@ The memory invariants describe what certain parts of memory looks like.
 In future worlds, part of the memory may change but for the memory invariant to be invariant, it should keep relating the same memory segments even when the rest of the world changes.
 For this reason, we require the world-indexed memory invariants to be monotone in the world.
 This means that a pair of memory segments that are related now will stay related in future worlds.
-Our spatial regions now look like this:
+This changes the spatial regions as follows:
 \[
   \Regions = \left\{
   \begin{array}{l}
@@ -310,7 +262,7 @@ Our spatial regions now look like this:
     \{\revoked \}
   \end{array} \right.
 \]
-We make a similar change for $\Regionh$.
+We make a similar change to $\Regionh$.
 % TODO update terminology: memory invariant, H, and seal invariant, H_\sigma
 
 \subsubsection{Solving the recursive domain equation}
@@ -590,11 +542,10 @@ Instead, we define our world as
 which is easier as we only have to use $\xi$ and move under a later when we have gone into the region and need to work with $\Wor$.
 
 \subsubsection{Joining worlds}
-% TODO rewrite this introduction, add text between definitions (?), and reread this section.
+\label{subsubsec:joining-worlds}
 The world serves multiple purposes as it is both a specification of memory contents as well as a specification of authority.
 This is best seen in the operators used to join worlds.
-First when we see the world as a memory specification, we have a pretty standard join $\uplus$ that simply requires that the two worlds do not use the same region names.
-\begin{definition}[World disjoint union $\uplus$]
+First when we see the world as a memory specification, we have a pretty standard join $\uplus$ that simply requires the worlds to have different region names.\begin{definition}[World disjoint union $\uplus$]
   Given worlds $W_1$, $W_2$, $W$
   \[
     W_1 \uplus W_2 = W
@@ -758,15 +709,58 @@ That is for a memory segment that represents a stack frame, all the addresses of
 Further, the stack frames should be in the part of the memory we agree to be the stack which means that the addresses should be smaller than $\stkb$.
 Informally, this just means that the stack should be laid out in memory as a downwards growing stack with no addresses below $\stkb$.
 
-% TODO add figure that illustrates this.
 According to \stktokens{} (described in \sectionname~\ref{sec:stktokens-explained}), stack frames must be non-empty, so they are distinguishable from a missing stack frame.
 For this reason, $\lrstk[]$ requires every stack frame to be non-empty.
 Note that each stack frame corresponds to a trusted call.
 Untrusted calls are not protected which means that untrusted stack frames reside in the free stack memory (this does not mean that the untrusted stack frames are necessarily unprotected; it only means that they are not natively protected by \stktokens{}).
 This means that the protected stack frames are not necessarily packed tightly in memory, and the memory in between is part of the free stack.
-% TODO illustrate the protected stack ?
+The free stack in between stack frames may be used by untrusted code for their local stack frames (Untrusted stack frames are not protected by \srccm{}, but this does not prevent untrusted code from securing their own stack frames).
+\figurename~\ref{fig:mem-sketch} sketches this.
+
 Each stack frame in the \srccm{} stack contains an old program pointer which corresponds to the old program counter recorded in the region of the world associated with the stack frame.
 To achieve this, the partition function $R_\ms$ also records an $\opc$ for each region, and this $\opc$ should establish the link between the region and the stack frame.
+\begin{figure}
+  \centering
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+ 
+  \scope
+    \clip (-.1,-.1) rectangle (4.6,11.1);
+    \fill[fill=white] (0,0) rectangle (4.5,11);
+    \draw (0,0) -- (0,11);
+    \draw (4.5,0) -- (4.5,11);
+  \endscope
+  \draw (-1,0) node {};
+  \draw (-1,12) node {};
+
+  \draw[pattern=north west lines,draw=none] (0,0) rectangle (4.5,2);
+  \draw[pattern=north west lines,draw=none] (0,9.5) rectangle (4.5,11);
+
+  \draw[pattern=none] (0,2) rectangle (4.5,4);
+  \draw[pattern=bricks] (0,4) rectangle (4.5,5);
+  \draw[pattern=none] (0,5) rectangle (4.5,6);
+  \draw[pattern=bricks] (0,6) rectangle (4.5,7.5);
+  \draw[pattern=none] (0,7.5) rectangle (4.5,8.5);
+  \draw[pattern=bricks] (0,8.5) rectangle (4.5,9.5);
+
+  \draw (5.75,2.25) node[anchor=west] {\footnotesize $\stkb$};
+  \draw (5.75,2.25) edge[-latex] (4.75,2.25);
+  \draw (5,9.5) edge[-latex] (5,8);
+%  \draw [decorate,decoration={brace,amplitude=7pt,mirror,raise=4pt},yshift=0pt] (-0.25,9.5) -- (-0.25,2) node [black,midway,xshift=-1cm,yshift=0.05cm,rotate=45] {stack};
+  \draw [-|] (-0.5,9.5) edge (-0.5,2);
+  \draw (-0.75,5.75) node[anchor=east] [black] {stack};
+  \matrix [draw,below right] at (current bounding box.north east) {
+    \node[pattern=north west lines,minimum size=0.4cm,draw,label=right:{\footnotesize Heap ($\ms$)}] {}; \\
+    \node[minimum size=0.4cm,draw,label=right:{\footnotesize Free stack ($\ms_\stk$)}] {}; \\
+    \node[pattern=bricks,minimum size=0.4cm,draw,label=right:{\footnotesize Encapsulated stack frame ($\stk$)}] {}; \\
+};
+
+  \end{tikzpicture}
+  \caption{A sketch of how heap, encapsulated stack and free stack are laid out in memory.
+    The encapsulated stack frames and the free stack constitutes the stack.
+    The encapsulated stack frames may have free stack in between them where stack frames of non-trusted code may reside.
+    The stack grows downwards in memory with $\stkb$ as the top address (and the base address of the free stack capability).}
+  \label{fig:mem-sketch}
+\end{figure}
 
 In order to tie Definitions~\ref{def:heap-rel},~\ref{def:free-stack-rel},~and~\ref{def:stack-rel} together, we define memory satisfaction.
 Memory satisfaction defines when a \srccm{} memory, consisting of a heap, a stack, and a free stack, relates to a \trgcm{} memory under a world.
@@ -843,7 +837,6 @@ For this reason, we suggest making a cursorily first read through to get an over
 \subsubsection{Observation relation}
 The observation relation defines what machine configurations have related and permissible observable effects.
 Generally speaking, an observation relation captures the property we want to prove.
-% TODO double check "co-termination" (equitermination?)
 Ultimately, we want to prove a full-abstraction theorem which is defined in terms of contextual equivalence for components that in turn is defined as co-termination in any context.
 This means that the observation relation should capture co-termination.
 
@@ -891,7 +884,7 @@ In our setting, a trusted program is a well-formed, reasonable program that foll
 In order for a trusted program to use \stktokens{}, it needs access to return seals, but we cannot allow untrusted programs access to the return seals.
 A value relation based on what it is safe for an adversary to have should prohibit return seals, so such a relation cannot be used to reason about trusted programs.
 For this reason, we define two value relations a trusted $\lrvtrusted$ and an untrusted $\lrv$.
-It is safe to give trusted programs anything that is safe for an untrusted program, so the trusted value relation is defined as a super set of the untrusted value relation.
+Anything safe for unstrusted programs is also safe to give to a trusted program, so the trusted value relation is defined as a super set of the untrusted value relation.
 
 From time to time in this section, we will refer to safety of a capability or a word.
 In some sense, our logical relation actually ends up as the definition of safety, so when we refer to a capability as \emph{safe} it is in an informal sense where it means that the capability cannot be used break memory invariants. 
@@ -1154,7 +1147,7 @@ That is on \srccm{}, the return seals should only be used to seal $\retptrc{}$ a
         \sigrets \subseteq \gsigrets \tand \\
         \dom(\code) \subseteq \ta \tand\\
         \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]} \ldotp \\
-        \quad\pwpriv[\xi(\hat{W})](r).H \nequal (\stareg[(\ms_S,\ms_T),(\ta,\stkb)]{\spao,\square}, \aaddr'+\calllen) \tand \\
+        \quad\pwpriv[\xi(\hat{W})](r).H \nequal (\stareg[(\ms_S,\ms_T),(\ta,\stkb)]{\spatialo,\square}, \aaddr'+\calllen) \tand \\
         \quad \dom(\ms_S) = \dom(\ms_T) = [\baddr,\eaddr] \tand\\
         \quad \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
         \quad \code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand \sigma = \sigma_b + \offsigma \in \sigrets
@@ -1202,28 +1195,25 @@ For untrusted components (components with their code address space disjoint from
 Intuitively, untrusted components are assumed to have access to words from the untrusted value relation, and we cannot know how the words are used, so we need to assume that an untrusted component may seal untrusted words.
 Trusted components only use closure seals for sealed capability pairs that represent actual closures.
 The code capability for a closure must point to the code memory because it is the only part of memory that is executable.
-It is not safe for untrusted components to have a capability for a trusted components code (it could be used to read return capabilities or start execution in the middle of a call), so capabilities for the code memory of a trusted component is in the trusted value relation.
+Untrusted components cannot safely have a capability for a trusted components code (it could be used to read return capabilities or start execution in the middle of a call), so capabilities for the code memory of a trusted component is in the trusted value relation.
 While it is not safe to give a bare capability for a trusted components code memory, it can be perfectly safe to give a sealed capability for a trusted components code.
 For this reason, the seal invariant allows executable capabilities from the trusted value relation to be sealed with a closure seal.
 
-When it comes to the data capability of a closure, we just require that it comes from the untrusted value relation because the trusted value relation contains nothing that makes sense to seal as the data capability
-% TODO be more precise, what later paragraph means.
-(we return to the specific contents of the two value relations in a later paragraph).
+When it comes to the data capability of a closure, we just require that it comes from the untrusted value relation because the trusted value relation contains nothing that makes sense to seal as the data capability (we return to the specific contents of the two value relations later in this section).
 
 With the memory invariant and seal invariant in hand, we define the code region as follows:
 \[
   \codereg{\sigrets,\sigcloss,\code,\gc} \defeq (\pure, H^\mathrm{code,\square} \; \sigrets \; \sigcloss \; \code \; \gc, H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
 \]
-The code region is $\pure$ because it needs to contain a seal invatiant and because we assume that code pointers are non-linear.
+The code region is $\pure$ because it needs to contain a seal invatiant and because we assume that code pointers are normal capabilities.
 
-% TODO in the above, add something about the untrusted case where the seals should nut be in the "global" seals because the global seals are the one that we globally agree to be trusted.
+% TODO in the above, add something about the untrusted case where the seals should not be in the "global" seals because the global seals are the one that we globally agree to be trusted.
 
 \paragraph{Permission based conditions}
 \label{par:perm-cond}
 % TODO add brief intro to paragraph
-
 The world can be seen as an authority specification which means that it dictates what kind of capabilities can address a certain part of memory.
-Specifically, linear capabilities can only address memory governed by a $\spatialo$ region, and non-linear capabilities can only address memory governed by a $\pure$ region.
+Specifically, linear capabilities can only address memory governed by a $\spatialo$ region, and normal capabilities can only address memory governed by a $\pure$ region.
 All the permission based condition we define project the regions that the capability may address from the world.
 The addressable $\addressable{}$ function takes care of the projection:
 \[
@@ -1258,7 +1248,7 @@ The $\readCond{}$ is compatible with all the operations that can be performed on
 This means that if two capabilities, for which $\readCond{}$ holds, are spliced together, we can establish that $\readCond{}$ holds for the resulting capability.
 To support this, we require the presence of a set of regions $S$ that governs the addresses the capability has authority over rather than just a single region.
 If we need to establish the $\readCond{}$ after a splice, we can simply use the union of the regions that witnessed the $\readCond{}$ of the two individual capabilities.
-We also need to support splitting which is no problem for non-linear capabilities as the same $\pure$ region can be used to establish the $\readCond{}$ for multiple non-linear capabilities.
+We also need to support splitting which is no problem for normal capabilities as the same $\pure$ region can be used to establish the $\readCond{}$ for multiple normal capabilities.
 On the other hand, a $\spatialo$ region can only be used to establish the $\readCond{}$ for one linear capability because the ownership of a spatial region can only go to one world when splitting the ownership.
 None the less, we need to support arbitrary splitting of linear capabilities, which means that $\readCond{}$ must make sure that the necessary regions are in the world to argue that the result of a split preserves $\readCond{}$.
 This is why, $\readCond{}$ requires all regions to only govern one address when the capability is linear.
@@ -1367,7 +1357,7 @@ We do not know when the executable capability will be used, so it should be safe
 The $\purePart{}$ function strips the world of all spatial ownership.
 This means that the capability cannot depend on linear capabilities and thus the contents of the stack.
 When we define the logical relation, we even require the executable capability to not be linear.
-It is not clear whether a linear executable capability would even be useful because it cannot be moved from the $\pcreg$-register without crashing the execution.
+Linear executable capabilities would likely not be useful because they cannot be moved from the $\pcreg$-register without crashing the execution.
 This may sound like an ideal primitive for constructing something that can be executed once, however, most programs rely on loading other capabilities or seal sets using the program counter capability which is not possible when the program counter is linear.
 \begin{align*}
   \execCond{W} &=
@@ -1403,7 +1393,7 @@ The untrusted value relation has five cases: data, capabilities, stack pointers,
 In the following, we will give some intuition about why it is safe to give these words to untrusted code as well motivate the conditions they are safe under.
 
 The first case is data.
-It is always safe to posses data as data is just integers that grant no authority.
+Data grant no authority, so data is always safe.
 Further unlike capabilities, it is always possible to construct a new integer with the move instruction.
 
 Next we have capabilities that do not have a special representation on \srccm{}, i.e.\ all capabilities but stack pointers and return pointers.
@@ -1414,7 +1404,7 @@ The safety of a capability also depends on the world and whether the capability 
 For instance, if a capability has read-permission, then it should not be possible to read something unsafe, i.e.\ something that can break memory invariants.
 This condition and conditions for the other permissions are captured by the permission based conditions, so we use them to express the necessary conditions.
 That is, if a capability has read permission, then $\readCond{}$ must be satisfied, if it has write permission, then $\writeCond{}$ must be satisfied, and if it has execute permission, then $\execCond{}$ and $\xReadCond{}$ must be satisfied.
-If the capability has execute permission, then it must also be a non-linear capability.
+If the capability has execute permission, then it must also be a normal capability.
 Finally, the capability cannot have read/write/execute permission because that would break the write-XOR-execute assumption, i.e.\ the code memory in non-writable and data memory is non-executable.
 
 Stack pointers on \srccm{} are represented with the special token $\stkptr{\perm,\baddr,\eaddr,\aaddr}$.
@@ -1525,12 +1515,12 @@ The code region contains a seal invariant that makes sure that the seals are onl
 This is why the trusted value relation only relates seal sets of trusted closure seals and return seals when the world contains an appropriate code region.
 
 % Code pointers for trusted code
-Two capabilities are related as trusted code pointers if they are non-linear, has a permission derivable from read-execute, and has a range of authority within the trusted address space, $\ta$.
+Two capabilities are related as trusted code pointers if they are normal, has a permission derivable from read-execute, and has a range of authority within the trusted address space, $\ta$.
 Further, we need to know that the capabilities actually point to a piece of code which is why we require the $\xReadCond{}$ to be satisfied.
 This makes sure that the region that governs the memory the capability points to is a code region.
 Note that even though the capability has read permission, we do not require the read condition to hold.
 The code memory contains trusted closure seals and return seals that we cannot let untrusted code have and the read condition requires everything to be in $\lrv[]$, so the read condition would not hold.
-It is, however, fine to let trusted code have access to such seals because we expect the trusted code to treat the seals reasonably.
+However, trusted code can have access to such seals because we expect the trusted code to treat the seals reasonably.
 \begin{figure}
   \centering
   \[
