@@ -1,3 +1,5 @@
+% TODO do we say something about linear pcs and why they don't make sense? (related to def:reasonable-pc)
+
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
 %\documentclass[acmsmall,review,anonymous]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
 %\documentclass[acmsmall]{acmart}\settopmatter{}
@@ -609,49 +611,61 @@ This would also allow linear capabilities to have aliases, but only by linear ca
 
 \begin{jversion}
 % The remaining instructions
-The interpretation of the remainder of the instructions are displayed in Appendix~\ref{app:instr-interpretation}. The instructions $\tgetb{}{}$, $\tgete{}{}$, $\tgetlin{}{}$, and $\tgetp{}{}$ all project information about capabilities. The $\tgetb{}{}$ instruction projects the base address of the range of authority, and $\tgete{}{}$ projects the end address of the range of authority. The linearity of a permission is projected with $\tgetlin{}{}$, and finally the permission is projected with $\tgetp{}{}$. The instructions $\tgetb{}{}$ and $\tgete{}{}$ also works on sets of seals. The instruction $\tisptr{}{}$ gives the type of a word which allows programs to be defensive in the sense that they can check whether a word is a capability before they use the word as one. \trgcm{} also has arithmetic instructions $\tplus{}{}{}$, $\tminus{}{}{}$, and $\tlt{}{}{}$. The latter instruction compares two numbers and writes 1 or 0 to a target register depending on whether one number is less than the other. The instruction $\tsetatob{}$ sets the current address (or seal) of a capability (or set of seals) to the base address of the range of authority (or range of seals). This instruction makes it possible to work relatively to the base address of a capability rather than with fixed addresses. While this instruction is not strictly necessary as it can be emulated with other instruction, it still seems useful in the case where you receive capabilities from an untrusted source. Finally, we have the $\trestrict{}{}$ instruction which  restricts the permission of a capability but only according to the $\le$ relation.
+  The interpretation of the remainder of the instructions are displayed in Appendix~\ref{app:instr-interpretation}.
+  The instructions $\tgetb{}{}$, $\tgete{}{}$, $\tgetlin{}{}$, and $\tgetp{}{}$ all project information about capabilities.
+  The $\tgetb{}{}$ and $\tgete{}{}$ instructions, respectively, project the base and end address of the range of authority.
+  The linearity of a permission is projected with $\tgetlin{}{}$, and finally the permission is projected with $\tgetp{}{}$.
+  The instructions $\tgetb{}{}$ and $\tgete{}{}$ also work on sets of seals.
+  The instruction $\tisptr{}{}$ returns an integer representation of the type of a word which allows programs to be defensive in the sense that they can check whether a word is a capability before they use it.
+  \trgcm{} also has arithmetic instructions $\tplus{}{}{}$, $\tminus{}{}{}$, and $\tlt{}{}{}$.
+  The latter instruction compares two numbers and writes 1 or 0 to a target register depending on whether one number is less than the other.
+  The instruction $\tsetatob{}$ sets the current address (or seal) of a capability (or set of seals) to the base address of the range of authority (or range of seals).
+  This instruction makes it easy to work relatively to the base address of a capability.
+  This instruction is not strictly necessary as it can be emulated with other instructions.
+  Finally, we have the $\trestrict{}{}$ instruction which restricts the permission of a capability according to the $\le$ relation.
 \end{jversion}
 
 \begin{jversion}
   \subsection{The purpose of sealing}
   % Sealing example:
   To motivate the necessity of an encapsulation mechanism like sealing, consider the following example.
-  We want to transfer control to code that we do not trust, and we want to give them the means to return to us.
+  We, a trusted piece of code, want to transfer control to code that we distrust, and we want to give them the means to return to us.
   That is, we need to give them a return capability.
   If we did not have an encapsulation mechanism, our only option would be to give them an executable capability for the address we want them to return to.
-  The code we give the return capability could use it as intended, but it could also manipulate the return capability to point to a different point and return to an unintended point of our code.
-  Further in order to be able to retrieve our capabilities from before transferring control, we would have to store them somewhere accessible from the return capability.
-  However, the untrusted code would have access to all this through the return capability because it does not give less authority to the untrusted code than it does to us.
-  For this reason, any reasonable capability machine must have an encapsulation mechanism to enable programs to make boundaries between security domains.
+  The untrusted code could use the return capability as intended, but it could also manipulate and make it point to a different address of our code.
+  Jumping to such a capability would cause an the program to execute in a way we did not intend for it.
+  Further in order to be able to retrieve our capabilities from before transferring control, we would have to store the capabilities somewhere accessible from the return capability.
+  However, the untrusted code would have access to all this through the return capability because it gives the same authority to us as the untrusted code.
+  This is why, any reasonable capability machine must have an encapsulation mechanism to allow programs to make boundaries between security domains.
   
-  In the example, if we use sealing, we can seal the return capability which does two things.
-  It prevents the untrusted code from changing the target of the return capability forcing them to return to the point we intended.
-  It also prevents the untrusted code from reading our capabilities.
-  All in all, this means that we can transfer control to another domain without giving up our capabilities or handing them over.
+  In the example, we could seal the return capability to establish a boundary.
+  Specifically, it would prevent the untrusted code from changing the target of the return capability forcing them to return to the point we specified.
+  It would also prevent the untrusted code from reading our capabilities.
+  All in all, this means that we can transfer control to untrusted code without giving up our capabilities or handing them over.
 
-  \trgcm{} does not have a direct unsealing instruction, but it is still possible to do some amount of unsealing.
-  Say you have a sealed non-executable word $\sealed{\sigma,w}$ as well as a set of seals $\seal{\sigma_\baddr,\sigma_\eaddr, \sigma}$ that contains the $\sigma$, i.e.\ $\sigma \in [\sigma_\baddr,\sigma_\eaddr]$.
+  \trgcm{} does not have a direct unsealing instruction, but it is still possible to emulate a limited unsealing mechanism.
+  Say you have a sealed non-executable word $\sealed{\sigma,w}$ as well as a set of seals $\seal{\sigma_\baddr,\sigma_\eaddr, \sigma}$ that contains $\sigma$, i.e.\ $\sigma \in [\sigma_\baddr,\sigma_\eaddr]$.
   Now assume part of the code would like to have access to $w$ in $\rdata$.
   Take a capability for this code, possibly by adjusting the pc, and seal it with $\sigma$.
   Now you have the data part and the code part of a sealed capability pair, so you can $\txjmp{}{}$ to it which unseals the data capability and puts it in $\rdata$ for your code to use.
   Sealed executable capabilities cannot be unsealed in the same way because $\txjmp{}{}$ fails if the data capability is executable.
   However, given a sealed executable capability $\sealed{\sigma,c}$ and a set of seals that contains $\sigma$, we can still construct the data part of the sealed capability pair.
-  This means that we can execute the code the capability points to in the presence of any data we can construct.
+  This means that we can execute the code the capability points to together with data that it was not intended to be used with.
 
-  Sealing is meant for encapsulation, but it gives us very weak encapsulation properties if seals are not private as the unsealing example illustrates.
-  For this reason, it is important that the system is setup, so each component has access to seals that are unique to that component.
+  Sealing is meant for encapsulation, but it relies on seals being kept private as illustrated by the unsealing emulation.
+  For this reason, it is important that the system is initialised such that each component has access to unique seals.
   We return to this in \sectionname~\ref{sec:well-form-reas}.
 \end{jversion}
 
 \begin{jversion}
 \subsection{Decoding and encoding functions}
-The operational semantics of the capability machine uses $\decInstr{}$ to decode instructions.
-We also assume an $\encInstr{}$ which is used to put programs onto the capability machine.
+The operational semantics of the capability machine uses the function $\decInstr{}$ to decode instructions.
+We also assume a function $\encInstr{}$ to make it easy to specify programs in terms of instructions.
 Rather than specifying a decode function and an encode function, we assume that they are given with certain properties.
 The $\decInstr{} : \Word \fun \Instr$ should be injective and surjective for all non-$\fail$ instructions.
 Further, it should decode all capabilities as the $\fail$ instruction, i.e.\
 \[
-\forall c \in \Cap \ldotp \decInstr{c} = \fail
+\forall c \in \Caps \ldotp \decInstr{c} = \fail
 \]
 The $\encInstr{} : \Instr \fun \ints$ function should be injective, and it should be defined so $\decInstr{}$ is its left inverse, i.e.
 \[
@@ -664,20 +678,20 @@ As the $\decInstr{}$ function is the left inverse of $\encInstr{}$, we can even 
 %This is not to say that encoding is an easy problem. There are many things to get.
 
 The machine also assumes decode and encode functions for permissions $\decPerm{} : \Perm \fun \ints$ and $\encPerm{} : \ints \fun \Perm$.
-We assume the $\decPerm{}$ function to be the left inverse of $\encPerm{}$ and surjective. For $\encPerm{}$, we assume it is surjective and that it does not encode anything to the error value -1, i.e.
+We assume the $\decPerm{}$ function to be the left inverse of $\encPerm{}$ and surjective. For $\encPerm{}$, we assume it is surjective and that it does not encode anything to the $\tgetp{}{}$ error value -1, i.e.
 \[
   \forall \perm \in \Perm \ldotp \encPerm{\perm} \neq -1
 \]
 For linearity we assume similar functions.
 
-Finally, the machine uses an encode function for word types $\encType{}$ in the interpretation of $\tisptr{}{}$.
-This function encodes each kind type of word as an integer.
+Finally in the interpretation of $\tisptr{}{}$, the machine uses an encode function for word types $\encType{}$.
+This function encodes each kind of word as an integer.
 This is very much like the previous functions.
 It encodes each kind of word differently and all words of the same kind to the same integer.
 In Section~\ref{subsec:overlay-semantics}, we present an overlay semantics which changes the set of words compared to this machine.
 The overlay semantics also has a type encoding function which must encode the new words, so they correspond to their representation on this machine.
-For instance, the encoding of the type of a stack-pointer in the overlay semantics should be the same as the encoding of a capability on this machine.
-All the new words correspond to a word on this machine, and their encodings should match.
+For instance, the encoding of stack-pointer in the overlay semantics should be the same as the encoding of a capability on this machine.
+All the new words in the overlay semantics correspond to a word on this machine, and their encodings should match.
 \end{jversion}
 
 \subsection{Components, linking, programs, and contexts }
@@ -1540,9 +1554,6 @@ In other words, WBCF and LSE are natively enforced in this semantics.
 % - Sealed capability for code (sealed with clos seal)
 % Imports
 % - Address must be in data memory
-The judgement $\wdjud[\ta]{\comp}$ specifies what components are well formed, i.e.\ satisfy the initial syntactic requirements necessary to be able to rely on system guarantees.
-The judgement is defined in \figurename~\ref{fig:well-formed} with auxiliary judgements in \figurename~\ref{fig:well-formed-aux}.
-
 \begin{jversion}
   Informally, a well-formed component respects Write-XOR-Execute.
   This means that there are no execute capabilities for the data memory and no write capability for the code memory.
@@ -1574,30 +1585,34 @@ The judgement is defined in \figurename~\ref{fig:well-formed} with auxiliary jud
 % The exports $\overline{\var{export}}$ can be anything non-linear allowed to reside in data memory or a sealed capability for the code memory sealed with one of the closure seals.
 
 \begin{jversion}
-The judgement $\wdjud[\ta]{\comp}$ specifies what components are well formed, i.e.\ satisfy the initial syntactic requirements necessary to be able to rely on system guarantees.
+The judgement $\wdjud[\ta]{\comp}$ specifies what components are well formed, i.e.\ satisfy the initial syntactic requirements necessary to be able to rely on unique linear capabilities, component unique seals, etc.
 The judgement is defined in \figurename~\ref{fig:well-formed} with auxiliary judgements in \figurename~\ref{fig:well-formed-aux}.
 
 %TODO distinguish closure seals from return seals.
-The $\wdjud[\ta]{\comp}$ judgement has two rules: \textsc{Main} and \textsc{Base}. The \textsc{Main} rule requires the component to have a main pair picked from the exports. Further, the component should be a base component that satisfies judgement. The \textsc{Base} judgement makes sure that the component has a bit of structure. Roughly speaking, the \textsc{Base} rule requires the following:
+The $\wdjud[\ta]{\comp}$ judgement has two rules: \textsc{Main} and \textsc{Base}.
+The \textsc{Main} rule requires the component to have an entry point in terms of a main pair from the exports.
+Further, the component should be a base component that satisfies judgement.
+The \textsc{Base} judgement ensures sure that the component has a bit of structure.
+Roughly speaking, the \textsc{Base} rule requires the following:
 \begin{itemize}
 \item \textit{Code and data memory are disjoint.}
-\item \textit{Code memory is enclosed in a memory segment $\ms_\var{pad}$ that contains zero's.} This prevents the memory of two code memories from being spliced together.
-\item \textit{Data memory can be partitioned in a linear part $A_\var{linear}$ and a non-linear part $A_\var{non-linear}$.} The component judgement ensure that the linear address space of a component is at most referenced by one capability. This means that any capability for the linear address space is unique.
+\item \textit{Code memory is padded with zeros ($\mspad$).} This prevents the memory of two code memories from being spliced together.
+\item \textit{Data address space can be partitioned in a linear part $A_\var{linear}$ and a non-linear part $A_\var{non-linear}$.} The component judgement ensure that the linear address space of a component is at most referenced by one capability. This means that any capability for the linear address space is unique.
 \item \textit{There is a partition $A_\var{own}$ of $A_\var{linear}$ that assigns a set of linear-addressed to each address of data memory.} The partitions are used by the component word judgement ($\vdash_\mathrm{comp-word}$) which ensures linear capabilities only address the addresses in the linear address space that is owned by the address where the capability resides in memory.
 \item \textit{All import addresses are part of the data memory.} 
 \item \textit{Import and export symbols are disjoint.}
 \item \textit{One of the following two are true}
   \begin{itemize}
-  \item \textit{The code memory is disjoint from the trusted address space $\ta$ and in that case there are no return seals.} In this case, the component contains untrusted code. We are interested in WBCF and LSE from the perspective of the trusted code, so we do not let untrusted memory have return seals.
-  \item \textit{The code memory is part of the trusted address space $\ta$.} In this case, the component contains trusted code. We do not impose requirements on the return seals here (the auxiliary judgements will impose restrictions on them), so the trusted component can have the return seals necessary for its calls.
+  \item \textit{The code address space is disjoint from the trusted address space $\ta$ and there are no return seals.} In this case, the component contains untrusted code. We are interested in WBCF and LSE from the perspective of the trusted code, so we do not let untrusted memory have return seals\footnote{Untrusted code still has access to seals that could be used to protect calls.}.
+  \item \textit{The code address space is part of the trusted address space $\ta$.} In this case, the component contains trusted code. We do not impose requirements on the return seals here (the auxiliary judgements will impose restrictions on them), so the trusted component can have the return seals necessary for its calls.
   \end{itemize}
-\item \emph{The data memory is disjoint from the trusted address space $\ta$.} We are not looking to execute data, so the trusted addresses never include the data memory addresses.
+\item \emph{The data address space is disjoint from the trusted address space $\ta$.} Data memory is not executable, so the trusted addresses never include the data memory addresses.
 \item \textit{The code memory satisfies the component-code judgement (\figurename~\ref{fig:well-formed-code}).}
-\item \textit{Each word in the data memory satisfies the component-word judgement (\figurename~\ref{fig:well-formed-word}). In particular, this must be with respect to the linear addresses assigned to this address. }
-\item \textit{All the exports satisfies the components-export judgement (\figurename~\ref{fig:well-formed-export}).}
+\item \textit{Each word in the data memory satisfies the component-word judgement (\figurename~\ref{fig:well-formed-word}).} This must be with respect to the linear addresses assigned to this address.
+\item \textit{All the exports satisfy the components-export judgement (\figurename~\ref{fig:well-formed-export}).}
 \end{itemize}
 
-\figurename~\ref{fig:well-formed-word} defines the judgement $\vdash_{\mathrm{comp-word}}$ the words that are well-formed in a component's data memory.
+\figurename~\ref{fig:well-formed-word} defines the judgement $\vdash_{\mathrm{comp-word}}$ which specifies the words that are well-formed in a component's data memory.
 The judgement is defined by three rules: \textsc{W-Data}, \textsc{W-Capability}, and \textsc{W-Sealed-Capability}.
 The \textsc{W-Data} rule says all data, i.e.\ integers, are well-formed words.
 The \textsc{W-Capability} rule specifies that all well-formed capabilities in data memory must at most have read and write permission.
@@ -1610,14 +1625,14 @@ However, a component is free to place sealed data capabilities in memory during 
 \figurename~\ref{fig:well-formed-export} defines the well-formed exports $\vdash_{\mathrm{comp-export}}$.
 \textsc{E-Word} says that any well-formed word for data memory is well-formed as an export.
 In particular, this means that sealed capabilities for the data memory are acceptable exports which allows components to export the data part of a sealed capability pair.
-The \textsc{E-Sealed-Code} rule allows the code part of a sealed capability pair to be export.
+The \textsc{E-Sealed-Code} rule allows the code part of a sealed capability pair to be exported.
 In particular, it allows a capability with read-execute permission and its range of authority within the component's code address space to be exported when it has been sealed with a closure seal.
-Together, these two rules allow components to have closures that they export.
+Together, these two rules allow components to export closures.
 
 \figurename~\ref{fig:well-formed-code} defines the well-formed code memories $\vdash_{\mathrm{comp-code}}$.
 The well-formed code memories are defined by two judgements.
 One judgement considers the entire memory $\sigrets,\sigcloss,\ta\vdash_{\mathrm{comp-code}} \mscode$ while the other considers the contents of each code memory address $\sigrets,\sigrets[\mathrm{owned}],\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode,a$.
-Unlike data memory and exports, we cannot say whether code memory is well-formed by considering each of its words in isolation.
+Unlike data memory and exports, we cannot say whether code memory is well-formed by considering each word in isolation.
 The well-formedness of code memory depends on whether seals for calls are located in the place we expect them to be located.
 The $\sigrets,\sigrets[\mathrm{owned}],\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode,a$ judgement has two rules.
 The \textsc{C-Seal} judgement requires address $a$ in $\mscode$ to contain a set of seals that is a subset of the closure seals and the return seals.
@@ -1644,7 +1659,7 @@ To limit the amount of corner cases we have to consider, we require the code mem
     \end{array}
   \]
 \end{definition}
-This definition says that if code memory contains an instruction that may be part of a call, then either it is a part of a call or there is some other instruction that witnesses the fact that it is not part of a call.
+Definition~\ref{def:no-hidden-calls} says that if code memory contains an instruction that may be part of a call, then either it is a part of a call or there is some other instruction that witnesses the fact that it is not part of a call.
 Finally, the \textsc{C-Mem} judgement requires that the code at least have one non-empty set of seals available.
 
 \begin{figure}
@@ -1782,26 +1797,26 @@ By disallowing this, we make sure that data memory always can be safely shared a
 \end{enumerate}
 \begin{jversion}
   We capture these properties in 4 definitions.
-  Definition~\ref{def:reasonable-word} defines the reasonable words which means that they cannot be used to leak seals directly as well as indirectly.
-  Definition~\ref{def:reasonable-pc} defines the reasonable pc's which means that if it is plugged into a configuration with a register file filled with reasonable words, then  the configuration behaves reasonable.
+  Definition~\ref{def:reasonable-word} defines the reasonable words which means that they cannot be used to leak seals directly or indirectly.
+  Definition~\ref{def:reasonable-pc} defines the reasonable pc's which means that if it is plugged into a configuration with a register file filled with reasonable words, then  the configuration behaves reasonably.
   Definition~\ref{def:reasonable-conf} defines the reasonable configurations which captures the four informal behavioural properties.
   Finally, definition~\ref{def:reasonable-component} lifts the notion of reasonability to components.
 
   \subsubsection{Reasonable words}
   To provide any guarantees, \stktokens{} rely on the program to no leak return seals in any way.
-  But what does it mean to ``leak'' a return seal.
-  This means that sets of seals that contain return seals as well as any means to obtain such sets cannot be leaked.
+  But what does it mean to ``leak'' a return seal?
+  It means that sets of seals that contain return seals as well as any means to obtain such sets cannot be leaked.
   The following definition makes this more precise.
 \begin{definition}[Reasonable word]
   \label{def:reasonable-word}
-  Take a set of trusted addresses $\ta$ and sets of return pointer and closure seals $\gsigrets$ and $\sigcloss$.
+  Take a set of trusted addresses $\ta$ and sets of return and closure seals $\gsigrets$ and $\sigcloss$.
 We define that a word $w$ is reasonable up to $n$ steps in memory $\ms$ and
 free stack $\ms_\stk$ if $n=0$
 or the following implications hold.
   \begin{itemize}
   \item If $w = \seal{\sigma_\baddr,\sigma_\eaddr,\_}$, then
     $[\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\gsigrets \cup \gsigcloss)$
-  \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$, then $[\baddr,\eaddr] \mathrel{\#} \dom(\ta)$
+  \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$, then $[\baddr,\eaddr] \mathrel{\#} \ta$
   \item If $w = \sealed{\sigma,\vsc}$ and $\sigma \not\in (\gsigrets\cup
     \gsigcloss)$ then $\vsc$ is reasonable up to $n - 1$ steps.
   \item If $w = ((\perm,\_),\baddr,\eaddr,\_)$ and $\perm \in \readAllowed{}$
@@ -1813,24 +1828,24 @@ or the following implications hold.
   \end{itemize}
 \end{definition}
 According to the definition, sets of seals that contain return or closure seals are not reasonable.
-\stktokens{} need the return seals to be unique in order to work, but it does not need the closure seals.
+\stktokens{} rely on return seals to be unique in order to work, but it does not rely on closure seals.
 However, it defeats the purpose of the closure seals if they are leaked to malicious code as it allows the malicious code to fabricate data capabilities for the code capabilities or code capabilities for the data capabilities which effectually allows malicious code to unseal the data capability.
-Further, it makes reasoning about leakage of return seals difficult because the closures have to be well-behaved no matter what data they are executed in the context of.
+Further, it makes reasoning about leakage of return seals difficult because the closures have to be well-behaved no matter what data they are executed with.
 
 % TODO Mention sealed capabilities?
 
-A reasonable word is defined relative to a memory and a stack because for capabilities it depends on what they give access to whether they are reasonable.
-For instance, if a read capability gave access to a piece of memory that contains a set of seals with a return seal, then it would not be reasonable.
+Whether a capability is reasonable depends on what it gives access to.
+This is why the word reasonability is defined relative to the memory and stack.
+For instance, if a read capability gives access to a piece of memory that contains a set of seals with a return seal, then it would not be reasonable.
 This is why stack pointers and memory capabilities with read permission must only give access to memory with reasonable words.
-
 The definition is cyclic, but the step-index ensures that it is well-founded.
 
 \subsubsection{Reasonable pc and configuration}
-In order to define desired behaviour, we need to say specify what may happen on a machine during execution.
-The execution steps between executable configurations, so we need to define when a configuration is reasonable.
+In order to define desired behaviour, we need to specify what may happen on a machine during execution.
+An execution steps between executable configurations, so we need to define when a configuration is reasonable.
 While the step relation is defined over configurations, it is the pc that decides what instruction is executed.
-It therefore only seem natural to also define when a pc is reasonable.
-Definition~\ref{def:reasonable-pc} roughly says that a pc is reasonable when you can plug it into a configuration where all the words in the register file is reasonable and the result is a reasonable configuration.
+Therefore, it only seems natural to also define when a pc is reasonable.
+Definition~\ref{def:reasonable-pc} roughly says that a pc is reasonable when you can plug it into a configuration where all the words in the register file are reasonable and the result is a reasonable configuration.
   \begin{definition}[Reasonable pc]
     \label{def:reasonable-pc}
     We say that an executable capability $c =
@@ -1844,7 +1859,7 @@ Definition~\ref{def:reasonable-pc} roughly says that a pc is reasonable when you
     \end{itemize}
     We have that $\Phi$ is reasonable up to $n$ steps.
   \end{definition}
-  With Definition~\ref{def:reasonable-word} and \ref{def:reaonable-pc} in place, we are all set to define when a configuration is reasonable.
+  With Definition~\ref{def:reasonable-word} and \ref{def:reasonable-pc} in place, we are all set to define when a configuration is reasonable.
   \begin{definition}[Reasonable configuration]
     \label{def:reasonable-conf}
     We say that an execution configuration $\Phi$ is reasonable up to $n$ steps with $(\ta,\stkb,\gsigrets,\gsigcloss)$ 
@@ -1903,7 +1918,7 @@ Definition~\ref{def:reasonable-pc} roughly says that a pc is reasonable when you
   \end{definition}
 The four items in Definition~\ref{def:reasonable-conf} correspond to the four informal items from the introduction of this section.
 
-Item~\ref{item:dont-store-private} and Item~\ref{item:don't-leak-private} makes sure that return seals are not leaked.
+Item~\ref{item:dont-store-private} and Item~\ref{item:dont-leak-private} make sure that return seals are not leaked.
 Item~\ref{item:dont-store-private} says that only reasonable words can be stored to memory.
 This means that sets of return seals or execute capabilities cannot be stored to memory by a reasonable component.
 Intuitively, a well-formed and reasonable component has its seals available in the code memory, so it can always retrieve them from the code memory.
@@ -1913,10 +1928,10 @@ Item~\ref{item:dont-leak-private} makes sure that seals are not leaked when tran
 With the component setup, there are two ways to transfer control: xjmp and call.
 In both cases, we require that all of the argument registers contain reasonable words.
 An execution configuration may need to do other operations than calling other code, and seals should no be leaked at any point during execution.
-For this reason, Item~\ref{item:don-leak-private} also says that if the next step is not a call and a jump, then the next execution configuration should also be reasonable.
+For this reason, Item~\ref{item:dont-leak-private} also says that if the next step is not a call and a jump, then the next execution configuration should also be reasonable.
 
 Item~\ref{item:guarantee-stk-base} makes sure that the stack has the correct base before a call.
-In order to not have to reason about unreasonably generated code, we also add the requirement $r_1 \neq \rtmp{1}$.
+In order to not have to reason about unreasonably generated code, we also add the requirement $r_1 \neq \rtmp{1}$ before calls.
 If we allowed $r_1=\rtmp{1}$, then the call would be sure to fail as the first instruction of a call moves 42 to $\rtmp{1}$.
 Finally, this promises that the code after the call will behave reasonably.
 
@@ -1924,11 +1939,10 @@ A well-formed component makes sure that a return seal is uniquely available to e
 This is, however, not sufficient as it does not ensure that other parts of a program don't use the return seals.
 We do not want to specify what non-call code should look like, so we just require it to not use the call seals.
 This is what Item~\ref{item:return-seal-usage} ensures.
-It says that if the configuration points to a seal-instruction, then either the instruction is part of a call and uses a return seal or the instruction is used to seal part of a closure which means that it should be using one of the closure seals.
+It says that if the configuration points to a seal-instruction, then either the instruction is part of a call and uses a return seal or the instruction seals part of a closure and uses a closure seal.
 In order to construct a closure, one must seal a code capability and a data capability.
 If this is an executable capability, then it should be reasonable as a pc.
 On the other hand, if it is not an executable capability, then this must be the data part of the pair, so it should just be a reasonable word.
-
 Definition~\ref{def:reasonable-conf} is cyclic through Definition~\ref{def:reasonable-pc}, so both definitions are step-indexed to break the cycle. If 
 
   \subsubsection{Reasonable component}
@@ -1937,7 +1951,7 @@ Definition~\ref{def:reasonable-conf} is cyclic through Definition~\ref{def:reaso
   \begin{definition}[Reasonable component]
     \label{def:reasonable-component}
     We say that a component
-    $(\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)$
+    \[(\mscode,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)\]
     is reasonable if the following hold: For all $(s \mapsto \sealed{\sigma,\vsc}) \in
     \overline{c_{\mathrm{export}}}$, with $\exec{\vsc}$, we have that $\vsc$
     behaves reasonably up to any number of steps $n$.
