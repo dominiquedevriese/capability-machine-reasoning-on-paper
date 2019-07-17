@@ -631,6 +631,7 @@ This would also allow linear capabilities to have aliases, but only by linear ca
 
 \begin{jversion}
   \subsection{The purpose of sealing}
+  \label{sec:purpose-sealing}
   % Sealing example:
   To motivate the necessity of an encapsulation mechanism like sealing, consider the following example.
   We, a trusted piece of code, want to transfer control to code that we distrust, and we want to give them the means to return to us.
@@ -666,7 +667,7 @@ This would also allow linear capabilities to have aliases, but only by linear ca
 The operational semantics of the capability machine uses the function $\decInstr{}$ to decode instructions.
 We also assume a function $\encInstr{}$ to make it easy to specify programs in terms of instructions.
 Rather than specifying a decode function and an encode function, we assume that they are given with certain properties.
-The $\decInstr{} : \Word \fun \Instr$ should be injective and surjective for all non-$\fail$ instructions.
+The $\decInstr{} : \Word \fun \Instr$ should be surjective and injective for all non-$\fail$ instructions.
 Further, it should decode all capabilities as the $\fail$ instruction, i.e.\
 \[
 \forall c \in \Caps \ldotp \decInstr{c} = \fail
@@ -693,6 +694,7 @@ This function encodes each kind of word as an integer.
 This is very much like the previous functions.
 It encodes each kind of word differently and all words of the same kind to the same integer.
 In Section~\ref{subsec:overlay-semantics}, we present an overlay semantics which changes the set of words compared to this machine.
+\todo[inline]{Dominique: perhaps delay the discussion of encodetype for the overlay semantics to Section~\ref{subsec:overlay-semantics}?}
 The overlay semantics also has a type encoding function which must encode the new words, so they correspond to their representation on this machine.
 For instance, the encoding of stack-pointer in the overlay semantics should be the same as the encoding of a capability on this machine.
 All the new words in the overlay semantics correspond to a word on this machine, and their encodings should match.
@@ -842,7 +844,7 @@ We will gradually explain each of the security measures \stktokens{} takes and m
 To explain the technique, let us first consider how we might already add extra protection to stack and return pointers on a capability machine.
 First, we replace stack pointers with stack capabilities.
 When a new stack frame is created, the caller provisions it with a stack capability, restricted to the appropriate range, i.e.\ it does not cover the caller's stack frame.
-Return pointers, on the other hand, are replaced by a pair of sealed return capabilities.
+Return pointers, on the other hand, are replaced by a pair of sealed return capabilities, as we already explained in Section~\ref{sec:purpose-sealing}.
 % KJAA: Again with the sealed pair. Again, this idea is unclear.
 They form an opaque closure that the callee can only jump to, and the caller's data becomes available to the caller's return code. 
 
@@ -876,7 +878,7 @@ The caller gives this capability to the adversary only in a sealed form, renderi
 This is illustrated in Figure~\ref{fig:stack-ptr-abuse-prev} and prevents the issue illustrated in Figure~\ref{fig:stack-ptr-abuse}.
 
 % Prevention of attack 2
-In a traditional calling convention with a single stack, the stack serves as a call stack keeping track of the order calls where made in and thus in which order they should be returned to.
+In a traditional calling convention with a single stack, the stack serves as a call stack keeping track of the order calls were made in and thus in which order they should be returned to.
 A caller pushes a stack frame to the stack on call and a callee pops a stack frame from the stack upon return.
 However without any enforcement, there is nothing to prevent a callee from returning from an arbitrary call on the call stack.
 This is exactly what the adversary does in Figure~\ref{fig:ret-ptr-abuse} when they skip two stack frames.
@@ -1025,8 +1027,8 @@ To summarise, \stktokens{} consists of the following measures:
 \item \label{item:check-stkb} Check the base address of the stack capability before and after calls.
 \item \label{item:non-empty-sf} Make sure that local stack frames are non-empty.
 \item \label{item:return-data} Create token and data return capability on call: split the stack capability in two to get a stack capability for your local stack frame and a stack capability for the unused part of the stack. The former is sealed and used for the data part of the return pair.
-\item \label{item:return-code} Create code return capability on call: Seal the old program pointer.
-\item Reasonable use of seals: Return seals are only used to seal old program pointers, every return seal is only used for one call site, and they are not leaked.
+\item \label{item:return-code} Create code return capability on call: Seal the old program counter capability.
+\item Reasonable use of seals: Return seals are only used to seal old program counter capabilities, every return seal is only used for one call site, and they are not leaked.
 \end{enumerate}
 Item~\ref{item:check-stkb}-\ref{item:return-code} are captured by the code in Figure~\ref{fig:call-code} , except for checking stack base before calls.
 We do not include this check because it only needs to happen once between two calls, so that the check after a call suffices if the stack base is not changed subsequently.
@@ -1134,7 +1136,7 @@ We do not include this check because it only needs to happen once between two ca
 
 \begin{figure}[htb]
   \centering
-{\footnotesize
+{\small
 \[
   \begin{array}{r >{$}p{5.1cm}<{$} r l}
 \multicolumn{2}{l}{\text{// Ensure non-empty stack.}}            & \multicolumn{2}{l}{\text{// Clear tmp registers and jump.}}\\
