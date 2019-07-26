@@ -22,7 +22,7 @@ To accommodate such conditional relatedness, we construct the relation as a step
 
 \begin{jversion}
 Assumptions about the system that relatedness is predicated on are gathered in (Kripke) worlds.
-A world is a semantic model of the memory.
+To a first approximation, a world is a semantic model of the memory.
 In its simplest form, it is a collection of invariants that the memory must satisfy.
 The invariants of a world can vary in complexity and expressiveness depending on the application.
 The possible contents of the memory also influences what the world looks like.
@@ -54,7 +54,7 @@ We call the invariants regions because, as we will see in Section~\ref{subsubsec
 A region describes a collection of related memory segments, so it is simply represented as a relation over memory segments (i.e.\ a relation in $\Rel{\MemSeg \times \MemSeg}$).
 Intuitively, we want to be able to say that two memory segments are related when their contents are related.
 That is, for every address in the two memory segments, the words that reside there must be related.
-In Section~\ref{subsec:logical-relation}, we define precisely what it means for words to be related, but for now we provide some the intuition.
+In Section~\ref{subsec:logical-relation}, we define precisely what it means for words to be related, but for now we provide some intuition.
 If we have two integers, then they are related when they are equal.
 If we instead have two capabilities, then they should also be related if they, in some sense, are equal.
 But what does it mean for capabilities to be \textit{equal}?
@@ -79,12 +79,15 @@ For the sake of readability, we introduce the following notation
 \subsubsection{Linearity}
 % Linearity
 The linear capabilities of \srccm{} and \trgcm{} guarantee that they have the sole authority over the memory they reference\footnote{Under the assumption that the system was initialised with unique linear capabilties.}.
-In order to model this uniqueness, we need to keep track of which parts of memory that are uniquely referenced and make sure that only one linear capability references the unique parts.
+In order to model this uniqueness, we need to keep track of which parts of memory are uniquely referenced and make sure that only one linear capability references the unique parts.
 %% Bookkeeping done by worlds
 We use the world to keep track of what parts of memory must be uniquely referenced by having two kinds of regions: shared and spatial.
 If a memory segment is governed by a shared region, then normal capabilities may reference it.
 On the other hand, if a memory segment is governed by a spatial region, then only a linear capability may reference it.
 %%% spatial/spatial_owned
+\todo[inline]{Dominique: Maybe it would be clearer to rename spatial\_owned/spatial to spatial/spatial\_shadow or something similar. Spatial\_owned is really the default meaning of spatial, and what we've called spatial is a peculiar thing that we use for a very specific purpose.
+  This would make the discussion easier to follow, I think.}
+
 We cannot let multiple linear capabilities reference the same memory, so we add ownership to spatial regions.
 Only the spatial owned regions can be referenced by a capability.
 Even though only spatial owned regions can be referenced by linear capabilities, we still have unclaimed spatial regions that specify what part of memory looks like.
@@ -97,6 +100,7 @@ Specifically, we add tags $\spatial$ and $\spatialo$ to the spatial regions:
     \{\spatialo \} \times (\World \fun \Rel{\MemSeg \times \MemSeg}) \\ 
   \end{array} \right.
 \]
+\todo[inline]{Dominique: Perhaps rename pure to shared?  Or introduce the term pure earlier on?}
 For readability, we also add a tag $\pure$ to the shared regions:
 \[
   \Regionh = \{\pure \} \times (\World \fun \Rel{\MemSeg \times \MemSeg}) 
@@ -109,6 +113,7 @@ For this reason, it is defined as
 \[
   \Worldh = \RegName \parfun (\World \fun \Regionh + \Regions)
 \]
+\todo[inline]{Dominique: $+$?  Why not $\cup$?}
 \srccm{} internalizes the \stktokens{} stack, so it can only be referenced by linear capabilities which means that the two stack regions should only have spatial regions.
 For instance the $\Worldfs$ is defined as
 \[
@@ -132,6 +137,7 @@ The logical relation presented in Section~\ref{subsec:logical-relation} uses thi
 
 Given a world, we want to be able to express that a capability, that is otherwise valid with respect to the world, is not linear or indirectly depends on a linear capability.
 This is expressed by stripping the world of all its ownership which corresponds to replacing all $\spatialo$ regions with $\spatial$ regions.
+\todo[inline]{Dominique: step missing in the reasoning: expressing that the capability is not linear is done by stripping the world ... \emph{and then} requiring that the capability is valid w.r.t.\ this stripped world.}
 We refer to this as the pure part of the world and define the function $\purePart{}$ which removes all ownership.
 \begin{definition}[The pure part of a world]
   \label{def:purePart}
@@ -157,10 +163,15 @@ We refer to this as the pure part of the world and define the function $\purePar
 \end{definition}
 \subsubsection{Seals}
 \label{subsubsec:seals}
+\todo[inline]{
+  I would try to link back to the discussion of worlds as collections of assumptions by first explaining that correctness of values may depend on another type of assumptions than those about the contents of memory, namely the intended use case of seals.
+  Therefore, in addition to a relation on memory segments, some regions also carry a seal interpretation function that etc.
+  I think this would make the role of the seal interpretation function clearer.
+  }
 % StkTokens designate seals for certain purposes, return, closure, etc
 In order to guarantee well-bracketed control flow and local-state encapsulation, \stktokens{} designates seals for return capabilities and closures and relies on designated seals only being used for their intended purposes.
 The designation of return seal is a system invariant that is modelled in the world as a \textit{seal interpretation function}.
-This function takes a seal and returns a world-indexed relation that relates all the sealables that may be sealed with this specific seals.
+This function takes a seal and returns a world-indexed relation that relates all the sealables that may be sealed with this specific seal.
 That is
 \[
   \Seal \parfun \World \fun \Rel{\SealableCaps \times \SealableCaps}
@@ -168,6 +179,10 @@ That is
 %% Shared region has a seal indexed invariant that specifies what sealables can be sealed with a specific seal
 In Section~\ref{subsubsec:ft-and-revocation}, we will see that not all regions are invariant.
 The seal interpretation function should be an invariant, so we need to add it to a type of region that is invariant.
+\todo[inline]{It's not clear at this point why it would be problematic to add it to a non-invariant region.
+  I would add a discussion saying something like ``In StkTokens, once a seal has been used for a specific purpose (e.g. for sealing return capability pairs for a specific call site), it can never be reused for a different purpose.  This is because there may still be copies of return capabilities out there, signed with the seal.
+  This situation is similar to the situation for non-linear memory capabilities, so we only allow shared regions to carry seal interpretation functions, as we will see that those regions can never be revoked in future worlds.''
+}
 Shared regions are invariant, so we add the seal interpretation function to it:
 \begin{multline*}
   \Regionh = 
@@ -182,20 +197,42 @@ We will also refer to the seal interpretation function as the seal invariant, an
 \subsubsection{Future worlds and revocation}
 \label{subsubsec:ft-and-revocation}
 % Memory evolves over time, we need to model this.
-During machine execution, the memory contents changes and parts of memory may be repurposed.
+During machine execution, the memory contents changes and parts of memory may be repurposed\todo[inline]{Dominique: Add something like ``, at least when we can be sure that there are no capabilities left in the system whose validity depends on the old contents of the memory.''?}.
 The world must model such memory changes.
 % Future World
 To this end, we have a future world relation $\future$ that describes how worlds and thus memory may change over time.
+\todo[inline]{Rather than introducing the future world relation as ``how memory may change over time'', then its precise definition and then monotonicity, I would explain monotonicity first and the precise definition of the future world relation second.
+  IMHO, it makes a lot more sense if you think about the future world as modelling precisely those changes in assumptions that do not invalidate the relatedness of values.
+  In other words, I would say something like ``Very often, it is the case that relatedness of two capabilities doesn't change if extra assumptions in the system are added. For example, two related capabilities remain related when an extra invariant is added on unrelated memory, or when a stack frame that it does not reference is dropped.
+  In Kripke logical relations, this kind of assumption changes, that do not invalidate the relatedness of values, are modelled by the future world relation.
+  etc.''
+  }
+
+  \todo[inline]{Maybe explain here that Kripke future world relations usually only allow for adding fresh assumptions on fresh memory or protocol steps that the system was designed to support from the start.
+    However in our setting, we sometimes allow dropping assumptions, namely when linearity tells us that no value in the system depends on the capability anymore.
+    By linking revocation of regions immediately to linearity, it will require less explanation later that only spatial regions can be revoked.
+  }
 In order to relate \trgcm{} and \srccm{}, we are mainly interested in changes to the stack as it repurposes stack frames.
-Specifically, we need to introduce regions to govern new encapsulated stack frames, and we need to revoke regions that govern call frames that have been popped from the call stack, so the stack frame can be reused for a new call frame.
+Specifically, we need to introduce regions to govern new encapsulated stack frames, and we need to revoke regions for call frames that are popped from the call stack, to make place for a new frame.
 We allow introduction of new regions simply by extension.
 That is, a future world can have new regions that was not present in a past world.
 Things are a bit more complicated when it comes to revocation.
-\lau{Can we give a more precise explanation of why regions cannot be removed from the world (still in terms of intuition).}
-For technical reasons, we need the worlds to be extensional, so we cannot simply forget about regions that we want to remove.
+\lau{Can we give a more precise explanation of why regions cannot be removed from the world (still in terms of intuition).
+}
+\dominique{To be honest, I don't actually know what exactly would go wrong if we simply removed revoked regions.
+  Perhaps we should think this through?
+}
+For technical reasons, we need the worlds to be extensional\todo{Dominique: meaning?}, so we cannot simply forget about regions that we want to remove.
 We keep removed regions in the world and tag them as removed with a $\revoked$ tag.
 This means that the regions should be able to get the $\revoked$ tag which we express in a future region relation.
-Not all regions that should be revocable.
+
+Not all regions should be revocable.
+\todo[inline]{
+  Perhaps explain intuition with a phrase like ``Since regions express assumptions that the validity of other values in the system may depend on, we should only be able to revoke a region when we are sure that nothing depends on it.
+  This is never the case for shared regions, as blabla copying blabla...
+  However, if we have a linear capability to a block of memory, then linearity ensures that no other capability in the system can reference the same memory.''
+  }
+
 Specifically, it should only be the regions that specify memory governed by linear capabilities as linear capabilities, in some sense, can be revoked.
 A linear capability is the sole authority over some memory, so when a program possesses a linear capability, it knows for sure that no one else has access to that memory which makes it safe to repurpose.
 On the other hand, normal capabilities may have an alias, so it is not safe to repurpose the memory a normal capability has authority over.
@@ -231,6 +268,9 @@ The world a capability is safe with respect to is no longer needed when the capa
   \label{fig:ft-reg-rel}
 \end{figure}
 
+\todo[inline]{Dominique: it would be great if we could add an example here of two concrete capabilities, one of which is linear, the worlds in which they're valid and explain how we can revoke the linear one and repurpose the memory it addresses, but still keep the other capability valid in the new world?
+}
+
 With the future region relation in place, we define the future world relation as follows: For worlds $W$ and $W'$,
 \[
   W' \future W \text{ iff } \left\{
@@ -241,14 +281,15 @@ With the future region relation in place, we define the future world relation as
      \endarray
   \right.
 \]
-The relation says that each of the three worlds must be an extension of the past world and each of the existing region must have a future region.
+The relation says that each of the three worlds must be an extension of the past world and each of the existing regions must have a future region.
 % injective function
 Note that the future world relation has a mapping function $m_i$ which allows us to change the naming of regions in future worlds.
-The definition is a generalization of the standard definition where $m_i$ would be the identity\footnote{In \citet{skorstengaard_reasoning_2017} the future region relation and the reasoning about the awkward example could have been simplified with this future world relation.}.
+The definition is a generalization of the standard definition where $m_i$ would be the identity\footnote{In \citet{skorstengaard_reasoning_2017} the future region relation and the reasoning about the awkward example could have been simplified with this future world relation.}.\dominique{I wonder if the renaming function obviates the need for the ``revoked'' trick.}
 
 The memory invariants are world dependent, but the worlds may change according to the future world relation, so what does that mean for the memory invariants?
 The memory invariants describe what certain parts of memory looks like.
-In future worlds, part of the memory may change but for the memory invariant to be invariant, it should keep relating the same memory segments even when the rest of the world changes.
+In future worlds, part of the memory may change but for the memory invariant to be invariant, it should continue relating the same memory segments even when the rest of the world changes.
+\dominique{This discussion might be easier if we had talked about monotonicity earlier.}
 For this reason, we require the world-indexed memory invariants to be monotone in the world.
 This means that a pair of memory segments that are related now will stay related in future worlds.
 This changes the spatial regions as follows:
@@ -265,6 +306,7 @@ We make a similar change to $\Regionh$.
 
 \subsubsection{Solving the recursive domain equation}
 \label{subsubsec:rec-dom-eq}
+\dominique{Explain that this section provides technical details on how the recursive world equation can be solved and that readers may skip this if they like.}
 % TODO consider new structure (the below)
 % First introduce c.o.f.e.s and the structures you can freely use to get a solution for your recursive domain equation
 % Then introduce all the specialized gunk necessary for our worlds
@@ -275,6 +317,7 @@ In the previous sections, we have sketched what we would like our worlds to look
 However, the worlds we want constitute a self-referential domain equation for which no solution exists in set theory.
 % Move to a different domain
 Therefore, we need to move to a different domain with enough structure for a solution to exist for recursive equations.
+\dominique{mention that this is a standard technique (cite the relevant papers) and an abstracted form of step-indexing (cite some more papers).}
 We move to a setting where instead of sets we have c.o.f.e.'s (complete ordered families of equivalences), instead of functions we have non-expansive functions, and instead of relations we have downwards-closed relations.
 Intuitively, a c.o.f.e. is a set with some extra structure.
 Specifically, c.o.f.e.'s have a step-index that must satisfy a set of conditions which provide sufficient structure for a solution to exist for the recursive domain equation.
@@ -292,7 +335,9 @@ The pair must satisfy the following properties
 \item For all $x,y \in X$,  if for all $n \in \nats$ $x \nequal y$, then $x = y$.
 \end{enumerate}
 \end{definition}
+\dominique{Explain how an o.f.e. can be seen as a set with extra structure.}
 \noindent One can think of the indexes on the family of equivalences as a measure of precision.
+\dominique{Introduce phrases like ``up to n steps'' etc.}
 The larger $n$ is, the more refined the equivalences are.
 On the other hand as $n$ decreases, the equivalences become more and more imprecise and may be unable to distinguish elements that where distinguishable at higher indices.
 At index 0, all precision is lost and the equivalence cannot distinguish anything.
@@ -322,7 +367,6 @@ A function is called \emph{contractive} when it not only retain equivalences but
 \begin{definition}
   \label{def:nonexpansive-contractive-ofe}
   Let $\left(X,\left(\nequal[n]_X\right)_{n=0}^{\infty} \right)$ and $\left(Y,\left(\nequal[n]_Y\right)_{n=0}^{\infty} \right)$ be two ordered families of equivalences and $f$ a function from the set $X$ to the set $Y$.
-  We 
   The function $f$ is
   \begin{description}
   \item[non-expansive] when for all $x, x' \in X$, and all $n \in \nats$,
@@ -381,7 +425,7 @@ The future world relations is a preorder structure, so we define a notion of \em
   \item The ordering preserves limits. That is, for Cauchy sequences $\{a_n\}_n$ and $\{b_n\}_n$ in $X$ if $\{a_n\}_n \future\{b_n\}_n$, then $\lim \{a_n\}_n \future \lim \{b_n\}_n$.
   \end{itemize}
 \end{definition}
-With the preordere c.o.f.e.\ definition, we can define the remainder constructs necessary to define the world we need. Any c.o.f.e.\ can trivially be lifted to a preordered c.o.f.e.\ where the ordering is the identity.
+With the preordered c.o.f.e.\ definition, we can define the remainder constructs necessary to define the world we need. Any c.o.f.e.\ can trivially be lifted to a preordered c.o.f.e.\ where the ordering is the identity.
 
 The region invariants use monotone, non-expansive functions, so we need a c.o.f.e.\ to represent them.
 This c.o.f.e.\ is defined as follows.
@@ -484,11 +528,12 @@ As this is not an inherent property of c.o.f.e.'s, we have a c.o.f.e.\ construct
   \[
     x \nequal[0]_{\blater} x' \wedge x \nequal[n]_{\blater} x' \text{ iff } x \nequal[n+1]_X x'
   \]
+  \dominique{shouldn't this be $x \nequal[n+1]_{\blater} x' \text{ iff } x \nequal[n]_X x'$}
 \end{lemma}
 The later needs to guard all negative self-references in a recursive domain equation in order for a solution to exist.
 The modality does not have to be placed directly on the self-reference.
 For instance in the Theorem~\ref{thm:rec-dom-eq-sol}, it is placed on the world itself.
-The later placement does, however, affect what the logical relation definitions in Section~\ref{subsec:logical-relation} looks like, so in the end it is a matter of taste.
+The later placement does, however, affect what the logical relation definitions in Section~\ref{subsec:logical-relation} looks like, so in the end it is a matter of taste.\dominique{This reasoning is odd: it's a matter of taste because it affects what the LR looks like?}
 % Solution theorem
 \begin{theorem}
   \label{thm:rec-dom-eq-sol}
@@ -584,7 +629,8 @@ This is expressed by the $\oplus$ operator.
                                            =  & \; (\spatialo,H)
 \end{align*}
 \end{definition}
-The $\oplus$ operator, like the $\uplus$ operator, does not guarantee that the resulting world is sensible (e.g., the regions are not overlapping), but when we use a world, we will always make sure that it is sensible by using memory satisfaction.
+The $\oplus$ operator, like the $\uplus$ operator, does not guarantee that the resulting world is sensible (e.g., the regions are not overlapping).
+Only when we know that a certain memory satisfies the world (as a memory specification, see Section~\ref{subsubsec:mem-sat}), will we be sure that the world's specifications are actually non-contradictory.
 
 The $\uplus$ operator is used in the logical relation for components (\sectionname~\ref{subsec:component-rel}) which specifies (among other things) that the world should specify the presence of the component's data memory.
 Linking two components then produces a new component with both components' data memory.
@@ -607,6 +653,11 @@ The world also keeps track of the structure of the call stack, the allowed uses 
 The world definition on its own allows the invariants imposed by regions to be overlapping.
 However, to be able to easily determine what invariants a memory segment must respect, we want the invariants of the regions to impose requirements on disjoint parts of the memory.
 The memory satisfaction relation makes sure that this is the case, so in a sense the memory satisfaction also acts as a well-formedness judgement for worlds.
+
+\dominique{At this point, the paper is starting to read like a tech report.
+  Are we sure it's a good idea to provide this much technical detail?
+  I would propose to not include all definitions, but a representative selection and refer to the TR for full detail.
+}
 
 Memory satisfaction is split into four definitions.
 At the top-level we have $\memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W}$ which relates the source memory triple, $\ms_S$ (heap), $\ms_\stk$ (free stack), and $\stk$ (stack frames), from \srccm{} to the target memory $\ms_T$ from \trgcm{}.
@@ -828,9 +879,9 @@ The most important relations are summarised in the following table, where we men
 In Section~\ref{subsubsec:mem-sat}, we already defined memory satisfaction, the relation for memories.
 In the following, we define each of the remaining relations and give some intuition about the definitions.
 The logical relation we define ends up as a cyclic definition.
-The circularity is resolved by another use of step-indexing in the definitions, but the circularity also poses a chicken and egg kinda situation with respect to the order in which the definitions of the relations should be presented.
+The circularity is resolved by another use of step-indexing in the definitions, but the circularity also poses a chicken and egg problem with respect to the order in which the definitions of the relations should be presented.
 There is no canonical way of presenting the logical relation as we are bound to make forward references.
-For this reason, we suggest making a cursorily first read through to get an overview followed by a more thorough read.
+For this reason, we suggest making a cursory first read through to get an overview followed by a more thorough read.
 % TODO something about relation naming?
 
 \subsubsection{Observation relation}
