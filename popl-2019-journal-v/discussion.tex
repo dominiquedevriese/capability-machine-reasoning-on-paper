@@ -36,11 +36,13 @@ Perhaps other reusable components of secure compilers could be formulated simila
   \stktokens{} ensures a standard call-return control-flow, but if we want a different kind of control-flow, for instance call/CC, then we need to come up with a different enforcement scheme.
   Further, many high-level languages have exceptions which is yet another form of control-flow which is also not supported by \stktokens{}.
   This goes to show how we must consider what high-level language we want in order to answer the question of what properties we must enforce to get a fully-abstract compiler.
+  \dominique{Yes, but what if we want exceptions, can StkTokens be modified to support it? What about continuations? Also: should we mention the limited additional control flow we seem to get if we omit the stack base check (where  adversaries can use a kind of non-preemptive multi-threading)? Perhaps the answer to some of these question is that we don't know but we should still give it.}
   % Lau: Say something about address hiding?
   
   % Say something about horizontal vs vertical composition.
   Fully-abstract compilers compose vertically which means that if we defined a compiler phase that targets \srccm{}, then we could use the full-abstraction theorem immediately.
   However, fully-abstract compilers do not extend vertically in the sense that if we add a new feature in the target and source language, then the full-abstraction theorem does not follow immediately.
+  \dominique{I find this ``vertical extensionality'' both vague and unrealistic. Should we really discuss this?}
   Intuitively, this is the case because the new feature may have an unforeseen interaction with existing features that breaks a desired property.
   In order to enforce more language properties on capability machines, it is reasonable to assume that new capability primitives may be necessary.
   \stktokens{}, for instance, requires linear capabilities, and \citet{skorstengaard_reasoning_2017} uses local capabilities to enforce WBCF and LSE.
@@ -49,8 +51,15 @@ Perhaps other reusable components of secure compilers could be formulated simila
   If we extended \trgcm{} and \srccm{} with new such capabilities, then we would have to redo the entire full-abstraction proof.
 
   % new paragraph: conditional full-abstraction
+  \dominique{This paragraph should perhaps also point out the link to the dynamic compromise paper?}
   Our full-abstraction theorem, Theorem~\ref{thm:full-abstraction}, is not pure full-abstraction as it requires the components to be reasonable and well-formed.
   In other words, if we were to define a compiler phase that targets \srccm{}, then we would also have to show that every program it generates is well-formed and reasonable in order to use the full-abstraction result.
+  \dominique{The word ``however'' is wrong in the next sentence.  IIUC, you're explaining *why* we require the previous compiler phase to have ensured reasonability instead of enforcing reasonability in StkTokens.
+  This is very confusing.}
+  \dominique{Also: I'm not sure it's a good idea to lump together reasonability and well-formedness.
+    In my understanding, well-formedness is a set of *syntactic* constraints and the requirement that the linker has distributed seals properly.
+    As such, the discussion below seems to be only about reasonability, not well-formedness.
+  }
   However, even though the well-formed and reasonable conditions are fairly simple, it is too late to ensure them at this point of the compilation.
   For instance, reasonability require that return seals are not passed to the adversary in calls.
   In order to ensure this with \stktokens{}, we would have to add checks to the calling convention that ensures that seals are not passed as arguments in calls.
@@ -98,9 +107,16 @@ The processor could perhaps also (be told to) rely on the fact that race conditi
 \begin{jversion}
 Programs that use a C-like calling convention often allow programs to pass a stack reference in a call either to provide a reference for a piece of memory to work on or to indicate where the result of the call should be placed.
 \stktokens{} does not support this as it expects to get a stack pointer for the entire stack it handed out.
+\dominique{Err... I don't see the problem.
+  Passing stack references to callees should work fine, as long as the callee treats them linearly (i.e.\ doesn't try to copy them).
+  }
 However, if we have allocated part of the stack for a different purpose and handed out a reference for it, then the stack pointer cannot reference the same memory as the stack pointer is a linear capability.
+\dominique{I don't understand this sentence.}
 However, while it is not possible to allocate a reference for the stack, one can easily imagine that the stack could still be used to pass and return values.
+\dominique{Or this one...}
 \end{jversion}
+
+\dominique{Perhaps worth mentioning the problem with adding support for linear values in a real C compiler: how to explain to the compiler that it should treat the linear values linearly and not use optimizations that will break this.}
 
 %%% Local Variables:
 %%% TeX-master: "paper"
