@@ -51,36 +51,30 @@ Perhaps other reusable components of secure compilers could be formulated simila
   This means that a callee can store them for subsequent calls preventing us from using different continuations and exceptions for different calls.
 
   \dominique{Also: should we mention the limited additional control flow we seem to get if we omit the stack base check (where  adversaries can use a kind of non-preemptive multi-threading)?}
-  
+
+\begin{thesisonly}
   % Say something about horizontal vs vertical composition.
   Fully-abstract compilers compose vertically which means that if we defined a compiler phase that targets \srccm{}, then we could use the full-abstraction theorem immediately.
   However, fully-abstract compilers do not extend horizontally in the sense that if we add a new feature in the target and source language, then the full-abstraction theorem does not follow immediately.
-  \dominique{I find this ``vertical extensionality'' both vague and unrealistic. Should we really discuss this?}
   Intuitively, this is the case because the new feature may have an unforeseen interaction with existing features that breaks a desired property.
   In order to enforce more language properties on capability machines, it is reasonable to assume that new capability primitives may be necessary.
   \stktokens{}, for instance, requires linear capabilities, and \citet{skorstengaard_reasoning_2017} uses local capabilities to enforce WBCF and LSE.
   In order to implement address-hiding (i.e.\ have references that do not expose the address they actually point to), it is reasonable to believe that one would need a new capability primitive.
   After all, the capabilities we use here do not hide the addresses in any meaningful way, so a new ``address hiding'' capability would be necessary to enforce this property.
-  If we extended \trgcm{} and \srccm{} with new such capabilities, then we would have to redo the entire full-abstraction proof.
+  If we extended \trgcm{} and \srccm{} with such new capabilities, then we would have to redo the entire full-abstraction proof.
+\end{thesisonly}
 
   % new paragraph: conditional full-abstraction
   \dominique{This paragraph should perhaps also point out the link to the dynamic compromise paper?}
   Our full-abstraction theorem, Theorem~\ref{thm:full-abstraction}, is not pure full-abstraction as it requires the components to be reasonable and well-formed.
   In other words, if we were to define a compiler phase that targets \srccm{}, then we would also have to show that every program it generates is well-formed and reasonable in order to use the full-abstraction result.
-  \dominique{The word ``however'' is wrong in the next sentence.  IIUC, you're explaining *why* we require the previous compiler phase to have ensured reasonability instead of enforcing reasonability in StkTokens.
-  This is very confusing.}
-  \dominique{Also: I'm not sure it's a good idea to lump together reasonability and well-formedness.
-    In my understanding, well-formedness is a set of *syntactic* constraints and the requirement that the linker has distributed seals properly.
-    As such, the discussion below seems to be only about reasonability, not well-formedness.
-  }
-  However, even though the well-formed and reasonable conditions are fairly simple, it is too late to ensure them at this point of the compilation.
-  For instance, reasonability require that return seals are not passed to the adversary in calls.
-  In order to ensure this with \stktokens{}, we would have to add checks to the calling convention that ensures that seals are not passed as arguments in calls.
-  In other words, we would need to add protection to the trusted program against itself which of course shouldn't be necessary.
-  The calling convention should only include protection schemes that protects against untrusted programs.
-  The compiler should generate programs that are actually trustworthy, so we do not have to add protection against the generated programs.
-  However, when we consider \srccm{} components, we have already committed to a program consisting of low-level instructions.
-  The correct place to ensure that our programs are well-formed and reasonable is when we actually generate the instructions and commit to the low-level code which is the phase that goes from the high-level language (or some intermediate representation) to a low-level machine like \srccm{}.
+  Without the reasonability constraint, \stktokens{} would have to enforce reasonability instead.
+  That is, \stktokens{} would have to dynamically ensure that no return seals or means to get return seals are passed in calls.
+  Essentially, such checks would protect the trusted code against itself which shouldn't be necessary in the first place.
+  Instead, the compiler should generate reasonable code that never exhibits the unreasonable behaviour.
+  This should be done in a compiler phase where more information about the original program is available, e.g.\ the compilation phase that commits to the low-level translation.
+  Similarly for the syntactic constraints given by well-formedness.
+  The compiler should make sure to generate code that satisfies the well-formedness judgement, so it can be executed by the machine.
 
   % TODO new paragraph: Machine checked proof. MANY details, any future work should be machine checked?
   One challenge in full-abstraction proofs is to relate the translation of program to the program it was translated from.
