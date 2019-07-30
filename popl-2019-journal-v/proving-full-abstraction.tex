@@ -183,56 +183,42 @@ Therefore, in addition to a relation on memory segments, some regions also carry
   \{\pure \} \times (\World \fun \Rel{\MemSeg\times\MemSeg}) \times \\
   (\Seal \parfun \World \fun \Rel{\SealableCaps \times \SealableCaps})
 \end{multline*}
-
-We will also refer to the seal interpretation function as the seal invariant, and we will refer to the memory relation as the memory invariant or just invariant when it is unambiguous.
+We also refer to the seal interpretation function as the seal invariant, and we will refer to the memory relation as the memory invariant or just invariant when it is unambiguous.
 
 \lau{Maybe add a bit more of explanation? Invariant needed for the LR to make sure that designated seals are used for their purpose. }
 
 \subsubsection{Future worlds and revocation}
 \label{subsubsec:ft-and-revocation}
 % Memory evolves over time, we need to model this.
-During machine execution, the memory contents changes and parts of memory may be repurposed\todo[inline]{Dominique: Add something like ``, at least when we can be sure that there are no capabilities left in the system whose validity depends on the old contents of the memory.''?}.
-The world must model such memory changes.
-% Future World
-To this end, we have a future world relation $\future$ that describes how worlds and thus memory may change over time.
-\todo[inline]{Rather than introducing the future world relation as ``how memory may change over time'', then its precise definition and then monotonicity, I would explain monotonicity first and the precise definition of the future world relation second.
-  IMHO, it makes a lot more sense if you think about the future world as modelling precisely those changes in assumptions that do not invalidate the relatedness of values.
-  In other words, I would say something like ``Very often, it is the case that relatedness of two capabilities doesn't change if extra assumptions in the system are added. For example, two related capabilities remain related when an extra invariant is added on unrelated memory, or when a stack frame that it does not reference is dropped.
-  In Kripke logical relations, this kind of assumption changes, that do not invalidate the relatedness of values, are modelled by the future world relation.
-  etc.''
-  }
+Very often, relatedness of two capabilities does not change if extra assumptions in the system are added.
+For example, two related capabilities remain related when an extra invariant is added on unrelated memory, or when a stack frame that it does not reference is dropped.
+In Kripke logical relations, this kind of assumption changes, that do not invalidate the relatedness of values, are modelled by the future world relation $\future$.
+The future world relation can also be thought of as the model of memory changes over time.
 
-  \todo[inline]{Maybe explain here that Kripke future world relations usually only allow for adding fresh assumptions on fresh memory or protocol steps that the system was designed to support from the start.
-    However in our setting, we sometimes allow dropping assumptions, namely when linearity tells us that no value in the system depends on the capability anymore.
-    By linking revocation of regions immediately to linearity, it will require less explanation later that only shadow regions can be revoked.
-  }
-In order to relate \trgcm{} and \srccm{}, we are mainly interested in changes to the stack as it repurposes stack frames.
-Specifically, we need to introduce regions to govern new encapsulated stack frames, and we need to revoke regions for call frames that are popped from the call stack, to make place for a new frame.
-We allow introduction of new regions simply by extension.
-That is, a future world can have new regions that was not present in a past world.
-Things are a bit more complicated when it comes to revocation.
-\lau{Can we give a more precise explanation of why regions cannot be removed from the world (still in terms of intuition).
-}
-\dominique{To be honest, I don't actually know what exactly would go wrong if we simply removed revoked regions.
-  Perhaps we should think this through?
-}
-For technical reasons, we need the worlds to be extensional\todo{Dominique: meaning?}, so we cannot simply forget about regions that we want to remove.
-We keep removed regions in the world and tag them as removed with a $\revoked$ tag.
-This means that the regions should be able to get the $\revoked$ tag which we express in a future region relation.
+The memory invariants in the world should be defined, so they are monotone with respect to the future world relation.
+This means that the system assumptions capabilities rely on for safety are defined such that capabilities remain safe during execution.
+Specifically, we require the world-indexed memory invariants to be monotone in the world.
+This means that a pair of memory segments that are related now will stay related in future worlds.
+This changes the spatial regions as follows:
+\[
+  \Regions = \left\{
+  \begin{array}{l}
+    \{\spatial \} \times (\World \monfun \Rel{\MemSeg \times \MemSeg}) \cup \\
+    \{\spatialo \} \times (\World \monfun \Rel{\MemSeg \times \MemSeg}) \cup \\
+    \{\revoked \}
+  \end{array} \right.
+\]
+We make a similar change to $\Regionh$, and we make the seal invariant monotone as well.
 
-Not all regions should be revocable.
-\todo[inline]{
-  Perhaps explain intuition with a phrase like ``Since regions express assumptions that the validity of other values in the system may depend on, we should only be able to revoke a region when we are sure that nothing depends on it.
-  This is never the case for shared regions, as blabla copying blabla...
-  However, if we have a linear capability to a block of memory, then linearity ensures that no other capability in the system can reference the same memory.''
-  }
+Kripke future world relation must be defined such that future worlds are extensions of the past world.
+In other words, future world relations usually only allow for adding fresh assumptions on fresh memory or protocol steps that the system was designed to support from the start.
+However in our setting, we sometimes allow dropping assumptions, namely when linearity tells us that no value in the system depends on assumption anymore.
+Specifically, if we have the only linear capability for a piece of memory, then we can be sure that there are no other capabilities for the same memory which makes it sure to repurpose the memory.
+In terms of the world, this corresponds to dropping a region and replacing it with a new one.
+Due to the fact that future worlds must be an extension of the past world, we cannot drop a region.
+Instead, we mark it as revoked which for all intends and purposes corresponds to dropping the region. 
 
-Specifically, it should only be the regions that specify memory governed by linear capabilities as linear capabilities, in some sense, can be revoked.
-A linear capability is the sole authority over some memory, so when a program possesses a linear capability, it knows for sure that no one else has access to that memory which makes it safe to repurpose.
-On the other hand, normal capabilities may have an alias, so it is not safe to repurpose the memory a normal capability has authority over.
-Only spatial regions specify memory governed by linear capabilities, so we only add the revoked tag to the $\Regions$.
-The $\revoked$ region does not specify any memory, so we drop the world indexed relation.
-That is, we have
+We add a $\revoked$ tag to the spatial regions $\Regions$ which results in
 \[
   \Regions = \left\{
   \begin{array}{l}
@@ -241,11 +227,19 @@ That is, we have
     \{\revoked \}
   \end{array} \right.
 \]
-The rules for the future region relation are displayed in Figure~\ref{fig:ft-reg-rel}.
-% Revocation of spatial regions. 'revocation' of linear capabilities.
-The first rule says that all regions are future regions of themselves, so regions are allowed to stay unchanged.
-The second rule says that $\spatial$ regions can become $\revoked$ which means that nothing can depends on the region anymore.
-The third and final rule says that $\spatial$ regions can become $\spatialo$ which indicates that the linear capabilities are affine.
+The $\spatialo$-region signifies that a linear capability \emph{may} depend on it which means that it cannot be revoked.
+On the other hand, no capability can depend on a $\spatial$-region, so it can be safely revoked.
+This may be confusing as a $\spatial$-region does not mean that you ``have'' the capability, but we just explained that having a linear capability means that you can repurpose the memory it points to.
+As we will see later, the logical relation makes disjoint splits of ownership, so each capability gets its own ownership to depend on.
+A linear capability that is repurposed will get an entirely new world to depend on.
+After all, a future world would have to respect the old assumptions, but a repurposed capability needs to depend on new assumptions.
+The new world constructed for the repurposed linear capability would have a revoked region in place of the $\spatialo$-region, but the new world would not be a future world of the world it depended on before.
+While the repurposed capability gets a new world to depend on, all other capabilities in the system must remain valid in a future world to the one they depend on.
+Further, the future worlds must be compatible (agree on everything but ownership) with the new world.
+This means that all the $\spatial$-regions must be replaced with $\revoked$ regions which is why $\spatial$ regions can be turned into $\revoked$ regions.
+
+We define the future world relation in terms of a future region relation which is displayed in Figure~\ref{fig:ft-reg-rel}.
+Apart from being revoked, a region can stay the same, or a $\spatial$ region can become $\spatialo$ which models the affinity of the linear capabilities.
 Specifically, the linear capabilities in \trgcm{} and \srccm{} can be dropped by overwriting them in registers or memory which makes the linear capabilities affine.
 The world a capability is safe with respect to is no longer needed when the capability is dropped, so other worlds may pick up the ownership which the future region relation allows.
 % describe why "Spatial -> spatialo" ~ affine or at least why we have it?
@@ -261,11 +255,160 @@ The world a capability is safe with respect to is no longer needed when the capa
   \caption{Future region relation.}
   \label{fig:ft-reg-rel}
 \end{figure}
+The above repurposing discussion is exemplified in \figurename~\ref{fig:world-example}.
+The Figure displays two capabilities $c_{\var{normal}}$ and $c_{\var{linear}}$ that are normal and linear, respectively.
+The linear capability is valid with respect to $W_1$ which has the necessary $\spatialo$ region, and the normal capability is valid with respect to $W_2$ which has a $\pure$ region.
+The two worlds are compatible as $W_2$ has a $\spatial$ region that matches the $\spatialo$ region of $W_1$.
+When the linear capability is repurposed, it must be reflected by the worlds $W_1'$ and $W_2'$.
+In both new worlds, the $r_2$ region is replaced with a $\revoked$ region.
+$W_1'$ has a new $\spatialo$ region at $r_3$, and $W_2'$ gets a matching $\spatial$ region.
+The new world for the linear capability, $W_1'$, is not a future world of $W_1$ as it replaces a $\spatialo$ region with a $\revoked$ region which is not allowed by the future region relation.
+The new world for the normal capability, $W_2'$, is a future world of $W_2$ as the future region relation allows $\spatial$ regions to be revoked.
+The normal capability $c_{\var{normal}}$ remains valid in $W_2'$ as the $\pure$ region it depends on is monotone with respect to the future world relation.
+\begin{figure}\centering
+  
+  \begin{tikzpicture}[scale=.5, every node={scale=.5}]
+    \begin{scope}
+  \scope
+    \clip (-.1,-.1) rectangle (4.6,11.1);
+    \fill[fill=white] (0,0) rectangle (4.5,11);
+    \draw (0,0) -- (0,11);
+    \draw (4.5,0) -- (4.5,11);
+      \foreach \x in {.5,1,...,10}
+      {
+        \draw[fill=white] (0,\x) rectangle (4.5,\x+.5) node[pos=.5,color=teal] {};
+      };
+  \endscope
+  \draw [decorate,decoration={brace,amplitude=7pt,raise=4pt},yshift=0pt] (-.025,0.5) -- (-.125,5) node (lin) [black,midway,xshift=-0.25cm,align=center] { };
+  \draw (-5,3) edge[-latex, bend right, in=180, out=-20, dashed] node[below] {$c_{\var{lin}}$}(lin);
+  
+  \draw [decorate,decoration={brace,amplitude=7pt,raise=4pt},yshift=0pt] (-.025,6) -- (-.125,10.5) node (norm) [black,midway,xshift=-0.25cm,align=center] { };
+  \draw (-5,8.5) edge[-latex, bend right, in=180, out=-20] node[below] {$c_{\var{norm}}$} (norm);
 
-\todo[inline]{Dominique: it would be great if we could add an example here of two concrete capabilities, one of which is linear, the worlds in which they're valid and explain how we can revoke the linear one and repurpose the memory it addresses, but still keep the other capability valid in the new world?
-}
+  \draw (-0.25,10.5) edge[very thin, densely dashed, opacity=6] (11,10.5);
+  \draw (-0.25,6) edge[very thin, densely dashed, opacity=6] (11,6);
+  \draw (-0.25,5) edge[very thin, densely dashed, opacity=0.5] (11,5);
+  \draw (-0.25,0.5) edge[very thin, densely dashed, opacity=0.5] (11,0.5);
+\end{scope}
 
-With the future region relation in place, we define the future world relation as follows: For worlds $W$ and $W'$,
+  \begin{scope}[shift={(11,0)}]
+  \scope
+    \clip (-.1,-.1) rectangle (4.6,11.1);
+    \fill[fill=white] (0,0) rectangle (4.5,11);
+    \draw (0,0) -- (0,11);
+    \draw (4.5,0) -- (4.5,11);
+      \foreach \x in {.5,1,...,10}
+      {
+        \draw[fill=white] (0,\x) rectangle (4.5,\x+.5) node[pos=.5,color=teal] {};
+      };
+  \endscope
+
+  \draw (-4,11.5) node {\huge $W_1$};
+  \draw (-4,8) node (w1r1) {$r_1$};
+  \draw (-4,5.5) node (w1r2) {$r_2$};
+
+  \draw[red, fill=red, fill opacity=.5] (-.5,10.5) rectangle (1.5,6) node[fitting node] (w1s) { };
+  \draw (w1r1) edge[->,in=180, out=10] (w1s.west);
+
+  \draw[blue, fill=blue, fill opacity=.6] (-.5,5) rectangle (1.5,0.5) node[fitting node] (w1l) { };
+  \draw (w1r2) edge[->,in=180, out=-30] (w1l.west);
+
+
+  \draw (8.5,11.5) node {\huge $W_2$};
+  \draw (8.5,8) node  (w2r1) {$r_1$};
+  \draw (8.5,5.5) node (w2r2) {$r_2$};
+
+  \draw[red, fill=red, fill opacity=.5] (3,10.5) rectangle (5,6) node[fitting node] (w2s) { };
+  \draw (w2r1) edge[->,in=0, out=170] (w2s.east);
+
+  \draw[gray, fill=gray, fill opacity=.4] (3,5) rectangle (5,0.5) node[fitting node] (w2l) { };
+  \draw (w2r2) edge[->,in=0, out=210] (w2l.east);
+
+  \end{scope}
+
+  \begin{scope}[shift={(11,-15)}]
+  \scope
+    \clip (-.1,-.1) rectangle (4.6,11.1);
+    \fill[fill=white] (0,0) rectangle (4.5,11);
+    \draw (0,0) -- (0,11);
+    \draw (4.5,0) -- (4.5,11);
+      \foreach \x in {.5,1,...,10}
+      {
+        \draw[fill=white] (0,\x) rectangle (4.5,\x+.5) node[pos=.5,color=teal] {};
+      };
+  \endscope
+
+  \draw (-4,11.5) node (w1) {\huge $W_1'$};
+  \draw node[above of=w1,rotate=-90] {\huge $\not\sqsubseteq$};
+  \draw (-4,8) node (w1r1) {$r_1$};
+  \draw (-4,5.5) node (w1r2) {$r_2$};
+  \draw (-4,3) node (w1r3) {$r_3$};
+
+  \draw[red, fill=red, fill opacity=.5] (-.5,10.5) rectangle (1.5,6) node[fitting node] (w1s) { };
+  \draw (w1r1) edge[->,in=180, out=10] (w1s.west);
+
+  % TODO do something about the capabilities
+  \node[draw,rectangle, black, minimum size=2mm] (w1r) at (-2,5) {  };
+  \node[fit=(w1r),black,inner sep=-\pgflinewidth,cross out, draw] (test) { };
+  \draw (w1r2) edge[->, out=0] (w1r);
+
+  \draw[green, fill=green, fill opacity=.7] (-.5,5) rectangle (1.5,0.5) node[fitting node] (w1l) { };
+  \draw (w1r3) edge[->,in=180, out=-30] (w1l.west);
+
+
+  \draw (8.5,11.5) node (w2) {\huge $W_2'$};
+  \draw node[above of=w2,rotate=-90] {\huge $\sqsubseteq$};
+  \draw (8.5,8) node  (w2r1) {$r_1$};
+  \draw (8.5,5.5) node (w2r2) {$r_2$};
+  \draw (8.5,3) node (w2r3) {$r_3$};
+
+  \draw[red, fill=red, fill opacity=.5] (3,10.5) rectangle (5,6) node[fitting node] (w2s) { };
+  \draw (w2r1) edge[->,in=0, out=170] (w2s.east);
+
+  \node[draw,rectangle, black, minimum size=2mm] (w2r) at (6.5,5) {  };
+  \node[fit=(w2r),black,inner sep=-\pgflinewidth,cross out, draw] (test) { };
+  \draw (w2r2) edge[->, out=180,in=45] (w2r);
+
+
+  \draw[gray, fill=gray, fill opacity=.4] (3,5) rectangle (5,0.5) node[fitting node] (w2l) { };
+  \draw (w2r3) edge[->,in=0, out=210] (w2l.east);
+
+  \end{scope}
+
+   \matrix [draw,above right, column sep=1.5mm,xshift=.4cm,yshift=.4cm] at (current bounding box.south west) {
+  &\node[red, fill=red, fill opacity=.5,minimum size=0.4cm,label=right:{\footnotesize Shared region}] {}; \\
+    &\node[gray, fill=gray, fill opacity=.4,minimum size=0.4cm,label=right:{\footnotesize Shadow region}] {}; \\
+     \node[green, fill=green, fill opacity=.7,minimum size=0.4cm] {};
+    &\node[blue, fill=blue, fill opacity=.6,minimum size=0.4cm,draw,label=right:{\footnotesize Spatial region}] {}; \\
+    &\node[draw,rectangle, black, minimum size=4mm] (rev) {};
+    \node[fit=(rev),black,inner sep=-\pgflinewidth,cross out, draw, label=right:{\footnotesize Revoked region}] {};\\
+    \node[minimum size=0.4cm] (ln) {}; & \node[minimum size=0.4cm,label=right:{\footnotesize Normal capability}] (rn) {};\\
+    \node[minimum size=0.4cm] (ll) {}; & \node[minimum size=0.4cm,label=right:{\footnotesize Linear capability}] (rl) {};\\
+};
+\draw (ln.west) edge[-latex,out=-20,in=160] (rn.east);
+\draw (ll.west) edge[-latex,out=-20,in=160,dashed] (rl.east);
+
+%   \matrix [draw,below right, column sep=1.5mm, anchor=south west] at (current bounding box.south west) {
+%     &\node[red, fill=red, fill opacity=.5,minimum size=0.4cm,label=right:{\footnotesize Shared region}] {}; \\
+%     &\node[gray, fill=gray, fill opacity=.4,minimum size=0.4cm,label=right:{\footnotesize Shadow region}] {}; \\
+%      \node[green, fill=green, fill opacity=.7,minimum size=0.4cm] {};
+%     &\node[blue, fill=blue, fill opacity=.6,minimum size=0.4cm,draw,label=right:{\footnotesize Spatial region}] {}; \\
+%     &\node[draw,rectangle, black, minimum size=2mm] (rev) {};
+%      \node[fit=(rev),black,inner sep=-\pgflinewidth,cross out, draw, label=right:{\footnotesize Revoked region}] {};\\
+% };
+\end{tikzpicture}
+
+\caption{Example what happens to worlds when a linear capability $c_{\var{lin}}$ is repurposed.
+  The linear capability is originally valid with respect to $W_1$.
+  In $W_1'$ there is a new spatial region that the linear capability is valid with respect to (the different coloured regions signify different invariants).
+  $W_1'$ still has $r_2$, but now it points to a $\revoked$ region.
+  This means that $W_1'$ is not a future world of $W_1$.
+  The normal capability $c_{\var{norm}}$ is originally valid with respect to $W_2$ and should stay valid with respect to the new world $W_2'$.
+The $W_2'$ is a future world of $W_2$ as the $\spatial$ region in $W_2$ is replaced with a $\revoked$ region which is permitted by the future world relation.}
+\label{fig:world-example}
+\end{figure}
+
+With the future region relation in place, we can define the future world relation as follows: For worlds $W$ and $W'$,
 \[
   W' \future W \text{ iff } \left\{
     \array{l}
@@ -279,24 +422,6 @@ The relation says that each of the three worlds must be an extension of the past
 % injective function
 Note that the future world relation has a mapping function $m_i$ which allows us to change the naming of regions in future worlds.
 The definition is a generalization of the standard definition where $m_i$ would be the identity\footnote{In \citet{skorstengaard_reasoning_2017} the future region relation and the reasoning about the awkward example could have been simplified with this future world relation.}.\dominique{I wonder if the renaming function obviates the need for the ``revoked'' trick.}
-
-The memory invariants are world dependent, but the worlds may change according to the future world relation, so what does that mean for the memory invariants?
-The memory invariants describe what certain parts of memory looks like.
-In future worlds, part of the memory may change but for the memory invariant to be invariant, it should continue relating the same memory segments even when the rest of the world changes.
-\dominique{This discussion might be easier if we had talked about monotonicity earlier.}
-For this reason, we require the world-indexed memory invariants to be monotone in the world.
-This means that a pair of memory segments that are related now will stay related in future worlds.
-This changes the spatial regions as follows:
-\[
-  \Regions = \left\{
-  \begin{array}{l}
-    \{\spatial \} \times (\World \monfun \Rel{\MemSeg \times \MemSeg}) \cup \\
-    \{\spatialo \} \times (\World \monfun \Rel{\MemSeg \times \MemSeg}) \cup \\
-    \{\revoked \}
-  \end{array} \right.
-\]
-We make a similar change to $\Regionh$.
-% TODO update terminology: memory invariant, H, and seal invariant, H_\sigma
 
 \subsubsection{Solving the recursive domain equation}
 \label{subsubsec:rec-dom-eq}
@@ -1697,6 +1822,7 @@ We do not know what an adversary may seal or what seal they may use, so, for eve
 \label{fig:untrusted-val-rel}
 \end{figure}
 
+\lau{TODO: insert monotonicity lemma}
 \paragraph{The trusted value relation}
 \label{par:trusted-val-rel}
 The trusted value relation $\lrvname_\trusted$ relates everything safe for a trusted component to have without breaking memory invariants.
@@ -1748,6 +1874,7 @@ However, trusted code can have access to such seals because we expect the truste
 \caption{The trusted value relation $\lrvname_\trusted$ relates all the words that are safe for trusted components to contain. A trusted component may contain untrusted words (\figurename~\ref{fig:untrusted-val-rel}), return seals and trusted closure seals, and code pointers for trusted code. }
 \label{fig:trusted-val-rel}
 \end{figure}
+
 \subsubsection{Register file relation}
 The register file relation relates \srccm{} register files to \trgcm{} register files.
 Intuitively, two register files are related when they only contain safe words, i.e.\ words from the value relation.
