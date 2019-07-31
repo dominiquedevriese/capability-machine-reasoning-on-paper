@@ -149,10 +149,10 @@ We refer to this as the shared part of the world and define the function $\pureP
                          (\spatial,\var{sm}) & \text{if } W_\var{heap}(r) = (\spatialo,\var{sm})\\
                          W_{\var{heap}}(r) & \text{otherwise}
                        \end{cases}\\
-    \purePart{W_\var{priv}} &\defeq \lambda r\ldotp
+    \purePart{W_\var{call\_stk}} &\defeq \lambda r\ldotp
                        \begin{cases}
-                         ((\spatial,\var{sm}),\opc) & \text{if } W_\var{priv}(r) = ((\spatialo,\var{sm}),\opc)\\
-                         W_\var{priv}(r) & \text{otherwise}
+                         ((\spatial,\var{sm}),\opc) & \text{if } W_\var{call\_stk}(r) = ((\spatialo,\var{sm}),\opc)\\
+                         W_\var{call\_stk}(r) & \text{otherwise}
                        \end{cases}\\
     \purePart{W_\var{free}} &\defeq \lambda r\ldotp
                        \begin{cases}
@@ -408,7 +408,7 @@ With the future region relation in place, we can define the future world relatio
 \[
   W' \future W \text{ iff } \left\{
     \array{l}
-    \text{for $i \in \{\mathrm{heap},\mathrm{free},\mathrm{priv} \}$} \\
+    \text{for $i \in \{\mathrm{heap},\mathrm{free\_stk},\mathrm{call\_stk} \}$} \\
     \quad\exists m_i : \RegionName \fun \RegionName, \text{ injective}\ldotp\\
     \qquad \dom(W'.i) \supseteq \dom(m_i(W.i)) \wedge \forall r \in \dom(W.i)\ldotp W'.i(m_i(r)) \future W.i(r)
      \endarray
@@ -1379,10 +1379,11 @@ To express this, we define a \emph{static region}.
 The static region is parameterised with a memory segment pair which is the only memory segment pair the region accepts.
 The memory invariant is defined as follows
 \[
-  H^\mathrm{sta,\square}_{\stpair{\ms}{\ms}} \; \gc \defeq \left\{ \npair{\stpair{\ms}{\ms}} \middle| 
+  H^\mathrm{sta,\square}_{\stpair{\ms}{\ms}} \; \gc \; \hat{W} \defeq \left\{ \npair{\stpair{\ms}{\ms}} \middle| 
     \begin{array}{l}
       \dom(\ms_S) = \dom(\ms_T) \wedge \\
-      \exists S : \dom(\ms_S) \fun \World \ldotp \xi(W) = \oplus_{\aaddr \in \dom(\ms)} S(\aaddr) \wedge\\
+      \exists S : \dom(\ms_S) \fun \World \ldotp \xi(\hat{W}
+      ) = \oplus_{\aaddr \in \dom(\ms)} S(\aaddr) \wedge\\
       \quad \forall \aaddr \in \dom(\ms_S) \ldotp \npair{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
     \end{array}
 \right\}
@@ -1453,7 +1454,7 @@ That is on \srccm{}, the return seals should only be used to seal $\retptrc{}$ a
         \sigrets \subseteq \gsigrets \tand \\
         \dom(\code) \subseteq \ta \tand\\
         \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]} \ldotp \\
-        \quad\pwpriv[\xi(\hat{W})](r).H \nequal (\stareg[(\ms_S,\ms_T),(\ta,\stkb)]{\spatialo,\square}, \aaddr'+\calllen) \tand \\
+        \quad\pwpriv[\xi(\hat{W})](r) \nequal (\stareg[(\ms_S,\ms_T)]{\spatialo,\square} \; (\ta,\stkb), \aaddr'+\calllen) \tand \\
         \quad \dom(\ms_S) = \dom(\ms_T) = [\baddr,\eaddr] \tand\\
         \quad \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
         \quad \code(\aaddr'+\offpc) = \seal{\sigma_b,\sigma_e,\sigma_b} \tand \sigma = \sigma_b + \offsigma \in \sigrets
@@ -1492,7 +1493,7 @@ For a \trgcm{} capability related to a \srccm{} code return pointer, we require 
 For sealed data return pointers, we need to know that the world contains a region that governs the local stack frame.
 That is, there should be a static region with the contents of the stack frame.
 The fact that it is static signifies that the contents will remain the same.
-The region that governs the stack frame must come from the private world which means that it is paired with a return address.
+The region that governs the stack frame must come from the call-stack sub-world which means that it is paired with a return address.
 The return address should correspond to an actual return address of a call in $\code$.
 
 % Closure seals
