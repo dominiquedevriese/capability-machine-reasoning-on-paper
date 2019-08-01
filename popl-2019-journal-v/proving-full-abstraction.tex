@@ -37,8 +37,8 @@ In order to relate \trgcm{} and \srccm{}, we model all the features of \srccm{} 
 \item Seals
 \end{itemize}
 The three kinds of memory are modelled by having three sub-worlds where each sub-world is its own little world in a traditional sense.
-Linearity is modelled by adding ownership to certain parts of the world, so capabilities can take ownership of part of the memory thus ensuring that they are the sole reference.
-The call stack is modelled by the memory satisfaction (the relation that decides whether two memories are related in the world) by ensuring that the memory is actually shaped like a stack.
+Linearity is modelled by adding ownership to certain parts of the world that capabilities can take ownership of ensuring that they are the sole reference for that part of memory.
+Memory satisfaction (the relation that decides whether two memories are related in the world) models the call stack by ensuring that the memory is actually shaped like a stack.
 Finally, the seals are modelled by seal invariants that make sure that seals are only used on permitted sealables.
 In the following, we present the world and go into details about how each of the four features are modelled.
 
@@ -49,12 +49,12 @@ That is, our world is defined as a product:
 \[
   \World = \Worldh \times \Worlds \times \Worldfs
 \]
-The sub-worlds are partial maps from names $\RegName$, modelled as natural numbers, to invariants.
+The sub-worlds are partial maps from names $\RegName$ (not to be confused with register names), modelled as natural numbers, to invariants.
 In order to define what this actually means, we need to be more precise about what we mean by invariants.
 
 We call the invariants regions because, as we will see in Section~\ref{subsubsec:ft-and-revocation}, they turn out to not be invariant.
 A region describes a collection of related memory segments, so it is simply represented as a relation over memory segments (i.e.\ a relation in $\Rel{\MemSeg \times \MemSeg}$).
-Intuitively, we want to be able to say that two memory segments are related when their contents are related.
+Intuitively, we want to be able to say that two memory segments are related when their content is related.
 That is, for every address in the two memory segments, the words that reside there must be related.
 In Section~\ref{subsec:logical-relation}, we define precisely what it means for words to be related, but for now we provide some intuition.
 If we have two integers, then they are related when they are equal.
@@ -89,7 +89,7 @@ On the other hand, if a memory segment is governed by a spatial region, then onl
 
 %%% spatial/spatial_owned
 We cannot let multiple linear capabilities reference the same memory.
-The spatial region represent ownership a part of memory which ensures that a linear capability is not aliased.
+The spatial region represent ownership of a part of memory which ensures that a linear capability is not aliased.
 Even though spatial regions gives the right to reference part of memory, we still need the world to specify the remainder of the memory that may be referenced by linear capabilities.
 To this end, we have shadow regions.
 A shadow region is a shadow copy of a spatial region in the sense that it specifies part of memory, but it does not give the right to reference that part of memory.
@@ -134,7 +134,7 @@ To this end, each shared region in $\Worlds$ must be paired with a return addres
 
 % Ensuring linearity
 The spatial regions add the necessary bookkeeping to the worlds to model linear capabilities.
-The logical relation presented in Section~\ref{subsec:logical-relation} uses this bookkeeping to ensure that linear capabilities uniquely references part of memory.
+The logical relation presented in Section~\ref{subsec:logical-relation} uses this bookkeeping to ensure that linear capabilities \emph{uniquely} references part of memory.
 
 Given a world, we want to be able to express that a capability, that is otherwise valid with respect to the world, is not linear or indirectly depends on a linear capability.
 This is expressed by stripping the world of all its ownership which corresponds to replacing all $\spatialo$ regions with $\spatial$ regions and then requiring that the capability is valid w.r.t.\ this new world.
@@ -146,17 +146,17 @@ We refer to this as the shared part of the world and define the function $\pureP
     \purePart{W} &\defeq (\purePart{\pwheap},\purePart{\pwpriv},\purePart{\pwfree})\\
     \purePart{W_\var{heap}} &\defeq \lambda r\ldotp
                        \begin{cases}
-                         (\spatial,\var{sm}) & \text{if } W_\var{heap}(r) = (\spatialo,\var{sm})\\
+                         (\spatial,\var{H}) & \text{if } W_\var{heap}(r) = (\spatialo,\var{H})\\
                          W_{\var{heap}}(r) & \text{otherwise}
                        \end{cases}\\
     \purePart{W_\var{call\_stk}} &\defeq \lambda r\ldotp
                        \begin{cases}
-                         ((\spatial,\var{sm}),\opc) & \text{if } W_\var{call\_stk}(r) = ((\spatialo,\var{sm}),\opc)\\
+                         ((\spatial,\var{H}),\opc) & \text{if } W_\var{call\_stk}(r) = ((\spatialo,\var{H}),\opc)\\
                          W_\var{call\_stk}(r) & \text{otherwise}
                        \end{cases}\\
     \purePart{W_\var{free}} &\defeq \lambda r\ldotp
                        \begin{cases}
-                         (\spatial,\var{sm}) & \text{if } W_{\var{free}}(r) = (\spatialo,\var{sm})\\
+                         (\spatial,\var{Hs}) & \text{if } W_{\var{free}}(r) = (\spatialo,\var{Hs})\\
                          W_{\var{free}}(r) & \text{otherwise}
                        \end{cases}
   \end{align*}
@@ -166,7 +166,7 @@ We refer to this as the shared part of the world and define the function $\pureP
 So far, the world represents a collection of assumptions on the memory contents that value correctness may depend on.
 However, value correctness may depend on other assumptions.
 Specifically, \stktokens{} has certain assumption on the seals used for return capabilities and closures.
-For instance, return seal must only be used to seal the return pointer of one specific return point.
+For instance, a return seal must only be used to seal the return pointer of one specific return point.
 Therefore, in addition to a relation on memory segments, some regions also carry a \emph{seal interpretation function} that relates the sealables that may be sealed with a given seal.
   \[
     \Seal \parfun \World \fun \Rel{\SealableCaps \times \SealableCaps}
@@ -190,7 +190,7 @@ We also refer to the seal interpretation function as the seal invariant, and we 
 Very often, relatedness of two capabilities does not change if extra assumptions in the system are added.
 For example, two related capabilities remain related when an extra invariant is added on unrelated memory, or when a stack frame that it does not reference is dropped.
 In Kripke logical relations, this kind of assumption changes, that do not invalidate the relatedness of values, are modelled by the future world relation $\future$.
-The future world relation can also be thought of as the model of memory changes over time.
+The future world relation can also be thought of as the model of changes in memory over time.
 
 The memory invariants in the world should be defined, so they are monotone with respect to the future world relation.
 This means that the system assumptions capabilities rely on for safety are defined such that capabilities remain safe during execution.
@@ -205,12 +205,12 @@ This changes the spatial regions as follows:
     \{\revoked \}
   \end{array} \right.
 \]
-We make a similar change to $\Regionh$, and we make the seal invariant monotone as well.
+We make a similar change to $\Regionh$. The seal invariants are monotone as well.
 
-Kripke future world relation must be defined such that future worlds are extensions of the past world.
+Kripke future world relations must be defined such that future worlds are extensions of the past world.
 In other words, future world relations usually only allow for adding fresh assumptions on fresh memory or protocol steps that the system was designed to support from the start.
 However in our setting, we sometimes allow dropping assumptions, namely when linearity tells us that no value in the system depends on assumption anymore.
-Specifically, if we have the only linear capability for a piece of memory, then we can be sure that there are no other capabilities for the same memory which makes it sure to repurpose the memory.
+Specifically, if we have the only linear capability for a piece of memory, then we can be sure that there are no other capabilities for the same memory which makes it safe to repurpose the memory.
 In terms of the world, this corresponds to dropping a region and replacing it with a new one.
 Due to the fact that future worlds must be an extension of the past world, we cannot drop a region.
 Instead, we mark it as revoked which for all intends and purposes corresponds to dropping the region. 
@@ -227,18 +227,19 @@ We add a $\revoked$ tag to the spatial regions $\Regions$ which results in
 The $\spatialo$-region signifies that a linear capability \emph{may} depend on it which means that it cannot be revoked.
 On the other hand, no capability can depend on a $\spatial$-region, so it can be safely revoked.
 This may be confusing as a $\spatial$-region does not mean that you ``have'' the capability, but we just explained that having a linear capability means that you can repurpose the memory it points to.
-As we will see later, the logical relation makes disjoint splits of ownership, so each capability gets its own ownership to depend on.
-A linear capability that is repurposed will get an entirely new world to depend on.
-After all, a future world would have to respect the old assumptions, but a repurposed capability needs to depend on new assumptions.
-The new world constructed for the repurposed linear capability would have a revoked region in place of the $\spatialo$-region, but the new world would not be a future world of the world it depended on before.
-While the repurposed capability gets a new world to depend on, all other capabilities in the system must remain valid in a future world to the one they depend on.
+As we will see later, the logical relation splits worlds with respect to their ownership, so each capability can get its own world with unique ownership to depend on.
+A repurposed linear capability gets an entirely new world to depend on.
+The new world constructed for the repurposed linear capability would have a revoked region in place of the $\spatialo$-region, but the new world would not be a future world of the world the linear capability depended on before.
+After all, a future world has to respect old invariants, but a repurposed capability needs to depend on new invariants.
+While the repurposed capability gets a new world to depend on, all other capabilities in the system depend on the same invariants, so they must be valid with respect to worlds that respect the old invariants, i.e. future worlds.
 Further, the future worlds must be compatible (agree on everything but ownership) with the new world.
 This means that all the $\spatial$-regions must be replaced with $\revoked$ regions which is why $\spatial$ regions can be turned into $\revoked$ regions.
 
 We define the future world relation in terms of a future region relation which is displayed in Figure~\ref{fig:ft-reg-rel}.
 Apart from being revoked, a region can stay the same, or a $\spatial$ region can become $\spatialo$ which models the affinity of the linear capabilities.
 Specifically, the linear capabilities in \trgcm{} and \srccm{} can be dropped by overwriting them in registers or memory which makes the linear capabilities affine.
-The world a capability is safe with respect to is no longer needed when the capability is dropped, so other worlds may pick up the ownership which the future region relation allows.
+A linear capability is safe with respect to a world with some $\spatialo$ regions.
+However, this world, and thus the $\spatialo$ regions, is no longer needed if the linear capability is dropped, so other worlds are free to claim the $\spatialo$ region in place of their $\spatial$ region.
 % describe why "Spatial -> spatialo" ~ affine or at least why we have it?
 \begin{figure}[htb]
   \centering
@@ -595,10 +596,6 @@ We will also need the canonical preordered c.o.f.e.\ for sum.
     \right.
   \]
 \end{definition}
-
-We cannot rely entirely on the standard constructions to create the worlds we need.
-Instead, we need to define c.o.f.e.'s and preordered c.o.f.e.'s that meet our needs.
-
 Sometimes we will refer to c.o.f.e.'s and preordered c.o.f.e.'s simply by their underlying set.
 
 In the following, we will define a number of preordered c.o.f.e.'s that can be combined to get the world equation that we want.
@@ -628,7 +625,7 @@ This means that if a pair is in the relation for a specific index, then it is al
     \erasen{A}{n} \defeq \{(k,a) \in A \mid k < n\}
   \]
 \end{definition}
-The uniform relation construction uses the canonical family of equivalences which basically ignores everything from the step and up and requires the rest to be equal.
+The uniform relation construction uses the canonical family of equivalences which basically ignores everything from the step up and requires the rest to be equal.
 This means that everything is equal at step $0$ as everything is left out.
 
 Next, we define a c.o.f.e. of monotone, non-expansive functions
