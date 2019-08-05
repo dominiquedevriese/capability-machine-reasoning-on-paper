@@ -111,15 +111,14 @@ Because the stack is a region of memory with very high thread affinity (no other
 The processor could perhaps also (be told to) rely on the fact that race conditions should be impossible for loads from linear capabilities (which should in principle be non-aliased) and just use a non-atomic load in that case.
 
 \begin{jversion}
-Programs that use a C-like calling convention often allow programs to pass a stack reference in a call either to provide a reference for a piece of memory to work on or to indicate where the result of the call should be placed.
-\stktokens{} does not support this as it expects to get a stack pointer for the entire stack it handed out.
-\dominique{Err... I don't see the problem.
-  Passing stack references to callees should work fine, as long as the callee treats them linearly (i.e.\ doesn't try to copy them).
-  }
-However, if we have allocated part of the stack for a different purpose and handed out a reference for it, then the stack pointer cannot reference the same memory as the stack pointer is a linear capability.
-\dominique{I don't understand this sentence.}
-However, while it is not possible to allocate a reference for the stack, one can easily imagine that the stack could still be used to pass and return values.
-\dominique{Or this one...}
+  Programming languages with a C-like calling convention often allow programs to pass stack references in calls.
+  \stkotkens{} supports stack references but with a couple of caveats.
+  First of all, the stack capability is linear, so all references to the stack have to be linear.
+  This means that the callee has to treat references linearly.
+  Next like the stack capability, the stack references must be given back to the caller on return, so they can reconstruct their original stack capability (which allows them to return). 
+  Finally, the encapsulated local stack frame should be a continuous piece of memory which means that the stack allocations need to be next to the stack frame.
+  An escape analysis could be used to statically determine where to put allocations and, in principle, the allocations could be reordered dynamically before a call.
+  It is not clear to us to what extend existing C-code is covered by the stack references supported by \stktokens{}.
 \end{jversion}
 
 \dominique{Perhaps worth mentioning the problem with adding support for linear values in a real C compiler: how to explain to the compiler that it should treat the linear values linearly and not use optimizations that will break this.}
