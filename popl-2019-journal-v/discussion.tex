@@ -38,14 +38,14 @@ Perhaps other reusable components of secure compilers could be formulated simila
   This goes to show how we must consider what high-level language we want in order to answer the question of what properties we must enforce to get a fully-abstract compiler.
   % Lau: Say something about address hiding?
 
-  We have not investigated support for continuations and exceptions in \stktokens{} thoroughly but believe they are supported.
-  The continuations and exceptions could plausibly be implemented similarly to return pointers, i.e.\ as sealed code capabilities.
-  The exception capability would point to a piece of code handling the specific exception, and one would cast an exception by invoking the exception capability.
-  The continuations and exceptions would be sealed with the return capability allowing them to be used with the appropriate encapsulated stack frame.
-  The stack is crucial to \stktokens{}, and it must be unravelled as an exception falls through calls.
-  One way to handle stack unravelling is to make the code responsible for unravelling its own stack frame.
-  To pass on a continuation, it would have to be wrapped in some sort of continuation forward record that unravels the stack and calls the continuation.
-  Alternatively, it may be possible to have a piece of central trusted code that does the stack unravelling.
+  We have not investigated support for continuations and exceptions in \stktokens{} thoroughly but we expect such support could be added.
+  For exceptions, one approach would let callers provide callees with an additional capability for exceptional returns.
+  This second capability would be similar to the code part of the return capability pair and signed with the same seal.
+  The callee would be able to invoke it to signal that an exception has been thrown after which the caller's code would handle the exception, either by executing an exception handler or by unwinding its stack frame and passing the exception on to its own caller.
+  Essentially, this would mean every function would be made responsible for unwinding its own stack frame.
+  Continuations are more complicated but could perhaps be treated using similar ideas.
+  Alternatively, it might also be possible to have a piece of central trusted code that does the stack unravelling for all stack frames.
+  To do this, this trusted code would need to receive a copy of all return seals from the linker.
 
   % Say something about full-abstractions proofs and feature extensions
   Full-abstraction is a property of the whole language.
@@ -59,6 +59,7 @@ Perhaps other reusable components of secure compilers could be formulated simila
 
   % new paragraph: conditional full-abstraction
   \dominique{This paragraph should perhaps also point out the link to the dynamic compromise paper?}
+  \dominique{Then again, we come back to this later in the related work, so perhaps not necessary to discuss this here?}
   Our full-abstraction theorem, Theorem~\ref{thm:full-abstraction}, is not pure full-abstraction as it requires the components to be reasonable and well-formed.
   In other words, if we were to define a compiler phase that targets \srccm{}, then we would also have to show that every program it generates is well-formed and reasonable in order to use the full-abstraction result.
   Without the reasonability constraint, \stktokens{} would have to enforce reasonability instead.
@@ -104,18 +105,20 @@ Because the stack is a region of memory with very high thread affinity (no other
 % If such memory could be (mostly) kept exclusively locked in a cache close to the processor, the overhead of atomic loads in \stktokens{} might be significantly less than \texttt{load}'s worst case.
 The processor could perhaps also (be told to) rely on the fact that race conditions should be impossible for loads from linear capabilities (which should in principle be non-aliased) and just use a non-atomic load in that case.
 
+\dominique{Start new subsection here?}
+
 \begin{jversion}
   Programming languages with a C-like calling convention often allow programs to pass stack references in calls.
   \stktokens{} supports stack references but with a couple of caveats.
   First of all, the stack capability is linear, so all references to the stack have to be linear.
   This means that the callee has to treat references linearly.
-  Next like the stack capability, the stack references must be given back to the caller on return, so they can reconstruct their original stack capability (which allows them to return). 
-  Finally, the encapsulated local stack frame should be a continuous piece of memory which means that the stack allocations need to be next to the stack frame.
+  Next, like the stack capability, the stack references must be given back to the caller on return, so they can reconstruct their original stack capability (which allows them to return). 
+  Finally, the encapsulated local stack frame should be a contiguous piece of memory (because it has to be addressable by a single capability: the data part of the return capability pair).
+  Because of this, stack-allocated objects for which references are passed to callees must be allocated at the top or bottom of the caller's stack frame.
   An escape analysis could be used to statically determine where to put allocations and, in principle, the allocations could be reordered dynamically before a call.
-  It is not clear to us to what extend existing C-code is covered by the stack references supported by \stktokens{}.
+  In summary, support for passing stack references as arguments to callees could be added to \stktokens{}, but this would probably require some changes in the compiler and, more importantly, would require the callee to take special care when manipulating such references.
+  We are unsure whether it's realistic to apply this approach for existing C code.
 \end{jversion}
-
-\dominique{Perhaps worth mentioning the problem with adding support for linear values in a real C compiler: how to explain to the compiler that it should treat the linear values linearly and not use optimizations that will break this.}
 
 %%% Local Variables:
 %%% TeX-master: "paper"
