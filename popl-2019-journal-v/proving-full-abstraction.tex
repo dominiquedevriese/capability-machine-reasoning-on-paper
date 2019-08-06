@@ -925,12 +925,12 @@ $\lrfree[]$ also makes sure that the base address of the stack is actually part 
 \label{def:heap-rel}
 For a set of seals $\overline{\sigma}$, memory segments $ms$ and $\ms_T$, and worlds $W$ and $W'$, we define the heap relation $\lrhname$ as:
 \[
-  \npair{(\overline{\sigma},ms,\ms_T)} \in \lrheap(\pwheap)(W') = 
+  \npair{(\overline{\sigma},\src{ms},\ms_T)} \in \lrheap(\pwheap)(W') = 
   \left\{
     \begin{array}{l}
       \exists R_\ms : \dom(\activeReg{\pwheap}) \fun \MemSeg \times \MemSeg \wedge \\
       \quad \ms_T = \biguplus_{r \in \dom(\activeReg{\pwheap})} \pi_2(R_\ms(r)) \wedge \\
-      \quad \ms = \biguplus_{r \in \dom(\activeReg{\pwheap})} \pi_1(R_\ms(r)) \wedge \\
+      \quad \src{\ms} = \biguplus_{r \in \dom(\activeReg{\pwheap})} \pi_1(R_\ms(r)) \wedge \\
       \quad \exists R_W : \dom(\activeReg{\pwheap}) \fun \World\ldotp\\
       \qquad W' = \oplus_{r \in \dom(\activeReg{\pwheap})} R_W(r) \wedge\\
       \qquad \forall r \in \dom(\activeReg{\pwheap}), n' < n \ldotp \\
@@ -955,15 +955,15 @@ Similar to memory segments, only one seal invariant should impose restrictions o
 \begin{definition}[Free stack relation]
 \label{def:free-stack-rel}
 \[
-  \memSatFStack{ms_\stk,\ms_T}{W} \text{ iff } 
+  \memSatFStack{\src{\ms_\stk},\ms_T}{W} \text{ iff } 
   \left\{
     \begin{array}{l}
       \gc = (\_,\stkb,\_,\_) \wedge\\
       W_\var{stack} = \pwfree \wedge \\
       \exists R_\ms : \dom(\activeReg{W_\var{stack}}) \fun \MemSeg \times \MemSeg \wedge \\
       \quad \ms_T = \biguplus_{r \in \dom(\activeReg{W_\var{stack}})} \pi_2(R_\ms(r)) \wedge \\
-      \quad \ms_\stk = \biguplus_{r \in \dom(\activeReg{W_\var{stack}})} \pi_1(R_\ms(r)) \wedge \\
-      \quad \stkb \in \dom(\ms_T) \wedge \stkb \in \dom(\ms_\stk) \wedge \\
+      \quad \src{\ms_\stk} = \biguplus_{r \in \dom(\activeReg{W_\var{stack}})} \pi_1(R_\ms(r)) \wedge \\
+      \quad \stkb \in \dom(\ms_T) \wedge \stkb \in \dom(\src{\ms_\stk}) \wedge \\
       \quad \exists R_W : \dom(\activeReg{W_\var{stack}}) \fun \World\ldotp\\
       \qquad W = \bigoplus_{r \in \dom(\activeReg{W_\var{stack}})} R_W(r) \wedge\\
       \qquad \forall r \in \dom(\activeReg{W_\var{stack}}),n' < n \ldotp \\
@@ -980,23 +980,24 @@ As the free stack relation relates the stack of \srccm{} with the memory that re
 \begin{definition}[Stack relation]
   \label{def:stack-rel}
 \[
-  \memSatStack{\stk,\ms_T}{W} \text{ iff } 
+  \memSatStack{\src{\stk},\ms_T}{W} \text{ iff } 
   \left\{
     \begin{array}{l}
-      \gc = (\_,\stkb,\_,\_) \wedge \\
-      W_\var{stack} = \pwpriv \wedge \\
-      \stk = (\opc_0,\ms_0), \dots (\opc_m,\ms_m) \wedge \\
-      \forall i \in \{0,\dots,m\} \ldotp (\dom(\ms_i) \neq \emptyset \wedge\\
-      \quad \forall j < i \ldotp \forall a \in \dom(\ms_i) \ldotp \forall a' \in \dom(\ms_j) \ldotp \stkb < a < a') \wedge\\
-      \exists R_\ms : \dom(\activeReg{W_\var{stack}}) \fun \MemSeg \times \Addr \times \MemSeg \ldotp \\
-      \quad \ms_T = \biguplus_{r \in \dom(\activeReg{W_\var{stack}})} \pi_3(R_\ms(r)) \wedge \\
-      \quad \ms_0 \uplus \dots \uplus \ms_m = \biguplus_{r \in \dom(\activeReg{W_\var{stack}})} \pi_1(R_\ms(r)) \wedge \\
-      \quad \exists R_W : \dom(\activeReg{W_\var{stack}}) \fun \World \ldotp \\
-      \qquad W = \bigoplus_{r \in \dom(\activeReg{W_\var{stack}})} R_W(r) \wedge \\
-      \qquad \forall r \in \dom(\activeReg{W_\var{stack}}), n' < n\ldotp \\
-      \qquad \quad \npair[n']{(\pi_1(R_\ms(r)),\pi_3(R_\ms(r))} \in W_\var{stack}(r).H \; \xi^{-1}(R_W(r)) \wedge\\
-      \qquad \quad \pi_2(R_\ms(r)) = W_\var{stack}(r).\opc \wedge\\
-      \qquad \quad \exists i \ldotp \opc_i = W_\var{stack}(r).\opc \wedge \ms_i = \pi_1 (R_\ms(r))
+      \exists m, \src{\opc_0},\dots,\src{\opc_m}, \src{\ms_0}, \dots, \src{\ms_m}, W_\var{stack}\ldotp\\
+      \quad\gc = (\_,\stkb,\_,\_) \wedge \\
+      \quad W_\var{stack} = \pwpriv \wedge \\
+      \quad\src{\stk} = \src{(\opc_0,\ms_0), \dots (\opc_m,\ms_m)} \wedge \\
+      \quad\forall i \in \{0,\dots,m\} \ldotp (\dom(\src{\ms_i}) \neq \emptyset \wedge\\
+      \quad\quad \forall j < i \ldotp \forall a \in \dom(\src{\ms_i}) \ldotp \forall a' \in \dom(\src{\ms_j}) \ldotp \stkb < a < a') \wedge\\
+      \quad\exists R_\ms : \dom(\activeReg{W_\var{stack}}) \fun \MemSeg \times \Addr \times \MemSeg \ldotp \\
+      \quad\quad \ms_T = \biguplus_{r \in \dom(\activeReg{W_\var{stack}})} \pi_3(R_\ms(r)) \wedge \\
+      \quad\quad \src{\ms_0} \uplus \dots \uplus \src{\ms_m} = \biguplus_{r \in \dom(\activeReg{W_\var{stack}})} \pi_1(R_\ms(r)) \wedge \\
+      \quad\quad \exists R_W : \dom(\activeReg{W_\var{stack}}) \fun \World \ldotp \\
+      \quad\qquad W = \bigoplus_{r \in \dom(\activeReg{W_\var{stack}})} R_W(r) \wedge \\
+      \quad\qquad \forall r \in \dom(\activeReg{W_\var{stack}}), n' < n\ldotp \\
+      \quad\qquad \quad \npair[n']{(\pi_1(R_\ms(r)),\pi_3(R_\ms(r))} \in W_\var{stack}(r).H \; \xi^{-1}(R_W(r)) \wedge\\
+      \quad\qquad \quad \pi_2(R_\ms(r)) = W_\var{stack}(r).\opc \wedge\\
+      \quad\qquad \quad \exists i \ldotp \src{\opc_i} = W_\var{stack}(r).\opc \wedge \src{\ms_i} = \pi_1 (R_\ms(r))
     \end{array}
   \right.
 \]
@@ -1068,21 +1069,21 @@ Memory satisfaction defines when a \srccm{} memory, consisting of a heap, a stac
 \begin{definition}[Memory satisfaction]
   For memory segments $\ms_S$, $\ms_\stk$, and $\ms_T$, stack $\stk$, and world $W$ we define memory satisfaction as
 \[
-  \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W} \text{ iff } 
+  \memSat{\src{\ms_S},\src{\ms_\stk},\src{\stk},\ms_T}{W} \text{ iff } 
   \left\{
     \begin{array}{l}
-      \exists \opc_0, \dots \opc_m, \ms_0, \dots, \ms_m, W_{\var{stack}}, W_{\var{free\_stack}}, W_{\var{heap}} \ldotp\\
-      \quad \stk = (\opc_0,\ms_0):: \dots :: (\opc_m,\ms_m) \wedge \\
-      \quad \ms_S \uplus \ms_\stk \uplus \ms_0 \uplus \dots \uplus \ms_m  \text{ is defined} \wedge\\
+      \exists m,  \src{\opc_0}, \dots \src{\opc_m}, \src{\ms_0}, \dots, \src{\ms_m}, W_{\var{stack}}, W_{\var{free\_stack}}, W_{\var{heap}} \ldotp\\
+      \quad \src{\stk} = \src{(\opc_0,\ms_0):: \dots :: (\opc_m,\ms_m)} \wedge \\
+      \quad \src{\ms_S} \# \src{\ms_\stk} \# \src{\ms_0} \# \dots \# \src{\ms_m} \wedge\\
       \quad W = W_{\var{stack}} \oplus W_{\var{free\_stack}} \oplus W_{\var{heap}} \wedge\\
-      \quad\exists \ms_\var{T,stack}, \ms_\var{T,free\_stack}, \ms_\var{T,heap}, \ms_{T,f}, \ms_{S,f}, \ms_S',\overline{\sigma}\ldotp \\
-      \qquad \ms_S = \ms_{f,S} \uplus \ms_S' \wedge \\
+      \quad\exists \ms_\var{T,stack}, \ms_\var{T,free\_stack}, \ms_\var{T,heap}, \ms_{T,f}, \src{\ms_{S,f}}, \src{\ms_S'},\overline{\sigma}\ldotp \\
+      \qquad \src{\ms_S} = \src{\ms_{f,S}} \uplus \src{\ms_S'} \wedge \\
       \qquad \ms_T = \ms_\var{T,stack} \uplus \ms_\var{T,free\_stack} \uplus \ms_\var{T,heap} \uplus \ms_{T,f} \wedge \\
       \qquad \dom(\ms_{\var{T,stack}} \uplus \ms_\var{T,free\_stack}) = [\baddr_\stk,\eaddr_\stk] \wedge \\
       \qquad \baddr_\stk -1,\eaddr_\stk + 1 \in \dom(\ms_{T,f}) \wedge \\
-      \qquad \memSatStack{\stk,\ms_\var{T,stack}}{W_{\var{stack}}} \wedge \\
-      \qquad \memSatFStack{\ms_\stk,\ms_\var{T,free\_stack}}{W_{\var{free\_stack}}} \wedge \\
-      \qquad \npair{(\overline{\sigma},\ms_S',\ms_\var{T,heap})} \in \lrheap(\pwheap)(W_{\var{heap}})
+      \qquad \memSatStack{\src{\stk},\ms_\var{T,stack}}{W_{\var{stack}}} \wedge \\
+      \qquad \memSatFStack{\src{\ms_\stk},\ms_\var{T,free\_stack}}{W_{\var{free\_stack}}} \wedge \\
+      \qquad \npair{(\overline{\sigma},\src{\ms_S'},\ms_\var{T,heap})} \in \lrheap(\pwheap)(W_{\var{heap}})
     \end{array}
   \right.
 \]
@@ -1117,13 +1118,13 @@ The most important relations are summarised in the following table, where we men
   \hline
   \multicolumn{2}{|c|}{General form} & Relates ... & and ...\\
   \hline
-  \npair{(w_S,w_T)} & \lrv(W) & values (machine words) & safe to pass to adversarial code\\
-  \npair{(w_S,w_T)} & \lrvtrusted(W) & values (machine words) & \\
-  \npair{(\reg_S,\reg_T)}  &  \lrr(W) & register files & safe to pass to adversarial code\\
-  \npair{\Phi_S,\Phi_T}  &  \lro & execution configurations & \\
-  \npair{(w_S,w_T)}  &  \lre(W) & $\tjmp{}$ targets &\\
-  \left(\arraycolsep=1pt\array{l}(w_{S,1},w_{S,2}),\\(w_{T,1},w_{T,2})\endarray\right)  &  \lrexj(W) & $\txjmp{}{}$ targets &\\
-  \multicolumn{2}{|c|}{$\memSat{\ms_S,\stk,\ms_\stk,\ms_T}{W}$} & memory & satisfy the assumptions in $W$\\
+  \npair{(\src{w_S},w_T)} & \lrv(W) & values (machine words) & safe to pass to adversarial code\\
+  \npair{(\src{w_S},w_T)} & \lrvtrusted(W) & values (machine words) & \\
+  \npair{(\src{\reg_S},\reg_T)}  &  \lrr(W) & register files & safe to pass to adversarial code\\
+  \npair{\src{\Phi_S},\Phi_T}  &  \lro & execution configurations & \\
+  \npair{(\src{w_S},w_T)}  &  \lre(W) & $\tjmp{}$ targets &\\
+  \left(\arraycolsep=1pt\array{l}(\src{w_{S,1}},\src{w_{S,2}}),\\(w_{T,1},w_{T,2})\endarray\right)  &  \lrexj(W) & $\txjmp{}{}$ targets &\\
+  \multicolumn{2}{|c|}{$\memSat{\src{\ms_S},\src{\stk},\src{\ms_\stk},\ms_T}{W}$} & memory & satisfy the assumptions in $W$\\
   \hline
 \end{tabular}\\
 In Section~\ref{subsubsec:mem-sat}, we already defined memory satisfaction, the relation for memories.
@@ -1344,12 +1345,12 @@ This is exactly what we refer to as a \emph{standard region} because we usually 
 
 We define a $\pure$, $\spatial$, and $\spatialo$ standard region. They all have the same invariant which is defined as follows:
 \[
-  H_A^{\mathrm{std},\square} \; \gc \; \hat{W} \defeq \left\{ \npair{\ms_S,\ms_T} \middle|
+  H_A^{\mathrm{std},\square} \; \gc \; \hat{W} \defeq \left\{ \npair{\src{\ms_S},\ms_T} \middle|
     \begin{array}{l}
-      \dom(\ms_S) = \dom(\ms_T) = A \wedge \\
+      \dom(\src{\ms_S}) = \dom(\ms_T) = A \wedge \\
 % There should be a later on the right side of the equality? Lau: To myself, on second thought we leave that implicit. This should be fine.
       \exists S : A \fun \World \ldotp \xi(\hat{W}) = \oplus_{\aaddr \in A} S(\aaddr) \wedge\\ 
-      \quad \forall \aaddr \in A \ldotp \npair{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
+      \quad \forall \aaddr \in A \ldotp \npair{(\src{\ms_S}(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
     \end{array}
   \right\}
 \]
@@ -1375,10 +1376,9 @@ The memory invariant is defined as follows
 \[
   H^\mathrm{sta,\square}_{\stpair{\ms}{\ms}} \; \gc \; \hat{W} \defeq \left\{ \npair{\stpair{\ms}{\ms}} \middle| 
     \begin{array}{l}
-      \dom(\ms_S) = \dom(\ms_T) \wedge \\
-      \exists S : \dom(\ms_S) \fun \World \ldotp \xi(\hat{W}
-      ) = \oplus_{\aaddr \in \dom(\ms)} S(\aaddr) \wedge\\
-      \quad \forall \aaddr \in \dom(\ms_S) \ldotp \npair{(\ms_S(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
+      \dom(\src{\ms_S}) = \dom(\ms_T) \wedge \\
+      \exists S : \dom(\src{\ms_S}) \fun \World \ldotp \xi(\hat{W}) = \oplus_{\aaddr \in \dom(\ms)} S(\aaddr) \wedge\\
+      \quad \forall \aaddr \in \dom(\src{\ms_S}) \ldotp \npair{(\src{\ms_S}(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
     \end{array}
 \right\}
 \]
@@ -1430,7 +1430,7 @@ That is on \srccm{}, the return seals should only be used to seal $\retptrc{}$ a
   \begin{array}[t]{l}
 \left\{
     \begin{array}{l}
-\left. \npair{\arraycolsep=0pt\left(\array{l}\retptrc(\baddr,\eaddr,\aaddr'+\calllen),\\((\rx,\normal),\baddr,\eaddr,\aaddr)\endarray\right)} \middle| \right. \\
+\left. \npair{\arraycolsep=0pt\left(\array{l}\src{\retptrc(\baddr,\eaddr,\aaddr'+\calllen)},\\((\rx,\normal),\baddr,\eaddr,\aaddr)\endarray\right)} \middle| \right. \\
       \begin{array}{l}
         \sigrets \subseteq \gsigrets \tand \\
         \dom(\code) \subseteq \ta \tand\\
@@ -1443,7 +1443,7 @@ That is on \srccm{}, the return seals should only be used to seal $\retptrc{}$ a
       \right\} \cup \\
 \left\{
     \begin{array}{l}
-\left. \npair{\arraycolsep=0pt\left(\array{l}\retptrd(\baddr,\eaddr),\\((\rw,\linear),\baddr,\eaddr,\baddr-1)\endarray\right)} \middle| \right. \\
+\left. \npair{\arraycolsep=0pt\left(\array{l}\src{\retptrd(\baddr,\eaddr)},\\((\rw,\linear),\baddr,\eaddr,\baddr-1)\endarray\right)} \middle| \right. \\
       \begin{array}{l}
         \sigrets \subseteq \gsigrets \tand \\
         \dom(\code) \subseteq \ta \tand\\
@@ -1463,12 +1463,12 @@ That is on \srccm{}, the return seals should only be used to seal $\retptrc{}$ a
   (\ta,\stkb,\gsigcloss,\gsigrets) \; \sigma \; \hat{W} \defeq \\
   \left\{
     \begin{array}{l}
-\left. \npair{(\vsc, \vsc' )} \middle| \right. \\
+\left. \npair{(\src{\vsc}, \vsc' )} \middle| \right. \\
       \begin{array}{l}
-        (\dom(\code) \mathrel{\#} \ta \tand \npair{(\vsc,\vsc')} \in \lrv \; \xi(\hat{W})) \vee\\
+        (\dom(\code) \mathrel{\#} \ta \tand \npair{(\src{\vsc},\vsc')} \in \lrv \; \xi(\hat{W})) \vee\\
         (\dom(\code) \subseteq \ta \tand \sigcloss \subseteq \gsigcloss \tand \sigrets \subseteq \gsigrets \tand \\
-         \quad((\exec{\vsc} \wedge \npair{(\vsc,\vsc')} \in \lrvtrusted \; \xi(\hat{W})) \vee\\
-         \quad\ (\nonExec{\vsc} \wedge\npair{(\vsc,\vsc')} \in \lrv \; \xi(\hat{W}))))
+         \quad((\exec{\src{\vsc}} \wedge \npair{(\src{\vsc},\vsc')} \in \lrvtrusted \; \xi(\hat{W})) \vee\\
+         \quad\ (\nonExec{\src{\vsc}} \wedge\npair{(\src{\vsc},\vsc')} \in \lrv \; \xi(\hat{W}))))
       \end{array}
     \end{array}
   \right\}\\
@@ -1808,7 +1808,7 @@ This means that a safe word must not only be safe now but also at any point in t
 The untrusted value relation ensures this as it is monotone with respect to future worlds.
 \begin{lemma}[Untrusted value relation monotonicity]
   \label{lem:monotonicity}
-  For all integers $n$, words $w_1$ and $w_2$, and worlds $W' \future W$, if $\npair{(w_1,w_2)} \in \lrv(W)$, then $\npair{(w_1,w_2)} \in \lrv(W')$.
+  For all integers $n$, words $\src{w_1}$ and $w_2$, and worlds $W' \future W$, if $\npair{(\src{w_1},w_2)} \in \lrv(W)$, then $\npair{(\src{w_1},w_2)} \in \lrv(W')$.
 \end{lemma}
 
 \paragraph{The trusted value relation}
@@ -1884,7 +1884,7 @@ The register file relation is defined in \figurename~\ref{fig:reg-file-rel}.
       \exists S : (\RegName \setminus (\{\pcreg \} \cup R))\fun \World \ldotp \\
       \quad W = \bigoplus_{r \in (\RegName\setminus (\{\pcreg,\rdata \} \cup R))} S(r) \wedge \\
       \quad \forall r \in \RegName \setminus (\{\pcreg \} \cup R)\ldotp\\
-      \qquad\npair{\stpair[.]{\src{\reg_S(r)}}{\reg_T(r)}} \in \lrv(S(r))
+      \qquad\npair{(\src{\reg_S}(r),\reg_T(r))} \in \lrv(S(r))
     \end{array}
             \right\}
 \]
@@ -1922,12 +1922,12 @@ The $\lrename_\mathrm{xjmp}$ relation is defined in \figurename~\ref{fig:expr-re
       \quad \forall W_\lrrs , W_\lrm \ldotp \\
       \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(W_\lrrs) \wedge\\
       \qquad\memSat[n']{\src{\ms_S,\stk,\ms_\stk},\ms_T}{W_\lrm} \\
-      \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)}\\
-      \qquad \Phi_S' = \Phi_S \updReg{\pcreg}{v_{c,S}}\\
+      \qquad\src{\Phi_S} = \src{(\ms_S,\reg_S,\stk, \ms_\stk)}\\
+      \qquad\src{\Phi_S'} = \src{\Phi_S} \updReg{\pcreg}{\src{v_{c,S}}}\\
       \qquad\Phi_T = (\ms_T,\reg_T)\\
       \qquad\Phi_T' = \Phi_T\updReg{\pcreg}{v_{c,T}}\\
       \qquad W \oplus W_\lrrs \oplus W_\lrm\\
-      \qquad\Rightarrow\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro
+      \qquad\Rightarrow\npair[n']{\left(\src{\Phi_S'}, \Phi_T' \right)}\in \lro
     \end{array}
     \right\}
 \\  \lrexj(W) &= \left\{ \npair{\stpair[.]{v_{c,S},v_{d,S}}{v_{c,T},v_{d,T}}} \middle| 
@@ -1936,13 +1936,13 @@ The $\lrename_\mathrm{xjmp}$ relation is defined in \figurename~\ref{fig:expr-re
       \quad \forall W_\lrrs , W_\lrm \ldotp \\
       \qquad\npair[n']{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\}) (W_\lrrs ) \wedge\\
       \qquad\memSat[n']{\src{\ms_S,\stk,\ms_\stk},\ms_T}{W_\lrm} \wedge \\
-      \qquad\Phi_S = \src{(\ms_S,\reg_S,\stk, \ms_\stk)}\wedge\\
+      \qquad\src{\Phi_S} = \src{(\ms_S,\reg_S,\stk, \ms_\stk)}\wedge\\
       \qquad\Phi_T = (\ms_T,\reg_T) \wedge\\
       \qquad W \oplus W_\lrrs \oplus W_\lrm \text{ is defined }\\
-      \qquad\Rightarrow \exists \Phi_S',\Phi_T'\ldotp\\
-      \quad\qquad \Phi_S' = \xjumpResult{v_{c,S}}{v_{d,S}}{\Phi_S} \tand\\
+      \qquad\Rightarrow \exists \src{\Phi_S'},\Phi_T'\ldotp\\
+      \quad\qquad \src{\Phi_S'} = \xjumpResult{\src{v_{c,S}}}{\src{v_{d,S}}}{\src{\Phi_S}} \tand\\
       \quad\qquad\Phi_T' = \xjumpResult{v_{c,T}}{v_{d,T}}{\Phi_T}\tand\\
-      \quad\qquad\npair[n']{\left(\Phi_S', \Phi_T' \right)}\in \lro
+      \quad\qquad\npair[n']{\left(\src{\Phi_S'}, \Phi_T' \right)}\in \lro
     \end{array}
     \right\}
 \end{align*}
@@ -1993,20 +1993,20 @@ Components with a main are related when the base components are related and the 
 \begin{align*}
   \lrcomp(W) &=
   \left\{\begin{aligned}
-     &\npair{\var{comp},\var{comp}} \;\mid \;\\
+     &\npair{\src{\var{comp}},\src{\var{comp}}} \;\mid \;\\
       &\qquad\var{comp} = (\mscode,\msdata,\overline{a_{\mathrm{import}} \mapsfrom s_{\mathrm{import}}},\overline{s_{\mathrm{export}} \mapsto w_{\mathrm{export}}},\sigrets,\sigcloss) \text{ and} \\
       &\qquad\text{For all } W' \future W \ldotp \\
-      &\qquad\quad\text{If } \overline{\npair[n']{(w_{\mathrm{import}},w_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$}\\
+      &\qquad\quad\text{If } \overline{\npair[n']{(\src{w_{\mathrm{import}}},w_{\mathrm{import}})}} \in \lrv(\purePart{W'}) \text{ for all $n' < n$}\\
       &\qquad\quad\text{and } \msdata' = \msdata{}[\overline{a_{\mathrm{import}} \mapsto w_{\mathrm{import}}}] \\
-      &\qquad\quad\text{then } \npair{(\sigrets\uplus\sigcloss,\mscode\uplus \msdata', \mscode\uplus\msdata')} \in \lrheap(\pwheap)(W') \text{ and }\\
-      &\qquad\quad\overline{\npair{(w_{\mathrm{export}},w_{\mathrm{export}})}} \in \lrv(\purePart{W'})
+      &\qquad\quad\text{then } \npair{(\sigrets\uplus\sigcloss,\src{\mscode\uplus \msdata'}, \mscode\uplus\msdata')} \in \lrheap(\pwheap)(W') \text{ and }\\
+      &\qquad\quad\overline{\npair{(\src{w_{\mathrm{export}}},w_{\mathrm{export}})}} \in \lrv(\purePart{W'})
   \end{aligned}
     \right\}\\
   &\cup \left\{
     \begin{multlined}
-     \npair{(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d}),(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})} \;\mid \;\\
-     \npair{(\var{comp}_0,\var{comp}_0)} \in \lrcomp(W) \text{ and}\\
-     \{(\_ \mapsto c_{\mathrm{main},c}),(\_ \mapsto c_{\mathrm{main},d})\} \subseteq \overline{w_{\mathrm{export}}}
+     \npair{\src{(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})},(\var{comp}_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})} \;\mid \;\\
+     \npair{(\src{\var{comp}_0},\var{comp}_0)} \in \lrcomp(W) \text{ and}\\
+     \{(\_ \mapsto \src{c_{\mathrm{main},c}}),(\_ \mapsto c_{\mathrm{main},d})\} \subseteq \overline{w_{\mathrm{export}}}
        \end{multlined}
     \right\} 
 \end{align*}
@@ -2024,17 +2024,17 @@ To this end, we define $\lrecname$.
   \lrec(W) = \left\{
     \begin{multlined}
 \npair{\left(
-        (\ms_S,\reg_S,\stk,\ms_\stk),
+        \src{(\ms_S,\reg_S,\stk,\ms_\stk)},
         (\ms_T,\reg_T)\right)} \; \mid \; \\
     \begin{array}{l}
       \gc = (\ta,\stkb) \tand\\
       \exists W_M,W_R,W_\pcreg \ldotp W = W_M \oplus W_R \oplus W_\pcreg \tand\\
-      \npair{( (\reg_S(\pcreg),\reg_S(\rdata)), (\reg_T(\pcreg),\reg_T(\rdata)) )} \in \lrexj(W_\pcreg) \tand \\
-      \reg_S(\pcreg) \neq \retptrc(\_) \wedge 
-      \reg_S(\rdata) \neq \retptrd(\_) \wedge \\
-      \nonExec{\reg_S(\rdata)} \wedge
+      \npair{( (\src{\reg_S}(\pcreg),\src{\reg_S}(\rdata)), (\reg_T(\pcreg),\reg_T(\rdata)) )} \in \lrexj(W_\pcreg) \tand \\
+      \src{\reg_S}(\pcreg) \neq \src{\retptrc(\_)} \wedge 
+      \src{\reg_S}(\rdata) \neq \src{\retptrd(\_)} \wedge \\
+      \nonExec{\src{\reg_S}(\rdata)} \wedge
       \nonExec{\reg_T(\rdata)}\\
-      \memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W_M} \tand\\
+      \memSat{\src{\ms_S},\src{\ms_\stk},\src{\stk},\ms_T}{W_M} \tand\\
       \npair{\stpair{\reg}{\reg}} \in \lrr(\{\rdata\})(W_R)
     \end{array}
   \end{multlined}
