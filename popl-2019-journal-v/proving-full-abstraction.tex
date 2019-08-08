@@ -1121,7 +1121,7 @@ We also want to be able to say something about arbitrary (untrusted) programs, b
 In our setting, a trusted program is a well-formed, reasonable program that follows the \stktokens{} calling convention, and an untrusted program is an arbitrary well-formed program.
 In order for a trusted program to use \stktokens{}, it needs access to return seals, but we cannot allow untrusted programs access to the return seals.
 A value relation based on what it is safe for an adversary to have should prohibit return seals, so such a relation cannot be used to reason about trusted programs.
-For this reason, we define two value relations a trusted $\lrvname_{\trusted}$ and an untrusted $\lrvname$.
+For this reason, we define two value relations a trusted $\lrvname_{\trusted}$ and an untrusted $\lrvname_{\untrusted}$.
 Anything safe for unstrusted programs is also safe to give to a trusted program, so the trusted value relation is defined as a super set of the untrusted value relation.
 
 From time to time in this section, we will refer to safety of a capability or a word.
@@ -1238,7 +1238,7 @@ In the following, we introduce a number of \emph{standard regions} that express 
     \right\}
 %  \end{array}
 \end{align*}
-\caption{Sketches of the trusted and untrusted value relation. The untrusted and trusted value relation both relates \srccm{} and \trgcm{} words. The untrusted value relation $\lrvname$ relates words that are safe to give to untrusted programs and $\lrvname_\trusted$ relates words that are safe to give to trusted programs.}
+\caption{Sketches of the trusted and untrusted value relation. The untrusted and trusted value relation both relates \srccm{} and \trgcm{} words. The untrusted value relation $\lrvname_{\untrusted}$ relates words that are safe to give to untrusted programs and $\lrvname_\trusted$ relates words that are safe to give to trusted programs.}
 \label{fig:value-relation}
 \end{figure}
 
@@ -1627,7 +1627,7 @@ Note that we do not define $\execCond[]{}$ and $\xReadCond[]{}$ for the stack be
 
 \paragraph{The untrusted value relation}
 \label{par:untrusted-val-rel}
-The untrusted value relation $\lrvname$ relates all the words that untrusted components can safely posses.
+The untrusted value relation $\lrvname_\untrusted$ relates all the words that untrusted components can safely posses.
 That is words that cannot be used to break any memory invariants.
 The relation is displayed in \figurename~\ref{fig:untrusted-val-rel}.
 
@@ -1757,6 +1757,11 @@ For the most part, we allow them to contain the same words as the untrusted comp
 Further, we need to allow trusted components to have capabilities for the trusted code which, again, is something that we cannot allow untrusted components to have.
 The untrusted value relation is defined in Figure~\ref{fig:trusted-val-rel}.
 
+The words in $\lrvname_\trusted$ but not in the $\lrvname_\untrusted$ have the potential to break the system invariants \stktokens{} rely on.
+We can only let trusted components have words from $\lrvname_\trusted$ because the trusted component promises to not break the invariant by behaving reasonably.
+This promise is expressed formally in $\lrvname_\trusted$ by requiring the presence of a code region in both cases specific to $\lrvname_\trusted$.
+As explained previously, the code region essentially captures the requirements put on components by well-formedness and the reasonability condition which constitutes the promise to use seals and trusted code pointers in a way that does not break invariants.
+
 % Trusted seals
 The trusted closure seals and return seals serve a specific purpose, namely they must be used for return pointers and closures.
 To make sure this is the case, there must be a code region in the world that governs the code.
@@ -1768,7 +1773,7 @@ Two capabilities are related as trusted code pointers if they are normal, has a 
 Further, we need to know that the capabilities actually point to a piece of code which is why we require the $\xReadCond[]{}$ to be satisfied.
 This makes sure that the region that governs the memory the capability points to is a code region.
 Note that even though the capability has read permission, we do not require the read condition to hold.
-The code memory contains trusted closure seals and return seals that we cannot let untrusted code have and the read condition requires everything to be in $\lrvname$, so the read condition would not hold.
+The code memory contains trusted closure seals and return seals that we cannot let untrusted code have and the read condition requires everything to be in $\lrvname_\untrusted$, so the read condition would not hold.
 However, trusted code can have access to such seals because we expect the trusted code to treat the seals reasonably.
 \begin{figure}
   \centering
@@ -1801,6 +1806,13 @@ However, trusted code can have access to such seals because we expect the truste
 \caption{The trusted value relation $\lrvname_\trusted$ relates all the words that are safe for trusted components to contain. A trusted component may contain untrusted words (\figurename~\ref{fig:untrusted-val-rel}), return seals and trusted closure seals, and code pointers for trusted code. }
 \label{fig:trusted-val-rel}
 \end{figure}
+Like the untrusted value relation, the trusted value relation is monotone.
+Intuitively, the two relations are monotone for the same reason; words are potentially used at any point in time.
+If words are safe now (in the current world), then they should also be safe to use later (in any possible future world).
+\begin{lemma}[Trusted value relation monotonicity]
+  \label{lem:monotonicity-trusted}
+  For all integers $n$, words $\src{w_1}$ and $w_2$, and worlds $W' \future W$, if $\npair{(\src{w_1},w_2)} \in \lrvtrusted(W)$, then $\npair{(\src{w_1},w_2)} \in \lrvtrusted(W')$.
+\end{lemma}
 
 \subsubsection{Register file relation}
 The register file relation relates \srccm{} register files to \trgcm{} register files.
