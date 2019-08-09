@@ -1625,6 +1625,23 @@ For this reason, we define the $\xReadCond[]{}$ to capture the additional assump
 The $\xReadCond[]{}$ requires that the memory segment an executable capability has authority over is governed by a code region.
 Note that we do not define $\execCond[]{}$ and $\xReadCond[]{}$ for the stack because the stack is not executable.
 
+The $\execCond[]{}$ handles normal jumps, but it does not cover the case of $\txjmp{}{}$.
+Executable capabilities can be used on their own whereas sealed capabilities must be jumped to in pairs.
+However, we do not need to consider arbitrary pairs: given a sealed capability we only have to consider the capabilities permitted by the relevant seal invariant.
+Just like the $\lrename$ relation captures what it means for a word to be safe as a program counter, we later define $\lrexjname$ that define what it means for a code and data capability pair to be safe together as program counter and data capability, respectively.
+A sealed capability is safe when it can be paired with any sealed capability from the seal invariant such that the pair is in the $\lrexjname$ relation.
+Just like safe executable capabilities, a sealed capability may be stored, so it should also be safe to use in future worlds.
+The condition for sealed capabilities is defined by $\sealedCond[]{}$.
+\begin{multline*}
+\sealedCond{W,H_\sigma} =\\
+\left\{\npair{(\sigma, \src{\vsc_S},\vsc_T)}\middle|
+  \begin{array}{l}
+  \forall W' \future W, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp\\
+    \quad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o))
+  \end{array}
+\right\}
+\end{multline*}
+
 \paragraph{The untrusted value relation}
 \label{par:untrusted-val-rel}
 The untrusted value relation $\lrvname_\untrusted$ relates all the words that untrusted components can safely posses.
@@ -1657,18 +1674,11 @@ Similarly to the normal capabilities, we use the permission based conditions for
 % Encapsulation
 A sealed capability encapsulates the authority of the underlying capability, and the authority is only released when the sealed capability is used in an $\txjmp{}{}$.
 The $\xjmp{}{}$ takes a pair of sealed capabilities, so the authority of a sealed capability depends on what other sealed capabilities it might be used with.
-The seal invariant defines what may be sealed with a given seal and thus which sealables we should consider.
-As discussed, closure seals and return seals must be used in specific ways, so we have defined a seal invariant that dictates what may be sealed with a given seal.
-In order for a pair of \srccm{} and \trgcm{} seals to be in the untrusted value relation, they must be sealed with the same seal $\sigma$, and they must be related by the seal invariant $\sigma$.
+The seal invariant specifies the capabilities that may be sealed with a given seal and thus the capabilities that may be used together as a sealed pair.
+As discussed, closure and return seals must be used in specific ways which is captured in the code region seal invariant.
+In order for a pair of \srccm{} and \trgcm{} sealed capabilities to be in the untrusted value relation, they must be sealed with the same seal $\sigma$ and related in the appropriate seal invariant.
 % Sealed capability only useful with pairing. Sealed caps must be permitted.
-Further, if we take any sealed capabilities related under $\sigma$ in the seal invariant, then they should produce a safe result.
-We are yet to define what it means for an $\txjmp{}{}$ to produce a safe result, but we will do so later with the $\lrename_\mathrm{xjmp}$-relation which basically says that if an x-jump happened with the capabilities in question, then the resulting configuration is in the observation relation, i.e.\ it respects the memory invariants.
-% Linear and non-linear case. Affects the future world we consider.
-It should be safe to use the sealed capability both now and in the future.
-This means that it should be safe in the current world $W$, but also in future worlds $W' \future W$.
-However, this only goes for non-linear words.
-For linear capabilities, it should only be in future worlds of the shared part of $W$.
-% TODO write why we have the two cases. (it allows us to have the "other" capability by the one we consider - and it feels like the only reason)
+Further, they should satisfy the $\sealedCond[]{}$ which means that they can safely be paired up with any other pair of capabilities from the seal invariant and used safely for execution.
 
 For sets of seals to be related related in the untrusted relation they must be syntactically equal.
 Further, the seals in the set should be disjoint from the return seals and trusted closure seals ($\gsigrets$ and $\gsigcloss$) because the trusted code relies on having the sole access to them.
@@ -1712,16 +1722,14 @@ We do not know what an adversary may seal or what seal they may use, so, for eve
     \hspace{-2cm}\left\{ \npair{\left(\arraycolsep=0pt\array{l}\src{\sealed{\sigma,\vsc_S}},\\ \sealed{\sigma,\vsc_T} \endarray\right)} \;\middle| \;
     \begin{array}{l}
       (\isLinear{\src{\vsc_S}} \text{ iff } \isLinear{\vsc_T}) \wedge\\
-      \exists r \in \dom(\pwheap), \sigrets,\sigcloss,\mscode \ldotp \pwheap(r) = (\pure,\_,H_\sigma) \tand \\
+      \exists r \in \dom(\pwheap), \sigrets,\sigcloss,\mscode \ldotp \\
+      \quad\pwheap(r) = (\pure,\_,H_\sigma) \tand \\
       \quad H_\sigma \; \sigma \nequal H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; \gc \; \sigma \tand \\
       \quad \npair[n']{\stpair[.]{\vsc_S}{\vsc_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W) \text{ for all $n' < n$}\wedge\\
-      \quad (\isLinear{\src{\vsc_S}} \Rightarrow \\
-      \qquad\forall W' \future W, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \\
-      \qquad \quad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o)) \wedge \\
-      \quad (\nonLinear{\src{\vsc_S}} \Rightarrow \\
-      \qquad \forall W' \future \purePart{W}, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \\
-      \qquad \quad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o))
-
+      \quad \isLinear{\src{\vsc_S}} \\
+      \qquad \Rightarrow \npair{(\sigma,\src{\vsc_S},\vsc_T)}\in \sealedCond{W,H_\sigma} \wedge\\
+      \quad \nonLinear{\src{\vsc_S}} \\
+      \qquad \Rightarrow  \npair{(\sigma,\src{\vsc_S},\vsc_T)}\in \sealedCond{\mathit{purePart}(W),H_\sigma}\\
       % This case was never used (?) so it is not necessary.
       % \wedge \\
       % \quad \npair[n']{\src{\vsc_S'},\src{\vsc_S},\vsc_T',\vsc_T} \in \lrexj(W' \oplus W_o)
