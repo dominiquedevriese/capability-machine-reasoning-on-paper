@@ -549,7 +549,7 @@ The latter techniques essentially emulate protection techniques on existing hard
 
 \emph{Capability machines} are a type of processors that remediate these limitations with a better security model at the hardware level.
 They are based on old ideas~\citep{Carter:1994:HSF:195473.195579,Dennis:1966:PSM:365230.365252,shapiro_eros:_1999} that have recently received renewed interest.
-in particular, the CHERI project has proposed new ideas and ways of tackling practical challenges like backwards compatibility and realistic OS support~\citep{Watson2015Cheri,Woodruff:2014:CCM:2665671.2665740}.
+In particular, the CHERI project has proposed new ideas and ways of tackling practical challenges like backwards compatibility and realistic OS support~\citep{Watson2015Cheri,Woodruff:2014:CCM:2665671.2665740}.
 Capability machines tag every word (in the register file and in memory) to enforce a strict separation between numbers and capabilities (a kind of pointers that carry authority).
 Memory capabilities carry the authority to read and/or write to a range of memory locations.
 There is also a form of \emph{object capabilities}, which represent the authority to invoke a piece of code without exposing the code's encapsulated private state (e.g., the M-Machine's enter capabilities (described in Section~\ref{sec:capab-mach-with}) or CHERI's sealed code/data pairs).
@@ -2079,8 +2079,8 @@ definition instead:
 \subsubsection{Future Worlds}
 \label{subsec:future-worlds} 
 The future world relations model how memory may evolve over time.
-We have a \emph{public} and a \emph{private} future world relation that respectively what changes any capability can rely on and what changes only temporary regions can rely on.
-As temporary capabilities fall within the category of all capabilities, the public future relation is subsumed in the private future relation.
+We have a \emph{public} and a \emph{private} future world relation that, respectively, model the memory changes any capability can rely on and the memory changes only local capabilities can rely on.
+As local capabilities fall within the category of all capabilities, the public future relation is subsumed in the private future relation.
 
 The public future world $W' \futurewk W$ requires that $\dom(W') \supseteq \dom(W)$ and $\forall r \in \dom(W) \ldotp W'(r) \futurewk W(r)$.
 That is in a public future world, new regions may have been allocated, and existing regions may have evolved according to the public future region relation (defined below).
@@ -2455,7 +2455,7 @@ temporary) region.  Revoked regions are not taken into account as their memory p
 %   has access to values respecting the invariants in a world, then it will
 %   respect them itself too.} 
 The logical relation defines semantically when values, program counters, and configurations are capability safe.
-The logical relation is defined found in \figurename{}s~\ref{fig:logrel} and~\ref{fig:perm-conds}, and we provide some explanations in the following paragraphs.
+The logical relation is defined in \figurename{}s~\ref{fig:logrel} and~\ref{fig:perm-conds}, and we provide some explanations in the following paragraphs.
 For space reasons, we omit some definitions and explain them only verbally, but precise definitions can be found in the appendix.
 The logical relation is recursively defined, so we encourage first time readers to just read the section in its entirety and do a second read afterwards.
 
@@ -2492,7 +2492,7 @@ More precisely, the condition requires the memory addressed by the capability to
 This region should at least require all the memories accepted by the state interpretation function to contain safe words but stricter requirements may be imposed on the memories.
 This is expressed in terms of an upper bound on the possibly permitted memories defined in terms of a so called ``standard region''.
 In this case, it is a \tpwl{} $\iota^\pwl_{[\start,\addrend]}$ (defined in \figurename~\ref{fig:std-reg}). 
-The \tpwl{} only accept memories with address range $[\start,\addrend]$.
+The \tpwl{} only accepts memories with address range $[\start,\addrend]$.
 More importantly, the \tpwl{}'s state interpretation function only accepts memory segments that only contain safe words.
 The relation between the actual region in the world and the upper bound is $W(r) \nsubsim[n] \iota^\pwl_{[\start,\addrend]}$ (defined in Appendix~\ref{app:logical-relation}).
 Essentially, the relation requires the two regions state transition systems to be the same. Further in the current state of region $W(r)$ and in any world, the state interpretation function should only allow memories that are also allowed in the standard region.
@@ -2500,7 +2500,7 @@ Essentially, the relation requires the two regions state transition systems to b
 The locality of capabilities play a role in whether or not they are safe.
 Generally speaking, global capabilities should only depend on permanent regions.
 This is expressed in $\readCond{}$ with $\var{localityReg}(\gl,W)$ which projects out all the regions the capability can depend on based on its locality.
-Specifically, if the capability is local, then all active regions (non-revoked) are project.
+Specifically, if the capability is local, then all active regions (non-revoked) are projected.
 On the other hand, if the capability is global, then only the permanent regions are projected.
 
 Capabilities with write permission can be used to write to memory, so to define when a capability with write permission is safe we ask ourselves what an adversary should be allowed to do with it.
@@ -2575,7 +2575,7 @@ also preserved in private future worlds:
     \end{itemize}
   \end{lemma}
   In our definition of worlds, nothing prevents a world from having regions that are overlapping.
-  This might seem like an issue the $\stdvr$-relation as it allows different permission-based requirements to be satisfied by different regions.
+  This may seem like an issue with the $\stdvr$-relation as it allows different permission-based requirements to be satisfied by different regions.
   In practice, it is not an issue as we will always have a memory satisfaction assumption which doubles as a well-formedness condition on the world as it prevents the regions from overlapping.
   The memory satisfaction assumption in Lemma~\ref{lem:wl-local} is there to ensure a well-formed world.
 \end{toplas}
@@ -2737,7 +2737,7 @@ The relation between Theorem~\ref{thm:ftlr} and local-state encapsulation and co
   It should be fresh in the sense that malloc has not already allocated any of that memory and will not do so in the future.
   Also, when invoked with a nonsensical length argument such as a negative integer or a capability, malloc should simply fail.
   However, formulating these requirements is harder than one might expect.
-  The problem is that a realistic implementation of malloc needs to rely on internal state that changes after every invocation and relies on invariants on that state.
+  The problem is that a realistic implementation of malloc needs to rely on internal state (the free memory is part of malloc's internal state) that changes after every invocation and relies on invariants on that state.
   We can only expect that malloc behaves according to its specification if its internal state satisfies the current state of the invariants in an executing system.
   We express this in terms of the semantic model from \sectionname~\ref{sec:logical-relation}.
 
@@ -2849,8 +2849,7 @@ to point to the first instruction after the jump and pushes it to the stack. The
 adjusting it to point to the first instruction of the return code and
 encapsulating it by restricting its permission to $\entry$. Next, the \texttt{scall}
 macro reduces the range of authority of the stack pointer to the unused part of
-the stack and clears it(as discussed in
-Section~\ref{sec:stack-and-return-pointer}). Finally, the \texttt{scall} macro clears
+the stack and clears it (as discussed in Section~\ref{sec:stack-and-return-pointer}). Finally, the \texttt{scall} macro clears
 non-argument registers and jumps to $r$. Upon return after the restoration code
 on the stack has been executed, the \texttt{scall} macro pops the restoration code from
 the stack and restores the private state by popping it from the stack to the
@@ -2997,7 +2996,7 @@ macros, but the proofs work on the expanded macros.
 There are many details to get right when programming in assembly.
 These details carry over to proofs about assembly programs, so many of the proofs in \sectionname~\ref{sec:examples} about example programs are a bit cumbersome.
 It is especially annoying when the same line of reasoning is applied in multiple places.
-To mitigate this, we have define a number of lemmas that capture common reasoning patterns in these proofs.
+To mitigate this, we have defined a number of lemmas that capture common reasoning patterns in these proofs.
 In this section, we present the most central lemmas used to reason about assembly programs.
 
 % Anti-reduction lemma
@@ -3061,7 +3060,7 @@ From another point of view, it can be seen as a specification for \texttt{scall}
     \item $\dom(\ms_{\mathit{unused}}) = \dom(\ms_{\mathit{rec}}
       \uplus \ms_{\mathit{unused}}')$,
     \item $W' =
-      \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk\uplus\ms_{\mathit{rec}} \uplus \ms_f),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}'))]$,
+      \revokeTemp{W}[\iota^{\sta}(\temp,\ms_\stk\uplus\ms_{\mathit{rec}} \uplus \ms_f),\iota^{\pwl}(\dom(\ms_{\mathit{unused}}'))]$\footnote{We use the update-notation without a region name to indicate that it should be a fresh region name.},
     \item $\memSat[n-1]{\ms''}{W'}$
     \item $\reg' \text{ points to stack with $\emptyset$ used and $\ms_{\mathit{unused}}'$ unused}$
     \item $\reg'= \reg_0[\pcreg\mapsto\updatePcPerm{\reg(r)},
@@ -3114,7 +3113,7 @@ Roughly, the \texttt{scall} lemma (Lemma~\ref{lem:scall-works}) states that an i
 
 In the common case, \texttt{scall} is used to reason about untrusted code that we only have general assumptions about.
 As explained previously, we use the FTLR (Theorem~\ref{thm:ftlr}) to argue about unknown code; this is no exception.
-That is, when we argue that we assumption~\ref{item:scall:hyp-callee} in the \texttt{scall} lemma satisfied, we use the FTLR along with the assumptions we have (e.g.\ linking table, malloc capability etc.).
+That is, when we argue that assumption~\ref{item:scall:hyp-callee} in the \texttt{scall} lemma is satisfied, we use the FTLR along with the assumptions we have (e.g.\ linking table, malloc capability etc.).
 In Hyp-Callee, we assume the memory is safe, so it suffices to show that the register-file contains safe values, which amounts to showing that the arguments in the call are safe.
 
 By using Lemma~\ref{lem:scall-works} to reason about \texttt{scall}, the proofs become agnostic to the actual implementation of \texttt{scall}.
@@ -3278,7 +3277,7 @@ In the technical appendix~\citep{technical_appendix}, we also define a lemma for
 % We stress that these lemmas
 % are conveniences and are not strictly necessary to reason about programs for the
 % capability machine.
-In principle, one could reason solely in the semantic model
+% In principle, one could reason solely in the semantic model
 % without the use of these lemmas, but that would lead to a lot of repetition.
 \end{toplas}
 
@@ -3587,7 +3586,7 @@ From the code, this seems natural since \texttt{adv} does not have access to $x$
 Therefore after the second invocation on line 7, $x$ should still be in the state it was before that invocation.
 However, \texttt{adv} could have access to $\textit{cl}_x$ and could invoke $\textit{cl}_x$ again within the second invocation of \texttt{adv}.
 Then $\textit{cl}_x$ would set $x$ to $0$ again (on line 5) and reinvoke another callback.
-If that second callback were somehow able to skip its own caller and return directly to the caller of \texttt{adv}, it would end up on line 8 of Figure~\ref{fig:awkward} with $x$ set to $1$, causing the assertion to fail.
+If that second callback were somehow able to skip its own caller and return directly to the caller of \texttt{adv}, it would end up on line 8 of Figure~\ref{fig:awkward} with $x$ set to $0$, causing the assertion to fail.
 Without going into details, such an attack is perfectly possible if \texttt{adv} has access to a call/cc primitive (or equivalent).
 In other words, if we are able to prove that the assertion will never fail, this attack, and other similar attacks, on well-bracketed control flow are adequately prevented.
 
@@ -3661,7 +3660,7 @@ However, our calling convention prevents any of this from happening as we prove 
   The next part in the execution is an \texttt{scall}, so, according to \sectionname~\ref{sec:reasoning}, we should apply the \texttt{scall} lemma (Lemma~\ref{lem:scall-works}).
   For the sake of presentation, we here sketch some of the things the \texttt{scall} lemma actually takes care of.
   Based on the stack pointer's permission, we know by Lemma~\ref{lem:wl-local} that the capability is local (because it is a system wide assumption that there are no global read/write-local/execute capabilities \textit{cf.}\ \sectionname~\ref{sec:stack-and-return-pointer}) which means that the region that governs it must be temporary.
-  This allows us to construct a world $W_2 \futurestr W_1$ where the stack region of $W_1$ has been revoked\footnote{As a side note, it is also important for the reasoning about $x$ that this is a private future world.}.
+  This allows us to construct a world $W_2 \futurestr W_1$ where the stack region of $W_1$ has been revoked.
   In $W_2$, two new regions govern the stack.
   One of the two new regions governs the caller stack frame, i.e.\ the part of the stack that contains the contents of private registers and stack recovery code.
   The region that takes care of this is a temporary static region which ensures that our local stack frame remains unchanged during the execution of the callback.
@@ -3829,13 +3828,14 @@ read/write access to a framebuffer.
 %   7850)
 \noindent\textbf{Calling convention}\\
 \emph{Formulating control flow correctness} While we claim that our calling convention enforces control-flow correctness, we do not prove a general theorem that shows this because it is not clear what such a theorem should look like.
-Formulations in terms of a control-flow graph, like the one by \citet{abadi_control-flow_2005}, do not take into account temporal properties \itoplas{because they only take into account what capabilities can be available and not when they are used.
+Formulations in terms of a control-flow graph, like the one by \citet{abadi_control-flow_2005}, \itoplas{creates a view with all capabilities that may be available at some point in time.
+By removing the time aspect, we may have to consider capabilities that are actually not available at a given point in time.}
   Example~\texttt{g1} relies on such temporal properties when returning from the higher-order call backs.}
 In fact, our examples show that our logical relation implies a stronger form of control-flow correctness than such formulations, although this is not made very explicit.
 In later work, \citet{skorstengaard_stktokens_2019} provide a more explicit and useful definition of control-flow correctness and local state encapsulation.
 The idea of their definition is to define a variant of a simple capability machine with a built-in stack as well as call and return instructions.
 The call and return instructions use the built-in stack which gives well-bracketed control and local state encapsulation by construction.
-They prove full abstraction~\citep{abadi_protection_1998} for a compilation from the capability machine with the built-in stack to one without which means that the programs running on the capability machine without a built-in stack behaves as though there was a built-in stack.
+They prove full abstraction~\citep{abadi_protection_1998} for a compilation from the capability machine with the built-in stack to one without which means that the programs running on the capability machine without a built-in stack behave as though there was a built-in stack.
 Their full abstraction proof uses a logical relation, but it differs in a number of ways from the one we present.
 Their logical relation is a binary cross language logical relation tailored specifically to prove the full abstraction result.
 This means that it could not be used to prove program correctness results similar to ours.
@@ -3979,10 +3979,10 @@ Handling large numbers of components is a requirement if we want to use capabili
   \emph{Simplifications} Our capability machine formalization assumes unbounded integers and an infinite address space.
   Further, it has a much simpler instruction set than that of a full ISA.
   By making these simplifications, we avoid tedious details but end up with a less realistic machine.
-  However, the intend of this work is to gain ground in the formal work necessary to prove properties about low-level assembly programs on a capability machine not to apply it to a full fledged capability machine.
+  However, the intent of this work is to gain ground in the formal work necessary to prove properties about low-level assembly programs on a capability machine not to apply it to a full fledged capability machine.
 
   We do not believe that any of our simplifications are beyond reason and expanding the result seems plausible.
-  If we added unbounded integers, we would have to change the operational
+  If we added bounded integers, we would have to change the operational
   semantics to take over and under flows into account. This could be achieved
   by changing the \texttt{plus} and \texttt{minus} instruction to use modulo
   arithmetic.
@@ -4011,7 +4011,7 @@ Imagine, for example, that we invoke a block of adversary code in such a way
 that it only ever receives capabilities within a specific range of memory. After
 the code returns, we may try to prove that any capabilities passed back to us in
 the registers are still confined to that range of memory. The property talks
-about a the specific implementation of a higher-order value rather than its behavior,
+about the specific implementation of a higher-order value rather than its behavior,
 like the invariants that are required/preserved when we use it.
 
 Such properties are hard to prove in our model.
