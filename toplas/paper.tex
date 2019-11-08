@@ -631,7 +631,7 @@ in particular. More specifically, we make the following contributions:
 \begin{toplas}
   This paper is an extension of the published conference paper~\citet{Skorstengaard:esop18}.
   We have made improvements to readability and completeness throughout the paper.
-  For instance, we have added an introduction to \sectionname~\nameref{sec:logical-relation} that provides informal intuition about how the logical relation machinery comes into play on a capability machine.
+  For instance, we have added an introduction to \sectionname~\ref{sec:logical-relation} that provides informal intuition about how the logical relation machinery comes into play on a capability machine.
   We highlight the following changes:
   \begin{itemize}
   \item We have added proof sketches for the \nameref{thm:ftlr} and for the correctness lemma for the awkward example
@@ -888,66 +888,6 @@ It is inspired by both the M-Machine~\citep{Carter:1994:HSF:195473.195579} and C
 For simplicity, we assume an
 infinite address space and unbounded integers (see \sectionname~\ref{sec:discussion} for a discussion of these assumptions).
 
-We define the syntax of our capability machine in \figurename~\ref{fig:syntax}.
-We assume an infinite set of addresses $\Addrs$ and define machine words as either integers or capabilities of the form $((\perm,\gl),\var{base},\var{end},\addr)$.
-Such a capability represents the authority to execute permissions $\perm$ on the memory range $[\var{base},\var{end}]$, together with a current address $\addr$ and a locality tag $\gl$ indicating whether the capability is global or local.
-On a capability machine, there is no notion of pointers other than capabilities, so we will use the terms interchangeably.
-The available permissions are null permission ($\noperm$), readonly ($\readonly$), read/write ($\readwrite$), read/execute ($\exec$), and read/write/execute ($\rwx$) permissions.
-Additionally, there are three special permissions: read/write-local ($\readwritel$), read/write-local/execute ($\rwlx$) and enter ($\entry$), which we will explain below.
-\itoplas{The orderings of permissions and locality are displayed in \figurename~\ref{fig:perm-hier}.
-  The write permission is subsumed by the write-local permission, i.e.\ a write-local capability can be used to store both $\local$ and $\glob$ capabilities to memory which is why write-local is above write in the permission hierarchy.
-  We denote the pairwise ordering of permission and locality with $\sqsubseteq$.}
-
-\begin{wrapfigure}{R}{.4\textwidth}
-  \centering
-  \begin{tikzpicture}[main node/.style={}]
-    \node[main node] (7) {$\rwlx$};
-    \node[main node] (8) [below left of=7] {$\readwritel$};
-    \node[main node] (1) [below right of=7] {$\rwx$};
-    \node[main node] (2) [below right of=1] {$\exec$};
-    \node[main node] (3) [below right of=2] {$\entry$};
-    \node[main node] (4) [below left of=1] {$\readwrite$};
-    \node[main node] (5) [below right of=4] {$\readonly$};
-    \node[main node] (6) [below right of=5] {$\noperm$};
-
-    \path[every node/.style={font=\sffamily\small}]
-    (7) edge (8)
-    (7) edge (1)
-    (8) edge (4)
-    (1) edge (2)
-    (2) edge (3)
-    (2) edge (5)
-    (3) edge (6)
-    (1) edge (4)
-    (4) edge (5)
-    (5) edge (6);
-
-    \node[main node] (1l) [right of=1, xshift=2cm] {$\glob$};
-    \node[main node] (2l) [below of=1l] {$\local$};
-
-    \path[every node/.style={font=\sffamily\small}]
-    (1l) edge (2l);
-  \end{tikzpicture}
-  \caption{Permission and locality hierarchy.}
-  \label{fig:perm-hier}
-\end{wrapfigure}
-
-We assume a finite set of register names $\RegName$.
-We define register files $\reg$ and memories $\ms$ as functions mapping register names resp.\ addresses to words.
-The state of the entire machine is represented as a configuration that is either a running state $\Phi \in \ExecConfs$ containing a memory and a register file or a failed or halted state where the latter is paired with the final state of memory.
-
-% We also define memory segments $\ms$:
-% parts of memory represented as partial functions mapping addresses to words.
-
-%\lau{we don't really make the distinction between memory and memory segments in the rest of the paper, so maybe we should leave this out?}
-
-The machine's instruction set is rather basic.
-Instructions $i$ include relatively standard jump ($\jmp{}$), conditional jump ($\jnz{}{}$), and move ($\move{}{}$, copies words between registers) instructions.
-Also familiar are load and store instructions for reading from and writing to memory ($\load{}{}$ and $\store{}{}$) and arithmetic operators ($\lt{}{}{}$ (less than), $\plus{}{}{}$ and $\minus{}{}{}$, operating only on numbers).
-There are three instructions for modifying capabilities: $\lea{}{}$ (modifies the current address), $\restricttwo{}{}$ (modifies the permission and local/global tag), and $\subseg{}{}{}$ (modifies the range of a capability).
-Importantly, these instructions take care that the resulting capability always carries less authority than the original (e.g.\ $\restricttwo{}{}$ will only weaken a permission according to the hierarchy in \figurename~\ref{fig:perm-hier}).
-Finally, the instruction $\isptr{}{}$ tests whether a word is a capability or a number and instructions $\getp{}{}$, $\getl{}{}$, $\getb{}{}$, $\gete{}{}$ and $\geta{}{}$ provide access to a capability's permissions, local/global tag, base, end and current address, respectively.
-
 \begin{figure}[b]
 \[\arraycolsep=1.4pt
   \begin{array}{rlrcl}
@@ -995,6 +935,66 @@ Finally, the instruction $\isptr{}{}$ tests whether a word is a capability or a 
   \caption{The syntax of our capability machine assembly language.}
   \label{fig:syntax}
 \end{figure}
+
+\begin{figure}
+  \centering
+  \begin{tikzpicture}[main node/.style={}]
+    \node[main node] (7) {$\rwlx$};
+    \node[main node] (8) [below left of=7] {$\readwritel$};
+    \node[main node] (1) [below right of=7] {$\rwx$};
+    \node[main node] (2) [below right of=1] {$\exec$};
+    \node[main node] (3) [below right of=2] {$\entry$};
+    \node[main node] (4) [below left of=1] {$\readwrite$};
+    \node[main node] (5) [below right of=4] {$\readonly$};
+    \node[main node] (6) [below right of=5] {$\noperm$};
+
+    \path[every node/.style={font=\sffamily\small}]
+    (7) edge (8)
+    (7) edge (1)
+    (8) edge (4)
+    (1) edge (2)
+    (2) edge (3)
+    (2) edge (5)
+    (3) edge (6)
+    (1) edge (4)
+    (4) edge (5)
+    (5) edge (6);
+
+    \node[main node] (1l) [right of=1, xshift=2cm] {$\glob$};
+    \node[main node] (2l) [below of=1l] {$\local$};
+
+    \path[every node/.style={font=\sffamily\small}]
+    (1l) edge (2l);
+  \end{tikzpicture}
+  \caption{Permission and locality hierarchy.}
+  \label{fig:perm-hier}
+\end{figure}
+
+We define the syntax of our capability machine in \figurename~\ref{fig:syntax}.
+We assume an infinite set of addresses $\Addrs$ and define machine words as either integers or capabilities of the form $((\perm,\gl),\var{base},\var{end},\addr)$.
+Such a capability represents the authority to execute permissions $\perm$ on the memory range $[\var{base},\var{end}]$, together with a current address $\addr$ and a locality tag $\gl$ indicating whether the capability is global or local.
+On a capability machine, there is no notion of pointers other than capabilities, so we will use the terms interchangeably.
+The available permissions are null permission ($\noperm$), readonly ($\readonly$), read/write ($\readwrite$), read/execute ($\exec$), and read/write/execute ($\rwx$) permissions.
+Additionally, there are three special permissions: read/write-local ($\readwritel$), read/write-local/execute ($\rwlx$) and enter ($\entry$), which we will explain below.
+\itoplas{The orderings of permissions and locality are displayed in \figurename~\ref{fig:perm-hier}.
+  The write permission is subsumed by the write-local permission, i.e.\ a write-local capability can be used to store both $\local$ and $\glob$ capabilities to memory which is why write-local is above write in the permission hierarchy.
+  We denote the pairwise ordering of permission and locality with $\sqsubseteq$.}
+
+We assume a finite set of register names $\RegName$.
+We define register files $\reg$ and memories $\ms$ as functions mapping register names resp.\ addresses to words.
+The state of the entire machine is represented as a configuration that is either a running state $\Phi \in \ExecConfs$ containing a memory and a register file or a failed or halted state where the latter is paired with the final state of memory.
+
+% We also define memory segments $\ms$:
+% parts of memory represented as partial functions mapping addresses to words.
+
+%\lau{we don't really make the distinction between memory and memory segments in the rest of the paper, so maybe we should leave this out?}
+
+The machine's instruction set is rather basic.
+Instructions $i$ include relatively standard jump ($\jmp{}$), conditional jump ($\jnz{}{}$), and move ($\move{}{}$, copies words between registers) instructions.
+Also familiar are load and store instructions for reading from and writing to memory ($\load{}{}$ and $\store{}{}$) and arithmetic operators ($\lt{}{}{}$ (less than), $\plus{}{}{}$ and $\minus{}{}{}$, operating only on numbers).
+There are three instructions for modifying capabilities: $\lea{}{}$ (modifies the current address), $\restricttwo{}{}$ (modifies the permission and local/global tag), and $\subseg{}{}{}$ (modifies the range of a capability).
+Importantly, these instructions take care that the resulting capability always carries less authority than the original (e.g.\ $\restricttwo{}{}$ will only weaken a permission according to the hierarchy in \figurename~\ref{fig:perm-hier}).
+Finally, the instruction $\isptr{}{}$ tests whether a word is a capability or a number and instructions $\getp{}{}$, $\getl{}{}$, $\getb{}{}$, $\gete{}{}$ and $\geta{}{}$ provide access to a capability's permissions, local/global tag, base, end and current address, respectively.
 
 \begin{figure}[htb]
   \centering
@@ -3634,11 +3634,11 @@ However, our calling convention prevents any of this from happening as we prove 
     \item A permanent static region for the flag and \texttt{g1}, i.e.\ a region that only
       accepts $\ms_\flag$ and $\ms_{g1}$.
     \end{itemize}
-    If we can show
+    If we can show\footnote{We ignore step indexes in this proof sketch.}
     \begin{equation}
       (\reg_0[\pcreg \mapsto c_\adv,r_\stk\mapsto c_\stk,r_1\mapsto c_{g1}],\ms_\malloc \uplus \ms_\link \uplus \ms_\stk \uplus \ms_\adv\uplus \ms_\flag  \uplus \ms_{g1}) \in \observations(W_1),\label{eq:g1:main-O-res}
   \end{equation}
-  \footnote{We ignore step indexes in this proof sketch.}then the $\observations$-relation ensures that a successfully halting configuration terminates in a memory that respects a private future world of $W$ which in particular means that it respects the permanent static region that governs the assertion flag.
+  then the $\observations$-relation ensures that a successfully halting configuration terminates in a memory that respects a private future world of $W$ which in particular means that it respects the permanent static region that governs the assertion flag.
 
   As described in \sectionname~\ref{sec:reasoning}, we use the FTLR (Theorem~\ref{thm:ftlr}) to reason about unknown code, so we use it to reason about $c_\adv$.
   With the standard region $\iota^{nwl,p}$ chosen for the adversary, it is easy to show that the $\readCond{}$ and $\writeCond{}$ holds for $c_\adv$ which gives us $c_\adv \in \stder(W)$ by the FTLR.
