@@ -2113,6 +2113,365 @@ Theorem~\ref{thm:full-abstraction} proves that \stktokens{} enforces these prope
 \label{sec:fa-proof}
 \input{proving-full-abstraction}
 
+\section{World Construction: solving the recursive domain equation}
+\label{subsubsec:rec-dom-eq}
+In the previous sections, we sketched what our worlds should be.
+However, the worlds we want constitute a self-referential domain equation for which no solution exists in set and domain theory.
+% Move to a different domain
+Therefore, we need to move to a different domain with enough structure for a solution to exist for recursive equations.
+Solutions to recursive domain equations can be found using standard techniques~\citep{scott_1976,america_1989,Birkedal:2011:SKM:1926385.1926401}.
+Essentially, we move to a setting where instead of sets we have c.o.f.e.'s (complete ordered families of equivalences), instead of functions we have non-expansive functions, and instead of relations we have downwards-closed relations.
+A c.o.f.e.\ can be thought of as a set with added structure.
+Specifically, c.o.f.e.'s have a step-index that must satisfy a set of conditions which provide sufficient structure for a solution to exist for the recursive domain equation.
+
+The construction of our worlds deviates a bit from the standard recipe, because we need two future world relations and the world contains regions with one of two forms of monotonicity.
+In this section, we explain our solution of the world equation.
+To make this paper self-contained, we include a recap of relevant concepts and theorems from the literature on c.o.f.e.'s.
+This section does not provide further intuition about the worlds and can be safely skipped.
+
+Recursive domain equations are so common and the solution so standard that frameworks implement them to lift the technical burden of constructing the world by hand.
+The technique we use to solve our recursive domain equation is essentially the same as what is used internally in the program logic framework Iris~\citep{iris,iris2,iris3} to construct worlds.
+We believe the worlds presented here could be developed in Iris.
+Had we done the development in Iris Coq, then we would have had the world tool support of Iris and the rigorousness of Coq which, in hindsight, would have been very beneficial.
+
+% Cofe's
+In this section, we explain how the world is constructed in detail (readers willing to trust us can safely skip to Section~\ref{subsubsec:joining-worlds}).
+To explain this, we present complete ordered family of equivalences \citep{di_gianantonio_2002}.
+We loosely follow the presentation in \citet{birkedal_taste_2014} and introduce the necessary definitions needed for our particular world.
+\begin{definition}[Ordered family of equivalences (o.f.e.)]
+An \emph{ordered family of equivalences} is a pair $\cofe{X}$ where $X$ is a set and $\nequal$ is an equivalence relation for each $n$.
+The pair must satisfy the following properties:
+\begin{enumerate}
+\item $\nequal[0]$ is the total relation.
+\item For all $n \in \nats$, $\nequal[n] \supseteq \nequal[n+1]$.
+\item For all $x,y \in X$,  if for all $n \in \nats$ $x \nequal y$, then $x = y$.
+\end{enumerate}
+\end{definition}
+\noindent An o.f.e.\ can be thought of as a set with extra structure.
+Intuitively, the index on the family of equivalences is a measure of precision.
+The larger the index is, the more refined the equivalences are which means that they can distinguish more elements from one another.
+On the other hand as the index decreases, the equivalences become increasingly imprecise and unable to distinguish certain elements.
+At index 0, all precision is lost and the equivalence cannot distinguish anything.
+\dominique{Introduce phrases like ``up to n steps'' etc.}
+\begin{definition}[Complete ordered family of equivalences (c.o.f.e.)]
+  \label{def:cauchy-sequence}
+  A \emph{complete ordered family of equivalences} is an ordered family of equivalences
+  $\cofe{X}$ such that every Cauchy sequence in $X$ has a limit
+  in $X$.
+
+  Let $\cofe{X}$ be an o.f.e. and $\seq{x}$ be a sequence of
+  elements in $X$. Then $\seq{x}$ is a \emph{Cauchy sequence} if
+  \begin{align*}
+    \forall k \in \nats, \exists j \in \nats, \forall n \geq j, x_j \nequal[k] x_n
+  \end{align*}
+  or in words, the elements of the chain get arbitrarily close.
+
+  An element $x \in X$ is the \emph{limit} of the sequence $\seq{x}$ if
+  \begin{align*}
+    \forall k \in \nats, \exists j \in \nats, \forall n \geq j, x \nequal[k] x_n.
+  \end{align*}
+\end{definition}
+In order to move from one c.o.f.e.\ to another, we define functions, just like we would when working with sets.
+Unlike functions between sets, functions between c.o.f.e.'s must preserve the c.o.f.e.\ structure which informally means that the measure of precision must be retained.
+This specifically means that functions between c.o.f.e.'s must be \emph{non-expansive} which basically means that they preserve $n$-equalities.
+Functions may not only retain equivalences but make it more precise.
+Such a function is said to be \emph{contractive}.
+\begin{definition}
+  \label{def:nonexpansive-contractive-ofe}
+  Let $\left(X,\left(\nequal[n]_X\right)_{n=0}^{\infty} \right)$ and $\left(Y,\left(\nequal[n]_Y\right)_{n=0}^{\infty} \right)$ be two ordered families of equivalences and $f$ a function from the set $X$ to the set $Y$.
+  The function $f$ is
+  \begin{description}
+  \item[non-expansive] when for all $x, x' \in X$, and all $n \in \nats$,
+\[
+  x \nequal_X x' \implies f(x) \nequal_Y f(x')
+\]
+  \item[contractive] when for any $x, x' \in X$, and any $n \in \nats$,
+\[
+  x \nequal_X x' \implies f(x) \nequal[n+1]_Y f(x') 
+  \qedhere
+\]
+  \end{description}
+\end{definition}
+\noindent The step-indexing provided by c.o.f.e.'s give enough structure to solve the recursive domain equation.
+There are a number of standard c.o.f.e.\ constructions for countably sets, products, sums, and functions.
+A set can be lifted to c.o.f.e.\ by having the normal equality for all positive indices and the total relation for $\nequal[0]$.
+The other standard constructions are defined naturally and compose new c.o.f.e.'s from existing c.o.f.e.'s.
+
+In some sense, the standard c.o.f.e.\ constructions maintain the precision of the underlying c.o.f.e.'s.
+This, however, does not utilise the c.o.f.e.\ structure in a way that allows us to construct a solution for a recursive domain equation.
+Intuitively, the step of the c.o.f.e.\ needs to go down before the recursive occurrence.
+To this end, we have the \emph{later} ($\blater$) c.o.f.e.:
+\begin{lemma}[$\blater$ c.o.f.e.]
+  \label{def:later-cofe}
+  Given a c.o.f.e $\left(X, \left(\nequal_X\right)_{n=0}^{\infty} \right)$ define the later c.o.f.e.\ as
+  \[
+    \blater\left(X, \left(\nequal_X\right)_{n=0}^{\infty} \right) = \left(X, \left(\nequal[n]_{\blater}\right)_{n=0}^{\infty} \right)
+  \]
+  where
+  \[
+    x \nequal[n]_{\blater} x' \text{ iff } \left\{
+      \begin{array}{l}
+        n = 0 \text{ or }\\
+        x \nequal[n-1]_X x'
+      \end{array}
+    \right. \qedhere
+  \]
+\end{lemma}
+The later c.o.f.e.\ should be placed before the self-reference to make the index decrease. 
+Intuitively, this gives something to recurse on in order to find a solution for the domain equation.
+If we limit ourselves to a handful of standard constructions (product, sum, arrow, later, and partial functions from the natural numbers) to construct self-referential equations and make sure to guard every occurrence of the self reference with a later, then the equation has a solution.
+
+Unfortunately, the standard c.o.f.e.\ constructions do not suffice for the worlds we want to define.
+The worlds we sketched have additional structure in terms of a future world relation.
+The future world relation is captured by adding a preorder to c.o.f.e.'s:
+\begin{definition}[Preordered c.o.f.e.]
+  A preordered c.o.f.e.\ is a c.o.f.e.\ equipped with a preorder on $X$, $\left(X, \left(\nequal\right)_{n=0}^{\infty}, \future \right)$. 
+  \begin{itemize}
+  \item The ordering preserves limits. That is, for Cauchy sequences $\{a_n\}_n$ and $\{b_n\}_n$ in $X$ if $\{a_n\}_n \future\{b_n\}_n$, then $\lim \{a_n\}_n \future \lim \{b_n\}_n$.
+  \end{itemize}
+\end{definition}
+The preorder must respect the existing structure of the c.o.f.e.'s which means that it must preserve limits.
+There are also natural constructions for preordered c.o.f.e.'s that rely on the underlying preorder.
+We will need the standard construction for later, product, and sum (defined in \appendixname~\ref{app:cofe}).
+
+Sometimes we will refer to c.o.f.e.'s and preordered c.o.f.e.'s simply by their underlying set.
+
+In the following, we will define a number of preordered c.o.f.e.'s that can be combined to get our world equation.
+First, we define the c.o.f.e.\ for the memory invariants (we do not need a preorder here).
+As a reminder, we sketched the memory invariants to as follows
+\[
+  \World \monfun \Rel{\MemSeg \times \MemSeg}
+\]
+To construct this, we need to define a c.o.f.e.\ for the relation and a c.o.f.e.\ for the monotone and non-expansive functions.
+We do not need a construction for the world as it will be given as the solution to the recursive equation.
+Generally, we can lift a set of relations to a c.o.f.e.\ by adding a downwards closed index to it.
+This means that if a pair is in the relation for a specific index, then it is also in the relation for all smaller indices.
+%% URel
+\begin{definition}[Uniform relation]
+  \label{def:uniform-rel-cofe}
+  Given a set $R = X \times Y$, we define $\URel{R} \subseteq \powerset{\nats \times R}$ as
+  \[
+    \URel{R} = \{ A \in \powerset{\nats \times R} \mid \forall n \in \nats \ldotp \forall r \in R \ldotp \npair{r} \in A \implies \forall m \leq n \ldotp \npair[m]{r} \in A\}
+  \]
+  The uniform relation c.o.f.e.\ $\cofe{\URel{R}}$ has $\URel{R}$ as the underlying set and the following family of equivalences:
+  \[
+    A \nequal B \text{ iff } \erasen{A}{n} = \erasen{B}{n}
+  \]
+  where erasure is defined as
+  \[
+    \erasen{A}{n} \defeq \{(k,a) \in A \mid k < n\}
+  \]
+  to get a preordered c.o.f.e.\ we use subset as the preorder.
+\end{definition}
+The uniform relation construction uses the canonical family of equivalences which basically ignores everything from the step up and requires the rest to be equal.
+This means that everything is equal at step $0$ as everything is left out.
+
+Next, we define a c.o.f.e.\ of monotone, non-expansive functions
+\begin{definition}[The c.o.f.e. of monotone and non-expansive functions]
+\label{def:monnefun-cofe}
+  Given a preordered c.o.f.e. $\left(W,\left(\nequal[n]_W\right)_{n=0}^{\infty},\future_W\right)$ and a preordered c.o.f.e.\ $\left(U,\left(\nequal[n]_U\right)_{n=0}^{\infty},\future_U\right)$ , define the c.o.f.e.\ $\left(W \monnefun U,\left(\nequal[n]\right)_{n=0}^{\infty}\right)$ where 
+  \[
+    h \nequal h' \text{ iff } \forall w \in \dom(h) \ldotp h(w) \nequal_U h'(w)
+  \]
+\end{definition}
+In order to construct the memory invariant, we use Definition~\ref{def:monnefun-cofe} with the world solution as the $W$ c.o.f.e.\  and a uniform relation over pairs of memory segments (Definition~\ref{def:uniform-rel-cofe}) as the $U$ c.o.f.e.
+
+Next, we construct the seal invariant.
+As a reminder, we sketched the seal invariant as
+\[
+  \Seal \parfun \World \monnefun \URel{\SealableCaps\times\SealableCaps}
+\]
+In order to define the c.o.f.e. for this, we can use Definitions~\ref{def:uniform-rel-cofe} and~\ref{def:monnefun-cofe}.
+This leaves us with the task of lifting the set of seals to a c.o.f.e.\ and defining the c.o.f.e.\ partial functions.
+Generally, all countable sets can be lifted to a c.o.f.e.\ with a family of equivalences that has full precision for all indices except index 0.
+\begin{definition}[Sets to c.o.f.e.]
+  \label{def:lift-set-cofe}
+  A countable set $S$ can be lifted to a c.o.f.e. $\cofe{S}$ where
+  \begin{itemize}
+  \item $\nequal[0]$ is the total relation
+  \item for $n > 0$ the relation $\nequal$ is the normal equality on the set
+  \end{itemize}
+\end{definition}
+This definition can be used to lift the set of all seals $\Seal$ to a c.o.f.e.
+
+The c.o.f.e.\ of partial, non-expansive functions is defined similarly to the c.o.f.e.\ of monotone non-expansive functions.
+\begin{definition}[The c.o.f.e. of partial, non-expansive functions]
+\label{def:parfun-cofe}
+  Given a c.o.f.e. $\left(S,\left(\nequal[n]_S\right)_{n=0}^{\infty}\right)$ and a c.o.f.e.\ $\left(H,\left(\nequal[n]_H\right)_{n=0}^{\infty}\right)$ , define the c.o.f.e.\ $\left(S \parfun H,\left(\nequal[n]\right)_{n=0}^{\infty} \right)$ where 
+  \[
+    h \nequal h' \text{ iff } \dom(h) = \dom(h') \wedge \forall w \in \dom(h) \ldotp h(w) \nequal_H h'(w)
+  \]
+\end{definition}
+The seal invariant is defined using Definition~\ref{def:lift-set-cofe} to lift $\SealableCaps$ to a c.of.e.\, defining a c.o.f.e.\ similar to the one for memory invariants, and finally combining the two with Definition~\ref{def:parfun-cofe}.
+
+Next, we want to define the regions of the world.
+As mentioned, our regions have the added structure of the future region relation, so we need to define them as a preordered c.o.f.e.
+The future region was presented in Section~\ref{subsubsec:ft-and-revocation}.
+On shared regions, the relation is equality which makes it straight forward to define:
+\begin{definition}[Shared region preordered c.o.f.e.\ ]
+  \label{def:pure-reg-p-cofe}
+  Given two c.o.f.e.'s $\left(\var{MemInv},\left(\nequal[n]_\var{MI}\right)_{n=0}^{\infty}\right)$ and $\left(\var{SealInv},\left(\nequal[n]_{\var{SI}}\right)_{n=0}^{\infty}\right)$, define the preordered c.o.f.e.\ of shared regions as
+  \[
+  \left(\{\pure\}\times \var{MemInv} \times \var{SealInv},\left(\nequal[n]\right)_{n=0}^{\infty},=\right)
+  \]
+  where the family of equivalences distributes to the underlying c.o.f.e.'s, i.e. given shared regions $(\pure,H,H_\sigma), (\pure,H',H_\sigma') \in \{\pure\}\times \var{MemInv} \times \var{SealInv}$,
+  \[
+  (\pure,H,H_\sigma) \nequal (\pure,H',H_\sigma') \text{ iff } H \nequal_\var{MI} H' \wedge H_\sigma \nequal_{SI} H_\sigma'
+  \]
+\end{definition}
+Definition~\ref{def:pure-reg-p-cofe} gives us the shared region for preorder c.o.f.e.\ when we use it with the memory invariant c.o.f.e.\ as $\var{MemInv}$ and the seal invariant c.o.f.e.\ as $\var{SealInv}$.
+
+Next, we define the preordered c.o.f.e.\ for spatial regions.
+The future region relation on spatial regions is non-trivial, so the definition of the preordered c.o.f.e.\ is slightly more involved.
+\begin{definition}[Spatial region preordered c.o.f.e.\ ]
+  \label{def:spatial-reg-p-cofe}
+  Given two c.o.f.e.'s $\left(\var{MemInv},\left(\nequal[n]_\var{MI}\right)_{n=0}^{\infty}\right)$ and $\left(\var{MemInv'},\left(\nequal[n]_\var{MI'}\right)_{n=0}^{\infty}\right)$, let
+  \[
+    \Regions = \{\spatial\}\times \var{MemInv} \cup \{\spatialo\} \times \var{MemInv'} \cup \{\revoked\}
+  \]
+  define the preordered c.o.f.e.\ of shared regions as
+  \[
+  \left(\Regions,\left(\nequal[n]\right)_{n=0}^{\infty},\future\right)
+  \]
+  where the preorder $\future$ is defined as
+  \begin{mathpar}
+  \inferrule{ r \in \Regions }{ r \future r }
+  \and
+  \inferrule{ }{ \revoked \future (\spatial,\_)}
+  \and
+  \inferrule{ }{ (\spatialo,H) \future (\spatial,H)}
+  \end{mathpar}
+  and $\left(\nequal[n]\right)_{n=0}^{\infty}$ is the total relation for $n=0$ and otherwise the region tags must be the same and the memory invariants $n$-equal, i.e.\ 
+  for $r ,r' \in \Regions$ we have $r \nequal r'$ when one of the following holds
+  \begin{itemize}
+  \item $n=0$
+  \item $n > 0$ and one of the following is true
+    \begin{itemize}
+    \item $r = r' = \revoked$
+    \item $r = (\spatial,H)$, $r' = (\spatial,H')$, and $H \nequal_\var{MI} H'$
+    \item $r = (\spatialo,H)$, $r' = (\spatialo,H')$, and $H \nequal_\var{MI'} H'$
+    \end{itemize}
+  \end{itemize}
+\end{definition}
+Definitions~\ref{def:pure-reg-p-cofe} and~\ref{def:spatial-reg-p-cofe} define the preordered c.o.f.e.'s necessary for the regions in our worlds.
+
+Next, we need to define the three sub-worlds for heap, encapsulated stack frames, and free stack.
+The definitions of the sub-worlds are very similar, so we can capture the essence of all three sub worlds in one definition.
+\begin{definition}[Sub-world preordered c.o.f.e.]
+  \label{def:sub-world-p-cofe}
+  Given preordered c.o.f.e. $\left(\var{Reg},\left(\nequal[n]_\var{Reg}\right)_{n=0}^{\infty},\future_\var{Reg}\right)$ define the sub-world preordered c.o.f.e.\ as
+  \[
+    \left(\nats \parfun \var{Reg},\left(\nequal[n]\right)_{n=0}^{\infty},\future \right)
+  \]
+  where the family of equivalences is defined by given $W,W' \in \nats \parfun \var{Reg}$,
+  \[
+    W \nequal W' \text{ iff } \dom(W) = \dom(W') \wedge \forall r \in \dom(W)\ldotp W(r) \nequal W'(r)
+  \]
+  and the future world relation is defined by given $W,W' \in \nats \parfun \var{Reg}$,
+  \[
+  W' \future W \text{ iff } \left\{
+    \array{l}
+    \exists m : \RegionName \fun \RegionName, \text{ injective}\ldotp\\
+    \quad \dom(W') \supseteq \dom(m(W)) \wedge \forall r \in \dom(W)\ldotp W'.i(m(r)) \future W(r)
+     \endarray
+  \right.
+\]
+\end{definition}
+The free stack sub-world preordered c.o.f.e.\ is constructed from the spatial region preordered c.o.f.e.\ (Definition~\ref{def:spatial-reg-p-cofe}) and the general sub-world construction in Definition~\ref{def:sub-world-p-cofe}.
+The result is the sub-world for the free stack
+\[
+  \Worldfs = \nats \parfun \Regions
+\]
+
+Next, we define the call stack sub-world.
+To this end, we use Definition~\ref{def:spatial-reg-p-cofe} to get the spatial region which we need to combine this with an address.
+We lift the set of addresses to a preordered c.o.f.e.\ $A$ (Definition~\ref{def:lift-set-cofe} with equality as the preorder) and combine the preordered c.o.f.e.'s $\Addr$ and $\Regions$ with the standard product construction.
+All in all, we get the a preordered c.o.f.e.\
+\[
+  \Regions \times \Addr
+\]
+which we use with Definition~\ref{def:sub-world-p-cofe} to get the preordered c.o.f.e.\ for the stack sub-world:
+\[
+  \Worlds = \nats \parfun \Regions \times \Addr
+\]
+
+Finally, we define the sub-world for the heap.
+To this end, we combine the shared region preordered c.o.f.e.\ (Definition~\ref{def:pure-reg-p-cofe}) with the spatial region preordered c.o.f.e.\ (Definition~\ref{def:spatial-reg-p-cofe}) using the standard union preordered c.o.f.e.\ construction.
+The result is a preordered c.o.f.e.\
+\[
+  \Regions \cup \Regionh
+\]
+which we use in the sub-world construction (Definition~\ref{def:sub-world-p-cofe}) to obtain the preordered c.o.f.e.\
+\[
+  \Worldh = \nats \parfun (\Regions \cup \Regionh)
+\]
+
+With the three sub-worlds defined, we combine them with the standard product construction for preordered c.o.f.e.'s to get our worlds.
+\[
+  \Worldh \times \Worlds \times \Worldfs
+\]
+This is the world, we would like to work with, but we still don't have a solution for the recursive domain equation.
+In fact, when we defined the regions, we just left world-index in the memory and seal invariants as an unspecified variable, which means that the above world has them as a variable.
+In order to find a solution, we still need to guard the recursive occurrence.
+To this end, we simply use the construction for later preordered c.o.f.e.'s in Definition~\ref{def:later-p-cofe} with the above to get.
+\[
+  \blater (\Worldh \times \Worlds \times \Worldfs)
+\]
+Now the recursive occurrence is guarded which means that there is a solution to the recursive domain equation.
+\begin{theorem}
+  \label{thm:rec-dom-eq-sol}
+  There exists a c.o.f.e.\ $\Wor$ and preorder $\future$ such that $(\Wor,\future)$ is a preordered c.o.f.e., and there exists an isomorphism $\xi$ such that
+  \[
+    \xi : \Wor \cong \blater (\Worldh \times \Worlds \times \Worldfs)
+  \]
+  and for $\hat{W},\hat{W}' \in \Wor$
+  \[
+    \hat{W}' \future \hat{W} \text{ iff } \xi(\hat{W}') \future \xi(\hat{W})
+  \]
+  for $\Worlds$, $\Worldh$, and $\Worldfs$ defined as follows
+\[
+  \Worldh = \RegionName \parfun (\Regions \cup \Regionh)
+\]
+and
+\[
+  \Worlds = \RegionName \parfun (\Regions \times \Addr)
+\]
+and
+\[
+  \Worldfs = \RegionName \parfun \Regions
+\]
+where $\RegionName = \nats$. $\Regions$ and $\Regionh$ defined as follows
+\begin{multline*}
+  \Regionh = 
+  \{\pure \} \times (\Wor \monnefun \URel{\MemSeg\times\MemSeg}) \times \\
+  (\Seal \parfun \Wor \monnefun \URel{\SealableCaps\times\SealableCaps})
+\end{multline*}
+and
+\[
+  \Regions = \left\{
+  \begin{array}{l}
+    \{\spatial, \spatialo\} \times (\Wor \monnefun \URel{\MemSeg\times\MemSeg}) \cup\\
+    \{\revoked\}
+  \end{array} \right.
+\]
+\end{theorem}
+Theorem~\ref{thm:rec-dom-eq-sol} uses the method of~\citet{Birkedal:2011:SKM:1926385.1926401,birkedal_taste_2014} to construct the solution $\Wor$ to the recursive equation.
+Note, that $\Wor$ is not equal to $\blater (\Worldh \times \Worlds \times \Worldfs)$; it is isomorphic.
+This means that whenever we encounter $\Wor$, we have to apply $\xi$ and go under a later before we can actually use the world.
+This makes it rather inconvenient to have $\Wor$ as the world, so instead we define the worlds as 
+\[
+  \World = \Worldh \times \Worlds \times \Worldfs
+\]
+
+%% Lau: not sure whether the following remarks should be included:
+% Note that the later placement could have been different as it just needs to guard the recursive occurrence at some level.
+% It could, for instance, have been directly on the recursive occurrence.
+% By moving the later, we would also move the place we have to go under the later in our later definitions affecting how it is working with them.
+
+% In worlds that has a simple future world relation and no future region relation, it may be an advantage to define the regions in terms of a self-referential equation, solve that, and define the worlds with the solution.
+% The advantage of this approach is that it can be done entirely in c.o.f.e.'s.
+
+
 \section{Discussion}
 \label{sec:discussion}
 \input{discussion}
