@@ -3,16 +3,19 @@
 % \item FTLR
 % \item Sketch high-level structure of the proof
 % \end{itemize}
-To prove Theorem~\ref{thm:full-abstraction}, we will essentially show that trusted components in \srccm{} are related in a certain way to their embeddings in \trgcm{}, and that untrusted \trgcm{} components are similarly related to their embeddings in \srccm{}.
+To prove Theorem~\ref{thm:full-abstraction}, we essentially show that trusted components in \srccm{} are related in a certain way to their embeddings in \trgcm{}, and that untrusted \trgcm{} components are similarly related to their embeddings in \srccm{}.
 We will then prove that these relations imply that the combined programs have the same observable behavior, i.e.\ one terminates if and only if the other does.
 The difficult part is to define when components are related.
 In the next section, we give an overview of the relation we define, and then we sketch the full-abstraction proof in Section~\ref{subsec:proof-sketch}.
 
 \begin{jversion}
-  In the previous version, we were forced to omit many aspects of the logical relation, and especially the way it deals with the linking model.
-  This was unfortunate as substantial effort goes into this work, and there are insights that may be useful for similar work.
-  Therefore the current version takes a bit longer to explain those aspects.
-  Readers who are looking for a shorter summary with less detail may refer to the conference version of this paper for a presentation~\citep{skorstengaard_stktokens_2019} with emphasis on the intuition and fewer details.
+  The goal of this section is not to provide full technical detail or list tedious proofs.
+  However, we believe there are many interesting aspects about our proof that we were forced to omit from the conference version, which would be worthwhile explaining to other researchers.
+  This includes, for example, our use of cross-language logical relations, the techniques we use for reasoning about seals and linear capabilities, or for the linking model.
+  In the current version, we provide a more detailed explanation of the most important of these aspects, taking care to gradually introduce the different techniques we use and to not bother the reader with tedious details. 
+  Of course, this material is targeted at readers with an interest in these proof techniques and may be safely skipped by others.
+  % Dominique: I'm worried reviewers will be bothered by the fact that we recommend some readers to read the conference version, so I commented it out.  We can still readd it in next versions if reviewers comment about this.
+  % Readers who are looking for a shorter summary with less detail may refer to the conference version of this paper for a presentation~\citep{skorstengaard_stktokens_2019} with emphasis on the intuition and fewer details.
 \end{jversion}
 
 \subsection{Kripke worlds}
@@ -28,7 +31,7 @@ To a first approximation, a world is a semantic model of the memory.
 In its simplest form, it is a collection of invariants that the memory must satisfy.
 The invariants of a world can vary in complexity and expressiveness depending on the application.
 The possible contents of the memory also influences what the world looks like.
-For instance, the uniqueness of the linear capabilities on \trgcm{} and \srccm{} is modelled by the worlds.
+For instance, the uniqueness of the linear capabilities on \trgcm{} and \srccm{} is modelled by the worlds using a form of memory ownership assumptions.
 In order to relate \trgcm{} and \srccm{}, we model all the features of \srccm{} in the world which means we have to model:
 \begin{itemize}
 \item Three kinds of memory: heap, stack of local frames, and free stack
@@ -190,12 +193,13 @@ We also refer to the seal interpretation function as the seal invariant, and we 
 Very often, relatedness of two capabilities does not change if extra assumptions in the system are added.
 For example, two related capabilities remain related when an extra invariant is added on unrelated memory, or when a stack frame that it does not reference is dropped.
 In Kripke logical relations, this kind of assumption changes, that do not invalidate the relatedness of values, are modelled by the future world relation $\future$.
-The future world relation can also be thought of as the model of changes in memory over time.
+The future world relation can also be thought of as the model of allowed changes in memory over time.
 
-The memory invariants in the world should be defined, so they are monotone with respect to the future world relation.
-This means that the system assumptions capabilities rely on for safety are defined such that capabilities remain safe during execution.
-Specifically, we require the world-indexed memory invariants to be monotone in the world.
-This means that a pair of memory segments that are related now will stay related in future worlds.
+Safety of capabilities should be defined, so it is monotone with respect to the future world relation.
+This means that the system assumptions that capabilities rely on for safety are defined such that capabilities remain safe during execution.
+The same holds for the memory invariants stored in the world: capabilities stored in memory should remain valid under allowed changes in system assumptions.
+This means we require the world-indexed memory invariants to be monotone in the world.
+In other words, a pair of memory segments that are related now will stay related in future worlds.
 This changes the spatial regions as follows:
 \[
   \Regions = \left\{
@@ -207,11 +211,10 @@ This changes the spatial regions as follows:
 \]
 We make a similar change to $\Regionh$. The seal invariants are monotone as well.
 
-Kripke future world relations must be defined such that future worlds are extensions of the past world.
-In other words, future world relations usually only allow for adding fresh assumptions on fresh memory or protocol steps that the system was designed to support from the start.
-However in our setting, we sometimes allow dropping assumptions, namely when linearity tells us that no value in the system depends on assumption anymore.
-Specifically, if we have the only linear capability for a piece of memory, then we can be sure that there are no other capabilities for the same memory which makes it safe to repurpose the memory.
-We mark dropped regions as revoked in the world following \citet{ahmed_2004} and \citet{thamsborg_2011} which for all intends and purposes corresponds to actually dropping the region. 
+Kripke future world relations usually allow extending worlds with extra assumptions, or take steps in protocols that the system was designed to support from the start.
+However in our setting, we sometimes allow dropping assumptions, namely when linearity tells us that no value in the system depends on this assumption any more.
+Specifically, if we have the only linear capability for a piece of memory, then we can be sure that there are no other capabilities for the same memory which makes it safe to repurpose the memory and drop or replace the previous assumption.
+We mark dropped regions as revoked in the world following \citet{ahmed_2004} and \citet{thamsborg_2011} which for all intents and purposes corresponds to actually dropping the region. 
 
 We add a $\revoked$ tag to the spatial regions $\Regions$ which results in
 \[
@@ -432,13 +435,14 @@ Specifically, c.o.f.e.'s have a step-index that must satisfy a set of conditions
 In this section, we present some of the technical details on solving our world equation as well as the final world equation (Theorem\ref{thm:rec-dom-eq-sol}).
 This section does not provide further intuition about the worlds and can be skipped.
 
-Recursive domain equations are so common and the solution so standard that frameworks implement them lifting the technical burden of constructing the world by hand.
-The technique we use to solve our recursive domain equation is essentially the same used internally in the program logic framework Iris~\citep{iris,iris2,iris3} to construct worlds.
+Recursive domain equations are so common and the solution so standard that frameworks implement them to lift the technical burden of constructing the world by hand.
+The technique we use to solve our recursive domain equation is essentially the same as what is used internally in the program logic framework Iris~\citep{iris,iris2,iris3} to construct worlds.
 We believe the worlds presented here could be developed in Iris.
 Had we done the development in Iris Coq, then we would have had the world tool support of Iris and the rigorousness of Coq which, in hindsight, would have been very beneficial.
 
 % Cofe's
-In the following, we present complete ordered family of equivalences \citep{di_gianantonio_2002}.
+In this section, we explain how the world is constructed in detail (readers willing to trust us can safely skip to Section~\ref{subsubsec:joining-worlds}).
+To explain this, we present complete ordered family of equivalences \citep{di_gianantonio_2002}.
 We loosely follow the presentation in \citet{birkedal_taste_2014} and introduce the necessary definitions needed for our particular world.
 \begin{definition}[Ordered family of equivalences (o.f.e.)]
 An \emph{ordered family of equivalences} is a pair $\cofe{X}$ where $X$ is a set and $\nequal$ is an equivalence relation for each $n$.

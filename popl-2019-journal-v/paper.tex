@@ -273,31 +273,32 @@
 Secure compilation is an active topic of research (e.g.~\citep{devriese_modular_2017,patrignani_hyper_2017,Abate:2018:GCG:3243734.3243745,new_universal_embedding_2016,juglaret_beyond_2016, patrignani_2019}), but a real secure compiler is yet to be built.
 Secure compilers preserve source-language (security-relevant) properties even when the compiled code interacts with arbitrary target-language components.
 Generally, properties that hold in the source language but not in the target language need to be somehow enforced by the compiler.
-Two properties that hold in many high-level source languages are well-bracketed control flow and encapsulation of local state, but they are not enforced after compilation to assembly.
+Two properties that hold in many high-level source languages are well-bracketed control flow and encapsulation of local state, but they are usually not enforced after compilation to assembly.
 
-Well-bracketed control flow (WBCF) expresses that invoked functions must either return to their callers, invoke other functions themselves or diverge, and generally holds in programming languages that do not offer a primitive form of continuations. 
-At the assembly level, this property does not hold immediately. 
+Well-bracketed control flow (WBCF) expresses that invoked functions must either return to their callers, invoke other functions themselves or diverge, and generally holds in programming languages that do not offer a primitive form of continuations (or related features). 
+At the assembly level, this property does not hold. 
 Invoked functions get direct access to return pointers that they are supposed to jump to a single time at the end of their execution.
 There is, however, no guarantee that untrusted assembly code respects this intended usage.
-In particular, a function may invoke return pointers from other stack frames than its own: either frames higher in the call stack or ones that no longer exist as they have already returned. 
+In particular, adversarial code may invoke return pointers that were intended to be called from other stack frames than theirs: either from frames higher in the call stack or from ones that no longer exist as they have already returned. 
 
 Local state encapsulation (LSE) is the guarantee that when a function invokes another function, its local variables (saved on its stack frame) will not be read or modified until the invoked function returns.
-At the assembly level, this property also does not hold immediately.
+At the assembly level, this property also does not hold.
 The calling function's local variables are stored on the stack during the invocation, and functions are not supposed to touch stack frames other than their own.
 However, untrusted assembly code is free to ignore this requirement and read or overwrite the local state of other stack frames.
 
-To enforce these properties, target language security primitives are needed that can be used to prevent untrusted code from misbehaving without imposing too much overhead on well-behaved code.
+To enforce these properties, target language security primitives are needed to prevent untrusted code from misbehaving without imposing too much overhead on well-behaved code.
 The virtual-memory based security primitives on commodity processors do not seem sufficiently fine-grained to efficiently support this.
 More suitable security primitives are offered by a type of CPUs known as capability machines \citep{levy_capability-based_1984,watson_cheri_2015}.
-These processors use tagged memory to enforce a strict separation between integers and {\itshape capabilities}: pointers that carry authority.
+These processors use tagged memory to enforce a strict distinction between integers and {\itshape capabilities}: pointers that carry authority.
 Capabilities come in different flavours.
 Memory capabilities allow reading from and writing to a block of memory.
 Additionally, capability machines offer some form of {\itshape object capabilities} that represent low-level encapsulated closures, i.e. a piece of code coupled with private state that it gains access to upon invocation.
 The concrete mechanics of object capabilities vary between different capability machines.
 % KJAA: This 'sealed' and 'common seal' business is unclear to me.
 For example, on a recent capability machine called CHERI they take the form of pairs of capabilities that represent the code and data parts of the closure.
-Each of the two capabilities are sealed with a common seal which make them opaque.
-The hardware transparently unseals the pair upon invocation~\citep{watson_capability_2015,watson_fast_2016}.
+Both capabilities are sealed with a common seal.
+This makes them opaque and unusable until they are invoked.
+When they are invoked, the hardware, or a special OS-provided exception handler, transparently unseals the pair~\citep{watson_capability_2015,watson_fast_2016}.
 
 To enforce WBCF and LSE on a capability machine, there are essentially two approaches.
 The first is to use separate stacks for mutually distrusting components, and a central, trusted stack manager that mediates cross-component invocations.
@@ -314,15 +315,15 @@ For example, CHERI offers a form of {\itshape local} capabilities that can only 
 \citet{skorstengaard_reasoning_2017} have demonstrated that by making the stack and return pointer local, and by introducing a number of security checks and measures, the two properties can be guaranteed.
 In fact, a similar system was envisioned in earlier work on CHERI~\citep{watson2012cheri}. 
 % KJAA: 'Boundary crossing' is new here.
-However, a problem with this approach is that revoking the local stack and return capabilities on every security boundary crossing requires clearingt the entire unused part of the stack, an operation that may be prohibitively expensive.
+However, a problem with this approach is that revoking the local stack and return capabilities on every security boundary crossing requires clearing the entire unused part of the stack, an operation that may be prohibitively expensive (although the hardware could optimize the clearing to a significant extent \citep{joannou_efficient_2017}).
 
 In this work, we propose and study \stktokens{}: an alternative calling convention that enforces WBCF and LSE with a single shared stack.
 Instead of CHERI's local capabilities, it builds on {\itshape linear} capabilities; a new form of capabilities that has not previously been described in the published literature, although related ideas have been described by~\citet[``scarce objects'']{szabo_formalizing_1997,szabo_scarce_objects} and in technical documents.
 Concurrently with our work, Watson et al. have developed a (more realistic) design for linear capabilities in CHERI that is detailed in the latest CHERI ISA reference~\citep{watson2018ISA}.
 % KJAA: Perhaps make it clear by who and when/where?
 The hardware prevents these capabilities from being duplicated.
-We propose to make stack and return pointers linear and require components to hand them out in cross-component invocations and to give them back on return.
-The non-duplicability of linear capabilities together with some security checks allow us to guarantee WBCF and LSE without large overhead on boundary crossings and in particular without the need for clearing large blocks of memory.
+We propose to make stack and return pointers linear and make components hand them out in cross-component invocations and require them back on return.
+The non-duplicability of linear capabilities together with some security checks allows us to guarantee WBCF and LSE without large overhead on boundary crossings and in particular without the need for clearing large blocks of memory.
 
 A second contribution of this work is the way in which we formulate these two properties.
 Although the terms ``well-bracketed control flow'' and ``local state encapsulation'' sound precise, it is actually far from clear what they mean, and how best to formalize them.
@@ -361,11 +362,11 @@ In this paper, we make the following contributions:
 
 \begin{jversion}
   This text is an extended version of a paper that was presented at POPL 2019~\citep{skorstengaard_stktokens_2019}.
-  Compared to the earlier text, this version adds and explains many of the details that were left out in the conference version due to space restrictions.
-  The added details include a better motivation of sealing (\sectionname~\ref{sec:purpose-sealing}), well-formedness components (\sectionname~\ref{sec:well-form-reas}), and reasonable components (\sectionname~\ref{sec:reasonable-components}).
+  Compared to the earlier text, this version adds and explains aspects of our work that were left out in the conference version due to space restrictions.
+  The added details include a better motivation of sealing (\sectionname~\ref{sec:purpose-sealing}), the requirements of well-formedness (\sectionname~\ref{sec:well-form-reas}) and reasonability of components (\sectionname~\ref{sec:reasonable-components}).
   The section on proving full-abstraction (\sectionname~\ref{sec:fa-proof}) has been rewritten with details and explanations about the formal method used for the full-abstraction proof.
-  This includes a detailed description and motivation of the world (\sectionname~\ref{subsec:worlds}) and logical relation (\sectionname~\ref{subsec:logical-relation}).
-  This paper is accompanied by a technical report~\citep{technical_report_popl} with the elided details and proof.
+  This includes a description and motivation of the Kripke world (\sectionname~\ref{subsec:worlds}) and logical relation (\sectionname~\ref{subsec:logical-relation}).
+  This paper is accompanied by a technical report~\citep{technical_report_popl} with technical details and proofs.
 \end{jversion}
 % Notes on new contributions (based on the journal version environment):
 % More details about the definition of the cap. machine (decoding/encoding functions)
@@ -431,7 +432,7 @@ The non-duplicability of linear capabilities means that a linear capability cann
 %%% Seals
 
 Any reasonable capability machine needs a way to set up boundaries between security domains with different authorities.
-It also must have a way to cross these boundaries such that (1) the security domain we move from can encapsulate and later regain its authority and (2) the security domain we move to regains all of its authority. 
+It also must have a way to cross these boundaries such that (1) the security domain we move from can encapsulate itself and later regain its authority and (2) the security domain we move to regains all of its authority. 
 %The M-Machine~\citep{Dally1997Memo59} inspired capability machine in \citet{skorstengaard_reasoning_2017} uses enter-capabilities to achieve this.
 On \trgcm{} we have CHERI-like sealed capabilities to achieve this~\cite{watson_cheri_2015,watson_fast_2016}.
 % seals
@@ -439,12 +440,12 @@ A sealed capability $\sealed{\sigma,\vsc}$ is a pair of a seal $\sigma$ and a ca
 A sealed capability makes an underlying capability opaque which means that the underlying capability cannot be changed or used for the operations it normally gives permission to.
 In other words, the authority the underlying capability represents is encapsulated under the seal.
 In order to seal a sealable with a seal $\sigma$, it is necessary to have the authority to do so.
-The permission to make sealed capabilities is represented by a sets of seals $\seal{\sigma_\var{base},\sigma_\var{end},\sigma_{\var{current}}}$.
-A set of seals is a capability that represents the authority to seal sealables with seals in the range $[\sigma_\var{base},\sigma_\var{end}]$.
-In spirit of memory capabilities, a set of seals has a current seal $\sigma_{\var{current}}$ that is selected for use in the next seal operation.
+The permission to make sealed capabilities is represented by a set of seals capability $\seal{\sigma_\var{base},\sigma_\var{end},\sigma_{\var{current}}}$.
+Such a capability represents the authority to seal other capabilities with seals in the range $[\sigma_\var{base},\sigma_\var{end}]$.
+In spirit of memory capabilities, a set of seals capability has a current seal $\sigma_{\var{current}}$ that is selected for use in the next seal operation.
 % On \trgcm{}, we represent seals in sets rather than single seals to have a more compact representation of multiple seals and make it possible to have seal allocation (not described here).
-As we will see later, sealed capabilities can be unsealed with an \texttt{xjmp}, an operation that operates on a pair of capabilities sealed with the same seal.
-The instruction will be explained in more detail below, but essentially, it unseals the pair of capabilities, transfers control to one of them (the code part of the pair) and makes the other one (the data part of the pair) available to the invoked code.
+As we will see later, sealed capabilities get unsealed when they are invoked using an \texttt{xjmp}, an operation that operates on a pair of capabilities sealed with the same seal.
+The instruction will be explained in more detail below, but essentially, it unseals the pair of capabilities, transfers control to one of them (the code part of the pair) and makes the other one (the data part) available to the invoked code.
 The combination of sealed capabilities and \texttt{xjmp} gives (1) and (2).
 \begin{figure}[tb]
   \centering
@@ -482,7 +483,7 @@ The combination of sealed capabilities and \texttt{xjmp} gives (1) and (2).
 Words on \trgcm{} are capabilities and data (represented by integers $\ints$).
 We assume a finite set of register names $\RegName$ containing at least the registers $\pcreg$, $\rretd$, $\rretc$, $\rstk$, $\rdata$, $\rtmp{1}$, and $\rtmp{2}$.
 We define register files as functions from register names to words.
-Complete memories map all addresses to words and memory segments map some addresses to words (i.e.\ partial functions).
+Complete memories map all addresses to words and memory segments map some addresses to words (i.e.\ they are partial functions).
 $\trgcm{}$ has two terminated configurations $\halted$ and $\failed$ that respectively signify a successful execution and an execution where something went wrong, e.g.,\ an out-of-bounds memory access.
 An executable configuration is a register file and memory pair.
 
@@ -570,7 +571,7 @@ The simplest of the capability instructions inspect the properties of capabiliti
 The current address (or seal) of a capability (or set of seals) can be shifted by an offset (\texttt{cca}) or set to the base address (\texttt{seta2b}).
 The \texttt{restrict} instruction reduces the permission of a capability according to the permission order $\le$.
 Generally speaking, a capability machine needs an instruction for reducing the range of authority of a capability.
-Because \trgcm{} has linear capabilities, the instruction for this splits the capability in two rather than reducing the range of authority (\texttt{split}).
+Because \trgcm{} has linear capabilities, the instruction for this splits the capability in two (\texttt{split}) rather than reducing the range of authority.
 The reverse is possible using \texttt{splice}.
 Sealables can be sealed using \texttt{cseal} and pairs of sealed capabilities can be unsealed by crossing security boundaries (\texttt{xjmp}, see below).
 Finally, \trgcm{} has instructions to signal whether an execution was successful or not (\texttt{halt} and \texttt{fail}).
@@ -641,7 +642,7 @@ This would also allow linear capabilities to have aliases, but only by linear ca
   The $\tgetb{}{}$ and $\tgete{}{}$ instructions, respectively, project the base and end address of the range of authority.
   The linearity of a permission is projected with $\tgetlin{}{}$, and finally the permission is projected with $\tgetp{}{}$.
   The instructions $\tgetb{}{}$ and $\tgete{}{}$ also work on sets of seals.
-  The instruction $\tisptr{}{}$ returns an integer representation of the type of a word which allows programs to be defensive in the sense that they can check whether a word is a capability before they use it.
+  The instruction $\tisptr{}{}$ returns an integer representation of the type of a word (capability or number).
   \trgcm{} also has arithmetic instructions $\tplus{}{}{}$, $\tminus{}{}{}$, and $\tlt{}{}{}$.
   The latter instruction compares two numbers and writes 1 or 0 to a target register depending on whether one number is less than the other.
   The instruction $\tsetatob{}$ sets the current address (or seal) of a capability (or set of seals) to the base address of the range of authority (or range of seals).
@@ -654,32 +655,36 @@ This would also allow linear capabilities to have aliases, but only by linear ca
   \subsection{The purpose of sealing}
   \label{sec:purpose-sealing}
   % Sealing example:
-  To motivate the necessity of an encapsulation mechanism like sealing, consider the following example.
-  We, a trusted piece of code, want to transfer control to code that we distrust, and we want to give them the means to return to us.
+  To motivate the necessity of an encapsulation mechanism like sealing, consider the scenario where we are executing some trusted code and want to transfer control to untrusted code.
+  We want to give the untrusted code the means to return to us.
   That is, we need to give them a return capability.
-  If we did not have an encapsulation mechanism, our only option would be to give them an executable capability for the address we want them to return to.
-  The untrusted code could use the return capability as intended, but it could also manipulate and make it point to a different address of our code.
-  Jumping to such a capability would cause an the program to execute in a way we did not intend for it.
-  Further in order to be able to retrieve our capabilities from before transferring control, we would have to store the capabilities somewhere accessible from the return capability.
-  However, the untrusted code would have access to all this through the return capability because it gives the same authority to us as the untrusted code.
-  This is why, any reasonable capability machine must have an encapsulation mechanism to allow programs to make boundaries between security domains.
+  For now, let us pretend that there does not exist a stack and only a single invocation of untrusted code happens in the entire execution.
   
-  In the example, we could seal the return capability to establish a boundary.
-  Specifically, it would prevent the untrusted code from changing the target of the return capability forcing them to return to the point we specified.
-  It would also prevent the untrusted code from reading our capabilities.
-  All in all, this means that we can transfer control to untrusted code without giving up our capabilities or handing them over.
+  If we did not have an encapsulation mechanism, our only option would be to give the adversary an executable capability for the address we want them to return to.
+  The untrusted code could use the return capability as intended, but it could also manipulate it to point elsewhere in our code.
+  Jumping to such a capability could cause the trusted program to execute in an unintended and potentially insecure way.
 
-  \trgcm{} does not have a direct unsealing instruction, but it is still possible to emulate a limited unsealing mechanism.
-  Say you have a sealed non-executable word $\sealed{\sigma,w}$ as well as a set of seals $\seal{\sigma_\baddr,\sigma_\eaddr, \sigma}$ that contains $\sigma$, i.e.\ $\sigma \in [\sigma_\baddr,\sigma_\eaddr]$.
-  Now assume part of the code would like to have access to $w$ in $\rdata$.
-  Take a capability for this code, possibly by adjusting the pc, and seal it with $\sigma$.
-  Now you have the data part and the code part of a sealed capability pair, so you can $\txjmp{}{}$ to it which unseals the data capability and puts it in $\rdata$ for your code to use.
-  Sealed executable capabilities cannot be unsealed in the same way because $\txjmp{}{}$ fails if the data capability is executable.
-  However, given a sealed executable capability $\sealed{\sigma,c}$ and a set of seals that contains $\sigma$, we can still construct the data part of the sealed capability pair.
-  This means that we can execute the code the capability points to together with data that it was not intended to be used with.
+  Additionally, when the untrusted code returns,  we need to regain access to the capabilities that represent our authority, which we had access to before passing control.
+  To achieve this, we have to store them in a location that we can access after the return.
+  However, without an encapsulation mechanism, the untrusted code would have access to all this through the return capability because it gives the same authority to the untrusted code as to us after the return.
+  This is why, any reasonable capability machine must have an encapsulation mechanism to allow programs to set up boundaries between security domains.
+  
+  In \trgcm{}, we can seal the return capability to establish such a boundary.
+  Specifically, we can seal the return capability (which points to the instruction to be executed after the return) as a pair, together with a pointer to the stack frame where we have stashed away our capabilities (see further).
+  By doing this, the untrusted code is prevented from changing the target of the return capability forcing them to return to the point we specified.
+  Additionally, they do not get access to the capabilities we stashed away.
+  Nevertheless, the automatic unsealing of sealed capability pairs upon invocation will ensure that the return code can still proceed as before.
+  In other words, the sealing mechanism in \trgcm{} allows us to transfer control to untrusted code without giving up our capabilities or handing them over, and also control the locations in our code they can jump back to.
 
-  Sealing is meant for encapsulation, but it relies on seals being kept private as illustrated by the unsealing emulation.
-  For this reason, it is important that the system is initialised such that each component has access to unique seals.
+  It is worth pointing out that \trgcm{} does not have a direct unsealing instruction to extract a capability from its sealed version when the seal is available, but one can be emulated.
+  Say you have a sealed non-executable word $\sealed{\sigma,w}$ as well as a set of seals capability $\seal{\sigma_\baddr,\sigma_\eaddr, \sigma}$ that contains $\sigma$, i.e.\ $\sigma \in [\sigma_\baddr,\sigma_\eaddr]$.
+  It is possible to extract $w$ in $\rdata$ using $\txjmp{}{}$ in the following way.
+  The idea is to use the seal to construct a sealed version of the pc capability incremented by one, and then perform an $\txjmp{}{}$ to it in combination with the sealed capability.
+  This does not work for sealed executable capabilities because $\txjmp{}{}$ fails if the data capability is executable.
+  However, even though we cannot extract the executable capability from $\sealed{\sigma,c}$, we can still invoke it with arbitrary arguments, since we can use the seal to construct an arbitrary data part and $\txjmp{}{}$ to the combination.
+
+  Sealing is meant for encapsulation, but it relies on seals being kept private as should be clear from the explanations so far.
+  For this reason, it is important that trusted code does not leak its seals to adversaries and that the system is initialised such that each component has access to unique seals.
   We return to this in \sectionname~\ref{sec:well-form-reas}.
 \end{jversion}
 
@@ -687,20 +692,19 @@ This would also allow linear capabilities to have aliases, but only by linear ca
 \subsection{Decoding and encoding functions}
 The operational semantics of the capability machine uses the function $\decInstr{}$ to decode instructions.
 We also assume a function $\encInstr{}$ to make it easy to specify programs in terms of instructions.
-Rather than specifying a decode function and an encode function, we assume that they are given with certain properties.
+Rather than defining such a decode function and an encode function, we assume that they are given with certain properties.
 The $\decInstr{} : \Word \fun \Instr$ should be surjective and injective for all non-$\fail$ instructions.
-Further, it should decode all capabilities as the $\fail$ instruction, i.e.\
+Further, it should decode all capabilities to the $\fail$ instruction, i.e.\ only numbers are decoded to non-fail instructions:
 \[
 \forall c \in \Caps \ldotp \decInstr{c} = \fail
 \]
-The $\encInstr{} : \Instr \fun \ints$ function should be injective, and it should be defined so $\decInstr{}$ is its left inverse, i.e.
+The $\encInstr{} : \Instr \fun \ints$ function should be injective, and  $\decInstr{}$ is its left inverse, i.e.
 \[
 \forall i \in \Instr \ldotp \decInstr{}(\encInstr{i}) = i
 \]
-
-These assumptions are sufficient to construct program examples and run them on the machine.
-The $\encInstr{}$ function allows us to specify the program ``abstractly'' in terms of instructions rather than machine words.
-As the $\decInstr{}$ function is the left inverse of $\encInstr{}$, we can even execute the program in the operational semantics without ever worrying about what the actual encoding is.
+These assumptions are sufficient to construct program examples in terms of instructions rather than machine words (using $\encInstr{}$), and run them on the machine (using the fact that $\decInstr{}$ is the left inverse of $\encInstr{}$).
+% The $\encInstr{}$ function allows us to specify the program ``abstractly''.
+% As the $\decInstr{}$ function is the left inverse of $\encInstr{}$, we can even execute the program in the operational semantics without ever worrying about what the actual encoding is.
 %This is not to say that encoding is an easy problem. There are many things to get.
 
 The machine also assumes decode and encode functions for permissions $\decPerm{} : \Perm \fun \ints$ and $\encPerm{} : \ints \fun \Perm$.
@@ -709,7 +713,6 @@ We assume the $\decPerm{}$ function to be the left inverse of $\encPerm{}$ and s
   \forall \perm \in \Perm \ldotp \encPerm{\perm} \neq -1
 \]
 For linearity we assume similar functions.
-
 Finally in the interpretation of $\tisptr{}{}$, the machine uses an encode function for word types $\encType{}$.
 This function encodes each kind of word as an integer.
 This is very much like the previous functions.
@@ -723,18 +726,18 @@ To clarify this, we introduce notions of components and programs from which we c
 A component (defined in Figure~\ref{fig:target-component-and-linking}) is basically a program with entry points in the form of imports that need to be linked.
 It has exports that can satisfy the imports of other components.
 % Structure
-A base component $\comp_0$ consists of a code memory segment, a data memory segment, a list of imported symbols, a list of exported symbols, two lists specifying the available seals\footnote{We will return to the seals in Section~\ref{sec:form-secur-with}.}, and a set of all the linear addresses (addresses governed by a linear capability).
+A base component $\comp_0$ consists of a code memory segment, a data memory segment, a list of imported symbols, a list of exported symbols, two lists specifying the available seals (see Section~\ref{sec:form-secur-with}.), and a set of all the linear addresses (addresses governed by a linear capability).
 The import list specifies where in memory imports should be placed, and imports are matched to exports via their symbols.
-The exports are words each associated with a symbol.
+An export associates a word with a symbol.
 %base = library
 A component is either a library component (without a main entry point) or an incomplete program with a main in the form of a pair of sealed capabilities.
 The latter can be seen as a program that still needs to be linked with libraries.
 % Linking .
-Components are combined into new components by linking them together, as long as only one is an incomplete program with a main.
+Components are combined into new components by linking them together, as long as only one has a main function.
 Two components can be linked when their memories, seals, and linear addresses are disjoint.
 They are combined by taking the union of each of their constituents.
 For every import that is satisfied by an export of the other component, the data memory is updated to have the exported word on the imported address.
-The satisfied imports are removed from the import list in the resulting linked component and the exports are updated to be the exports of the two components.
+The satisfied imports are removed from the import list in the resulting linked component and the exports are obtained by combining the components' exports.
 
 % Programs
 We can now define the notion of a program as well as a context.
@@ -859,15 +862,15 @@ We will gradually explain each of the security measures \stktokens{} takes and m
 \stktokens{} is based on a traditional single stack, shared between all components.
 To explain the technique, let us first consider how we might already add extra protection to stack and return pointers on a capability machine.
 First, we replace stack pointers with stack capabilities.
-When a new stack frame is created, the caller provisions it with a stack capability, restricted to the appropriate range, i.e.\ it does not cover the caller's stack frame.
-Return pointers, on the other hand, are replaced by a pair of sealed return capabilities, as we already explained in Section~\ref{sec:purpose-sealing}.
+When a new stack frame is created, the caller provisions it with a stack capability, restricted to the appropriate range, i.e.\ not covering the caller's stack frame.
+Return pointers, on the other hand, are replaced by a pair of sealed return capabilities, as explained in Section~\ref{sec:purpose-sealing}.
 % KJAA: Again with the sealed pair. Again, this idea is unclear.
-They form an opaque closure that the callee can only jump to, and the caller's data becomes available to the caller's return code. 
+They form an opaque closure that the callee can only jump to, and when that happens, the caller's data becomes available to the caller's return code. 
 
 %informally explain how an adversary may try to abuse stack and return caps
 While the above adds extra protection, it is not sufficient to enforce WBCF and LSE.
 Untrusted callees receive a stack capability and a return pair that they are supposed to use for the call.
-However, a malicious callee (which we will refer to as an adversary\footnote{See Section~\ref{sec:well-form-reas} for more details on our attacker model.}) can store the provided capabilities on the heap in order to use them later.
+However, a malicious callee (which we will refer to as an adversary\footnote{See Section~\ref{sec:well-form-reas} for more details on our attacker model.}) can store the provided capabilities away on the heap in order to use them later.
 Figure~\ref{fig:stack-ret-ptr-abuse} illustrates two examples of this.
 In both examples our component and an adversarial component have been taking turns calling each other, so the stack now contains four stack frames alternating between ours and theirs.
 The figure on the left (Figure~\ref{fig:stack-ptr-abuse}) illustrates how we try to ensure LSE by restricting the stack capability to the unused part before every call to the adversary.
@@ -878,9 +881,9 @@ The adversary stores the pair of sealed return capabilities from the first call 
 The figure illustrates how the adversarial code uses the return pair from the first call to return from the second call and thus break WBCF.
 
 % Informally explain how we prevent this using linear capabilities
-As the examples illustrate, this naive use of standard memory and object capabilities does not provide sufficient guarantees to enforce LSE and WBCF.
-The problem is essentially that the stack and return pointers that a callee receives from a caller remain in effect after their intended lifetime: either when the callee has already returned or when they have themselves invoked other code. 
-Linear capabilities offer a form of revocation\footnote{Revocation in the sense that if we hand out a linear capability and later get it back, then the receiver no longer has it or a copy of it as it is non-duplicable.} that can be used to prevent this from happening.
+As the examples illustrate, this naive use of memory and object capabilities does not suffice to enforce LSE and WBCF.
+The problem is essentially that the stack and return pointers that a callee receives from a caller remain in effect outside their intended lifetime: either when the callee has already returned or when they have themselves invoked other code. 
+Linear capabilities offer a form of revocation\footnote{Revocation in the sense that if we hand out a linear capability and later get it back, then the receiver cannot have kept a copy of it as it is non-duplicable.} that can be used to prevent this from happening.
 
 % Stack capability linear
 The linear capabilities are put to use by requiring the stack capability to be linear.
@@ -900,11 +903,11 @@ However without any enforcement, there is nothing to prevent a callee from retur
 This is exactly what the adversary does in Figure~\ref{fig:ret-ptr-abuse} when they skip two stack frames.
 In the presence of adversarial code, we need some mechanism to enforce that the order of the call stack is kept.
 One way to enforce this would be to hand out a token on call that can only be used when the caller's stack frame is on top of the call stack.
-The callee would have to provide this token on return to prove that it is allowed to return to the caller, and on return the token would be taken back by the caller to prevent it from being spent multiple times.
+The callee would have to present this token on return to prove that it is allowed to return to the caller, and on return the token would be taken back by the caller to prevent it from being spent multiple times.
 As it turns out, the stack capability for the unused part of the stack can be used as such a token in the following way:
 On return the callee has to give back the stack capability they were given on invocation.
-When the caller receives a stack capability back on return, they need to check that this token is actually spendable, i.e.\ check whether their stack frame is on top of the call stack or not.
-They do this by attempting to restore the stack capability from before the call by splicing the return token with the stack capability for the local stack frame which at this point has been unsealed again.
+When the caller receives a stack capability back on return, it checks that this token is actually spendable, i.e.\ whether its stack frame is on top of the logical call stack or not.
+This check can be done by attempting to recombine (splice) the return token with the stack capability for the local stack frame (which at this point has been unsealed again) in order to reconstruct the original stack capability.
 If the splice is successful, then the caller knows that the two capabilities are adjacent. On the other hand, if the splice fails, then they are alerted to the fact that their stack frame may not be the topmost.
 \stktokens{} uses this approach; and as illustrated in Figure~\ref{fig:ret-ptr-abuse-prev}, it prevents the issue in Figure~\ref{fig:ret-ptr-abuse} as the adversary does not return a spendable token when they return.
 \begin{figure}
@@ -975,79 +978,8 @@ If the splice is successful, then the caller knows that the two capabilities are
 In order for a call to have a presence on the call stack, its stack frame must be non-empty.
 We cannot allow empty stack frames on the call stack, because then it would be impossible to tell whether the topmost non-empty stack frame has an empty stack frame on top of it.
 Non-empty stack frames come naturally in traditional C-like calling convention as they keep track of old stack pointers and old program counters on the stack, but in \stktokens{} these things are part of the return pair which means that a caller with no local data may only need an empty stack frame.
-This means that a caller using \stktokens{} needs to take care that their stack frame is non-empty in order to reserve their spot in the return order.
-There is also a more practical reason for a \stktokens{} caller to make sure their stack frame is non-empty: They need a bit of the stack capability in order to perform the splice that verifies the validity of the return token.
-
-% known stack base
-% + more
-At this point, the caller checks that the return token is adjacent to the stack capability for the caller's local stack frame and they have the means to do so.
-However, this still does not ensure that the caller's stack frame is on top of the call stack.
-The issue is that stack frames may not be tightly packed leaving space between stack frames in memory.
-An adversarial callee may even intentionally leave a bit of space in memory above the caller's stack frame, so that they can later return out of order by returning the bit of the return token for the bit of memory left above the caller's stack frame.
-This is illustrated in Figure~\ref{fig:stk-base-abuse}: In Figure~\ref{fig:stack-base-abuse-a}, a trusted caller has called an adversarial callee.
-The adversary calls the trusted code back, but first they split the return token in two and store on the heap the part for the memory adjacent to the trusted caller's call frame (Figure~\ref{fig:stack-base-abuse-b}).
-The trusted caller calls the adversary back using the precautions we have described so far (Figure~\ref{fig:stack-base-abuse-c}).
-At this point (Figure~\ref{fig:stack-base-abuse-b}), the adversary has access to a partial return token adjacent to the trusted caller's first stack frame which allows the adversary to return from this call breaking WBCF.
-
-For the caller to be sure that there are no hidden stack frames above its own, they need to make sure that the return token is exactly the same as the one they passed to the callee.
-In \stktokens{}, the base address of the stack capability is fixed as a compile-time constant (Note: the stack grows downwards, so the base address of the stack capability is the top-most address of the stack). 
-The caller verifies the validity of the return token by checking whether the base address of a returned token corresponds to this fixed base address, which was the base address for the return token they gave to the callee.
-In the scenario we just sketched, the caller would be alerted to the attempt to break WBCF when the base address check of the return token fails in Figure~\ref{fig:stack-base-abuse-d}.
-
-% Where do we get the stack pointer from, how can we know it is linear
-% The other attack.
-% At this point, the caller is able to verify whether a return token is spendable which allows them to decide whether they have the topmost stack frame on a call stack.
-% However, in order to have WBCF there should only be one call stack, so the caller should also be able to verify that they have the top stack frame on the call stack used by all well-behaved components.
-% In case a trusted component did not start the execution on the machine, i.e.\ they were called by another component, then the trusted component has no way to be sure whether the stack capability passed to them corresponds to the one and only call stack.
-% To illustrate how an adversarial component can break WBCF by using multiple different stack capabilities consider this example: An adversary calls a trusted component with a callback and some linear capability that they claim is the stack capability.
-% The trusted component executes using the stack capability given to them and at some point they invoke the callback, creating return tokens and so on.
-% The adversary stores the return pair and return token and calls another trusted component but with a new callback and a new linear capability that they claim is the stack capability.
-% Again, this trusted component also executes using the stack capability given to them and at some point they too invoke the callback, taking all the precautions we have described so far.
-% At this point, the adversary has everything they need to return from either of the two callbacks.
-% Specifically, they could return from the first callback invocation before they have returned from the second, breaking WBCF.
-% From a high-level perspective, the problem is that both trusted components will be able to verify that they have the top stack frame on the call stack.
-% They are both correct as the adversarial component has created two call stacks, one for each of the components.
-% In order to solve this problem, the well-behaved code needs to somehow agree on the call stack.
-% We do this by statically deciding on a global base address for the stack which is used for the entirety of the execution.
-% A caller makes sure that they are using the correct stack by checking that the base address of the stack capability they receive corresponds to the global stack base address.
-% This also means that on every return, the caller will check whether the return token's base address is equal to the global stack address.
-
-In \stktokens{}, the stack memory is only referenced by a single linear stack capability at the start of execution.
-Because of this, the return token can be verified simply by checking its base address and splicing it with the caller's stack frame.
-There is no need to check linearity because only linear capabilities to this memory exist.
-
-% Return pointers/return seals
-The return pointer in the \stktokens{} scheme is a pair of sealed capabilities where the code part of the pair is the old program counter, and the data part is the stack capability for the local stack frame of the caller.
-Both of the capabilities in the pair are sealed with the same seal.
-% One seal per return point
-All call points need to be associated with a unique seal (a return seal) that is only used for the return capabilities for that particular call point.
-The return seal is what associates the stack frame on the call stack with a specific call point in a program, so if we allowed return seals to be reused, it would be possible to return to a different call point than the one that gave rise to the stack frame, breaking WBCF.
-For similar reasons, we cannot allow return seals to be used to seal closures.
-% Don't be stupid
-Return seals should never be leaked to adversarial code as this would allow them to unseal the local stack frame of a caller breaking LSE.
-This goes for direct leaks (leaving a seal in a register or writing it to adversarial memory), as well as indirect leaks (leaking a capability for reading, either directly or indirectly, a return seal from memory).
-
-% Note about them vs us, we do nothing that they couldn't do
-We have sometimes phrased the description of the \stktokens{} calling scheme in terms of ``them vs us''.
-This may have created the impression of an asymmetric calling convention that places a special status on trusted components allowing them to protect themselves against adversaries.
-However, \stktokens{} is a modular calling scheme: no restriction is put on adversarial components that we do not expect trusted components to meet.
-Specifically, we are going to assume that both trusted and adversarial components are initially syntactically well-formed (described in more detail in Section~\ref{sec:well-form-reas}) which basically just restrict adversarial components to not break machine guarantees initially (e.g.\ no aliases for linear capabilities or access to seals of other components).
-This means that any component can ensure WBCF and LSE by employing \stktokens{}.
-
-% KJAA: ^-- Assuming that there is a global stack address capability, no?
-% Can I "suddenly" begin to impose \stktokens{}?
-
-% Summary of CC
-To summarise, \stktokens{} consists of the following measures:
-\begin{enumerate}
-\item \label{item:check-stkb} Check the base address of the stack capability before and after calls.
-\item \label{item:non-empty-sf} Make sure that local stack frames are non-empty.
-\item \label{item:return-data} Create token and data return capability on call: split the stack capability in two to get a stack capability for your local stack frame and a stack capability for the unused part of the stack. The former is sealed and used for the data part of the return pair.
-\item \label{item:return-code} Create code return capability on call: Seal the old program counter capability.
-\item Reasonable use of seals: Return seals are only used to seal old program counter capabilities, every return seal is only used for one call site, and they are not leaked.
-\end{enumerate}
-Item~\ref{item:check-stkb}-\ref{item:return-code} are captured by the code in Figure~\ref{fig:call-code} , except for checking stack base before calls.
-We do not include this check because it only needs to happen once between two calls, so that the check after a call suffices if the stack base is not changed subsequently.
+In other words, a caller using \stktokens{} needs to take care that their stack frame is non-empty in order to reserve their spot in the return order.
+There is also a more practical reason for a \stktokens{} caller to make sure their stack frame is non-empty: They need a fragment of the stack capability in order to perform the splice that verifies the validity of the return token.
 
 \begin{figure}
   \centering
@@ -1150,6 +1082,77 @@ We do not include this check because it only needs to happen once between two ca
   \label{fig:stk-base-abuse}
 \end{figure}
 
+% known stack base
+% + more
+At this point, the caller checks that the return token is adjacent to the stack capability for the caller's local stack frame and they have the means to do so.
+However, this still does not ensure that the caller's stack frame is on top of the call stack.
+The issue is that stack frames may not be tightly packed leaving space between stack frames in memory.
+An adversarial callee may even intentionally leave a bit of space in memory above the caller's stack frame, so that they can later return out of order by returning the bit of the return token for the bit of memory left above the caller's stack frame.
+This is illustrated in Figure~\ref{fig:stk-base-abuse}: In Figure~\ref{fig:stack-base-abuse-a}, a trusted caller has called an adversarial callee.
+The adversary calls the trusted code back, but first they split the return token in two and store on the heap the part for the memory adjacent to the trusted caller's call frame (Figure~\ref{fig:stack-base-abuse-b}).
+The trusted caller calls the adversary back using the precautions we have described so far (Figure~\ref{fig:stack-base-abuse-c}).
+At this point (Figure~\ref{fig:stack-base-abuse-b}), the adversary has access to a partial return token adjacent to the trusted caller's first stack frame which allows the adversary to return from this call breaking WBCF.
+
+For the caller to be sure that there are no hidden stack frames above its own, they need to make sure that the return token is exactly the same as the one they passed to the callee.
+In \stktokens{}, the base address of the stack capability is fixed as a compile-time constant (Note: the stack grows downwards, so the base address of the stack capability is the top-most address of the stack). 
+The caller verifies the validity of the return token by checking whether the base address of a returned token corresponds to this fixed base address, which was the base address for the return token they gave to the callee.
+In the scenario we just sketched, the caller would be alerted to the attempt to break WBCF when the base address check of the return token fails in Figure~\ref{fig:stack-base-abuse-d}.
+
+% Where do we get the stack pointer from, how can we know it is linear
+% The other attack.
+% At this point, the caller is able to verify whether a return token is spendable which allows them to decide whether they have the topmost stack frame on a call stack.
+% However, in order to have WBCF there should only be one call stack, so the caller should also be able to verify that they have the top stack frame on the call stack used by all well-behaved components.
+% In case a trusted component did not start the execution on the machine, i.e.\ they were called by another component, then the trusted component has no way to be sure whether the stack capability passed to them corresponds to the one and only call stack.
+% To illustrate how an adversarial component can break WBCF by using multiple different stack capabilities consider this example: An adversary calls a trusted component with a callback and some linear capability that they claim is the stack capability.
+% The trusted component executes using the stack capability given to them and at some point they invoke the callback, creating return tokens and so on.
+% The adversary stores the return pair and return token and calls another trusted component but with a new callback and a new linear capability that they claim is the stack capability.
+% Again, this trusted component also executes using the stack capability given to them and at some point they too invoke the callback, taking all the precautions we have described so far.
+% At this point, the adversary has everything they need to return from either of the two callbacks.
+% Specifically, they could return from the first callback invocation before they have returned from the second, breaking WBCF.
+% From a high-level perspective, the problem is that both trusted components will be able to verify that they have the top stack frame on the call stack.
+% They are both correct as the adversarial component has created two call stacks, one for each of the components.
+% In order to solve this problem, the well-behaved code needs to somehow agree on the call stack.
+% We do this by statically deciding on a global base address for the stack which is used for the entirety of the execution.
+% A caller makes sure that they are using the correct stack by checking that the base address of the stack capability they receive corresponds to the global stack base address.
+% This also means that on every return, the caller will check whether the return token's base address is equal to the global stack address.
+
+In \stktokens{}, the stack memory is only referenced by a single linear stack capability at the start of execution.
+Because of this, the return token can be verified simply by checking its base address and splicing it with the caller's stack frame.
+There is no need to check linearity because only linear capabilities to this memory exist.
+
+% Return pointers/return seals
+The return pointer in the \stktokens{} scheme is a pair of sealed capabilities where the code part of the pair is the old program counter, and the data part is the stack capability for the local stack frame of the caller.
+Both of the capabilities in the pair are sealed with the same seal.
+% One seal per return point
+All call points need to be associated with a unique seal (a return seal) that is only used for the return capabilities for that particular call point.
+The return seal is what associates the stack frame on the call stack with a specific call point in a program, so if we allowed return seals to be reused, it would be possible to return to a different call point than the one that gave rise to the stack frame, breaking WBCF.
+For similar reasons, we cannot allow return seals to be used to seal closures.
+% Don't be stupid
+Return seals should never be leaked to adversarial code as this would allow them to unseal the local stack frame of a caller breaking LSE.
+This goes for direct leaks (leaving a seal in a register or writing it to adversarial memory), as well as indirect leaks (leaking a different capability that can be used for reading, either directly or indirectly, a return seal from memory).
+
+% Note about them vs us, we do nothing that they couldn't do
+We have sometimes phrased the description of the \stktokens{} calling scheme in terms of ``them vs us''.
+This may have created the impression of an asymmetric calling convention that places a special status on trusted components allowing them to protect themselves against adversaries.
+However, \stktokens{} is a modular calling scheme: no restriction is put on adversarial components that we do not expect trusted components to meet.
+Specifically, we will only assume that both trusted and adversarial components are initially syntactically well-formed (described in more detail in Section~\ref{sec:well-form-reas}) which basically just ensures that their initial state does not break machine guarantees (e.g.\ no aliases for linear capabilities or access to seals of other components).
+This means that mutually distrusting components can ensure WBCF and LSE for themselves by employing \stktokens{}.
+
+% KJAA: ^-- Assuming that there is a global stack address capability, no?
+% Can I "suddenly" begin to impose \stktokens{}?
+
+% Summary of CC
+To summarise, \stktokens{} consists of the following measures:
+\begin{enumerate}
+\item \label{item:check-stkb} Check the base address of the stack capability before and after calls.
+\item \label{item:non-empty-sf} Make sure that local stack frames are non-empty.
+\item \label{item:return-data} Create token and data return capability on call: split the stack capability in two to get a stack capability for your local stack frame and a stack capability for the unused part of the stack. The former is sealed and used for the data part of the return pair. The latter is passed to the callee as the stack pointer.
+\item \label{item:return-code} Create code return capability on call: Seal the old program counter capability.
+\item Reasonable use of seals: Return seals are only used to seal old program counter capabilities, every return seal is only used for one call site, and they are not leaked.
+\end{enumerate}
+Item~\ref{item:check-stkb}-\ref{item:return-code} are captured by the code in Figure~\ref{fig:call-code} , except for checking stack base before calls.
+We do not include this check because it only needs to happen once between two calls, so that the check after a call suffices if the stack base is not changed subsequently.
+
 \begin{figure}[htb]
   \centering
 {\small
@@ -1237,18 +1240,18 @@ The main difference between the two semantics, is that the new one satisfies LSE
 Important run-time values like return capabilities and stack pointers are represented by special syntactic tokens that interact with the abstract machine's stack, but during execution, there remains a close, structural correspondence to the actual regular capabilities that they represent.
 For example, stack capabilities in the overlay semantics correspond directly to linear capabilities in the underlying semantics, and they have authority over the part of memory that the overlay views as the stack.
 \begin{jversion}
-The new run-time values in the overlay semantics affect the definition of the encoding function $\encType{}$.
-All the new values correspond to concrete capabilities on the \trgcm{} machine which the encoding function must respect.
-For instance, the encoding of a stack pointer in the overlay semantics should be the same as the encoding of a linear capability on the \trgcm{} machine.
+The new run-time values in the overlay semantics are treated appropriately in functions like $\encType{}$.
+All the new values correspond to concrete capabilities on the \trgcm{} machine which the encoding function reflects.
+For instance, the encoding of a stack pointer in the overlay semantics is the same as the encoding of a linear memory capability on the \trgcm{} machine.
 \end{jversion}
 
 The fact that \stktokens{} enforces LSE and WBCF is then formulated as a theorem about the function that maps components in the well-behaved overlay semantics to the underlying components in the regular semantics.
 The theorem states that this function constitutes a fully abstract compiler, a well-known property from the field of secure compilation~\cite{abadi_protection_1999}.
 Intuitively, the theorem states that if a trusted component interacts with (potentially malicious) components in the regular semantics, then these components have no more expressive power than components which the trusted component interacts with in the well-behaved overlay semantics.
 In other words, they cannot do anything that doesn't correspond to something that a well-behaved component, respecting LSE and WBCF, can also do.
-More formally, our full-abstraction result states that two trusted components are indistinguishable to arbitrary other components in the regular semantics iff they are indistinguishable to arbitrary other components in the overlay semantics.
+More formally, our full-abstraction result states that two trusted components are indistinguishable to arbitrary other components in the regular semantics if and only if they are indistinguishable to arbitrary other components in the overlay semantics.
 
-Our formal results are complicated by the fact that they only hold on a sane initial configuration of the system and for well-behaved components that respect the basic rules of the calling convention.
+Our formal results are complicated by the fact that they only hold on a sane initial configuration of the system and for components that respect the basic rules of the calling convention.
 For example, the system should be set up such that seals used by components for constructing return pointers are not shared with other components.
 We envision distributing seals as a job for the linker, so this means our results depend on the linker to do this properly.
 As another example, a seal used to construct a return pointer can be reused but only to construct return pointers for the same return point.
@@ -1590,24 +1593,23 @@ In other words, WBCF and LSE are natively enforced in this semantics.
 
   The component notion is used for both trusted and adversarial components.
   We expect the linker to link the two programs together making sure that all the system invariants are respected.
-  We expect trusted components to be the product of a known compiler that uses \stktokens{} which means that the code must have a certain shape.
-  The proper linker behaviour and the syntactic expectations we have of trusted component are captured in a syntactic well-formedness judgement which we explain in this section.
+  We model a linker that relies on a certain fixed shape for all components.
+  The proper linker behaviour and the syntactic expectations we have of both trusted and untrusted components are captured in a syntactic well-formedness judgement which we explain in this section.
 
-  The well-formedness judgement imposes a quite rigid structure on well-formed components: a component's code memory may contain only data and sets of seals.
+  The well-formedness judgement imposes a quite rigid structure on components: a component's code memory may contain only data and set-of-seals capabilities.
   The data memory may contain only data, memory capabilities to the component's data memory (respecting linearity) or sealed memory capabilities (to the component's data memory, sealed with closure seals).
   This makes a clear separation between code and data memory as neither can contain capabilities for the other.
-  The separation of the two kinds of memory means that data structures in data memory can be shared without risking unintentionally leaking a return seals that were indirectly accessible through the data structure.
-  Informally, a well-formed component respects Write-XOR-Execute which means that all capabilities for code memory at most has read-execute permission and all capabilities for data memory at most has read-write permission.
+  The separation of the two kinds of memory means that data structures in data memory can be shared without risking unintentionally leaking return seals that were indirectly accessible through the data structure.
+  Informally, a well-formed component respects Write-XOR-Execute which means that all capabilities for code memory at most have read-execute permission and all capabilities for data memory at most have read-write permission.
   A component's exports should be sealed code or data capabilities, sealed with a closure seal.
 
   As discussed before, we only provide guarantees (LSE and WBCF) for components respecting certain semantic rules (reasonable use of seals).
   Components that do not satisfy these requirements are still allowed in \srccm{}, but (as we will see below) function calls in such components will not behave according to the special \srccm{} semantics that guarantees LSE and WBCF.
   To distinguish trusted components (which satisfy reasonability requirements) from adversarial components (which don't), we make use of a set of trusted addresses $\ta$.
   Any component's code memory must fall entirely within or outside of $\ta$, so every component is either trusted or adversarial.
-  Some well-formedness requirements are specific for adversarial and trusted components.
+  Some well-formedness requirements are specific for adversarial and trusted components respectively.
   Well-formed adversarial components cannot have return seals.
-  On the other hand, well-formed trusted components can have return seals, but must make return seals available to all its calls in a way that is consistent with \stktokens{}.
-  This means that each return seal is only used for one call.
+  On the other hand, well-formed trusted components can have return seals, and must allocate unique return seals to every call site.
 \end{jversion}
 
 % We first highlight the main points of the $\wdjud[\ta]{\comp}$ judgement.
@@ -1662,34 +1664,34 @@ In other words, WBCF and LSE are natively enforced in this semantics.
 \end{figure}
 
 \begin{jversion}
-These requirements are formally expressed by the judgement $\wdjud[\ta]{\comp}$ specifies, i.e.\ it defines when components satisfy the initial syntactic requirements necessary to be able to rely on unique linear capabilities, component unique seals, etc.
+These requirements are formally expressed by the well-formedness judgement $\wdjud[\ta]{\comp}$, i.e.\ it defines when components satisfy the initial syntactic requirements necessary to be able to rely on unique linear capabilities, component unique seals, etc.
 The judgement is defined in \figurename~\ref{fig:well-formed} with auxiliary judgements in \figurename~\ref{fig:well-formed-aux}.
 
 The $\wdjud[\ta]{\comp}$ judgement has two rules: \textsc{Main} and \textsc{Base}.
 The \textsc{Main} rule requires the component to have an entry point in terms of a main pair from the exports.
 Further, the base component should satisfy the well-formedness judgement.
-The \textsc{Base} judgement ensures sure that the component has a bit of structure.
+The \textsc{Base} rule ensures that the component has a certain structure.
 Roughly speaking, the \textsc{Base} rule requires the following:
 \begin{itemize}
 \item \textit{Code and data memory are disjoint.}
-\item \textit{Code memory is padded with zeros ($\mspad$).}
+\item \textit{Code memory is padded with zeros ($\mspad$) and this padded memory may not be referenced.}
   This prevents code memories from being spliced together.
   If the capabilities for two code memories can be spliced together, then the execution of one code memory can continue into the other creating an unintended control-flow.
-  Further, the possible control-flows of a component suddenly depends on the memory locations of all the components\footnote{Alternatively to this syntactic condition on components, we could require trusted components to never splice executable capabilities of unknown origin.}.
+  Further, the possible control-flows of a component suddenly depend on the memory locations of all the components\footnote{Alternatively to this syntactic condition on components, we could require trusted components to never splice executable capabilities of unknown origin.}.
 \item \textit{All memory can either be addressed by any number of non-linear capabilities or at most one linear capability.}
   The data address space is split into $A_\var{non-linear}$ and $A_\var{linear}$ that can be addressed by non-linear capabilities and linear capabilities, respectively.
   The judgement ensure uniqueness of linear capabilities by letting each address of the data memory take sole ownership of addresses in $A_\var{linear}$.
 \item \textit{All import addresses are part of the data memory.} 
 \item \textit{Import and export symbols are disjoint.}
-\item \textit{One of the following two are true}
+\item \textit{One of the following is true}
   \begin{itemize}
-  \item \textit{The code address space is disjoint from the trusted address space $\ta$ and there are no return seals.} In this case, the component contains untrusted code. We are interested in WBCF and LSE from the perspective of the trusted code, so we do not let untrusted memory have return seals\footnote{Untrusted code still has access to seals that could be used to protect calls.}.
+  \item \textit{The code address space is disjoint from the trusted address space $\ta$ and there are no return seals.} In this case, the component contains untrusted code. We are interested in WBCF and LSE from the perspective of the trusted code, so we do not let untrusted memory have return seals\footnote{Untrusted code still has access to closure seals that could be used to protect calls.}.
   \item \textit{The code address space is part of the trusted address space $\ta$.} In this case, the component contains trusted code. We do not impose requirements on the return seals here (the auxiliary judgements will impose restrictions on them), so the trusted component can have the return seals necessary for its calls.
   \end{itemize}
 \item \emph{The data address space is disjoint from the trusted address space $\ta$.} Data memory is not executable, so the trusted addresses never include the data memory addresses.
-\item \textit{The code memory satisfies the component-code judgement (\figurename~\ref{fig:well-formed-code}).}
-\item \textit{Each word in the data memory satisfies the component-word judgement (\figurename~\ref{fig:well-formed-word}).} This must be with respect to the linear addresses assigned to this address.
-\item \textit{All the exports satisfy the components-export judgement (\figurename~\ref{fig:well-formed-export}).}
+\item \textit{The code memory satisfies the component-code well-formedness judgement (\figurename~\ref{fig:well-formed-code})}, allowing only seal capabilities for seals owned by the component and numbers. If the numbers correspond to the encoding of a call instruction, then they must reference a unique return seal in the code memory.
+\item \textit{Each word in the data memory satisfies the component-word judgement (\figurename~\ref{fig:well-formed-word}).} This must be with respect to the linear addresses assigned to this address. It allows only numbers, linear and non-linear capabilities to memory owned by the component and values sealed with closure seals.
+\item \textit{All the exports satisfy the components-export well-formedness judgement (\figurename~\ref{fig:well-formed-export})}, requiring that they are well-formed by the component-word judgement and don't own linear memory.
 \end{itemize}
 
 \begin{figure}
@@ -1829,23 +1831,23 @@ Finally, the \textsc{C-Mem} judgement requires that the code at least have one n
 \subsection{Reasonable Components}
 \label{sec:reasonable-components}
 % Reasonability
-The static guarantees given by $\wdjud[\ta]{\comp}$ makes sure that components initially don't undermine the security measures needed for \stktokens{}, but it does not prevent a component from doing something silly during execution that undermines \stktokens{}.
+The static guarantees given by $\wdjud[\ta]{\comp}$ makes sure that components initially don't undermine the security measures needed for \stktokens{}, but it does not prevent a trusted component from doing something silly during execution that undermines \stktokens{}.
 In order for \stktokens{} to provide guarantees for a component, we expect it to not shoot itself in the foot and perform certain necessary checks not captured by the call code (Figure~\ref{fig:call-code}).
 More precisely, we expect four things of a reasonable component:
 \begin{enumerate}[label=(\arabic*)]
 \item It checks the stack base address before performing a call.
 As explained in Section~\ref{sec:stktokens-explained}, we do not include this check in the call code as it often would be redundant.
 \item It uses the return seals only for calls and the closure seals in an appropriate way which means that they should only be used to seal executable capabilities for code that behaves reasonably or non-executable things that do not undermine the security mechanisms \stktokens{} relies on.
-\item It does not leak return and closure seals or means to retrieve them.
+\item It does not leak return and closure seals (or means to retrieve them).
 This means that sets of seals with return or closure seals cannot be left in registers when transferring control to another module.
 There are also indirect ways to leak seals such as leaking a capability for code memory or leaking a capability for code memory sealed with an unknown seal.
-\item It does not store return and closure seals or means to get them.
+\item It never stores return and closure seals (or means to get them) to memory.
 By disallowing this, we make sure that data memory always can be safely shared as it does not contain seals or means to get them to begin with.
 \end{enumerate}
 \begin{jversion}
   We capture these properties in 4 definitions.
   Definition~\ref{def:reasonable-word} defines the reasonable words which means that they cannot be used to leak seals directly or indirectly.
-  Definition~\ref{def:reasonable-pc} defines the reasonable pc's which means that if it is plugged into a configuration with a register file filled with reasonable words, then  the configuration behaves reasonably.
+  Definition~\ref{def:reasonable-pc} defines the reasonable pc's which means that if it is plugged into a configuration with a register file filled with reasonable words, then the configuration behaves reasonably.
   Definition~\ref{def:reasonable-conf} defines the reasonable configurations which captures the four informal behavioural properties.
   Finally, definition~\ref{def:reasonable-component} lifts the notion of reasonability to components.
 
@@ -1988,7 +1990,7 @@ It says that if the configuration points to a seal-instruction, then either the 
 In order to construct a closure, one must seal a code capability and a data capability.
 If this is an executable capability, then it should be reasonable as a pc.
 On the other hand, if it is not an executable capability, then this must be the data part of the pair, so it should just be a reasonable word.
-Definition~\ref{def:reasonable-conf} is cyclic through Definition~\ref{def:reasonable-pc}, so both definitions are step-indexed to break the cycle. If 
+Definition~\ref{def:reasonable-conf} is cyclic through Definition~\ref{def:reasonable-pc}, so both definitions are step-indexed to break the cycle.
 
   \subsubsection{Reasonable component}
   A reasonable component has the informal behavioural properties from the introduction.
@@ -2012,7 +2014,13 @@ Definition~\ref{def:reasonable-conf} is cyclic through Definition~\ref{def:reaso
 \end{jversion}
 
 In our result, we assume that adversarial components are well-formed, but not necessarily reasonable. The well-formedness assumption ensures
- that the trusted component can rely on basic security guarantees provided by the capability machine. For instance, if we did not require linearity to be respected initially, then adversarial code could start with an alias for the stack capability. The adversary is not assumed to be reasonable as we do not expect them to obey the calling convention in any way. Can adversarial code call into trusted components? The answer to that question is yes but not with LSE and WBCF guarantees. Formally, adversarial code can contain the instructions that constitute a call. However, for untrusted code, \srccm{} will not execute those instructions as a "native call" but execute the individual instructions separately. The callee then executes in the same stack frame as the caller, so WBCF and LSE do not follow (for that call).
+that the trusted component can rely on basic security guarantees provided by the capability machine. For instance, if we did not require linearity to be respected initially, then adversarial code could start with an alias for the stack capability.
+However, the adversary is not assumed to be reasonable as we do not expect them to obey the calling convention in any way.
+Can adversarial code call into trusted components?
+The answer to that question is yes but not with LSE and WBCF guarantees.
+Formally, adversarial code can contain the instructions that constitute a call.
+However, for untrusted code, \srccm{} will not execute those instructions as a "native call" but execute the individual instructions separately.
+The callee then executes in the same stack frame as the caller, so WBCF and LSE do not follow (for that call).
 
 We will assume trusted components, for which WBCF and LSE are guaranteed, to be both well-formed and reasonable. 
 
@@ -2087,9 +2095,9 @@ This means that the compilation from \srccm{} components to \trgcm{} components 
 \end{theorem}
 Readers unfamiliar with fully-abstract compilation may wonder why Theorem~\ref{thm:full-abstraction} proves that \stktokens{} guarantees LSE and WBCF.
 Generally speaking, behavioral equivalences are preserved and reflected by fully-abstract compilers.
-This means that any property the source language has must somehow be there after compilation whether or not it is a property of the target language.
-If the source language has a property that the target language doesn't have, then a compiled source program must use the available target language features to emulate the source language property in a way that it behaviorally matches exactly.
-In our case, LSE and WBCF was built into the semantics of \srccm{}, but they are not properties of \trgcm{}.
+This means that any property the source language has must somehow be there after compilation, whether or not it is a property of the target language.
+If the source language has a property that the target language doesn't have, then a compiled source program must use the available target language features to emulate the source language property in a way that exactly matches behaviorally.
+In our case, LSE and WBCF are built into the semantics of \srccm{}, but they are not properties of \trgcm{}.
 In order to enforce these properties, components on \trgcm{} use \stktokens{}.
 Theorem~\ref{thm:full-abstraction} proves that \stktokens{} enforces these properties in a way that behaviorally matches \srccm{} which means that it enforces LSE and WBCF.
 
@@ -2142,13 +2150,14 @@ In their study of compartmentalization primitives, \Citet{juglaret_beyond_2016} 
 Essentially, they modify standard full abstraction so that preservation and reflection of contextual equivalence are only guaranteed for components that are {\itshape fully defined}, which means essentially that they do not exhibit undefined behavior in any fully defined context.
 In follow-up work, \citet{Abate:2018:GCG:3243734.3243745} extend this approach to scenarios where components only start to exhibit undefined behavior after a number of well-defined steps. 
 If we see reasonable behavior as defined behavior, then our full abstraction result can be seen as an application of this same idea.
-Our results do not apply to dynamic compromise scenarios because they are intended to be used in the verification of a secure compiler where these scenarios are not relevant.
-\dominique{Perhaps worth pointing out that (I suspect that) our step-bounded reasonability and FTLR, actually does apply in dynamic compromise scenario's.
-  The idea would be to use the theorem multiple times with different step bounds and a different boundary between trusted and untrusted code.
-  More concretely, if a component A starts behaving non-reasonable after 10 steps, then first apply the FTLR with n = 9 and component A trusted.
-  Then apply the FTLR again with n > 10 and component A no longer trusted.
-  Then you get stronger well-bracketedness guarantees until n=9 and weaker ones after that.
-  This is a step-bounded version of the idea explained in \cite{patrignani_modular_2016}.}
+
+Another interesting relation between our work and that of \citet{Abate:2018:GCG:3243734.3243745}, is that they consider dynamic compromise scenarios, where some components start out as trusted until they are compromised and are treated as adversarial after that.
+Our full abstraction result does not apply to those scenario's because it is intended to be used in the verification of a secure compiler where such scenarios are not relevant.
+Nevertheless, we believe our Fundamental Theorem of Logical Relations (see Section~\ref{thm:ftlr}) does apply in such scenario's because it is step-bounded.
+To deal with the evolving classification of components as trusted or adversarial, we can simply apply the theorem several times with different choices of $\ta$ and taking $n$ small enough that the compromise of $\ta$ has not yet happened until that point. 
+Because the theorem only requires reasonability up to $n$ steps, we get well-bracketedness guarantees up to the right step in the execution.
+This can be seen as a step-bounded version of the idea explained in \cite{patrignani_modular_2016}.
+It is an interesting observation that modular secure compilation, combined with step-bounded reasoning is sufficient to cover dynamic compromise scenario's without the need to build in dynamic compromise scenario's into the definition of secure compilation like \citet{Abate:2018:GCG:3243734.3243745}.
 
 Local capabilities can be used to ensure well-bracketed control-flow and local-state encapsulation as demonstrated by \citet{skorstengaard_reasoning_2017}.
 Recently, \citet{tsampas_2019} demonstrated that an extension of local capabilities with multiple linearly ordered colours can be used to enforce the life time of stack references.
