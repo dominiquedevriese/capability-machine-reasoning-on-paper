@@ -48,12 +48,12 @@ Perhaps other reusable components of secure compilers could be formulated simila
   Essentially, this would mean every function would be made responsible for unwinding its own stack frame.
   Continuations are more complicated but could perhaps be treated using similar ideas.
   Alternatively, it might also be possible to have a piece of central trusted code that does the stack unravelling for all stack frames.
-  To do this, this the trusted code would need to receive a copy of all return seals from the linker.
+  To do this, the trusted code would need to receive a copy of all return seals from the linker.
 
   % Say something about full-abstractions proofs and feature extensions
-  Full-abstraction is a property of the whole language.
-  In other words, a full-abstraction proof must consider all features of a language to make sure that the features don't interact in a way that breaks language abstractions.
-  If we have a fully abstract compiler and add a feature to the source and target language, then the new compiler is no necessarily fully-abstract.
+  Full abstraction is a property of the whole language.
+  In other words, a full abstraction proof must consider all features of a language to make sure that the features don't interact in a way that breaks language abstractions.
+  If we have a fully abstract compiler and add a feature to the source or target language, then the new compiler is not necessarily fully abstract anymore.
   Full abstraction would have to be proven for the new compiler to make sure that the new feature does not break existing abstractions in the language.
   Our proof of full-abstraction for \stktokens{} targets a simple capability machine that may not be able to enforce the high-level language abstractions we want, e.g.\ address hiding.
   In other words, the full-abstraction proof cannot be reused immediately.
@@ -61,14 +61,12 @@ Perhaps other reusable components of secure compilers could be formulated simila
   Generally speaking, it is worth investigating enforcement mechanisms for full abstraction in a simple setting that allows to quickly try out ideas and verify that the enforcement works.
 
   % new paragraph: conditional full-abstraction
-  \dominique{This paragraph should perhaps also point out the link to the dynamic compromise paper?}
-  \dominique{Then again, we come back to this later in the related work, so perhaps not necessary to discuss this here?}
-  Our full-abstraction theorem, Theorem~\ref{thm:full-abstraction}, is not pure full-abstraction as it requires the components to be reasonable and well-formed.
+  Our full-abstraction theorem, Theorem~\ref{thm:full-abstraction} only applies to components that are reasonable and well-formed.
   In other words, if we were to define a compiler phase that targets \srccm{}, then we would also have to show that every program it generates is well-formed and reasonable in order to use the full-abstraction result.
   Without the reasonability constraint, \stktokens{} would have to enforce reasonability instead.
-  That is, \stktokens{} would have to dynamically ensure that no return seals or means to get return seals are passed in calls.
-  Essentially, such checks would protect the trusted code against itself which shouldn't be necessary in the first place.
-  Instead, the compiler should generate reasonable code that never exhibits the unreasonable behaviour.
+  That is, \stktokens{} would have to dynamically ensure that no return seals or means to obtain them are passed in calls.
+  Such checks would impose a performance overhead and are in principle unnecessary for correct code.
+  We have instead chosen to rely on the compiler to generate reasonable code that never exhibits the unreasonable behaviour.
   This should be done in a compiler phase where more information about the original program is available, e.g.\ the compilation phase that commits to the low-level translation.
   Similarly for the syntactic constraints given by well-formedness.
   The compiler should make sure to generate code that satisfies the well-formedness judgement, so it can be executed by the machine.
@@ -93,7 +91,7 @@ Its costs are
 The main caveat is that we rely on the assumption that capability machines like CHERI can be extended with linear capabilities in an efficient way.
 
 Although this assumption can only be discharged by demonstrating an actual implementation with efficiency measurements, the following notes are based on private discussions with people from the CHERI team as well as our own thoughts on the matter.
-As we understand it, the main problems to solve for adding linear capabilities to a capability machine like CHERI are related to the move semantics for instructions like \texttt{move}, \texttt{store} and \texttt{load}.
+As we understand it, the main problems for adding linear capabilities to a capability machine like CHERI are related to the move semantics for instructions like \texttt{move}, \texttt{store} and \texttt{load}.
 Processor optimizations like pipelining and out-of-order execution rely on being able to accurately predict the registers and memory that an instruction will write to and read from.
 Our instructions are a bit clumsy from this point-of-view because, for example, \texttt{move} or \texttt{store} will zero the source register resp. memory location if the value being written is linear.
 A solution for this problem could be to add separate instructions for moving, storing and loading linear registers at the cost of additional opcode space.
@@ -106,7 +104,7 @@ This is in principle not a problem except that atomic instructions are significa
 When using \stktokens{}, loads of linear capabilities happen only when a thread has stored its return data capability on the stack and loads it back from there after a return.
 Because the stack is a region of memory with very high thread affinity (no other hardware thread should access it, in principle), and which is accessed quite often, well-engineered caching could perhaps reduce the high overhead of atomic loads of linear capabilities.
 % If such memory could be (mostly) kept exclusively locked in a cache close to the processor, the overhead of atomic loads in \stktokens{} might be significantly less than \texttt{load}'s worst case.
-The processor could perhaps also (be told to) rely on the fact that race conditions should be impossible for loads from linear capabilities (which should in principle be non-aliased) and just use a non-atomic load in that case.
+The processor could perhaps also (be told to) rely on the fact that race conditions should be impossible for loads from linear capabilities (which should be non-aliased) and just use a non-atomic load in that case.
 
 \dominique{Start new subsection here?}
 
