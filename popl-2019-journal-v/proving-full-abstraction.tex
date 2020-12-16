@@ -52,10 +52,10 @@ That is, our world is defined as a product:
 \[
   \World = \Worldh \times \Worlds \times \Worldfs
 \]
-The sub-worlds are partial maps from names $\RegName$ (not to be confused with register names), modelled as natural numbers, to invariants.
+The sub-worlds are partial maps from names $\RegionName$ (not to be confused with register names), modelled as natural numbers, to invariants.
 In order to define what this actually means, we need to be more precise about what we mean by invariants.
 
-We call the invariants regions because, as we will see in Section~\ref{subsubsec:ft-and-revocation}, they turn out to not be invariant.
+The invariants are registered in the worlds as regions.
 A region describes a collection of related memory segments, so it is simply represented as a relation over memory segments (i.e.\ a relation in $\Rel{\MemSeg \times \MemSeg}$).
 Intuitively, we want to be able to say that two memory segments are related when their content is related.
 That is, for every address in the two memory segments, the words that reside there must be related.
@@ -68,7 +68,7 @@ As a capability points to a piece of memory, the authority of the capability dep
 In other words to say whether two capabilities are related, we must know the possible contents of the memory.
 The world expresses the possible memory contents, so our regions are world indexed, i.e.
 \[
-  \Worldh = \RegName \parfun (\World \fun \Rel{\MemSeg \times \MemSeg})
+  \Worldh = \RegionName \parfun (\World \fun \Rel{\MemSeg \times \MemSeg})
 \]
 At this point, we can see that we have constructed a recursive domain equation.
 If we inline $\Worldh$ in $\World$, then we have a circular equation with no solution because the self-reference happens in a negative position.
@@ -116,12 +116,12 @@ We will extend the regions further in Sections~\ref{subsubsec:seals}~and~\ref{su
 The sub-world $\Worldh$ specifies the heap memory which can be referenced by both linear and normal capabilities, so it should contain both shared and spatial regions.
 For this reason, it is defined as
 \[
-  \Worldh = \RegName \parfun (\Regionh \cup \Regions)
+  \Worldh = \RegionName \parfun (\Regionh \cup \Regions)
 \]
 \srccm{} internalizes the \stktokens{} stack, so it can only be referenced by linear capabilities which means that the two stack regions should only have spatial regions.
 For instance the $\Worldfs$ is defined as
 \[
-  \Worldfs = \RegName \parfun \Regions
+  \Worldfs = \RegionName \parfun \Regions
 \]
 $\Worlds$ can also only be referenced by linear capabilities, so it should also only have spatial regions.
 $\Worlds$ not only models the memory contents of the local stack frames, it also models the call stack that consists of the stack frames.
@@ -132,7 +132,7 @@ Instead, the stack frame and code return point are connected by the capabilities
 In order to ensure that each call actually returns to the correct point of the code, we must still include the address of the return point in our model.
 To this end, each shared region in $\Worlds$ must be paired with a return address:
 \[
-\Worlds = \RegName \parfun (\Regions \times \Addr)
+\Worlds = \RegionName \parfun (\Regions \times \Addr)
 \]
 
 % Ensuring linearity
@@ -413,7 +413,7 @@ With the future region relation in place, we can define the future world relatio
     \array{l}
     \text{for $i \in \{\mathrm{heap},\mathrm{free\_stk},\mathrm{call\_stk} \}$} \\
     \quad\exists m_i : \RegionName \fun \RegionName, \text{ injective}\ldotp\\
-    \qquad \dom(W'.i) \supseteq \dom(m_i(W.i)) \wedge \forall r \in \dom(W.i)\ldotp W'.i(m_i(r)) \future W.i(r)
+    \qquad \dom(W'.i) \supseteq m_i(\dom(W.i)) \wedge \forall r \in \dom(W.i)\ldotp W'.i(m_i(r)) \future W.i(r)
      \endarray
   \right.
 \]
@@ -458,15 +458,16 @@ This is expressed by the $\oplus$ operator.
   \]
   where $\oplus$ for regions is defined as
 \begin{align*}
-  (\pure,H,H_\sigma) \oplus (\pure,H,H_\sigma) =  & \; (\pure,H,H_\sigma) \\
+  (\pure,H,H_{\mathrm{seal}}) \oplus (\pure,H,H_{\mathrm{seal}}) =  & \; (\pure,H,H_{\mathrm{seal}}) \\
   (\spatial,H) \oplus (\spatial,H) =  & \; (\spatial,H) \\
   \revoked \oplus \revoked = & \; \revoked \\
   (\spatialo,H) \oplus (\spatial,H) = & \; (\spatial,H) \oplus (\spatialo,H)\\
                                            =  & \; (\spatialo,H)
 \end{align*}
 \end{definition}
-The $\oplus$ operator, like the $\uplus$ operator, does not guarantee that the resulting world is sensible (e.g., the regions are not overlapping).
-Only when we know that a certain memory satisfies the world (as a memory specification, see Section~\ref{subsubsec:mem-sat}), will we be sure that the world's specifications are actually non-contradictory.
+The $\oplus$ operator, like the $\uplus$ operator, does not guarantee that the resulting world is sensible.
+For example, the resulting world might have several regions that impose conflicting requirements on a single memory location.
+However, when we know that a certain memory satisfies the world (as a memory specification, see Section~\ref{subsubsec:mem-sat}), then we can be sure that the world's specifications are non-contradictory.
 
 The $\uplus$ operator is used in the logical relation for components (\sectionname~\ref{subsec:component-rel}) which specifies (among other things) that the world should specify the presence of the component's data memory.
 Linking two components then produces a new component with both components' data memory.
@@ -522,7 +523,7 @@ For a set of seals $\overline{\sigma}$, memory segments $ms$ and $\ms_T$, and wo
         \qquad \quad \npair[n']{R_\ms(r)} \in  \pwheap(r).H \; \xi^{-1}(R_W(r)) \wedge\\
         \exists R_\var{seal} : \dom(\activeReg{\pwheap}) \fun \powerset{\Seal} \wedge\\
         \quad \biguplus_{r \in \dom(\activeReg{\pwheap})} R_\var{seal}(r)) \subseteq \overline{\sigma} \wedge\\
-        \quad \forall r \in \dom(\erase{\pwheap}{\pure})\ldotp \dom(\pwheap(r).H_\sigma) = R_\var{seal}(r)
+        \quad \forall r \in \dom(\erase{\pwheap}{\pure})\ldotp \dom(\pwheap(r).H_{\mathrm{seal}}) = R_\var{seal}(r)
       \end{array}
     \right.
 \end{multline*}
@@ -573,7 +574,7 @@ As the free stack relation relates the stack of \srccm{} with the memory that re
           \quad W_\var{stack} = \pwpriv \wedge \\
           \quad\src{\stk} = \src{(\opc_0,\ms_0), \dots (\opc_m,\ms_m)} \wedge \\
           \quad\forall i \in \{0,\dots,m\} \ldotp (\dom(\src{\ms_i}) \neq \emptyset \wedge\\
-          \quad\quad \forall j < i \ldotp \forall a \in \dom(\src{\ms_i}) \ldotp \forall a' \in \dom(\src{\ms_j}) \ldotp \stkb < a < a') \wedge\\
+          \quad\quad \forall j < i \ldotp \forall a \in \dom(\src{\ms_i}) \ldotp \forall a' \in \dom(\src{\ms_j}) \ldotp a < a' < \stkb) \wedge\\
           \quad\exists R_\ms : \dom(\activeReg{W_\var{stack}}) \fun \MemSeg \times \Addr \times \MemSeg \ldotp \\
           \quad\quad \ms_T = \biguplus_{r \in \dom(\activeReg{W_\var{stack}})} \pi_3(R_\ms(r)) \wedge \\
           \quad\quad \src{\ms_0} \uplus \dots \uplus \src{\ms_m} = \biguplus_{r \in \dom(\activeReg{W_\var{stack}})} \pi_1(R_\ms(r)) \wedge \\
@@ -588,20 +589,21 @@ As the free stack relation relates the stack of \srccm{} with the memory that re
   \end{multline*}
 \end{definition}
 The stack relation $\lrstk[]$ is similar to the heap relation in some ways.
-The $\lrstk[]$ relation also partitions the \trgcm{} memory but only the \trgcm{} as the \srccm{} partitions are given as the stack frames.
+The $\lrstk[]$ relation also partitions the \trgcm{} memory but not the \srccm{} memory, since the \srccm{} stack memory is already partitioned into stack frames.
 The stack relation also partitions the authority of the world, so it can relate the stack frames in a way that respects linearity.
 The stack on \srccm{} represents the call stack which means that each stack frame corresponds to a call and its local data.
 The operational semantics of \trgcm{} does not have a built-in stack, so we emulate it by requiring that a stack like data structure resides in \trgcm{} memory.
 That is for a memory segment that represents a stack frame, all the addresses of memory frames lower in the stack should have strictly smaller memory addresses.
 Further, the stack frames should be in the part of the memory we agree to be the stack which means that the addresses should be smaller than $\stkb$.
-Informally, this just means that the stack should be laid out in memory as a downwards growing stack with no addresses below $\stkb$.
+Informally, this just means that the stack should be laid out in memory as a downwards growing stack with no addresses above $\stkb$.
 
 According to \stktokens{} (described in \sectionname~\ref{sec:stktokens-explained}), stack frames must be non-empty, so they are distinguishable from a missing stack frame.
 For this reason, $\lrstk[]$ requires every stack frame to be non-empty.
 Note that each stack frame corresponds to a trusted call.
-Untrusted calls are not protected which means that untrusted stack frames reside in the free stack memory (this does not mean that the untrusted stack frames are necessarily unprotected; it only means that they are not natively protected by \stktokens{}).
+Untrusted calls are not protected which means that untrusted stack frames reside in the free stack memory.
 This means that the protected stack frames are not necessarily packed tightly in memory, and the memory in between is part of the free stack.
-The free stack in between stack frames may be used by untrusted code for their local stack frames (Untrusted stack frames are not protected by \srccm{}, but this does not prevent untrusted code from securing their own stack frames).
+The free stack in between stack frames may be used by untrusted code for their local stack frames As such, untrusted stack frames are not natively protected by \srccm{}.
+However, this does not prevent untrusted code from securing their own stack frames.
 \figurename~\ref{fig:mem-sketch} sketches this.
 
 Each stack frame in the \srccm{} stack contains an old program pointer which corresponds to the old program counter recorded in the region of the world associated with the stack frame.
@@ -891,9 +893,9 @@ We only include the main result, which is the following theorem, asserting the e
 %   \[
 %   \left(\{\pure\}\times \var{MemInv} \times \var{SealInv},\left(\nequal[n]\right)_{n=0}^{\infty},=\right)
 %   \]
-%   where the family of equivalences distributes to the underlying c.o.f.e.'s, i.e. given shared regions $(\pure,H,H_\sigma), (\pure,H',H_\sigma') \in \{\pure\}\times \var{MemInv} \times \var{SealInv}$,
+%   where the family of equivalences distributes to the underlying c.o.f.e.'s, i.e. given shared regions $(\pure,H,H_{\mathrm{seal}}), (\pure,H',H_{\mathrm{seal}}') \in \{\pure\}\times \var{MemInv} \times \var{SealInv}$,
 %   \[
-%   (\pure,H,H_\sigma) \nequal (\pure,H',H_\sigma') \text{ iff } H \nequal_\var{MI} H' \wedge H_\sigma \nequal_{SI} H_\sigma'
+%   (\pure,H,H_{\mathrm{seal}}) \nequal (\pure,H',H_{\mathrm{seal}}') \text{ iff } H \nequal_\var{MI} H' \wedge H_{\mathrm{seal}} \nequal_{SI} H_{\mathrm{seal}}'
 %   \]
 % \end{definition}
 % Definition~\ref{def:pure-reg-p-cofe} gives us the shared region for preorder c.o.f.e.\ when we use it with the memory invariant c.o.f.e.\ as $\var{MemInv}$ and the seal invariant c.o.f.e.\ as $\var{SealInv}$.
@@ -1188,21 +1190,21 @@ In the following, we introduce a number of \emph{standard regions} that express 
       % [\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\sigrets \cup \sigcloss) \wedge 
                        \dots 
       % \quad\forall \sigma' \in [\sigma_\baddr,\sigma_\eaddr] \ldotp \exists r \in \dom(\pwheap) \ldotp \\
-      % \quad \pwheap(r) = (\pure,\_,H_\sigma) \tand H_\sigma \; \sigma' \nequal (\lrv \circ \xi)
+      % \quad \pwheap(r) = (\pure,\_,H_{\mathrm{seal}}) \tand H_{\mathrm{seal}} \; \sigma' \nequal (\lrv \circ \xi)
 %    \end{array}
     \right\} \cup \\ &
         \left\{
 %    \begin{array}{l}
       \npair{\left(\src{\sealed{\sigma,\vsc_S}}, \sealed{\sigma,\vsc_T} \right)} \mid \dots
       % \isLinear{\src{\vsc_S}} \text{ iff } \isLinear{\vsc_T} \tand \\
-      % \quad\exists r \in \dom(\pwheap), \sigrets,\sigcloss,\mscode \ldotp \pwheap(r) = (\pure,\_,H_\sigma) \tand \\
-      % \qquad H_\sigma \; \sigma \nequal H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; \gc \; \sigma \tand \\
-      % \qquad \npair[n']{\stpair[.]{\vsc_S}{\vsc_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W) \text{ for all $n' < n$}\tand\\
+      % \quad\exists r \in \dom(\pwheap), \sigrets,\sigcloss,\mscode \ldotp \pwheap(r) = (\pure,\_,H_{\mathrm{seal}}) \tand \\
+      % \qquad H_{\mathrm{seal}} \; \sigma \nequal H^\mathrm{code,\square}_{\mathrm{seal}} \; \sigrets \; \sigcloss \; \mscode \; \gc \; \sigma \tand \\
+      % \qquad \npair[n']{\stpair[.]{\vsc_S}{\vsc_T}} \in H_{\mathrm{seal}} \; \sigma \; \xi^{-1}(W) \text{ for all $n' < n$}\tand\\
       % \qquad (\nonLinear{\src{\vsc_S}} \Rightarrow \\
-      % \qquad\quad\forall W' \future \purePart{W}, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \\
+      % \qquad\quad\forall W' \future \purePart{W}, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_{\mathrm{seal}} \; \sigma \; \xi^{-1}(W_o) \ldotp \\
       % \qquad \qquad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o)) \tand \dots
       % % \quad (\isLinear{\src{\vsc_S}} \Rightarrow \\
-      % % \qquad\forall W' \future W, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp \\
+      % % \qquad\forall W' \future W, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_{\mathrm{seal}} \; \sigma \; \xi^{-1}(W_o) \ldotp \\
       % % \qquad \quad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o)) \wedge \\
 %    \end{array}
     \right\}\cup\\ &
@@ -1313,7 +1315,7 @@ Using this invariant, we define the standard $\spatial$ and $\spatialo$ regions 
 \]
 and the standard $\pure$ regions as follows
 \[
-  \stdreg{A,\gc}{\pure} \defeq (\pur,H_A^{\mathrm{std},\square} \; \gc, \lambda \_ \; \_ \ldotp \emptyset)
+  \stdreg{A,\gc}{\pure} \defeq (\pure,H_A^{\mathrm{std},\square} \; \gc, \lambda \_ \; \_ \ldotp \emptyset)
 \]
 Note that the standard $\pure$ region has an empty seal invariant and thus puts no requirements on seals.
 
@@ -1325,9 +1327,9 @@ The memory invariant is defined as follows
 \begin{multline*}
   H^\mathrm{sta,\square}_{\stpair{\ms}{\ms}} \; \gc \; \hat{W} \defeq\\
   \left\{
-      \npair{\stpair{\ms}{\ms}} \middle|
+      \npair{\stpair{\ms'}{\ms'}} \middle|
       \begin{array}{l}
-        \dom(\src{\ms_S}) = \dom(\ms_T) \wedge \\
+        \stpair{\ms'}{\ms'} = \stpair{\ms}{\ms} \wedge \dom(\src{\ms_S}) = \dom(\ms_T) \wedge \\
         \exists S : \dom(\src{\ms_S}) \fun \World \ldotp \xi(\hat{W}) = \oplus_{\aaddr \in \dom(\ms)} S(\aaddr) \wedge\\
         \quad \forall \aaddr \in \dom(\src{\ms_S}) \ldotp \npair{(\src{\ms_S}(\aaddr),\ms_T(\aaddr))} \in \lrv(S(\aaddr))
       \end{array}
@@ -1350,6 +1352,7 @@ The memory invariant of the code region is defined as
   H^\mathrm{code} \; \sigrets \; \sigcloss \; \code \; (\ta,\_,\gsigrets,\gsigcloss) \; \hat{W} =\\
   \left\{\npair{\arraycolsep=0pt\left(\array{l}\code \uplus \mspad,\\ \code \uplus \mspad\endarray\right)} \middle|
     \begin{array}{l}
+      \exists \trust \ldotp
     \dom(\code) = [\baddr,\eaddr] \wedge ([\baddr - 1, \eaddr + 1] \subseteq \ta
       \wedge\\
       \sigrets \subseteq \gsigrets \wedge \sigcloss \subseteq \gsigcloss \wedge \trust = \trusted) \vee \\
@@ -1372,14 +1375,14 @@ In either case, the words should be in the value relation with respect to the $\
 
 \stktokens{} rely on proper seal usage to guarantee well-bracketed control-flow and local state encapsulation.
 This means that components must use return and closure seals for their intended purpose for \stktokens{} to work.
-The code region has a seal invariant $H^\mathrm{code,\square}_\sigma$ to guarantee that the return and closure seals of the region are used correctly.
+The code region has a seal invariant $H^\mathrm{code,\square}_{\mathrm{seal}}$ to guarantee that the return and closure seals of the region are used correctly.
 The seal invariant is displayed in Figure~\ref{fig:code-reg-seal-inv}.
 The return seals $\sigrets$ in a code region should only be used to seal return pointers.
 That is on \srccm{}, the return seals should only be used to seal $\retptrc{}$ and $\retptrd{}$.
 \begin{figure}
   \centering
   \begin{multline*}
-  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \;
+  H^\mathrm{code,\square}_{\mathrm{seal}} \; \sigrets \; \sigcloss \; \code \;
   (\ta,\stkb,\_,\gsigrets) \; \sigma \; \hat{W} \defeq \\
   \begin{array}[t]{l}
 \left\{
@@ -1401,7 +1404,7 @@ That is on \srccm{}, the return seals should only be used to seal $\retptrc{}$ a
       \begin{array}{l}
         \sigrets \subseteq \gsigrets \tand \\
         \dom(\code) \subseteq \ta \tand\\
-        \exists r \in \addressable{\linear,\pwpriv[\xi(\hat{W})]} \ldotp \\
+        \exists r \in \dom(\pwpriv[\xi(\hat{W})]) \ldotp \\
         \quad\pwpriv[\xi(\hat{W})](r) \nequal (\stareg[(\ms_S,\ms_T)]{\spatialo,\square} \; (\ta,\stkb), \aaddr'+\calllen) \tand \\
         \quad \dom(\ms_S) = \dom(\ms_T) = [\baddr,\eaddr] \tand\\
         \quad \decInstr{\code([\aaddr',\aaddr' + \calllen-1])} = \overline{\scall{\offpc,\offsigma}{r_1}{r_2}} \tand \\
@@ -1413,7 +1416,7 @@ That is on \srccm{}, the return seals should only be used to seal $\retptrc{}$ a
     \text{ for } \sigma \in \sigrets
 \end{multline*}
 \begin{multline*}
-  H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \code \;
+  H^\mathrm{code,\square}_{\mathrm{seal}} \; \sigrets \; \sigcloss \; \code \;
   (\ta,\stkb,\gsigcloss,\gsigrets) \; \sigma \; \hat{W} \defeq \\
   \left\{
     \begin{array}{l}
@@ -1458,7 +1461,7 @@ When it comes to the data capability of a closure, we just require that it comes
 
 With the memory invariant and seal invariant in hand, we define the code region as follows:
 \[
-  \codereg{\sigrets,\sigcloss,\code,\gc} \defeq (\pure, H^\mathrm{code,\square} \; \sigrets \; \sigcloss \; \code \; \gc, H^\mathrm{code}_\sigma \; \sigrets \; \sigcloss \; \code \; \gc)
+  \codereg{\sigrets,\sigcloss,\code,\gc} \defeq (\pure, H^\mathrm{code,\square} \; \sigrets \; \sigcloss \; \code \; \gc, H^\mathrm{code}_{\mathrm{seal}} \; \sigrets \; \sigcloss \; \code \; \gc)
 \]
 The code region is $\pure$ because it needs to contain a seal invatiant and because we assume that code pointers are normal capabilities.
 
@@ -1496,7 +1499,7 @@ The read condition is defined as follows
       \quad \exists R : S \fun \powerset{\nats} \ldotp\\
       \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge\\
       \qquad (\lin = \linear \Rightarrow \forall r \in S \ldotp |R(r)|  = 1) \wedge\\
-      \qquad \forall r \in S \ldotp \pwheap(r).H \nsubeq \stdreg{R(r),\gc}{\pur}.H
+      \qquad \forall r \in S \ldotp \pwheap(r).H \nsubeq \stdreg{R(r),\gc}{\pure}.H
     \end{array}
   \right\}
 \]
@@ -1514,7 +1517,7 @@ This means that after a split, the authority of the regions for the bottom half 
 A safe read capability only gives authority to read safe words.
 The invariant on the memory a read capability gives access to may be even more restrictive than just requiring safe words.
 For instance, the invariant may require a flag to stay unchanged.
-We express the fact that a region may be more restrictive by making the standard region $\stdreg{R(r),\gc}{\pur}$, which permits all memory segments with safe words, the upper bound of what a region may require when it governs a memory segment that can be accessed through a safe read capability.
+We express the fact that a region may be more restrictive by making the standard region $\stdreg{R(r),\gc}{\pure}$, which permits all memory segments with safe words, the upper bound of what a region may require when it governs a memory segment that can be accessed through a safe read capability.
 
 % TODO is there a point to be made about limited write for reading of linear capabilities?
 % When a linear capability is read from memory, the source address must be cleared.
@@ -1558,7 +1561,7 @@ With address stratification defined, we define the write condition.
       \quad \exists R : S \fun \powerset{\nats}\\
       \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge\\
       \qquad (\lin = \linear \Rightarrow \forall r \in S \ldotp |R(r)|  = 1) \wedge\\
-      \qquad \forall r \in S \ldotp \pwheap(r).H \nsupeq \stdreg{R(r),\gc}{\pur}.H \wedge\\
+      \qquad \forall r \in S \ldotp \pwheap(r).H \nsupeq \stdreg{R(r),\gc}{\pure}.H \wedge\\
       \qquad \quad \pwheap(r) \text{ is address-stratified}
     \end{array}
   \right\}
@@ -1580,7 +1583,7 @@ Note that we do not have any condition that talks about the stack-frames sub wor
       \quad \exists R : S \fun \powerset{\nats} \ldotp\\
       \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge \\
       \qquad \forall r \in S \ldotp |R(r)| = 1\\
-      \qquad \forall r \in S \ldotp \pwfree(r).H \nsubeq \stdreg{R(r),\gc}{\pur}.H
+      \qquad \forall r \in S \ldotp \pwfree(r).H \nsubeq \stdreg{R(r),\gc}{\pure}.H
     \end{array}
   \right\}
 \]
@@ -1593,7 +1596,7 @@ Note that we do not have any condition that talks about the stack-frames sub wor
       \quad \exists R : S \fun \powerset{\nats} \\
       \qquad \biguplus_{r\in S} R(r) \supseteq A \wedge \\
       \qquad \forall r \in S \ldotp |R(r)| = 1 \wedge \\
-      \qquad \forall r \in S \ldotp \pwfree(r).H \nsupeq \stdreg{R(r),\gc}{\pur}.H \wedge\\
+      \qquad \forall r \in S \ldotp \pwfree(r).H \nsupeq \stdreg{R(r),\gc}{\pure}.H \wedge\\
       \qquad \quad \pwfree(r) \text{ is address-stratified}
     \end{array}
   \right\}
@@ -1647,10 +1650,10 @@ A sealed capability is safe when it can be paired with any sealed capability fro
 Just like safe executable capabilities, a sealed capability may be stored, so it should also be safe to use in future worlds.
 The condition for sealed capabilities is defined by $\sealedCond[]{}$.
 \begin{multline*}
-\sealedCond{W,H_\sigma} =\\
+\sealedCond{W,H_{\mathrm{seal}}} =\\
 \left\{\npair{(\sigma, \src{\vsc_S},\vsc_T)}\middle|
   \begin{array}{l}
-  \forall W' \future W, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W_o) \ldotp\\
+  \forall W' \future W, W_o, n' < n, \npair[n']{\stpair[.]{\vsc_S'}{\vsc'_T}} \in H_{\mathrm{seal}} \; \sigma \; \xi^{-1}(W_o) \ldotp\\
     \quad \npair[n']{\src{\vsc_S},\src{\vsc_S'},\vsc_T,\vsc_T'} \in \lrexj(W'\oplus W_o))
   \end{array}
 \right\}
@@ -1738,15 +1741,15 @@ We do not know what an adversary may seal or what seal they may use, so, for eve
     \begin{array}{l}
       (\isLinear{\src{\vsc_S}} \text{ iff } \isLinear{\vsc_T}) \wedge\\
       \exists r \in \dom(\pwheap), \sigrets,\sigcloss,\mscode \ldotp \\
-      \quad\pwheap(r) = (\pure,\_,H_\sigma) \tand \\
-      \quad H_\sigma \; \sigma \nequal H^\mathrm{code,\square}_\sigma \; \sigrets \; \sigcloss \; \mscode \; \gc \; \sigma \tand \\
-      \quad \npair[n']{\stpair[.]{\vsc_S}{\vsc_T}} \in H_\sigma \; \sigma \; \xi^{-1}(W) \text{ for all $n' < n$}\wedge\\
+      \quad\pwheap(r) = (\pure,\_,H_{\mathrm{seal}}) \tand \\
+      \quad H_{\mathrm{seal}} \; \sigma \nequal H^\mathrm{code,\square}_{\mathrm{seal}} \; \sigrets \; \sigcloss \; \mscode \; \gc \; \sigma \tand \\
+      \quad \npair[n']{\stpair[.]{\vsc_S}{\vsc_T}} \in H_{\mathrm{seal}} \; \sigma \; \xi^{-1}(W) \text{ for all $n' < n$}\wedge\\
       \quad \isLinear{\src{\vsc_S}} \Rightarrow
       \npair{(\sigma,\src{\vsc_S},\vsc_T)}\in \\
-      \qquad \qquad \qquad \qquad \sealedCond{W,H_\sigma} \wedge\\
+      \qquad \qquad \qquad \qquad \sealedCond{W,H_{\mathrm{seal}}} \wedge\\
       \quad \nonLinear{\src{\vsc_S}} \Rightarrow
       \npair{(\sigma,\src{\vsc_S},\vsc_T)}\in\\ 
-      \qquad\qquad\sealedCond{\mathit{purePart}(W),H_\sigma}\\
+      \qquad\qquad\sealedCond{\mathit{purePart}(W),H_{\mathrm{seal}}}\\
       % This case was never used (?) so it is not necessary.
       % \wedge \\
       % \quad \npair[n']{\src{\vsc_S'},\src{\vsc_S},\vsc_T',\vsc_T} \in \lrexj(W' \oplus W_o)
@@ -1757,7 +1760,7 @@ We do not know what an adversary may seal or what seal they may use, so, for eve
     \begin{array}{l}
       [\sigma_\baddr,\sigma_\eaddr] \mathrel{\#} (\gsigrets \cup \gsigcloss) \tand\\
       \forall \sigma' \in [\sigma_\baddr,\sigma_\eaddr] \ldotp \exists r \in \dom(\pwheap) \ldotp \\
-      \quad \pwheap(r) = (\pure,\_,H_\sigma) \tand H_\sigma \; \sigma' \nequal (\lrv \circ \xi)
+      \quad \pwheap(r) = (\pure,\_,H_{\mathrm{seal}}) \tand H_{\mathrm{seal}} \; \sigma' \nequal (\lrv \circ \xi)
     \end{array}
     \right\} 
   \end{array}
@@ -1780,7 +1783,7 @@ The untrusted value relation ensures this as it is monotone with respect to futu
 The trusted value relation $\lrvname_\trusted$ relates everything safe for a trusted component to have without breaking memory invariants.
 For the most part, we allow them to contain the same words as the untrusted components, but we also need to allow them to have seal sets with trusted closure seals and return seals which we cannot allow untrusted components to have.
 Further, we need to allow trusted components to have capabilities for the trusted code which, again, is something that we cannot allow untrusted components to have.
-The untrusted value relation is defined in Figure~\ref{fig:trusted-val-rel}.
+The trusted value relation is defined in Figure~\ref{fig:trusted-val-rel}.
 
 The words in $\lrvname_\trusted$ but not in the $\lrvname_\untrusted$ have the potential to break the system invariants \stktokens{} rely on.
 We can only let trusted components have words from $\lrvname_\trusted$ because the trusted component promises to not break the invariant by behaving reasonably.
@@ -2072,10 +2075,9 @@ Using Lemma~\ref{thm:ftlr} and the definitions of the logical relations, we can 
 The first is a version of the FTLR for components, stating that all components are related to themselves if they are either (1) well-formed and untrusted or (2) well-formed, reasonable and trusted.
 \begin{lemma}[FTLR for components]
   \label{lem:ftlr-comps}
-  If $\comp$ is a well-formed component, i.e. $\wdjud{\comp}$ and either
-    $\dom(\comp.\mscode) \subseteq \ta$ and $\src{\comp}$ is a reasonable component; or
-    $\dom(\comp.\mscode) \mathrel{\#} \ta$,
-  then there exists a $W$ such that
+  If $\comp$ is a well-formed component in \trgcm{}, i.e. $\wdjud{\comp}$.
+  Then consider the same $\src{\comp}$ in \srccm{}.
+  If either $\dom(\comp.\mscode) \subseteq \ta$ and $\src{\comp}$ is a reasonable component in \srccm{}; or $\dom(\comp.\mscode) \mathrel{\#} \ta$, then there exists a $W$ such that
   $\npair{(\src{\comp},\comp)} \in \lrcomp(W)$.
 \end{lemma}
 

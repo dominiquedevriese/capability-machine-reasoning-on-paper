@@ -1,8 +1,8 @@
 \documentclass{jfp}
 
 \usepackage[utf8]{inputenc}
-\usepackage{amsmath}
-\usepackage{amssymb}
+% \usepackage{amsmath}
+% \usepackage{amssymb}
 
 \bibliographystyle{JFPlike}
 
@@ -37,7 +37,7 @@
 \undef{\base}
 \input{../fully-abstract-comp/preamble}
 % Paper specific redefinitions of commands
-\renewcommand{\MemFrag}{\shareddom{MemFrag}}
+\newcommand{\MemFrag}{\shareddom{MemFrag}}
 \renewcommand{\Reg}{\shareddom{RegFile}}
 \renewcommand{\RegName}{\shareddom{RegName}}
 \renewcommand{\decInstr}[1]{\plainfun{decode}{#1}}
@@ -612,12 +612,11 @@ This would also allow linear capabilities to have aliases, but only by linear ca
 The operational semantics of the capability machine uses the function $\decInstr{}$ to decode instructions.
 We also assume a function $\encInstr{}$ to make it easy to specify programs in terms of instructions.
 Rather than defining such a decode function and an encode function, we assume that they are given with certain properties.
-The $\decInstr{} : \Word \fun \Instr$ should be surjective and injective for all non-$\fail$ instructions.
-Further, it should decode all capabilities to the $\fail$ instruction, i.e.\ only numbers are decoded to non-fail instructions:
+The $\decInstr{} : \Word \fun \Instr$ should decode all capabilities to the $\fail$ instruction, i.e.\ only numbers are decoded to non-fail instructions:
 \[
 \forall c \in \Caps \ldotp \decInstr{c} = \fail
 \]
-The $\encInstr{} : \Instr \fun \ints$ function should be injective, and  $\decInstr{}$ is its left inverse, i.e.
+The $\decInstr{}$ should have a right inverse $\encInstr{} : \Instr \fun \ints$, i.e.
 \[
 \forall i \in \Instr \ldotp \decInstr{}(\encInstr{i}) = i
 \]
@@ -626,8 +625,9 @@ These assumptions are sufficient to construct program examples in terms of instr
 % As the $\decInstr{}$ function is the left inverse of $\encInstr{}$, we can even execute the program in the operational semantics without ever worrying about what the actual encoding is.
 %This is not to say that encoding is an easy problem. There are many things to get.
 
-The machine also assumes decode and encode functions for permissions $\decPerm{} : \Perm \fun \ints$ and $\encPerm{} : \ints \fun \Perm$.
-We assume the $\decPerm{}$ function to be the left inverse of $\encPerm{}$ and surjective. For $\encPerm{}$, we assume it is surjective and that it does not encode anything to the $\tgetp{}{}$ error value -1, i.e.
+The machine also assumes decode and encode functions for permissions $\encPerm{} : \Perm \fun \ints$ and $\decPerm{} : \ints \fun \Perm$.
+We assume the $\decPerm{}$ function to be the left inverse of $\encPerm{}$.
+For $\encPerm{}$, we assume that it does not encode anything to the $\tgetp{}{}$ error value -1, i.e.
 \[
   \forall \perm \in \Perm \ldotp \encPerm{\perm} \neq -1
 \]
@@ -638,7 +638,7 @@ This is very much like the previous functions.
 It encodes each kind of word differently and all words of the same kind to the same integer.
 \end{jversion}
 
-\subsection{Components, linking, programs, and contexts }
+\subsection{Components, linking, programs, and contexts}
 \label{subsec:components-linking}
 The executable configuration describes the machine state, but it does not make it clear what components run on the machine and how they interact with each other.
 To clarify this, we introduce notions of components and programs from which we construct executable configurations.
@@ -1011,11 +1011,11 @@ There is also a more practical reason for a \stktokens{} caller to make sure the
 At this point, the caller checks that the return token is adjacent to the stack capability for the caller's local stack frame and they have the means to do so.
 However, this still does not ensure that the caller's stack frame is on top of the call stack.
 The issue is that stack frames may not be tightly packed leaving space between stack frames in memory.
-An adversarial callee may even intentionally leave a bit of space in memory above the caller's stack frame, so that they can later return out of order by returning the bit of the return token for the bit of memory left above the caller's stack frame.
+An adversarial callee may intentionally leave a bit of space in memory above the caller's stack frame, so that they can later return out of order by returning the bit of the return token for the bit of memory left above the caller's stack frame.
 This is illustrated in Figure~\ref{fig:stk-base-abuse}: In Figure~\ref{fig:stack-base-abuse-a}, a trusted caller has called an adversarial callee.
 The adversary calls the trusted code back, but first they split the return token in two and store on the heap the part for the memory adjacent to the trusted caller's call frame (Figure~\ref{fig:stack-base-abuse-b}).
 The trusted caller calls the adversary back using the precautions we have described so far (Figure~\ref{fig:stack-base-abuse-c}).
-At this point (Figure~\ref{fig:stack-base-abuse-b}), the adversary has access to a partial return token adjacent to the trusted caller's first stack frame which allows the adversary to return from this call breaking WBCF.
+At this point (Figure~\ref{fig:stack-base-abuse-d}), the adversary has access to a partial return token adjacent to the trusted caller's first stack frame which allows the adversary to return from this call breaking WBCF.
 
 For the caller to be sure that there are no hidden stack frames above its own, they need to make sure that the return token is exactly the same as the one they passed to the callee.
 In \stktokens{}, the base address of the stack capability is fixed as a compile-time constant (Note: the stack grows downwards, so the base address of the stack capability is the top-most address of the stack). 
@@ -1092,7 +1092,7 @@ We do not include this check because it only needs to happen once between two ca
 \multicolumn{2}{l}{\text{// Load the call seal.}}                &18: & \tmove{\rtmp{2}}{\pcreg}\\
 6 :& \tmove{\rtmp{1}}{\pcreg}                                    &19: & \tcca{\rtmp{2}}{5}\\
 7 :& \tcca{\rtmp{1}}{(\offpc - 5)}                               &20: & \tjnz{\rtmp{2}}{\rtmp{1}}\\
-8 :& \tload{\rtmp{1}}{\rtmp{1}}                                  &21: & \rtmp{2}{1}\\
+8 :& \tload{\rtmp{1}}{\rtmp{1}}                                  &21: & \tcca{\rtmp{2}}{1}\\
 9 :& \tcca{\rtmp{1}}{\offsigma}                                  &22: & \tjmp{\rtmp{2}}\\
 \multicolumn{2}{l}{\text{// Seal the local stack frame.}}        &23: & \tfail \\
 10:& \tcseal{\rretd}{\rtmp{1}}                                   &\multicolumn{2}{l}{\text{// Splice with capability for local stack frame.}}\\
@@ -1117,7 +1117,9 @@ We do not include this check because it only needs to happen once between two ca
   % Instructions 16-23: check the stack base.
   % Instruction 24: join the stack pointer.
   % Instructions 25-26: pop 42 from the stack.
-  The instructions for a $\scall{\offpc,\offsigma}{r_1}{r_2}$ with $\offpc$  the offset from line 1 of the call to the set-of-seals it uses and $\offsigma$ the offset in the set-of-seals to the call seal.
+  The instructions for a $\scall{\offpc,\offsigma}{r_1}{r_2}$.
+  The number $\offpc$ is the offset between the memory location where the first instruction of the call is stored to the memory location where the set-of-seals capability is stored that should be used for sealing the return capability.
+  This set-of-seals capability may give access to a range of seals and the offset $\offsigma$ identifies which of these should be used.
   $\stkb$ is the globally agreed on stack base.
   There are some magic numbers in the code: line 1: $42$, garbage data to ensure a non-empty stack.
   Line 7: $-5$, offset from line 6 (where $\pcreg$ was copied into $\rtmp{1}$) to line 1.
@@ -1323,7 +1325,7 @@ In other words, WBCF and LSE are natively enforced in this semantics.
          $\begin{multlined}
            \ms_{\stk,\var{local}},c_\var{local},\ms_{\stk,\var{rest}},c_\stk =\\ \var{splitStack}(\Phi.\reg(\rstk), \Phi.\ms_\stk) \text{ and }
          \end{multlined}$
-    $\opc, c_\opc =\var{setupOpc(\Phi.\reg(\pcreg))}$ and
+    $\opc, c_\opc =\var{setupOpc}(\Phi.\reg(\pcreg))$ and
     $\stk' = (\opc,\ms_{\stk,\var{local}}) :: \Phi.\stk$ and 
     $\begin{multlined}[t]\sigma =
       \var{getCallSeal}(\\
@@ -1332,7 +1334,7 @@ In other words, WBCF and LSE are natively enforced in this semantics.
     $s_c,s_d = \var{sealReturnPair}(\sigma,c_\opc,c_\var{local})$ and
     $w_1,w_2 = \linCons{\Phi.\reg(r_1,r_2)}$ and
                         $
-    \begin{multlined}
+    \begin{multlined}[t]
       \Phi.\reg(r_1,r_2) =\\ \sealed{\sigma', c_1}, \sealed{\sigma', c_2}
     \end{multlined}$
                         }\\
@@ -1525,7 +1527,7 @@ In other words, WBCF and LSE are natively enforced in this semantics.
   We model a linker that relies on a certain fixed shape for all components.
   The proper linker behaviour and the syntactic expectations we have of both trusted and untrusted components are captured in a syntactic well-formedness judgement which we explain in this section.
 
-  The well-formedness judgement imposes a quite rigid structure on components: a component's code memory may contain only data and set-of-seals capabilities.
+  The well-formedness judgement imposes a quite rigid structure on components: a component's code memory may contain only data (including encoded instructions) and set-of-seals capabilities.
   The data memory may contain only data, memory capabilities to the component's data memory (respecting linearity) or sealed memory capabilities (to the component's data memory, sealed with closure seals).
   This makes a clear separation between code and data memory as neither can contain capabilities for the other.
   The separation of the two kinds of memory means that data structures in data memory can be shared without risking unintentionally leaking return seals that were indirectly accessible through the data structure.
@@ -1575,7 +1577,7 @@ In other words, WBCF and LSE are natively enforced in this semantics.
     \dom(\msdata) \mathrel{\#} \ta \\
     \sigrets,\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode \\
     \forall a \in \dom(\msdata)\ldotp \dom(\mscode),A_{\mathrm{own}}(a),A_{\mathrm{non-linear}},\sigcloss \vdash_{\mathrm{comp-word}} \msdata(a)\\
-    \overline{\dom(\mscode), A_{\mathrm{non-linear}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-export}} w_{\mathrm{export}}}
+    \forall w_{\mathrm{export}} \in \overline{w_{\mathrm{export}}} \ldotp \dom(\mscode), A_{\mathrm{non-linear}}, \sigrets,\sigcloss \vdash_{\mathrm{comp-export}} w_{\mathrm{export}}
   }{
     \ta \vdash (\mscode\uplus \mspad,\msdata,\overline{\var{import}},\overline{\var{export}},\sigrets,\sigcloss,A_\linear)
   }
@@ -1597,7 +1599,7 @@ These requirements are formally expressed by the well-formedness judgement $\wdj
 The judgement is defined in \figurename~\ref{fig:well-formed} with auxiliary judgements in \figurename~\ref{fig:well-formed-aux}.
 
 The $\wdjud[\ta]{\comp}$ judgement has two rules: \textsc{Main} and \textsc{Base}.
-The \textsc{Main} rule requires the component to have an entry point in terms of a main pair from the exports.
+The \textsc{Main} rule requires the component to have an entry point in the form of a pair of capabilities $c_{\mathrm{main},c}, c_{\mathrm{main},d}$, which should be part of the exports.
 Further, the base component should satisfy the well-formedness judgement.
 The \textsc{Base} rule ensures that the component has a certain structure.
 Roughly speaking, the \textsc{Base} rule requires the following:
@@ -1869,7 +1871,7 @@ Definition~\ref{def:reasonable-pc} roughly says that a pc is reasonable when you
     \item \label{item:dont-leak-private}\emph{Don't leak private stuff...}\\
       If $\Phi \step[\ta,\stkb] \Phi'$, then one of the following holds:
       \begin{itemize}
-      \item All of the following hold:
+      \item There exist $\perm$, $\lin$, $\baddr$, $\eaddr$, $\aaddr$, $\aaddr'$ such that all of the following hold:
         \begin{itemize}
         \item $\Phi'.\reg(\pcreg) =
           ((\perm,\lin),\baddr,\eaddr,\aaddr')$ and $\Phi.\reg(\pcreg) =
@@ -1961,7 +1963,7 @@ All that is left before we state the full-abstraction theorem is to define how c
   \centering
   \begin{equation*}
     \inference{
-      c_{\mathrm{main},c},c_{\mathrm{main},d}  = \sealed{\sigma, c_{\mathrm{main},c}', c_{\mathrm{main},d}'} &
+      c_{\mathrm{main},c}  = \sealed{\sigma, c_{\mathrm{main},c}'} & c_{\mathrm{main},d} = \sealed{\sigma, c_{\mathrm{main},d}'} &
       \nonExec{c_{\mathrm{main},d}'}\\
       \reg(\pcreg,\rdata) = c_{\mathrm{main},c}', c_{\mathrm{main},d}' &
       \src{\reg(\rstk) = \stkptr{\rw,\baddr_\stk,\eaddr_\stk,\eaddr_\stk}} \\
@@ -2079,9 +2081,9 @@ They do not provide many details on this mechanism and it is, for example, not c
 The fact that our full abstraction result only applies to reasonable components (see Section~\ref{sec:form-secur-with}) makes it related to full abstraction results for unsafe languages.
 In their study of compartmentalization primitives, \Citet{juglaret_beyond_2016} discuss the property of Secure Compartmentalizing Compilation (SCC): a variant of full abstraction that applies to unsafe source languages.
 Essentially, they modify standard full abstraction so that preservation and reflection of contextual equivalence are only guaranteed for components that are {\itshape fully defined}, which means essentially that they do not exhibit undefined behavior in any fully defined context.
-In follow-up work, \citet{Abate:2018:GCG:3243734.3243745} extend this approach to scenarios where components only start to exhibit undefined behavior after a number of well-defined steps. 
 If we see reasonable behavior as defined behavior, then our full abstraction result can be seen as an application of this same idea.
 
+In follow-up work, \citet{Abate:2018:GCG:3243734.3243745} extend this approach to scenarios where components only start to exhibit undefined behavior after a number of well-defined steps. 
 Another interesting relation between our work and that of \citet{Abate:2018:GCG:3243734.3243745}, is that they consider dynamic compromise scenarios, where some components start out as trusted until they are compromised and are treated as adversarial after that.
 Our full abstraction result does not apply to those scenarios because it is intended to be used in the verification of a secure compiler where such scenarios are not relevant.
 Nevertheless, we believe our Fundamental Theorem of Logical Relations (see Section~\ref{thm:ftlr}) does apply in such scenarios because it is step-bounded.
