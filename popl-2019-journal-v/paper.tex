@@ -37,7 +37,7 @@
 \undef{\base}
 \input{../fully-abstract-comp/preamble}
 % Paper specific redefinitions of commands
-\renewcommand{\MemSeg}{\shareddom{MemSeg}}
+\renewcommand{\MemFrag}{\shareddom{MemFrag}}
 \renewcommand{\Reg}{\shareddom{RegFile}}
 \renewcommand{\RegName}{\shareddom{RegName}}
 \renewcommand{\decInstr}[1]{\plainfun{decode}{#1}}
@@ -165,7 +165,7 @@
 \section{Introduction}
 \label{sec:introduction}
 \todo[inline]{TODOS ENABLED!!!}
-Secure compilation is an active topic of research (e.g.~\citep{devriese_modular_2017,patrignani_hyper_2017,Abate:2018:GCG:3243734.3243745,new_universal_embedding_2016,juglaret_beyond_2016, patrignani_2019,barthe_formal_2019}), but real secure compilers are still a rare sight.
+Secure compilation is an active topic of research \citep[see, e.g.,~][]{devriese_modular_2017,patrignani_hyper_2017,Abate:2018:GCG:3243734.3243745,new_universal_embedding_2016,juglaret_beyond_2016, patrignani_2019,barthe_formal_2019}, but real secure compilers are still a rare sight.
 Secure compilers preserve source-language (security-relevant) properties even when the compiled code interacts with arbitrary target-language components.
 Generally, properties that hold in the source language but not in the target language need to be somehow enforced by the compiler.
 Two properties that hold in many high-level source languages are well-bracketed control flow and encapsulation of local state, but they are usually not enforced after compilation to assembly.
@@ -214,7 +214,7 @@ However, a problem with this approach is that revoking the local stack and retur
 
 In this work, we propose and study \stktokens{}: an alternative calling convention that enforces WBCF and LSE with a single shared stack.
 Instead of CHERI's local capabilities, it builds on {\itshape linear} capabilities; a new form of capabilities that has not previously been described in the published literature, although related ideas have been described by~\citet[``scarce objects'']{szabo_formalizing_1997,szabo_scarce_objects} and in technical documents.
-Concurrently with our work, Watson et al. have developed a (more realistic) design for linear capabilities in CHERI that is detailed in the latest CHERI ISA reference~\citep{watson2018ISA}.
+Concurrently with our work, Watson et al. have developed a (more realistic) design for linear capabilities in CHERI that is detailed in the latest CHERI ISA reference~\citep{watson_capability_2020}.
 % KJAA: Perhaps make it clear by who and when/where?
 The hardware prevents these capabilities from being duplicated.
 We propose to make stack and return pointers linear and make components hand them out in cross-component invocations and require them back on return.
@@ -225,8 +225,8 @@ Although the terms ``well-bracketed control flow'' and ``local state encapsulati
 Existing formulations are either partial and not suitable for reasoning~\citep{abadi_control-flow_2005} or lack evidence of generality~\citep{skorstengaard_reasoning_2017}.
 We propose a new formulation using a technique we call {\itshape fully abstract overlay semantics}.
 It starts from the premise that security results for a calling convention should be reusable as part of a larger proof of a secure compiler.
-To this end, we define a second operational semantics for our target language with a native well-bracketed call stack and primitive ways to do calls and returns.
-This well-behaved semantics guarantees WBCF and LSE natively for components using our calling convention.
+To this end, we define two operational semantics for our target language: the first one is unsurprising with just a register bank and a linear memory, but the second features a native well-bracketed call stack and primitive ways to do calls and returns.
+This second, well-behaved semantics guarantees WBCF and LSE natively for components using our calling convention.
 As such, these components can be sure that they will only ever interact with other well-behaved components that respect our desired properties.
 To express security of our calling convention, we then show that considering the same components in the original semantics does not give adversaries additional ways to interact with them. 
 More formally, we show that mapping a component in the well-behaved semantics to the same component in the original semantics is fully abstract~\citep{abadi_protection_1999}, i.e.\ components are indistinguishable to arbitrary adversaries in the well-behaved language iff they are indistinguishable to arbitrary adversaries in the original language.
@@ -292,7 +292,8 @@ The concept of a capability is the cornerstone of any capability machine.
 In its simplest form, a capability is a permission and a range of authority.
 The permission dictates the operations the capability can be used for, and the range of authority specifies the range of memory it can act upon.
 % Permissions and Range of authority
-The capabilities on \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (defined in Figure~\ref{fig:target-syntax} with the rest of the syntax of \trgcm{}). Here $\var{perm}$ is the permission, and $[\var{base},\var{end}]$ is the range of authority.
+The capabilities on \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (defined in Figure~\ref{fig:target-syntax} with the rest of the syntax of \trgcm{}).
+Here $\var{perm}$ is the permission, and $[\var{base},\var{end}]$ is the range of authority.
 The available permissions are read-write-execute ($\rwx$), read-write ($\rw$), read-execute ($\rx$), read-only ($\ro$), and null-permission ($\noperm$) ordered by $\le$ as illustrated in Figure~\ref{fig:perm-hier}.
 % Pointer and linearity
 In addition to the permission and range, capabilities also have a current address $\var{addr}$ and a linearity $\var{lin}$.
@@ -337,14 +338,14 @@ On \trgcm{} we have CHERI-like sealed capabilities to achieve this~\citep{watson
 A sealed capability $\sealed{\sigma,\vsc}$ is a pair of a seal $\sigma$ and a capability $\vsc$.
 A sealed capability makes an underlying capability opaque which means that the underlying capability cannot be changed or used for the operations it normally gives permission to.
 In other words, the authority the underlying capability represents is encapsulated under the seal.
-In order to seal a sealable with a seal $\sigma$, it is necessary to have the authority to do so.
-The permission to make sealed capabilities is represented by a set of seals capability $\seal{\sigma_\var{base},\sigma_\var{end},\sigma_{\var{current}}}$.
+In order to seal a capability with a seal $\sigma$, it is necessary to have the authority to do so.
+The permission to make sealed capabilities is represented by a second form of capability in addition to the memory capabilities we saw above: a set-of-seals capability $\seal{\sigma_\var{base},\sigma_\var{end},\sigma_{\var{current}}}$.
 Such a capability represents the authority to seal other capabilities with seals in the range $[\sigma_\var{base},\sigma_\var{end}]$.
-In the spirit of memory capabilities, a set of seals capability has a current seal $\sigma_{\var{current}}$ that is selected for use in the next seal operation.
+In the spirit of memory capabilities, a set-of-seals capability has a current seal $\sigma_{\var{current}}$ that is selected for use in the next seal operation.
 % On \trgcm{}, we represent seals in sets rather than single seals to have a more compact representation of multiple seals and make it possible to have seal allocation (not described here).
 As we will see later, sealed capabilities get unsealed when they are invoked using an \texttt{xjmp}, an operation that operates on a pair of capabilities sealed with the same seal.
 The instruction will be explained in more detail below, but essentially, it unseals the pair of capabilities, transfers control to one of them (the code part of the pair) and makes the other one (the data part) available to the invoked code.
-The combination of sealed capabilities and \texttt{xjmp} gives (1) and (2).
+The combination of sealed capabilities and \texttt{xjmp} gives us the properties (1) and (2) mentioned above: encapsulation of components' authority such that authority is restored upon invocation.
 \begin{figure}[tb]
   \centering
   \[
@@ -362,7 +363,7 @@ The combination of sealed capabilities and \texttt{xjmp} gives (1) and (2).
     r \in& \RegName & \defbnf & \pcreg \mid \rretd \mid \rretc \mid \rstk \mid \rdata \mid \rtmp{1} \mid \rtmp{2} \mid \dots \\
     \reg \in &\Reg & \defeq & \RegName \fun \Word \\
     \mem \in&\Mem & \defeq & \Addr \fun \Word\\
-    \ms \in  &\MemSeg & \defeq & \Addr \parfun \Word\\
+    \ms \in  &\MemFrag & \defeq & \Addr \parfun \Word\\
     \Phi \in & \ExecConf & \defeq & \Mem \times \Reg\\
     &\Conf & \defeq & \ExecConf \cup \{\failed\} \cup \{\halted\} 
   \end{array}
@@ -385,9 +386,10 @@ The combination of sealed capabilities and \texttt{xjmp} gives (1) and (2).
 
 %%% Domains
 Words on \trgcm{} are either capabilities or data (represented by integers $\ints$).
+% Instructions are stored in memory as integers and can be converted back and forth by unspecified $\encInstr{}$ and $\decInstr{}$ functions.
 We assume a finite set of register names $\RegName$ containing at least the registers $\pcreg$, $\rretd$, $\rretc$, $\rstk$, $\rdata$, $\rtmp{1}$, and $\rtmp{2}$.
 We define register files as functions from register names to words.
-Complete memories map all addresses to words and memory segments map some addresses to words (i.e.\ they are partial functions).
+Complete memories map all addresses to words and memory fragments map some addresses to words (i.e.\ they are partial functions).
 $\trgcm{}$ has two terminated configurations $\halted$ and $\failed$ that respectively signify a successful execution and an execution where something went wrong, e.g.,\ an out-of-bounds memory access.
 An executable configuration is a register file and memory pair.
 
@@ -458,7 +460,7 @@ An executable configuration is a register file and memory pair.
   &\Phi\updReg{r_1}{w})\endarray & If $\Phi(r_2) = ((\_,\_),\_,\_,\aaddr)$ or $\Phi(r_2) = \seal{\_,\_,\aaddr}$, then $w = \aaddr$ and otherwise $w = -1$\\
     \hline
   \cca{r}{\rn}                                 & \arraycolsep=0pt\array[t]{rl}\updPcAddr{}&(\\
-  &\Phi\updReg{r}{w})\endarray & $\Phi(\rn) = n \in \ints$ and either $\Phi(r) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ or $\Phi(r) = (\sigma_\baddr,\sigma_\eaddr,\sigma)$ and $w = ((\perm,\lin),\baddr,\eaddr,\aaddr + n)$ or $w = (\sigma_\baddr,\sigma_\eaddr,\sigma+n)$, respectively \\
+  &\Phi\updReg{r}{w})\endarray & $\Phi(\rn) = n \in \ints$ and either $\Phi(r) = ((\perm,\lin),\baddr,\eaddr,\aaddr)$ or $\Phi(r) = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma}$ and $w = ((\perm,\lin),\baddr,\eaddr,\aaddr + n)$ or $w = \seal{\sigma_\baddr,\sigma_\eaddr,\sigma+n}$, respectively \\
     \hline
     \jmp{r}    &\Phi\arraycolsep=0pt\array[t]{l}\updReg{r}{w}\\\updReg{\pcreg}{\Phi(r)}\endarray & $w = \linCons{\Phi(r)}$\\
     \hline
@@ -483,7 +485,7 @@ An executable configuration is a register file and memory pair.
 \trgcm{}'s instruction set is somewhat basic with the instructions one expects on most low-level machines as well as capability-related instructions.
 The standard instructions are: unconditional and conditional jump (\texttt{jmp} and \texttt{jnz}), copy between registers (\texttt{move}), instructions that load from memory and store to memory (\texttt{load} and \texttt{store}), and arithmetic operations (\texttt{plus}, \texttt{minus}, and \texttt{lt}).
 The simplest of the capability instructions inspect the properties of capabilities: type (\texttt{gettype}), linearity (\texttt{getl}), range (\texttt{getb} and \texttt{gete}), current address or seal (\texttt{geta}) or permission (\texttt{getp}).
-The current address (or seal) of a capability (or set of seals) can be shifted by an offset (\texttt{cca}) or set to the base address (\texttt{seta2b}).
+The current address (or seal) of a capability (or set-of-seals) can be shifted by an offset (\texttt{cca}) or set to the base address (\texttt{seta2b}).
 The \texttt{restrict} instruction reduces the permission of a capability according to the permission order $\le$.
 Generally speaking, a capability machine needs an instruction for reducing the range of authority of a capability.
 Because \trgcm{} has linear capabilities, the instruction for this splits the capability in two (\texttt{split}) rather than reducing the range of authority.
@@ -519,15 +521,15 @@ Linear capabilities introduce one extra complication for \texttt{load} as it nee
 In this case, we require that the memory capability used for loading also has write-permission.
 
 % geta, cca
-The instruction \texttt{geta} projects the current address (or seal) from a capability (or set of seals), and returns $-1$ for data and sealed capabilities.
-\texttt{cca} (change current address) changes the current address or seal of a capability or set of seals, respectively, by a given offset.
+The instruction \texttt{geta} projects the current address (or seal) from a capability (or set-of-seals), and returns $-1$ for data and sealed capabilities.
+\texttt{cca} (change current address) changes the current address or seal of a capability or set-of-seals, respectively, by a given offset.
 Note that this instruction does not need to use $\linCons{}$ like the previous ones, because it modifies the capability in-place, i.e.\ the source register is also the target register.
 The \texttt{jmp} instruction is a simple jump that just sets register $\pcreg$.
 
 %% Sealing
 The operational side of the sealing in \trgcm{} consists of two instructions: \texttt{cseal} for sealing a capability and \texttt{xjmp} for unsealing a pair of capabilities.
 % cseal
-Given a sealable $\vsc$ and a set of seals where the current seal $\sigma$ is within the range of available seals, the \texttt{cseal} instruction seals $\vsc$ with $\sigma$.
+Given a sealable $\vsc$ and a set-of-seals where the current seal $\sigma$ is within the range of available seals, the \texttt{cseal} instruction seals $\vsc$ with $\sigma$.
 % xjmp
 Apart from dealing with linearity, \texttt{xjmp} takes a pair of sealed capabilities, unseals them, and puts one in the $\pcreg$ register and the other in the $\rdata$ register, but only if they are sealed with the same seal and the data capability (the one placed in $\rdata$) is non-executable.
 A pair of sealed capabilities can be seen as a closure where the code capability (the capability placed in $\pcreg$) is the program and the data capability is the local environment.
@@ -536,7 +538,7 @@ This makes \texttt{xjmp} the mechanism on \trgcm{} that transfers control betwee
 Opaque sealed capabilities encapsulate a security domain's local state and authority, and they only become accessible again when control is transferred to the security domain.
 Some care should be taken for sealing because reusing the same seal for multiple closures makes it possible to jump to the code of one closure with the environment of another.
 % xjmp to unseal
-\trgcm{} does not have an instruction for unsealing capabilities directly, but it can be (partially) simulated using \texttt{xjmp}.
+\trgcm{} does not have an instruction for unsealing capabilities directly, but we will explain below how it can be (partially) simulated using \texttt{xjmp}.
 
 % split/splice
 Instructions for reducing the authority of capabilities are commonplace on capability machines as they allow us to limit what a capability can do before it is passed away.
@@ -562,7 +564,7 @@ This would also allow linear capabilities to have aliases, but only by linear ca
   The instruction $\tisptr{}{}$ returns an integer representation of the type of a word (capability or number).
   \trgcm{} also has arithmetic instructions $\tplus{}{}{}$, $\tminus{}{}{}$, and $\tlt{}{}{}$.
   The latter instruction compares two numbers and writes 1 or 0 to a target register depending on whether one number is less than the other.
-  The instruction $\tsetatob{}$ sets the current address (or seal) of a capability (or set of seals) to the base address of the range of authority (or range of seals).
+  The instruction $\tsetatob{}$ sets the current address (or seal) of a capability (or set-of-seals) to the base address of the range of authority (or range of seals).
   This instruction makes it easy to work relatively to the base address of a capability.
   This instruction is not strictly necessary as it can be emulated with other instructions.
   Finally, we have the $\trestrict{}{}$ instruction which restricts the permission of a capability according to the $\le$ relation.
@@ -594,11 +596,11 @@ This would also allow linear capabilities to have aliases, but only by linear ca
   In other words, the sealing mechanism in \trgcm{} allows us to transfer control to untrusted code without giving up our capabilities or handing them over, and also control the locations in our code they can jump back to.
 
   It is worth pointing out that \trgcm{} does not have a direct unsealing instruction to extract a capability from its sealed version when the seal is available, but one can be emulated.
-  Say you have a sealed non-executable word $\sealed{\sigma,w}$ as well as a set of seals capability $\seal{\sigma_\baddr,\sigma_\eaddr, \sigma}$ that contains $\sigma$, i.e.\ $\sigma \in [\sigma_\baddr,\sigma_\eaddr]$.
+  Say you have a sealed non-executable word $\sealed{\sigma,w}$ as well as a set-of-seals capability $\seal{\sigma_\baddr,\sigma_\eaddr, \sigma}$ that contains $\sigma$, i.e.\ $\sigma \in [\sigma_\baddr,\sigma_\eaddr]$.
   It is possible to extract $w$ in $\rdata$ using $\txjmp{}{}$ in the following way.
   The idea is to use the seal to construct a sealed version of the pc capability incremented by one, and then perform an $\txjmp{}{}$ to it in combination with the sealed capability.
   This does not work for sealed executable capabilities because $\txjmp{}{}$ fails if the data capability is executable.
-  However, even though we cannot extract the executable capability from $\sealed{\sigma,c}$, we can still invoke it with arbitrary arguments, since we can use the seal to construct an arbitrary data part and $\txjmp{}{}$ to the combination.
+  However, even though we cannot extract the executable capability from $\sealed{\sigma,c}$, we can still invoke it with arbitrary arguments, since we can use the seal to construct an arbitrary data part and $\txjmp{}{}$ to the combination.\footnote{Alternatively, we could remove the current restriction in \texttt{xjmp} that requires the data capability to be non-executable but then teh invoked code would often have to manually perform this check instead.}
 
   Sealing is meant for encapsulation, but it relies on seals being kept private as should be clear from the explanations so far.
   For this reason, it is important that trusted code does not leak its seals to adversaries and that the system is initialised so that each component has access to unique seals.
@@ -643,7 +645,7 @@ To clarify this, we introduce notions of components and programs from which we c
 A component (defined in Figure~\ref{fig:target-component-and-linking}) is basically a program with entry points in the form of imports that need to be linked.
 It has exports that can satisfy the imports of other components.
 % Structure
-A base component $\comp_0$ consists of a code memory segment, a data memory segment, a list of imported symbols, a list of exported symbols, two lists specifying the available seals (see Section~\ref{sec:form-secur-with}), and a set of all the linear addresses (addresses governed by a linear capability).
+A base component $\comp_0$ consists of a code memory fragment, a data memory fragment, a list of imported symbols, a list of exported symbols, two lists specifying the available seals (see Section~\ref{sec:form-secur-with}), and a set of all the linear addresses (addresses governed by a linear capability).
 The import list specifies where in memory imports should be placed, and imports are matched to exports via their symbols.
 An export associates a word with a symbol.
 %base = library
@@ -1104,7 +1106,7 @@ We do not include this check because it only needs to happen once between two ca
 }
 \caption{
   % The instructions that constitutes a call. Register $r_1$ and $r_2$ are the registers where the sealed capability pair to the callee resides.
-  % Variable $\offpc$ is the offset from the first instruction of the call to the set of seals, and $\offsigma$ is the offset to the seal within the set.
+  % Variable $\offpc$ is the offset from the first instruction of the call to the set-of-seals, and $\offsigma$ is the offset to the seal within the set.
   % Instructions 1-3: ensure that the stack is non-empty.
   % Instructions 4-5: split stack pointer in two (stack pointer for callee done).
   % Instructions 6-9: Load the seal designated for this call.
@@ -1115,7 +1117,7 @@ We do not include this check because it only needs to happen once between two ca
   % Instructions 16-23: check the stack base.
   % Instruction 24: join the stack pointer.
   % Instructions 25-26: pop 42 from the stack.
-  The instructions for a $\scall{\offpc,\offsigma}{r_1}{r_2}$ with $\offpc$  the offset from line 1 of the call to the set of seals it uses and $\offsigma$ the offset in the set of seals to the call seal.
+  The instructions for a $\scall{\offpc,\offsigma}{r_1}{r_2}$ with $\offpc$  the offset from line 1 of the call to the set-of-seals it uses and $\offsigma$ the offset in the set-of-seals to the call seal.
   $\stkb$ is the globally agreed on stack base.
   There are some magic numbers in the code: line 1: $42$, garbage data to ensure a non-empty stack.
   Line 7: $-5$, offset from line 6 (where $\pcreg$ was copied into $\rtmp{1}$) to line 1.
@@ -1193,10 +1195,10 @@ Well-formedness is a requirement for all components (trusted and untrusted), but
                           & &   \src{\retptrd(\basebnf,\aendbnf)} \mid \src{\retptrc(\basebnf,\aendbnf,\addrbnf)}\\
       \multicolumn{3}{c}{
       \begin{array}{lcrclcr}
-        \src{\StkFrame} & \defeq & \src{\Addr \times \MemSeg} & \phantom{skipskipsip} & \src{\Stack} & \defeq & \src{ \StkFrame^*}
+        \src{\StkFrame} & \defeq & \src{\Addr \times \MemFrag} & \phantom{skipskipsip} & \src{\Stack} & \defeq & \src{ \StkFrame^*}
       \end{array}
                                                                                                                 }\\
-      \src{\ExecConf} & \defeq & \Mem \times \Reg \; \src{\times \; \Stack \times \MemSeg} \\
+      \src{\ExecConf} & \defeq & \Mem \times \Reg \; \src{\times \; \Stack \times \MemFrag} \\
     \end{array}
   \] 
 \[
@@ -1728,9 +1730,9 @@ One judgement considers the entire memory $\sigrets,\sigcloss,\ta\vdash_{\mathrm
 Unlike data memory and exports, we cannot say whether code memory is well-formed by considering each word in isolation.
 The well-formedness of code memory depends on whether seals for calls are located in the place we expect them to be located.
 The $\sigrets,\sigrets[\mathrm{owned}],\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode,a$ judgement has two rules.
-The \textsc{C-Seal} judgement requires address $a$ in $\mscode$ to contain a set of seals that is a subset of the closure seals and the return seals.
+The \textsc{C-Seal} judgement requires address $a$ in $\mscode$ to contain a set-of-seals that is a subset of the closure seals and the return seals.
 \textsc{C-Instr} requires address $a$ to contain an integer, which may be interpreted as instruction.
-If address $a$ is the first address of a series of instructions that may be interpreted as a call, and all the addresses are within the trusted address space, then there must be a set of seals available at the address the call in question expects it and that set of seals must contain the return seal that corresponds to the return seal of this call.
+If address $a$ is the first address of a series of instructions that may be interpreted as a call, and all the addresses are within the trusted address space, then there must be a set-of-seals available at the address the call in question expects it and that set-of-seals must contain the return seal that corresponds to the return seal of this call.
 The return seal in question must be in the $\sigrets[\mathrm{owned}]$ to ensure that no other call uses it.
 In order to ensure that return seals are at most used by one call, the $\sigrets,\sigcloss,\ta\vdash_{\mathrm{comp-code}} \mscode$ judgement takes all the available return seals and partitions them over code addresses. 
 This means that no other call can use the same seal.
@@ -1739,7 +1741,7 @@ To limit the amount of corner cases we have to consider, we require the code mem
 \lau{Do we actually use the hidden calls in the proofs? I vaguely recall this was added to make sure that splicing would not create a call. However, we also have the padding which, at least in part, takes care of this.}
 \begin{definition}[No hidden calls]
   \label{def:no-hidden-calls}
-  We say that a memory segment $\mscode$ has no hidden calls iff
+  We say that a memory fragment $\mscode$ has no hidden calls iff
   \[
     \begin{array}{l}
       \forall \aaddr \in \dom(\mscode) \ldotp \\
@@ -1753,7 +1755,7 @@ To limit the amount of corner cases we have to consider, we require the code mem
   \]
 \end{definition}
 Definition~\ref{def:no-hidden-calls} says that if code memory contains an instruction that may be part of a call, then either it is a part of a call or there is some other instruction that witnesses the fact that it is not part of a call.
-Finally, the \textsc{C-Mem} judgement requires that the code at least have one non-empty set of seals available.
+Finally, the \textsc{C-Mem} judgement requires that the code at least have one non-empty set-of-seals available.
 
 \end{jversion}
 \subsection{Reasonable Components}
@@ -1811,7 +1813,7 @@ Further, it makes reasoning about leakage of return seals difficult because the 
 
 Whether a capability is reasonable depends on what it gives access to.
 This is why the word reasonability is defined relative to the memory and stack.
-For instance, if a read capability gives access to a piece of memory that contains a set of seals with a return seal, then it would not be reasonable.
+For instance, if a read capability gives access to a piece of memory that contains a set-of-seals with a return seal, then it would not be reasonable.
 This is why stack pointers and memory capabilities with read permission must only give access to memory with reasonable words.
 The definition is cyclic, but the step-index ensures that it is well-founded.
 
