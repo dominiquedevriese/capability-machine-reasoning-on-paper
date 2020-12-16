@@ -52,10 +52,8 @@ That is, our world is defined as a product:
 \[
   \World = \Worldh \times \Worlds \times \Worldfs
 \]
-The sub-worlds are partial maps from names $\RegionName$ (not to be confused with register names), modelled as natural numbers, to invariants.
-In order to define what this actually means, we need to be more precise about what we mean by invariants.
 
-The invariants are registered in the worlds as regions.
+The sub-worlds are partial maps from names $\RegionName$ (not to be confused with register names), modelled as natural numbers, to regions, which model a form of invariant.
 A region describes a collection of related memory segments, so it is simply represented as a relation over memory segments (i.e.\ a relation in $\Rel{\MemSeg \times \MemSeg}$).
 Intuitively, we want to be able to say that two memory segments are related when their content is related.
 That is, for every address in the two memory segments, the words that reside there must be related.
@@ -91,13 +89,11 @@ If a memory segment is governed by a shared region, then normal capabilities may
 On the other hand, if a memory segment is governed by a spatial region, then only a linear capability may reference it.
 
 %%% spatial/spatial_owned
-We cannot let multiple linear capabilities reference the same memory.
-The spatial region represents ownership of a part of memory which ensures that a linear capability is not aliased.
-Even though spatial regions give the right to reference part of memory, we still need the world to specify the remainder of the memory that may be referenced by linear capabilities.
-To this end, we have shadow regions.
-A shadow region is a shadow copy of a spatial region in the sense that it specifies part of memory, but it does not give the right to reference that part of memory.
-This does not mean that the memory is necessarily not referenced.
-A compatible world may claim a shadow region as spatial which allows the other world to reference the memory (we return to the notion of compatible worlds w.r.t. ownership in Section~\ref{subsubsec:joining-worlds}).
+However, spatial regions are not enough.
+A world which contains a spatial region, represents the assumption of exclusive ownership of the represented memory fragment.
+In other words, a linear capability for this memory may be valid in such a world.
+However, when we do not possess exclusive ownership of a memory fragment, that does not mean we should be entirely unaware of the memory's existence.
+To represent knowledge about existence of a spatial region, without requiring its exclusive ownership, we have $\spatial$ regions.
 Specifically, we add tags $\spatialo$ and $\spatial$ to the spatial regions:
 \[
   \Regions = \left\{
@@ -110,6 +106,12 @@ For readability, we also add a tag $\pure$ to the shared regions:
 \[
   \Regionh = \{\pure \} \times (\World \fun \Rel{\MemSeg \times \MemSeg}) 
 \]
+
+A $\spatial$ region is a shadow copy of a spatial region in the sense that it specifies part of memory, but it does not give the right to reference that part of memory.
+This does not mean that the memory is necessarily not referenced.
+When we discuss compatibility of worlds w.r.t. ownership in Section~\ref{subsubsec:joining-worlds}, we will see that a world with a shadow region can be combined with a world that has the same region as $\spatialo$.
+This setup will allow ownership of a memory fragment to reside with linear capabilities which are not themselves stored in the memory fragment but elsewhere in memory or in a register.
+In such a setup, the region representing the memory fragment will exist only as $\spatial$ in the world where the memory fragment's contents is valid, but it will exist as $\spatialo$ in the world where the linear capability owning the fragment is valid.
 
 % What parts of memory are linear
 We will extend the regions further in Sections~\ref{subsubsec:seals}~and~\ref{subsubsec:ft-and-revocation}, but for now we continue the definitions of the three sub-worlds.
@@ -194,6 +196,7 @@ Very often, relatedness of two capabilities does not change if extra assumptions
 For example, two related capabilities remain related when an extra invariant is added on unrelated memory, or when a stack frame that it does not reference is dropped.
 In Kripke logical relations, this kind of assumption changes, that do not invalidate the relatedness of values, are modelled by the future world relation $\future$.
 The future world relation can also be thought of as the model of allowed changes in memory over time.
+We will say that $W'$ is a future world of $W$ if $W' \future W$.
 
 Safety of capabilities should be defined, so that it is monotone with respect to the future world relation.
 This means that the system assumptions that capabilities rely on for safety are defined such that capabilities remain safe during execution.
@@ -1058,7 +1061,9 @@ This makes it rather inconvenient to have $\Wor$ as the world, so instead we def
 \begin{jversion}
 \label{subsec:logical-relation}
 Using these Kripke worlds as assumptions, we can then define when different \srccm{} and \trgcm{} entities are related: values, jump targets, memories, execution configurations, components etc.
-The most important relations are summarised in the following table, where we mention the general form of the relations, what type of things they relate and extra conditions that some of them imply:\\
+The most important relations are summarised in the following table, where we mention the general form of the relations, what type of things they relate and extra conditions that some of them imply:
+We use the square symbol as a meta-variable that represents either left-to-right (if $\square = \preceq$) or right-to-left (if $\square = \succeq$) approximation (see Section~\ref{sec:observation-relation}).
+\\
 % latex hack stolen from https://tex.stackexchange.com/questions/78788/align-equations-over-multiple-tabular-rows
 % Lau: I find it difficult to easily see what constitutes a row in this table.
 % I have updated it to a table I find easier to read.
@@ -1069,12 +1074,19 @@ The most important relations are summarised in the following table, where we men
   \hline
   \multicolumn{2}{|c|}{General form} & Relates ... & and ...\\
   \hline
+  \hline
   \npair{(\src{w_S},w_T)} & \lrv(W) & values (machine words) & safe to pass to adversarial code\\
+  \hline
   \npair{(\src{w_S},w_T)} & \lrvtrusted(W) & values (machine words) & \\
+  \hline
   \npair{(\src{\reg_S},\reg_T)}  &  \lrr(W) & register files & safe to pass to adversarial code\\
+  \hline
   \npair{\src{\Phi_S},\Phi_T}  &  \lro & execution configurations & \\
+  \hline
   \npair{(\src{w_S},w_T)}  &  \lre(W) & $\tjmp{}$ targets &\\
+  \hline
   \left(\arraycolsep=1pt\array{l}(\src{w_{S,1}},\src{w_{S,2}}),\\(w_{T,1},w_{T,2})\endarray\right)  &  \lrexj(W) & $\txjmp{}{}$ targets &\\
+  \hline
   \multicolumn{2}{|c|}{$\memSat{\src{\ms_S},\src{\stk},\src{\ms_\stk},\ms_T}{W}$} & memory & satisfy the assumptions in $W$\\
   \hline
 \end{tabular}\\
@@ -1087,15 +1099,17 @@ For this reason, we suggest making a cursory first read through to get an overvi
 % TODO something about relation naming?
 
 \subsubsection{Observation relation}
+\label{sec:observation-relation}
 The observation relation defines what machine configurations have related and permissible observable effects.
 Generally speaking, an observation relation captures the property we want to prove.
 Ultimately, we want to prove a full-abstraction theorem which is defined in terms of contextual equivalence for components that in turn is defined as co-termination in any context.
 This means that the observation relation should capture co-termination.
 
-So far, we have talked about the logical relation as though we define one.
-However, we actually define two logical approximations that only differ in the observation relation.
-We define a \srccm{} configuration to logically approximate a \trgcm{} configuration when the halting termination of the \srccm{} configuration implies the halting termination of the \trgcm{} configuration.
-This also means that \srccm{} configurations that terminate by failing termination are related to any \trgcm{} configuration.
+So far, we have talked about the logical relation as though we define only a single one.
+However, we actually define two logical relations that only differ in the observation relation.
+The two relations $\lro[\preceq]$ and $\lro[\succeq]$ represent approximation between \srccm{} and \trgcm{} configurations in both directions.
+The former defines that a \srccm{} configuration logically approximates a \trgcm{} configuration when the halting termination of the \srccm{} configuration implies the halting termination of the \trgcm{} configuration.
+This also means that \srccm{} configurations that terminate by failing are related to any \trgcm{} configuration.
 Intuitively, this is because the $\failed$ configuration signals that there was an attempt to break the guarantees of the capability machine.
 For instance, a piece of code could have attempted to read from a part of memory it does not have access to, or a callee could have attempted to return out of order.
 In both cases, we haven't defined a way to recover from such attempts to break the guarantees, so we are content with failure.
@@ -1113,7 +1127,7 @@ For the most part, it would make sense to require the \trgcm{} configuration to 
 However, when it comes to calls and returns, the two configurations stop running in lockstep.
 The \srccm{} configuration handles calls and returns in one step whereas \trgcm{} configurations need to execute each instruction of the call preparation as well as the return code.
 
-We define a \trgcm{} configuration to approximate a \srccm{} configuration in a dual way to the above.
+The second observation relation $\lro[\succeq]$ defines that a \trgcm{} configuration approximates a \srccm{} configuration in a dual way to the above.
 \begin{multline*}
   \lro[\succeq,(\ta,\stkb,\_,\_)] \defeq \\\left\{ \npair{\left(\array{l}\src{(\ms_S,\reg_S,\stk_S,\ms_{\stk,S})},\\(\ms_T,\reg_T)\endarray\right)} \middle|
     \begin{array}{l}
