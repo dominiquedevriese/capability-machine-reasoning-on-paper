@@ -1766,18 +1766,19 @@ Further, the \textsc{C-Mem} judgement requires the set of return seals to be dis
 \subsection{Reasonable Components}
 \label{sec:reasonable-components}
 % Reasonability
-The static guarantees given by $\wdjud[\ta]{\comp}$ make sure that components initially don't undermine the security measures needed for \stktokens{}, but it does not prevent a trusted component from doing something silly during execution that undermines \stktokens{}.
-In order for \stktokens{} to provide guarantees for a component, we expect it not to shoot itself in the foot and perform certain necessary checks not captured by the call code (Figure~\ref{fig:call-code}).
+The static guarantees given by $\wdjud[\ta]{\comp}$ make sure that components initially don't undermine the security measures needed for \stktokens{}.
+However, in order for \stktokens{} to provide guarantees for a component, we additionally expect it not to shoot itself in the foot at run-time and perform certain necessary checks not captured by the call code (Figure~\ref{fig:call-code}).
 More precisely, we expect four things of a reasonable component:
 \begin{enumerate}[label=(\arabic*)]
 \item It checks the stack base address before performing a call.
-As explained in Section~\ref{sec:stktokens-explained}, we do not include this check in the call code as it often would be redundant.
-\item It uses the return seals only for calls and the closure seals in an appropriate way which means that they should only be used to seal executable capabilities for code that behaves reasonably or non-executable things that do not undermine the security mechanisms \stktokens{} relies on.
+As explained in Section~\ref{sec:stktokens-explained}, we do not include this check in the call code as it would often be redundant.
+\item It uses the return seals only for calls and the closure seals in an appropriate way.
+  Specifically, closure seals should only be used to seal executable capabilities for code that behaves reasonably, or for certain forms of non-executable capabilities.
 \item It does not leak return and closure seals (or means to retrieve them).
-This means that sets of seals with return or closure seals cannot be left in registers when transferring control to another module.
+This means that set-of-seals capabilities with return or closure seals cannot be left in registers when transferring control to another module.
 There are also indirect ways to leak seals such as leaking a capability for code memory or leaking a capability for code memory sealed with an unknown seal.
 \item It never stores return and closure seals (or means to get them) to memory.
-By disallowing this, we make sure that data memory always can be safely shared as it does not contain seals or means to get them to begin with.
+By disallowing this, we make sure that data memory always can be safely shared as it does not contain seals or means to get them.
 \end{enumerate}
 \begin{jversion}
   We capture these properties in 4 definitions.
@@ -1787,9 +1788,9 @@ By disallowing this, we make sure that data memory always can be safely shared a
   Finally, definition~\ref{def:reasonable-component} lifts the notion of reasonability to components.
 
   \subsubsection{Reasonable words}
-  To provide any guarantees, \stktokens{} rely on the program not to leak return seals in any way.
+  To provide any guarantees, \stktokens{} relies on the program not to leak return seals in any way.
   But what does it mean to ``leak'' a return seal?
-  It means that sets of seals that contain return seals as well as any means to obtain such sets cannot be leaked.
+  It means that set-of-seals capabilities that contain return seals as well as any means to obtain such sets cannot be leaked.
   The following definition makes this more precise.
 \begin{definition}[Reasonable word]
   \label{def:reasonable-word}
@@ -1811,23 +1812,23 @@ or the following implications hold.
     all $\aaddr \in [\baddr,\eaddr]$
   \end{itemize}
 \end{definition}
-According to the definition, sets of seals that contain return or closure seals are not reasonable.
+The definition rules out set-of-seals capabilities that contain return or closure seals.
 \stktokens{} rely on return seals to be unique in order to work, but it does not rely on closure seals.
-However, it defeats the purpose of the closure seals if they are leaked to malicious code as it allows the malicious code to fabricate data capabilities for the code capabilities or code capabilities for the data capabilities which effectually allows malicious code to unseal the data capability.
+However, leaking closure seals to malicious code still defeats their purpose as the malicious code can then fabricate data capabilities for the code capabilities or code capabilities for the data capabilities which effectively allows malicious code to unseal the data capability.
 Further, it makes reasoning about leakage of return seals difficult because the closures have to be well-behaved no matter what data they are executed with.
+Capabilities to trusted code memory in $\ta$ are also ruled out, because the code memory may contain set-of-seals capabilities.
+Capabilities that are sealed with capabilities not owned by the component must still be reasonable themselves (since such an untrusted seal provides no protection at all).
 
-Whether a capability is reasonable depends on what it gives access to.
-This is why the word reasonability is defined relative to the memory and stack.
-For instance, if a read capability gives access to a piece of memory that contains a set-of-seals with a return seal, then it would not be reasonable.
-This is why stack pointers and memory capabilities with read permission must only give access to memory with reasonable words.
+Finally, we define that stack or memory capabilities with read permission are reasonable if the memory they give access to contains only reasonable words.
+To accomodate this, reasonability of words is defined relative to the memory and stack.
 The definition is cyclic, but the step-index ensures that it is well-founded.
 
 \subsubsection{Reasonable pc and configuration}
 In order to define desired behaviour, we need to specify what may happen on a machine during execution.
 An execution steps between executable configurations, so we need to define when a configuration is reasonable.
 While the step relation is defined over configurations, it is the pc that decides what instruction is executed.
-Therefore, it only seems natural to also define when a pc is reasonable.
-Definition~\ref{def:reasonable-pc} roughly says that a pc is reasonable when you can plug it into a configuration where all the words in the register file are reasonable and the result is a reasonable configuration.
+Therefore, we define when an executable capability is reasonable as a pc.
+The following definition roughly says that a pc is reasonable when you can plug it into a configuration where all the words in the register file are reasonable and the result is a reasonable configuration.
   \begin{definition}[Reasonable pc]
     \label{def:reasonable-pc}
     We say that an executable capability $c =
@@ -1909,7 +1910,7 @@ Further, by making sure that seals are not stored in memory, we can allow capabi
 Item~\ref{item:dont-leak-private} makes sure that seals are not leaked when transferring control to another component (i.e. on security boundary crossings).
 With the component setup, there are two ways to transfer control: xjmp and call.
 In both cases, we require that all of the argument registers contain reasonable words.
-An execution configuration may need to do other operations than calling other code, and seals should no be leaked at any point during execution.
+An execution configuration may need to do other operations than calling other code, and seals should not be leaked at any point during execution.
 For this reason, Item~\ref{item:dont-leak-private} also says that if the next step is not a call or a jump, then the next execution configuration should also be reasonable.
 
 Item~\ref{item:guarantee-stk-base} makes sure that the stack has the correct base before a call.
@@ -1948,8 +1949,9 @@ Definition~\ref{def:reasonable-conf} is cyclic through Definition~\ref{def:reaso
   \end{definition}
 \end{jversion}
 
-In our result, we assume that adversarial components are well-formed, but not necessarily reasonable. The well-formedness assumption ensures
-that the trusted component can rely on basic security guarantees provided by the capability machine. For instance, if we did not require linearity to be respected initially, then adversarial code could start with an alias for the stack capability.
+In our result, we assume that adversarial components are well-formed.
+This assumption ensures that the trusted component can rely on basic security guarantees provided by the capability machine.
+For instance, if we did not require linearity to be respected initially, then adversarial code could start with an alias for the stack capability.
 However, the adversary is not assumed to be reasonable as we do not expect them to obey the calling convention in any way.
 Can adversarial code call into trusted components?
 The answer to that question is yes but not with LSE and WBCF guarantees.
