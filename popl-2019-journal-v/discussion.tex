@@ -107,6 +107,7 @@ Because the stack is a region of memory with very high thread affinity (no other
 The processor could perhaps also (be told to) rely on the fact that race conditions should be impossible for loads from linear capabilities (which should be non-aliased) and just use a non-atomic load in that case.
 
 \subsection{Support for source language idioms and features}
+\label{sec:supp-source-lang}
 
 \begin{jversion}
   Our calling convention supports all source language features that can be expressed in \srccm{}.
@@ -123,6 +124,21 @@ The processor could perhaps also (be told to) rely on the fact that race conditi
   An escape analysis could be used to statically determine where to put allocations and, in principle, the allocations could be reordered dynamically before a call.
   In summary, support for passing stack references as arguments to callees could be added to \stktokens{}, but this would probably require some changes in the compiler and, more importantly, would require the callee to take special care when manipulating such references.
   We are unsure whether it is realistic to apply this approach for existing C code.
+
+  \stktokens{} relies on an important property: the fact that return seals should be uniquely associated to a single call-site.
+  If we were to use a single return seal for multiple call-site, that would allow an adversary to combine a valid return data capability with a return code capability for the wrong call-site, thus breaking WBCF guarantees.
+  This property is currently enforced statically in the well-formedness property for components' code memory (see Section~\ref{sec:well-form-reas}), specifically in the \texttt{C-Instr} rule.
+  For any call instruction in trusted components' code memory, it is required that the return seal used is exclusively owned by this call-site.
+
+  To guarantee that this property does not just hold when the system is initialized, but continues to hold during execution, the well-formedness judgement additionally enforces a Write-Xor-Execute policy for components:
+  writable capabilities are not allowed for code memory and executable capabilities are not allowed for data memory.
+  Although this approach works, it has the side effect of disallowing any form of dynamic code generation.
+  This is unfortunate, because we believe that in principle, \stktokens{} is compatible with dynamic code generation, as long as the generated code respects the unique allocation of return seals to call sites.
+
+  To lift this restriction, an alternative approach would be to enforce the unique allocation of return seals to trusted call sites semantically rather than statically.
+  More concretely, the semantic reasonability requirement for components could additionally require that during any execution, a component uses a return seal only for a single call-site.
+  Such an approach would, we think, obviate the need for the Write-Xor-Execute policy and the static enforcement of proper use of return seals.
+  Thus, we think dynamic code generation could be allowed without losing \stktokens{} guarantees.
 \end{jversion}
 
 %%% Local Variables:
