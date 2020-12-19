@@ -112,7 +112,7 @@
 \cpr{Cambridge University Press}
 \doival{10.1017/xxxxx}
 
-\lefttitle{\stktokens{}: Enforcing Well-Bracketed Control Flow and Stack Encapsulation Using \ldots}
+\lefttitle{\stktokens{}: Enforcing WBCF and LSE Using Linear Capabilities}
 \righttitle{Journal of Functional Programming}
 
 \totalpg{\pageref{lastpage01}}
@@ -1724,29 +1724,23 @@ The \textsc{Base} rule for base components has a variety of requirements:
   \label{fig:well-formed-aux}
 \end{figure}
 \figurename~\ref{fig:well-formed-word} defines the well-formedness judgement $\vdash_{\mathrm{comp-word}}$ for words in a component's data memory.
-The \textsc{W-Data} rule says all data, i.e.\ integers, are well-formed words.
-The \textsc{W-Capability} rule specifies that all well-formed capabilities in data memory must at most have read and write permission.
-Further, if the capability is linear, then the range of authority must be within the linear address space owned by this address.
-Finally, if it is non-linear, then it must be in the non-linear address space.
-The \textsc{W-Sealed-Capability} allows capabilities sealed with a closure seal if the underlying capability is itself a well-formed word.
-Because of the last requirement, the data memory cannot initially contain sealed code capabilities.
+Well-formed rules are defined as integers, memory capabilities with at most read and write permission and well-formed words sealed with a closure seal.
+The range of authority of linear and non-linear memory capabilities is required to be available in $A_{\mathrm{linear}}$ (where it is exclusively owned) and $A_{\mathrm{non-linear}}$, respectively.
+Note that data memory is not allowed to initially contain sealed code capabilities.
 However, a component is free to place sealed data capabilities in memory during execution.
 
 \figurename~\ref{fig:well-formed-export} defines the well-formedness judgement $\vdash_{\mathrm{comp-export}}$ for component exports.
-Essentially, \textsc{E-Word} says that any well-formed word is also allowed as an export.
-In particular, sealed capabilities for data memory are well-formed, which allows components to export the data part of a sealed capability pair.
-Additionally, \textsc{E-Sealed-Code} allows read-execute capabilities to the component's code address space when they have been sealed with a closure seal.
-Together, these two rules allow components to export closures as sealed code-data capability pairs.
+Essentially, well-formed exports are either well-formed words or sealed read-execute capabilities to the component's code memory, sealed with a closure seal.
+Both cases together allow components to export closures as sealed code-data capability pairs.
 
-Finally, \figurename~\ref{fig:well-formed-code} defines the well-formedness judgement $\vdash_{\mathrm{comp-code}}$ for component's code memory.
-Unlike data memory and exports, we cannot say whether code memory is well-formed by considering each word in isolation, because it depends on whether seals for calls are located in the place we expect them to be located.
-Therefore, the main judgement considers the entire code memory $\sigrets,\sigcloss,\ta\vdash_{\mathrm{comp-code}} \mscode$ and is defined in terms of an auxiliary judgement for an individual memory address $\sigrets,\sigrets[\mathrm{owned}],\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode,a$.
-The $\sigrets,\sigrets[\mathrm{owned}],\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode,a$ judgement has two rules.
-The \textsc{C-Seals} rule allows set-of-seals capabilities for closure and return seals.
-The \textsc{C-Instr} rule allows integers, including encoded instructions.
-However, if the code memory contains a call instruction in a trusted component (i.e.\ addresses in $\ta$), then there must be a set-of-seals capability available at the expected address, containing the return seal for this call.
-To ensure that return seals are at most used by one call, the $\sigrets,\sigcloss,\ta\vdash_{\mathrm{comp-code}} \mscode$ judgement partitions all the available return seals over code addresses and \textsc{C-Instr} requires that the seal used by a call is in $\sigrets[\mathrm{owned}]$.
-Further, the \textsc{C-Mem} judgement requires the set of return seals to be disjoint from the set of closure seals, so return seals cannot be used to seal non-return capabilities.
+Finally, \figurename~\ref{fig:well-formed-code} defines the well-formedness judgement $\vdash_{\mathrm{comp-code}}$ for components' code memory.
+% Unlike data memory and exports, we cannot say whether code memory is well-formed by considering each word in isolation, because it depends on whether seals for calls are located in the place we expect them to be located.
+The judgement $\sigrets,\sigcloss,\ta\vdash_{\mathrm{comp-code}} \mscode$ is defined in terms of an auxiliary judgement for an individual memory address $\sigrets,\sigrets[\mathrm{owned}],\sigcloss,\ta \vdash_{\mathrm{comp-code}} \mscode,a$.
+The rules allow either set-of-seals capabilities for closure and return seals, or integers, including encoded instructions.
+If the code memory contains a call instruction in a trusted component (i.e.\ addresses in $\ta$), then there must be a set-of-seals capability available at the expected address, containing the return seal for this call.
+Additionally, the judgement ensures that return seals are at most used by one call by partitioning
+available return seals in $\sigrets[\mathrm{owned}]$ over code addresses for use in calls.
+Further, return seals must be disjoint from closure seals.
 % domi: I have investigated this and I don't think we use this any more, as pointed out by Lau below.
 % To rule out certain corner cases, we require the code memory to have no \textit{hidden calls}.
 % \lau{Do we actually use the hidden calls in the proofs? I vaguely recall this was added to make sure that splicing would not create a call. However, we also have the padding which, at least in part, takes care of this.}
@@ -1934,9 +1928,7 @@ This is, however, not sufficient as it does not ensure that other parts of a pro
 We do not want to specify what non-call code should look like, so we just require it not to use the call seals.
 This is what Item~\ref{item:return-seal-usage} ensures.
 It says that if the configuration points to a seal-instruction, then either the instruction is part of a call and uses a return seal or the instruction seals part of a closure and uses a closure seal.
-In order to construct a closure, one must seal a code capability and a data capability.
-If this is an executable capability, then it should be reasonable as a pc.
-On the other hand, if it is not an executable capability, then this must be the data part of the pair, so it should just be a reasonable word.
+In the latter case, the sealed capability must be reasonable as a pc if it is executable or just a reasonable word if it isn't.
 Definition~\ref{def:reasonable-conf} is cyclic through Definition~\ref{def:reasonable-pc}, so both definitions are step-indexed to break the cycle.
 
   \subsubsection{Reasonable component}
