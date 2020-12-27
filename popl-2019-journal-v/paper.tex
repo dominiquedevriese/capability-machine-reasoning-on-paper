@@ -215,12 +215,12 @@ However, a problem with this approach is that revoking the local stack and retur
 
 In this work, we propose and study \stktokens{}: an alternative calling convention that enforces WBCF and LSE with a single shared stack.
 Instead of CHERI's local capabilities, it builds on {\itshape linear} capabilities; a new form of capabilities that has not previously been described in the published literature, although related ideas have been described by~\citet[``scarce objects'']{szabo_formalizing_1997,szabo_scarce_objects} and in technical documents.
-Concurrently with our work, Watson et al. have developed a (more realistic) design for linear capabilities in CHERI that is detailed in the latest CHERI ISA reference~\citep{watson_capability_2020}.
+Concurrently with our work, \citeauthor{watson_capability_2020} have developed a (more realistic) design for linear capabilities in CHERI that is detailed in the latest CHERI ISA reference~\citep{watson_capability_2020}.
 % KJAA: Perhaps make it clear by who and when/where?
 The hardware prevents these capabilities from being duplicated.
 We propose to make stack and return pointers linear and make components hand them out in cross-component invocations and require them back on return.
 The non-duplicability of linear capabilities together with some security checks allows us to guarantee WBCF and LSE without large overhead on boundary crossings and in particular without the need for clearing large blocks of memory.
-To avoid confusion, it is worth pointing out that our linear caabilities are really affine rather than linear: erasing them is allowed.
+To avoid confusion, it is worth pointing out that our linear capabilities are really affine rather than linear: erasing them is allowed.
 However, we have chosen to use the term ``linear'' to align with common usage in the world of linear type systems.
 
 A second contribution of this work is the way in which we formulate these two properties.
@@ -286,16 +286,16 @@ In this paper, we make the following contributions:
 % Cap machine inspired by CHERI, but with linear capabilities
 In this section, we introduce a simple but representative capability machine with linear capabilities, that we call \trgcm{} (Linear Capability Machine).
 \trgcm{} is mainly inspired by CHERI~\citep{watson_cheri_2015} with linear capabilities as the main addition.
-For simplicity, \trgcm{} assumes an infinite address space and unbounded integers.
+For simplicity, \trgcm{} assumes an infinite address space and unbounded integers.\footnote{Although we have not thoroughly investigated, we do not believe our results depend heavily on these assumptions and we expect they could be lifted without a great impact on the proofs.}
 % \lau{Do we have a good reason to assume an infinite address space for this work?
 %   We do not model malloc, so we do not need to worry about what happens when malloc runs out of memory.}
 
 %%% Capabilities
 The concept of a capability is the cornerstone of any capability machine.
-In its simplest form, a capability is a permission and a range of authority.
-The permission dictates the operations the capability can be used for, and the range of authority specifies the range of memory it can act upon.
+In its simplest form, a (memory) capability is a permission and a range of authority.
+The former dictates the operations the capability can be used for, and the latter specifies the range of memory it can act upon.
 % Permissions and Range of authority
-The capabilities on \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (defined in Figure~\ref{fig:target-syntax} with the rest of the syntax of \trgcm{}).
+Memory capabilities on \trgcm{} are of the form $((\var{perm},\var{lin}),\var{base},\var{end},\var{addr})$ (defined in Figure~\ref{fig:target-syntax} with the rest of the syntax of \trgcm{}).
 Here $\var{perm}$ is the permission, and $[\var{base},\var{end}]$ is the range of authority.
 The available permissions are read-write-execute ($\rwx$), read-write ($\rw$), read-execute ($\rx$), read-only ($\ro$), and null-permission ($\noperm$) ordered by $\le$ as illustrated in Figure~\ref{fig:perm-hier}.
 % Pointer and linearity
@@ -343,7 +343,7 @@ A sealed capability $\sealed{\sigma,\vsc}$ is a pair of a seal $\sigma$ (represe
 A sealed capability makes an underlying capability opaque which means that the underlying capability cannot be changed or used for the operations it normally gives permission to.
 In other words, the authority the underlying capability represents is encapsulated under the seal.
 In order to seal a capability with a seal $\sigma$, it is necessary to have the authority to do so.
-The permission to make sealed capabilities is represented by a second form of capability in addition to the memory capabilities we saw above: a set-of-seals capability $\seal{\sigma_\var{base},\sigma_\var{end},\sigma_{\var{current}}}$.
+The permission to make sealed capabilities is represented by a second form of capability (in addition to the memory capabilities we saw above): a set-of-seals capability $\seal{\sigma_\var{base},\sigma_\var{end},\sigma_{\var{current}}}$.
 Such a capability represents the authority to seal other capabilities with seals in the range $[\sigma_\var{base},\sigma_\var{end}]$.
 In the spirit of memory capabilities, a set-of-seals capability has a current seal $\sigma_{\var{current}}$ that is selected for use in the next seal operation.
 % On \trgcm{}, we represent seals in sets rather than single seals to have a more compact representation of multiple seals and make it possible to have seal allocation (not described here).
@@ -520,7 +520,7 @@ In the case of \texttt{move}, the source register $\rn$ is overwritten with $\li
 
 % load w/ lin (and store)
 The \texttt{store} and \texttt{load} instructions are fairly standard.
-They require a capability with permission to either write or read depending on the operation, they check that the capability points within the range of authority.
+They require a capability with permission to write or read (respectively), they check that the capability points within the range of authority.
 Linear capabilities introduce one extra complication for \texttt{load} as it needs to clear the loaded memory address when it contains a linear capability in order to not duplicate the capability.
 In this case, we require that the memory capability used for loading also has write-permission.
 
@@ -537,7 +537,7 @@ Given a sealable $\vsc$ and a set-of-seals where the current seal $\sigma$ is wi
 % xjmp
 Apart from dealing with linearity, \texttt{xjmp} takes a pair of sealed capabilities, unseals them, and puts one in the $\pcreg$ register and the other in the $\rdata$ register, but only if they are sealed with the same seal and the data capability (the one placed in $\rdata$) is non-executable.
 A pair of sealed capabilities can be seen as a closure where the code capability (the capability placed in $\pcreg$) is the program and the data capability is the local environment.
-Because of the opacity of sealed capability, the creator of the closure can be sure that execution will start where the code capability points and only in an environment with the related data, i.e.\ sealed with the same seal.
+Because of the opacity of sealed capabilities, the creator of the closure can be sure that execution will start where the code capability points and only in an environment with the related data, i.e.\ with access to a data capability sealed with the same seal.
 This makes \texttt{xjmp} the mechanism on \trgcm{} that transfers control between security domains.
 Opaque sealed capabilities encapsulate a security domain's local state and authority, and they only become accessible again when control is transferred to the security domain.
 Some care should be taken for sealing because reusing the same seal for multiple closures makes it possible to jump to the code of one closure with the environment of another.
@@ -545,30 +545,30 @@ Some care should be taken for sealing because reusing the same seal for multiple
 \trgcm{} does not have an instruction for unsealing capabilities directly, but we will explain below how it can be (partially) simulated using \texttt{xjmp}.
 
 % split/splice
-Instructions for reducing the authority of capabilities are commonplace on capability machines as they allow us to limit what a capability can do before it is passed away.
+Instructions for reducing the authority of capabilities are commonplace on capability machines as they allow us to limit a capability's authority before passing it to other code.
 For normal capabilities, reduction of authority can be done without actually giving up any authority by duplicating the capability first.
-With linear capabilities authority cannot be preserved in this fashion as they are non-duplicable.
+With linear capabilities, authority cannot be preserved in this fashion as they are non-duplicable.
 In order to make a lossless reduction of the range of authority, \trgcm{} provides special hardware support in the form of \texttt{split} and \texttt{splice}.
 The \texttt{split} instruction takes a capability with range of authority $[\var{base},\var{end}]$ and an address $n$ and creates two new capabilities, with $[\var{base},n]$ and $[n+1,\var{end}]$ as ranges of authority.
 Everything else, i.e.\ permission, linearity and current address, is copied without change to the new capabilities.
 With \texttt{split}, we can reduce the range of authority of a linear capability without losing any authority as we retain it in the second capability.
 The \texttt{splice} instruction essentially does the inverse of \texttt{split}.
 Given two capabilities with adjacent ranges of authority and the same permissions and linearity, \texttt{splice} splices them together into one capability.
-The two instructions work in the same way for seal sets.
+The two instructions work in the same way for set-of-seals capabilities.
 We do not provide special support for lossless reduction of capability permissions, but this could probably be achieved with more fine-grained permissions.
 This would also allow linear capabilities to have aliases, but only by linear capabilities with disjoint permissions.
 
 \begin{jversion}
 % The remaining instructions
   The interpretation of the remainder of the instructions are displayed in Appendix~\ref{app:instr-interpretation}.
-  The instructions $\tgetb{}{}$, $\tgete{}{}$, $\tgetlin{}{}$, and $\tgetp{}{}$ all project information about capabilities.
+  The instructions $\tgetb{}{}$, $\tgete{}{}$, $\tgetlin{}{}$, and $\tgetp{}{}$ all query information about capabilities.
   The $\tgetb{}{}$ and $\tgete{}{}$ instructions, respectively, project the base and end address of the range of authority.
   The linearity of a permission is projected with $\tgetlin{}{}$, and finally the permission is projected with $\tgetp{}{}$.
-  The instructions $\tgetb{}{}$ and $\tgete{}{}$ also work on sets of seals.
+  The instructions $\tgetb{}{}$ and $\tgete{}{}$ also work on set-of-seal capabilities.
   The instruction $\tisptr{}{}$ returns an integer representation of the type of a word (capability or number).
   \trgcm{} also has arithmetic instructions $\tplus{}{}{}$, $\tminus{}{}{}$, and $\tlt{}{}{}$.
   The latter instruction compares two numbers and writes 1 or 0 to a target register depending on whether one number is less than the other.
-  The instruction $\tsetatob{}$ sets the current address (or seal) of a capability (or set-of-seals) to the base address of the range of authority (or range of seals).
+  The instruction $\tsetatob{}$ sets the current address (or seal) of a memory (or set-of-seals) capability to the base address of the range of authority (or range of seals).
   This instruction makes it easy to work relatively to the base address of a capability.
   This instruction is not strictly necessary as it can be emulated with other instructions.
   Finally, we have the $\trestrict{}{}$ instruction which restricts the permission of a capability according to the $\le$ relation.
@@ -587,24 +587,24 @@ This would also allow linear capabilities to have aliases, but only by linear ca
   The untrusted code could use the return capability as intended, but it could also manipulate it to point elsewhere in our code.
   Jumping to such a capability could cause the trusted program to execute in an unintended and potentially insecure way.
 
-  Additionally, when the untrusted code returns,  we need to regain access to the capabilities that represent our authority, which we had access to before passing control.
+  Additionally, when the untrusted code returns,  we need to regain access to the capabilities that represent our authority.
   To achieve this, we have to store them in a location that we can access after the return.
-  However, without an encapsulation mechanism, the untrusted code would have access to all this through the return capability because it gives the same authority to the untrusted code as to us after the return.
+  However, without an encapsulation mechanism, the untrusted code would also have the same authority as us, including access to the authority we stored away.
   This is why any reasonable capability machine must have an encapsulation mechanism to allow programs to set up boundaries between security domains.
   
-  In \trgcm{}, we can seal the return capability to establish such a boundary.
+  To establish such a boundary in \trgcm{}, we can seal the return capability.
   Specifically, we can seal the return capability (which points to the instruction to be executed after the return) as a pair, together with a pointer to the stack frame where we have stashed away our capabilities (see further).
   By doing this, the untrusted code is prevented from changing the target of the return capability forcing them to return to the point we specified.
   Additionally, they do not get access to the capabilities we stashed away.
   Nevertheless, the automatic unsealing of sealed capability pairs upon invocation will ensure that the return code can still proceed as before.
   In other words, the sealing mechanism in \trgcm{} allows us to transfer control to untrusted code without giving up our capabilities or handing them over, and also control the locations in our code they can jump back to.
 
-  It is worth pointing out that \trgcm{} does not have a direct unsealing instruction to extract a capability from its sealed version when the seal is available, but one can be emulated.
+  It is worth pointing out that \trgcm{} does not have a direct unsealing instruction to extract a capability from its sealed version when the seal is available, but one can be (partially) emulated.
   Say you have a sealed non-executable word $\sealed{\sigma,w}$ as well as a set-of-seals capability $\seal{\sigma_\baddr,\sigma_\eaddr, \sigma}$ that contains $\sigma$, i.e.\ $\sigma \in [\sigma_\baddr,\sigma_\eaddr]$.
   It is possible to extract $w$ in $\rdata$ using $\txjmp{}{}$ in the following way.
   The idea is to use the seal to construct a sealed version of the pc capability incremented by one, and then perform an $\txjmp{}{}$ to it in combination with the sealed capability.
   This does not work for sealed executable capabilities because $\txjmp{}{}$ fails if the data capability is executable.
-  However, even though we cannot extract the executable capability from $\sealed{\sigma,c}$, we can still invoke it with arbitrary arguments, since we can use the seal to construct an arbitrary data part and $\txjmp{}{}$ to the combination.\footnote{Alternatively, we could remove the current restriction in \texttt{xjmp} that requires the data capability to be non-executable but then teh invoked code would often have to manually perform this check instead.}
+  However, even though we cannot extract the executable capability from $\sealed{\sigma,c}$, we can still invoke it with arbitrary arguments, since we can use the seal to construct an arbitrary data part and $\txjmp{}{}$ to the combination.\footnote{Alternatively, we could remove the current restriction in \texttt{xjmp} that requires the data capability to be non-executable but then the invoked code would often have to manually perform this check instead.}
 
   Sealing is meant for encapsulation, but it relies on seals being kept private as should be clear from the explanations so far.
   For this reason, it is important that trusted code does not leak its seals to adversaries and that the system is initialised so that each component has access to unique seals.
@@ -616,13 +616,13 @@ This would also allow linear capabilities to have aliases, but only by linear ca
 The operational semantics of the capability machine uses the function $\decInstr{}$ to decode instructions.
 We also assume a function $\encInstr{}$ to make it easy to specify programs in terms of instructions.
 Rather than defining such a decode function and an encode function, we assume that they are given with certain properties.
-The $\decInstr{} : \Word \fun \Instr$ should decode all capabilities to the $\fail$ instruction, i.e.\ only numbers are decoded to non-fail instructions:
-\[
-\forall c \in \Caps \ldotp \decInstr{c} = \fail
-\]
-The $\decInstr{}$ should have a right inverse $\encInstr{} : \Instr \fun \ints$, i.e.
+Most importantly, $\encInstr{} : \Instr \fun \ints$ should be the right inverse of $\decInstr{}$, i.e.
 \[
 \forall i \in \Instr \ldotp \decInstr{}(\encInstr{i}) = i
+\]
+The $\decInstr{} : \Word \fun \Instr$ should only map numbers to non-$\fail$ instructions, i.e.\ capabilities are mapped to $\fail$:
+\[
+  \forall c \in \Caps \ldotp \decInstr{c} = \fail
 \]
 These assumptions are sufficient to construct program examples in terms of instructions rather than machine words (using $\encInstr{}$), and run them on the machine (using the fact that $\decInstr{}$ is the left inverse of $\encInstr{}$).
 % The $\encInstr{}$ function allows us to specify the program ``abstractly''.
@@ -644,38 +644,8 @@ It encodes each kind of word differently and all words of the same kind to the s
 
 \subsection{Components, linking, programs, and contexts}
 \label{subsec:components-linking}
-The executable configuration describes the machine state, but it does not make it clear what components run on the machine and how they interact with each other.
-To clarify this, we introduce notions of components and programs from which we construct executable configurations.
-A component (defined in Figure~\ref{fig:target-component-and-linking}) is basically a program with entry points in the form of imports that need to be linked.
-It has exports that can satisfy the imports of other components.
-% Structure
-A base component $\comp_0$ consists of a code memory fragment, a data memory fragment, a list of imported symbols, a list of exported symbols, two lists specifying the available seals (see Section~\ref{sec:form-secur-with}), and a set of all the linear addresses (addresses governed by a linear capability).
-The import list specifies where in memory imports should be placed, and imports are matched to exports via their symbols.
-An export associates a word with a symbol.
-%base = library
-A component is either a library component (without a main entry point) or an incomplete program with a main in the form of a pair of sealed capabilities.
-The latter can be seen as a program that still needs to be linked with libraries.
-% Linking .
-Components are combined into new components by linking them together, as long as only one has a main function.
-Two components can be linked when their memories, seals, and linear addresses are disjoint.
-They are combined by taking the union of each of their constituents.
-For every import that is satisfied by an export of the other component, the data memory is updated to have the exported word on the imported address.
-The satisfied imports are removed from the import list in the resulting linked component and the exports are obtained by combining the components' exports.
 
-% Programs
-We can now define the notion of a program as well as a context.
-\begin{definition}[Programs and Contexts]
-  \label{def:program-and-context}
-  A \emph{program} is a component $(\comp_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})$ with an empty import list.
-  A \emph{context} for a component $\comp$ is a component $\comp'$ such that $\comp \bowtie \comp'$ is a program.
-\end{definition}
-% Getting an executable from a component - postpone this to later, but mention:
-% write xor exec
-How a program is initialised to create an executable configuration is discussed in Section~\ref{sec:form-secur-with}.
-% We will, however, at this point mention that all programs will be instrumented as Write-XOR-Execute,{Do we have a reference for this?} i.e.\ there will only be read-execute capabilities for the code and read-write capabilities for the data.
-%Further, we will only consider a specific class of well-formed components, but we will get back to this.
-Some simplifications have been made in this presentation of \trgcm{}. See \citet{technical_report_popl} for details.
-\begin{figure}[tb]
+\begin{figure}
   \centering
   \[
     \begin{array}{rl c rl c rl}
@@ -722,6 +692,38 @@ Some simplifications have been made in this presentation of \trgcm{}. See \citet
   \caption{Components and linking of components.}
   \label{fig:target-component-and-linking}
 \end{figure}
+
+The executable configuration describes the machine state, but it does not make it clear what components run on the machine and how they interact with each other.
+To clarify this, we introduce notions of components and programs from which we construct executable configurations.
+A component (defined in Figure~\ref{fig:target-component-and-linking}) is basically a program with entry points in the form of imports that need to be linked.
+It has exports that can satisfy the imports of other components.
+% Structure
+A base component $\comp_0$ consists of a code memory fragment, a data memory fragment, a list of imported symbols, a list of exported symbols, two lists specifying the available seals (see Section~\ref{sec:form-secur-with}), and a set of all the linear addresses (addresses governed by a linear capability).
+The import list specifies where in memory imports should be placed, and imports are matched to exports via their symbols.
+An export associates a word with a symbol.
+%base = library
+A component is either a library component (without a main entry point) or an incomplete program with a main entry point in the form of a pair of sealed capabilities.
+The latter can be seen as a program that still needs to be linked with libraries.
+% Linking .
+Components are combined into new components by linking them together, as long as only one has a main function.
+Two components can be linked when their memories, seals, and linear addresses are disjoint.
+They are combined by taking the union of each of their constituents.
+For every import that is satisfied by an export of the other component, the data memory is updated to have the exported word on the imported address.
+The satisfied imports are removed from the import list in the resulting linked component and the exports are obtained by combining the components' exports.
+
+% Programs
+We can now define the notion of a program as well as a context.
+\begin{definition}[Programs and Contexts]
+  \label{def:program-and-context}
+  A \emph{program} is a component $(\comp_0,c_{\mathrm{main},c}, c_{\mathrm{main},d})$ with an empty import list.
+  A \emph{context} for a component $\comp$ is a component $\comp'$ such that $\comp \bowtie \comp'$ is a program.
+\end{definition}
+% Getting an executable from a component - postpone this to later, but mention:
+% write xor exec
+How a program is initialised to create an executable configuration is discussed in Section~\ref{sec:form-secur-with}.
+% We will, however, at this point mention that all programs will be instrumented as Write-XOR-Execute,{Do we have a reference for this?} i.e.\ there will only be read-execute capabilities for the code and read-write capabilities for the data.
+%Further, we will only consider a specific class of well-formed components, but we will get back to this.
+Some simplifications have been made in this presentation of \trgcm{}. See \citet{technical_report_popl} for details.
 
 %\FloatBarrier
 % \begin{itemize}
@@ -813,7 +815,7 @@ The figure illustrates how the adversarial code uses the return pair from the fi
 % Informally explain how we prevent this using linear capabilities
 As the examples illustrate, this naive use of memory and object capabilities does not suffice to enforce LSE and WBCF.
 The problem is essentially that the stack and return pointers that a callee receives from a caller remain in effect outside their intended lifetime: either when the callee has already returned or when they have themselves invoked other code. 
-Linear capabilities offer a form of revocation\footnote{Revocation in the sense that if we hand out a linear capability and later get it back, then the receiver cannot have kept a copy of it as it is non-duplicable.} that can be used to prevent this from happening.
+Linear capabilities offer a form of revocation\footnote{Revocation in the sense that if we hand out a linear capability and later get it back, then the adversary cannot have kept a copy of it as it is non-duplicable. In other words, the adversary's access has effectively been revoked in this situation.} that can be used to prevent this from happening.
 
 % Stack capability linear
 The linear capabilities are put to use by requiring the stack capability to be linear.
@@ -822,14 +824,14 @@ The local stack frame capability is sealed and used as the data part of the seal
 The capability for the remainder of the stack is given to the callee.
 % Prevention of left attack non-aliasing of linear capabilities - token like (ensuring LSE)
 Because the stack capability is linear, the caller knows that the capability for their local stack frame cannot have an alias.
-This means that an adversary would need the stack capability produced by the caller in order to access their local data.
+This means that an adversary cannot access the caller's local data because the caller has a linear capability for it and there cannot exist an alias.
 The caller gives this capability to the adversary only in a sealed form, rendering it opaque and unusable.
 This is illustrated in Figure~\ref{fig:stack-ptr-abuse-prev} and prevents the issue illustrated in Figure~\ref{fig:stack-ptr-abuse}.
 
 % Prevention of attack 2
 In a traditional calling convention with a single stack, the stack serves as a call stack keeping track of the order calls were made in and thus in which order they should be returned to.
 A caller pushes a stack frame to the stack on call and a callee pops a stack frame from the stack upon return.
-However without any enforcement, there is nothing to prevent a callee from returning from an arbitrary call on the call stack.
+However without any enforcement, there is nothing to prevent a callee from popping more from the stack than they should and returning on an arbitrary call on the call stack.
 This is exactly what the adversary does in Figure~\ref{fig:ret-ptr-abuse} when they skip two stack frames.
 In the presence of adversarial code, we need some mechanism to enforce that the order of the call stack is kept.
 One way to enforce this would be to hand out a token on call that can only be used when the caller's stack frame is on top of the call stack.
@@ -1032,8 +1034,8 @@ At this point (Figure~\ref{fig:stack-base-abuse-d}), the adversary has access to
 
 For the caller to be sure that there are no hidden stack frames above its own, they need to make sure that the return token is exactly the same as the one they passed to the callee.
 In \stktokens{}, the base address of the stack capability is fixed as a compile-time constant (Note: the stack grows downwards, so the base address of the stack capability is the top-most address of the stack). 
-The caller verifies the validity of the return token by checking whether the base address of a returned token corresponds to this fixed base address, which was the base address for the return token they gave to the callee.
-In the scenario we just sketched, the caller would be alerted to the attempt to break WBCF when the base address check of the return token fails in Figure~\ref{fig:stack-base-abuse-d}.
+The caller verifies the validity of the return token by checking whether the base address of a returned token corresponds to this fixed base address.
+In the scenario we just sketched, the base address check would fail in Figure~\ref{fig:stack-base-abuse-d}, thus alerting the caller to the attempt to break WBCF.
 
 % Where do we get the stack pointer from, how can we know it is linear
 % The other attack.
@@ -1065,7 +1067,7 @@ All call points need to be associated with a unique seal (a return seal) that is
 The return seal is what associates the stack frame on the call stack with a specific call point in a program, so if we allowed return seals to be reused, it would be possible to return to a different call point than the one that gave rise to the stack frame, breaking WBCF.
 For similar reasons, we cannot allow return seals to be used to seal closures.
 % Don't be stupid
-Return seals should never be leaked to adversarial code as this would allow them to unseal the local stack frame of a caller breaking LSE.
+Return seals should also never be leaked to adversarial code as this would allow them to unseal the local stack frame of a caller and thus break LSE.
 This goes for direct leaks (leaving a seal in a register or writing it to adversarial memory), as well as indirect leaks (leaking a different capability that can be used for reading, either directly or indirectly, a return seal from memory).
 
 % Note about them vs us, we do nothing that they couldn't do
@@ -1083,9 +1085,9 @@ To summarise, \stktokens{} consists of the following measures:
 \begin{enumerate}
 \item \label{item:check-stkb} Check the base address of the stack capability before and after calls.
 \item \label{item:non-empty-sf} Make sure that local stack frames are non-empty.
-\item \label{item:return-data} Create token and data return capability on call: split the stack capability in two to get a stack capability for your local stack frame and a stack capability for the unused part of the stack. The former is sealed and used for the data part of the return pair. The latter is passed to the callee as the stack pointer.
+\item \label{item:return-data} Create token and data return capability on call: split the stack capability in two to get a stack capability for your local stack frame and a stack capability for the unused part of the stack. The former is sealed and used as the data part of the return pair. The latter is passed to the callee as the stack pointer.
 \item \label{item:return-code} Create code return capability on call: Seal the old program counter capability.
-\item Reasonable use of seals: Return seals are only used to seal old program counter capabilities, every return seal is only used for one call site, and they are not leaked.
+\item Reasonable use of seals: Return seals are only used to seal old program counter capabilities, every return seal is only used for one call site, and they are not leaked (directly or indirectly).
 \end{enumerate}
 Item~\ref{item:check-stkb}-\ref{item:return-code} are captured by the code in Figure~\ref{fig:call-code} , except for checking stack base before calls.
 We do not include this check because it only needs to happen once between two calls, so that the check after a call suffices if the stack base is not changed subsequently.
@@ -1177,7 +1179,7 @@ We contribute a new way to formalise the properties using a novel approach we ca
 The idea is to define a second operational semantics for programs in our target language.
 This second semantics uses a different abstract machine and different run-time values, but it executes in lock-step with the original semantics and there is a very close correspondence between the state of both machines.
 
-The main difference between the two semantics is that the new one satisfies LSE and WBCF by construction: the abstract machine comes with a built-in stack, inactive stack frames are unaddressable and well-bracketed control flow is built-in to the abstract machine.
+The main difference between the two semantics is that the new one satisfies LSE and WBCF by construction: the abstract machine comes with a built-in stack, inactive stack frames are unaddressable and well-bracketed control flow is built into the abstract machine.
 Important run-time values like return capabilities and stack pointers are represented by special syntactic tokens that interact with the abstract machine's stack, but during execution, there remains a close, structural correspondence to the actual regular capabilities that they represent.
 For example, stack capabilities in the overlay semantics correspond directly to linear capabilities in the underlying semantics, and they have authority over the part of memory that the overlay views as the stack.
 \begin{jversion}
@@ -1242,36 +1244,36 @@ The overlay semantics \srccm{} for \trgcm{} views part of the memory as a built-
 To this end, it adds a call stack and a free stack memory to the executable configurations of \trgcm{}.
 The call stack is a list with all the stack frames that are currently inaccessible because they belong to previous calls.
 Every stack frame contains encapsulated stack memory as well as the program point that execution is supposed to return to.
-The free stack memory is the active part of the stack that has not been claimed by a call and thus can be used at this point of time.
+The free stack memory is the active part of the stack that has not been encapsulated by a previous call and thus can be used by the currently executing code.
 % Stack pointer
 In order to distinguish capabilities for the stack from the capabilities for the rest of the memory, \srccm{} adds stack pointers.
 A stack pointer has a permission, range of authority, and current address, just like capabilities on \trgcm{}, but they are always linear.
 % Return pointers
-The final syntactic constructs added by \srccm{} are the code and data return pointers.
-The data return pointer corresponds to some stack pointer (which in turn corresponds to a linear capability), and the code return pointer corresponds to some capability with read-execute permission.
-Syntactically, the return capabilities contain just enough information to reconstruct what they correspond to on the underlying machine.
-On \srccm{}, return pointers are generated by calls from the capabilities they correspond to on \trgcm{}, and they are turned back to the capabilities they correspond to upon return.
+The final syntactic constructs added by \srccm{} are code and data return pointers.
+The data return pointer corresponds to a stack capability, and the code return pointer corresponds to a executable capability for the corresponding return point.
+Syntactically, the return pointers contain just enough information to reconstruct what they correspond to on the underlying machine.
+During \srccm{} function calls, return pointers are generated from the stack and program counter capabilities, and they are turned back to those capabilities upon return.
 % Even though the return pointers both correspond to capabilities with read permission, neither can be used for reading. 
 % Say, we allowed reads through a data return pointer, then that would correspond to reading from some stack memory that is encapsulated in a stack frame which would break LSE.
 
-The opaque nature of the return pointers is reflected in the interpretation of the instructions common to both \trgcm{} and \srccm{} as \srccm{} does not add special interpretation for them in non-\texttt{xjmp} instructions.
+The opaque nature of the return pointers is reflected in the interpretation of instructions as \srccm{} does not add special interpretation for them in non-\texttt{xjmp} instructions.
 Stack pointers, on the other hand, need to behave just like capabilities, so \srccm{} adds new cases for them in the semantics, e.g.\ \texttt{cca} can now also change the current address of a stack pointer as displayed in Figure~\ref{fig:source-op-sem}.
 Similarly, \texttt{load} and \texttt{store} work on the free part of the stack when provided with a stack pointer.
-A store attempted with a stack capability that points to an address outside the free stack results in the $\failed$ configuration because that action is inconsistent with the view the overlay semantics has on the underlying machine.
-In other words, there should only be stack pointers for the stack memory.
+A store attempted with a stack capability that points to an address outside the free stack results in the $\failed$ configuration because that action is inconsistent with the view of the overlay semantics on the underlying machine.
+In \srccm{} executions, there should only be stack pointers for the stack memory.
 
 % Back to high-level view
 As discussed earlier, our formal results only provide guarantees for components that respect the calling convention.
 Untrusted components are not assumed to do so.
 To formalize this distinction, \srccm{} has a set of trusted addresses $\ta$.
-Only instructions at these addresses can be interpreted as the \srccm{} native call and push frames to the call stack which guarantees LSE and WBCF.
-The constant $\ta$ is a parameter of the \srccm{} step relation.
-Similarly, \stktokens{} assumes a fixed base address of the stack memory, that is also passed around as such a parameter, for use in the native semantics of calls.
+This $\ta$ is a constant parameter of the \srccm{} step relation.
+Only instructions at these addresses will be interpreted as native \srccm{} calls and push frames to the call stack.
+As such, WBCF and LSE for calls from these addresses.
+In addition to $\ta{}$, \stktokens{} assumes a fixed base address of the stack memory, that is also passed around as such a parameter, for use in the native semantics of calls.
 
-Apart from the step relation of \trgcm{}, \srccm{} has one overlay step that takes precedence over the others.
-This step is shown in Figure~\ref{fig:source-op-sem}, and it is different from the others in the sense that it interprets a sequence of instructions rather than one.
-The sequence of instructions have to correspond to a call, i.e.\ the
-instructions in Figure~\ref{fig:call-code} ({\footnotesize  $\scall[i]{\offpc,\offsigma}{r_1}{r_2}$} corresponds to the $i$'th instruction in the figure and $\calllen$ is always $26$, i.e.\ the number of instructions).
+In addition to the (modified) reduction rules of \trgcm{}, \srccm{} has an overlay step that takes precedence over the others.
+This step is shown in Figure~\ref{fig:source-op-sem}, and it is different from the others in the sense that it interprets a sequence of instructions rather than a single one.
+The sequence of instructions have to correspond to a call, i.e.\ the instructions in Figure~\ref{fig:call-code} ({\footnotesize  $\scall[i]{\offpc,\offsigma}{r_1}{r_2}$} corresponds to the $i$th instruction in the figure and $\calllen$ is always $26$, i.e.\ the number of instructions).
 Calls are only executed when the well-behaved component executes, so the addresses where the call resides must be in $\ta$, and the executing capability must have the authority to execute the call.
 
 % Call/return
@@ -1279,18 +1281,17 @@ The interpretation of $\scall{\offpc,\offsigma}{r_1}{r_2}$ is also shown in Figu
 The registers $r_1$ and $r_2$ are expected to contain a code-data pair sealed with the same seal and the unsealed values are invoked by placing them in the $\pcreg$ and $\rdata$ registers, respectively.
 The current active stack and the stack capability are split into the local stack frame of the caller and the rest.
 $\scall{}{}{}$ also constructs a return capability $c_{\var{opc}}$ and its address $\var{opc}$, pointing after the call instructions.
-The local stack frame and return address are pushed onto the stack, and the local stack capability and return capability are converted into a pair of sealed return capabilities.
-The return capabilities are sealed with the seal designated for the call.
+The local stack frame and return address are pushed onto the stack, and the local stack capability and return capability are converted into a pair of return capabilities and sealed with the seal designated for the call.
 
-The return capabilities, $\retptrc$ and $\retptrd$ are sealed and can only be used using the \texttt{xjmp} instruction, to perform a return.
+Since the return capabilities $\retptrc$ and $\retptrd$ are sealed, they can only be used using the \texttt{xjmp} instruction, to perform a return.
 When this happens, the topmost call stack frame $(\opc,\ms_\var{local})$ is popped from the call stack.
 In order for the return to succeed, the return address in the code return pointer must match $\opc$, and the range of addresses in the data return pointer must match the domain of the local stack.
 If the return succeeds, the stack pointer is reconstructed, and the local stack becomes part of the active stack again.
 
 \srccm{} supports tail calls.
 A tail call is a call from a caller that is done executing, and thus doesn't need to be returned to or preserve local state.
-This means that a tail call should not reserve a slot in the return order by pushing a stack frame on the call stack, i.e.\ it should not use the built-in call.
-To perform a tail call, the caller simply transfers control to the callee using \texttt{xjmp}.
+This means that a tail call should not reserve a slot in the return order by pushing a stack frame on the call stack, i.e.\ it should not use the built-in \srccm{} call.
+Instead, to perform a tail call, the caller simply transfers control to the callee using \texttt{xjmp}.
 The tail-callee should return to the caller's caller, so the caller leaves the return pair they received for the callee to use.
 
 It is important to observe that the operational semantics of \srccm{} natively guarantee WBCF (well-bracketed control flow) and (local stack encapsulation) for calls made by trusted components.
@@ -1792,6 +1793,10 @@ By disallowing this, we make sure that data memory always can be safely shared a
   Definition~\ref{def:reasonable-conf} defines the reasonable configurations which captures the four informal behavioural properties.
   Finally, definition~\ref{def:reasonable-component} lifts the notion of reasonability to components.
 
+  Most of the definitions in this chapter will be parameterized by a tuple $(\ta,\stkb,\gsigrets,\gsigcloss)$ that we will sometimes denote with the meta-variable $\gc$.
+  This tuple collects four \emph{global constants}.
+  In addition to $\ta$, the set of trusted addresses, and $\stkb$, the fixed base address of the stack memory, which we have already encountered in Section~\ref{subsec:overlay-semantics}, the tuple contains two additional constants: $\gsigrets$ and $\gsigcloss$: respectively the set of all return and closure seals in the system.
+
   \subsubsection{Reasonable words}
   To provide any guarantees, \stktokens{} relies on the program not to leak return seals in any way.
   But what does it mean to ``leak'' a return seal?
@@ -1799,7 +1804,7 @@ By disallowing this, we make sure that data memory always can be safely shared a
   The following definition makes this more precise.
 \begin{definition}[Reasonable word]
   \label{def:reasonable-word}
-  Take a set of trusted addresses $\ta$ and sets of return and closure seals $\gsigrets$ and $\sigcloss$.
+  Take a set of trusted addresses $\ta$ and sets of return and closure seals $\gsigrets$ and $\gsigcloss$.
 We define that a word $w$ is reasonable up to $n$ steps in memory $\ms$ and
 free stack $\ms_\stk$ if $n=0$
 or the following implications hold.
@@ -1825,7 +1830,7 @@ Capabilities to trusted code memory in $\ta$ are also ruled out, because the cod
 Capabilities that are sealed with capabilities not owned by the component must still be reasonable themselves (since such an untrusted seal provides no protection at all).
 
 Finally, we define that stack or memory capabilities with read permission are reasonable if the memory they give access to contains only reasonable words.
-To accomodate this, reasonability of words is defined relative to the memory and stack.
+To accommodate this, reasonability of words is defined relative to the memory and stack.
 The definition is cyclic, but the step-index ensures that it is well-founded.
 
 \subsubsection{Reasonable pc and configuration}
@@ -2059,7 +2064,7 @@ Theorem~\ref{thm:full-abstraction} proves that \stktokens{} enforces these prope
 
 \section{Related Work}
 \label{sec:related-work}
-In this section, we discuss related work on securely enforcing control flow correctness and/or local state encapsulation or the linear capabilities we use to do it.
+In this final section, we discuss related work on securely enforcing control flow correctness and/or local state encapsulation or the linear capabilities we use to do it.
 We do not repeat the work we discussed in Section~\ref{sec:introduction}.
 
 Capability machines originate with \citet{dennis_programming_1966} and we refer to \citet{levy_capability-based_1984} and \citet{watson_cheri_2015} for an overview of previous work.
@@ -2090,15 +2095,15 @@ The fact that our full abstraction result only applies to reasonable components 
 In their study of compartmentalization primitives, \Citet{juglaret_beyond_2016} discuss the property of Secure Compartmentalizing Compilation (SCC): a variant of full abstraction that applies to unsafe source languages.
 Essentially, they modify standard full abstraction so that preservation and reflection of contextual equivalence are only guaranteed for components that are {\itshape fully defined}, which means essentially that they do not exhibit undefined behavior in any fully defined context.
 If we see reasonable behavior as defined behavior, then our full abstraction result can be seen as an application of this same idea.
-
 In follow-up work, \citet{Abate:2018:GCG:3243734.3243745} extend this approach to components with  undefined behavior by proving secure compilation guarantees for the execution until the undefined behavior happens. 
+
 Another interesting relation between our work and that of \citet{Abate:2018:GCG:3243734.3243745}, is that they consider dynamic compromise scenarios, where some components start out as trusted until they are compromised and are treated as adversarial after that.
 Our full abstraction result does not apply to those scenarios because it is intended to be used in the verification of a secure compiler where such scenarios are not relevant.
 Nevertheless, we believe our Fundamental Theorem of Logical Relations (see Section~\ref{thm:ftlr}) does apply in such scenarios because it is step-bounded.
 To deal with the evolving classification of components as trusted or adversarial, we can simply apply the theorem several times with different choices of $\ta$ and taking $n$ small enough that the compromise of $\ta$ has not yet happened until that point. 
 Because the theorem only requires reasonability up to $n$ steps, we get well-bracketedness guarantees up to the right step in the execution.
 This can be seen as a step-bounded version of the idea explained in \citep{patrignani_modular_2016}.
-It is an interesting observation that modular secure compilation, combined with step-bounded reasoning is sufficient to cover dynamic compromise scenarios without the need to build in dynamic compromise scenarios into the definition of secure compilation like \citet{Abate:2018:GCG:3243734.3243745}.
+If confirmed by a more careful analysis, it would be an interesting observation that modular secure compilation, combined with step-bounded reasoning is sufficient to cover dynamic compromise scenarios without the need to build in dynamic compromise scenarios into the definition of secure compilation like \citet{Abate:2018:GCG:3243734.3243745}.
 
 Local capabilities can be used to ensure well-bracketed control-flow and local-state encapsulation as demonstrated by \citet{skorstengaard_reasoning_2017}.
 Recently, \citet{tsampas_2019} demonstrated that an extension of local capabilities with multiple linearly ordered colours can be used to enforce the life time of stack references.
@@ -2108,7 +2113,7 @@ Specifically in order to return from a call, we must use the return token, i.e.\
 The stack is linear, so if there are references to it, aside from the stack capability itself, then we cannot have a complete return token.
 This means that we have to splice all the stack references together with the stack capability to complete the return token in order to return.
 \citet{tsampas_2019} allow (almost) normal references that can be stored in multiple places at the same time.
-This means that their approach is more like C than \stktokens{}.
+This means that their approach is closer to C than \stktokens{}.
 As explained in Section~\ref{sec:introduction}, these approaches have the downside that they require stack clearing (including unused parts) on boundary crossings.
 
 In addition to the already-mentioned work on linear capabilities, \citet{van_strydonck_linear_2019} have recently used them in a secure (fully abstract) compiler for a C-like language with separation logic contracts.

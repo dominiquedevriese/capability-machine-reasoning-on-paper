@@ -35,8 +35,9 @@ Perhaps other reusable components of secure compilers could be formulated simila
 
 \begin{jversion}
   A compiler is secure when it enforces the properties of high-level languages which begs the question what properties we should enforce.
-  When it comes to fully-abstract compilation, then the answer is that all the (observational) equivalences in the high-level language should be enforced, so the real question is what high-level language we would like.
-  \stktokens{} ensures a standard call-return control-flow, but if we want a different kind of control-flow, for instance call/cc or C's \textit{longjmp}, then we need to come up with a different enforcement scheme.
+  When it comes to fully-abstract compilation, then the answer is that all properties in the
+  high-level language should be enforced (or at least the equivalences they imply), so the real question is what high-level language we would like.
+  \stktokens{} ensures a standard call-return control-flow, but if we want a different kind of control-flow, for instance call/cc or C's \texttt{longjmp}, then we need to come up with a different enforcement scheme.
   Further, many high-level languages have exceptions as another form of control-flow not (yet) supported by \stktokens{}.
   This goes to show how we must consider what high-level language we want in order to answer the question of what properties we must enforce to get a fully-abstract compiler.
   % Lau: Say something about address hiding?
@@ -63,13 +64,14 @@ Perhaps other reusable components of secure compilers could be formulated simila
   % new paragraph: conditional full-abstraction
   Our full-abstraction theorem, Theorem~\ref{thm:full-abstraction} only applies to components that are reasonable and well-formed.
   In other words, if we were to define a compiler phase that targets \srccm{}, then we would also have to show that every program it generates is well-formed and reasonable in order to use the full-abstraction result.
-  Without the reasonability constraint, \stktokens{} would have to enforce reasonability instead.
+  Without the reasonability assumption, \stktokens{} would have to enforce reasonability instead.
   That is, \stktokens{} would have to dynamically ensure that no return seals or means to obtain them are passed in calls.
   Such checks would impose a performance overhead and are in principle unnecessary for correct code.
-  We have instead chosen to rely on the compiler to generate reasonable code that never exhibits the unreasonable behaviour.
-  This should be done in a compiler phase where more information about the original program is available, e.g.\ the compilation phase that commits to the low-level translation.
-  Similarly for the syntactic constraints given by well-formedness.
-  The compiler should make sure to generate code that satisfies the well-formedness judgement, so it can be executed by the machine.
+  We have instead chosen to assume that we are given reasonable code that never exhibits the unreasonable behaviour.
+  A compiler phase where more information about the original program is available should be able to
+  ensure the assumption with relative ease.
+  The syntactic requirement of well-formedness is similar, except that it should be ensured by the
+  compiler and linker together.
 
   % TODO new paragraph: Machine checked proof. MANY details, any future work should be machine checked?
   One challenge in full-abstraction proofs is to construct source language contexts that emulate the behavior of an arbitrary target language context.
@@ -91,6 +93,7 @@ Its costs are
 The main caveat is that we rely on the assumption that capability machines like CHERI can be extended with linear capabilities in an efficient way.
 
 Although this assumption can only be discharged by demonstrating an actual implementation with efficiency measurements, the following notes are based on private discussions with people from the CHERI team as well as our own thoughts on the matter.
+We also refer to the latest CHERI ISA report, which contains a concurrently-developed, unimplemented design for linear capabilities, albeit without \texttt{splice} and \texttt{split} \citep[][\S D.7]{watson_capability_2020}.
 As we understand it, the main problems for adding linear capabilities to a capability machine like CHERI are related to the move semantics for instructions like \texttt{move}, \texttt{store} and \texttt{load}.
 Processor optimizations like pipelining and out-of-order execution rely on being able to accurately predict the registers and memory that an instruction will write to and read from.
 Our instructions are a bit clumsy from this point-of-view because, for example, \texttt{move} or \texttt{store} will zero the source register resp. memory location if the value being written is linear.
@@ -111,14 +114,14 @@ The processor could perhaps also (be told to) rely on the fact that race conditi
 
 \begin{jversion}
   Our calling convention supports all source language features that can be expressed in \srccm{}.
-  This includes relatively basic features such as optimized tail calls (see Section~\ref{subsec:overlay-semantics}), stack-allocated variable-size arrays (like with C's alloca).
+  This includes relatively basic features such as optimized tail calls (see Section~\ref{subsec:overlay-semantics}) and stack-allocated variable-size arrays.
   Some other idioms require a bit more thought, such as the control flow primitives we discussed above.
   
   Also interesting is the idiom of passing stack references in calls, as is common in programming languages with a C-like calling convention.
   \stktokens{} supports stack references but with a couple of caveats.
   First of all, the stack capability is linear, so all references to the stack have to be linear.
-  This means that the callee has to treat references linearly.
-  Next, like the stack capability, the stack references must be given back to the caller on return, so they can reconstruct their original stack capability (which allows them to return). 
+  This means that the callee has to respect this linearity when using the reference.
+  Next, like the stack capability, the stack references must be given back to the caller on return, so they can reconstruct their original stack capability (allowing them to return). 
   Finally, the encapsulated local stack frame should be a continuous piece of memory (because it has to be addressable by a single capability: the data part of the return capability pair).
   Because of this, stack-allocated objects for which references are passed to callees must be allocated at the top or bottom of the caller's stack frame.
   An escape analysis could be used to statically determine where to put allocations and, in principle, the allocations could be reordered dynamically before a call.
@@ -126,13 +129,12 @@ The processor could perhaps also (be told to) rely on the fact that race conditi
   We are unsure whether it is realistic to apply this approach for existing C code.
 
   \stktokens{} relies on an important property: the fact that return seals should be uniquely associated to a single call-site.
-  If we were to use a single return seal for multiple call-site, that would allow an adversary to combine a valid return data capability with a return code capability for the wrong call-site, thus breaking WBCF guarantees.
+  If we were to use a single return seal for multiple call sites, that would allow an adversary to combine a valid return data capability with a return code capability for the wrong call-site, thus breaking WBCF guarantees.
   This property is currently enforced statically in the well-formedness property for components' code memory (see Section~\ref{sec:well-form-reas}), specifically in the \texttt{C-Instr} rule.
   For any call instruction in trusted components' code memory, it is required that the return seal used is exclusively owned by this call-site.
-
   To guarantee that this property does not just hold when the system is initialized, but continues to hold during execution, the well-formedness judgement additionally enforces a Write-Xor-Execute policy for components:
   writable capabilities are not allowed for code memory and executable capabilities are not allowed for data memory.
-  Although this approach works, it has the side effect of disallowing any form of dynamic code generation.
+  Although this approach works, it has the side effect of disallowing dynamic code generation.
   This is unfortunate, because we believe that in principle, \stktokens{} is compatible with dynamic code generation, as long as the generated code respects the unique allocation of return seals to call sites.
 
   To lift this restriction, an alternative approach would be to enforce the unique allocation of return seals to trusted call sites semantically rather than statically.
