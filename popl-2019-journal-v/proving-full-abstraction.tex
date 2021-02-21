@@ -53,6 +53,9 @@ That is, our world is defined as a product:
 \[
   \World = \Worldh \times \Worlds \times \Worldfs
 \]
+For ease of explanation, we will gradually introduce the definition of these three components, starting with simplified versions and gradually introducing different complications before obtaining the intended definition of worlds by the end of Section~\ref{subsec:worlds}.
+That version will only be modified a bit further in Section~\ref{sec:rec-dom-eq}, purely for technically justifying the recursive definition of the worlds.
+The final definitions can be found in Theorem~\ref{thm:rec-dom-eq-sol}.
 
 The sub-worlds are partial maps from names $\RegionName$ (not to be confused with register names), modelled as natural numbers, to regions, which model a form of invariant.
 Intuitvely, a region is simply a relation over memory segments (i.e.\ a relation in $\Rel{\MemSeg \times \MemSeg}$).
@@ -77,11 +80,11 @@ The linear capabilities of \srccm{} and \trgcm{} guarantee sole authority over t
 To model this uniqueness, we need to keep track of which parts of memory are uniquely referenced and make sure that only one linear capability references them.
 %% Bookkeeping done by worlds
 We use the world to do this by having two kinds of regions: shared and spatial.
-Memory governed by shared and spatial regions can only be references by non-linear and linear capabilities respectively.
+Memory governed by shared and spatial regions can only be referenced by non-linear and linear capabilities respectively.
 
 %%% spatial/spatial_owned
 However, spatial regions are not enough.
-A world which contains a spatial region, represents the assumption of exclusive ownership of the corresponding memory.
+A world that contains a spatial region, represents the assumption of exclusive ownership of the corresponding memory.
 In other words, a linear capability for this memory will be valid only in such a world.
 However, that does not mean all other worlds should be entirely unaware of the memory's existence.
 To represent knowledge about existence of a spatial region, without requiring its exclusive ownership, we have $\spatial$ regions.
@@ -101,7 +104,7 @@ For readability, we also add a tag $\pure$ to the shared regions:
 A $\spatial$ region is a shadow copy of a spatial region in the sense that it specifies part of memory, but it does not give the right to reference that part of memory.
 We will see in Section~\ref{subsubsec:joining-worlds} that a world with a shadow region is compatible with a world that has the same region as $\spatialo$.
 This setup will allow ownership of a memory fragment to reside with linear capabilities which are not themselves stored in the memory fragment but elsewhere in memory or in a register.
-In such a setup, the region representing the memory fragment will exist only as $\spatial$ in the world where the memory fragment's contents is valid, but it will exist as $\spatialo$ in the world where the linear capability owning the fragment is valid.
+In such a setup, the region representing the memory fragment will exist only as $\spatial$ in the world where the memory fragment's contents are valid, but it will exist as $\spatialo$ in the world where the linear capability owning the fragment is valid.
 
 % What parts of memory are linear
 We will extend the regions further in Sections~\ref{subsubsec:seals}~and~\ref{subsubsec:ft-and-revocation}, but for now we continue the definitions of the three sub-worlds.
@@ -178,7 +181,7 @@ We also refer to the seal interpretation function as the seal invariant, and we 
 % Memory evolves over time, we need to model this.
 Very often, relatedness of two capabilities does not change if extra assumptions in the system are added.
 For example, two related capabilities remain related when an extra invariant is added on unrelated memory, or when a stack frame that it does not reference is dropped.
-In Kripke logical relations, such changes that do not invalidate the relatedness of values, are modelled by the future world relation $\future$.
+In Kripke logical relations, such changes that do not invalidate the relatedness of values are modelled by the future world relation $\future$.
 The future world relation can also be thought of as the model of allowed changes in memory over time.
 We will say that $W'$ is a future world of $W$ if $W' \future W$.
 
@@ -189,8 +192,7 @@ As such, we require the world-indexed memory invariants to be monotone in the wo
   \Regions = \left\{
   \begin{array}{l}
     \{\spatial \} \times (\World \monfun \Rel{\MemSeg \times \MemSeg}) \cup \\
-    \{\spatialo \} \times (\World \monfun \Rel{\MemSeg \times \MemSeg}) \cup \\
-    \{\revoked \}
+    \{\spatialo \} \times (\World \monfun \Rel{\MemSeg \times \MemSeg})
   \end{array} \right.
 \]
 We make a similar change to $\Regionh$. The seal invariants must be monotone as well.
@@ -204,12 +206,12 @@ We add a $\revoked$ tag to the spatial regions $\Regions$:
 \[
   \Regions = \left\{
   \begin{array}{l}
-    \{\spatial \} \times (\World \fun \Rel{\MemSeg \times \MemSeg}) \cup \\
-    \{\spatialo \} \times (\World \fun \Rel{\MemSeg \times \MemSeg}) \cup \\
+    \{\spatial \} \times (\World \monfun \Rel{\MemSeg \times \MemSeg}) \cup \\
+    \{\spatialo \} \times (\World \monfun \Rel{\MemSeg \times \MemSeg}) \cup \\
     \{\revoked \}
   \end{array} \right.
 \]
-The $\spatialo$-region may be depended on by a linear capability \emph{may} so we cannot allow it to be revoked.
+The $\spatialo$-region may be depended on by a linear capability so we cannot allow it to be revoked.
 On the other hand, no capability can depend on a $\spatial$-region, so it can be safely revoked.
 % This may be confusing as a $\spatial$-region does not mean that you ``have'' the capability, but we just explained that having a linear capability means that you can repurpose the memory it points to.
 % As we will see later, the logical relation splits worlds with respect to their ownership, so each capability can get its own world with unique ownership to depend on.
@@ -379,7 +381,7 @@ The normal capability $c_{\var{normal}}$ remains valid in $W_2'$ as the $\pure$ 
 % };
 \end{tikzpicture}
 
-\caption{Example what happens to worlds when a linear capability $c_{\var{lin}}$ is repurposed.
+\caption{An example of what happens to worlds when a linear capability $c_{\var{lin}}$ is repurposed.
   The linear capability is originally valid with respect to $W_1$.
   In $W_1'$ there is a new spatial region that the linear capability is valid with respect to (the different coloured regions signify different invariants).
   $W_1'$ still has $r_2$, but now it points to a $\revoked$ region.
@@ -495,7 +497,7 @@ Note that the judgement $\memSat{\ms_S,\ms_\stk,\stk,\ms_T}{W}$ (and other defin
 \label{def:heap-rel}
 For a set of seals $\overline{\sigma}$, memory segments $ms$ and $\ms_T$, and worlds $W$ and $W'$, we define the heap relation $\lrhname$ as:
 \begin{multline*}
-    \npair{(\overline{\sigma},\src{ms},\ms_T)} \in \lrheap(\pwheap)(W') =\\
+    (\overline{\sigma},\src{ms},\ms_T) \in \lrheap(\pwheap)(W') =\\
     \left\{
       \begin{array}{l}
         \exists R_\ms : \dom(\activeReg{\pwheap}) \fun \MemSeg \times \MemSeg \wedge \\
@@ -503,8 +505,8 @@ For a set of seals $\overline{\sigma}$, memory segments $ms$ and $\ms_T$, and wo
         \quad \src{\ms} = \biguplus_{r \in \dom(\activeReg{\pwheap})} \pi_1(R_\ms(r)) \wedge \\
         \quad \exists R_W : \dom(\activeReg{\pwheap}) \fun \World\ldotp\\
         \qquad W' = \oplus_{r \in \dom(\activeReg{\pwheap})} R_W(r) \wedge\\
-        \qquad \forall r \in \dom(\activeReg{\pwheap}), n' < n \ldotp \\
-        \qquad \quad \npair[n']{R_\ms(r)} \in  \pwheap(r).H \; \xi^{-1}(R_W(r)) \wedge\\
+        \qquad \forall r \in \dom(\activeReg{\pwheap}) \ldotp \\
+        \qquad \quad R_\ms(r) \in  \pwheap(r).H \; R_W(r) \wedge\\
         \exists R_\var{seal} : \dom(\activeReg{\pwheap}) \fun \powerset{\Seal} \wedge\\
         \quad \biguplus_{r \in \dom(\activeReg{\pwheap})} R_\var{seal}(r)) \subseteq \overline{\sigma} \wedge\\
         \quad \forall r \in \dom(\erase{\pwheap}{\pure})\ldotp \dom(\pwheap(r).H_{\mathrm{seal}}) = R_\var{seal}(r)
@@ -525,7 +527,7 @@ Similar to memory segments, only one seal invariant should impose restrictions o
 \begin{definition}[Free stack relation]
 \label{def:free-stack-rel}
   \begin{multline*}
-    \memSatFStack{\src{\ms_\stk},\ms_T}{W} \text{ iff } \\
+    \memSatFStackNoN{\src{\ms_\stk},\ms_T}{W} \text{ iff } \\
     \left\{
       \begin{array}{l}
         \gc = (\_,\stkb,\_,\_) \wedge\\
@@ -536,8 +538,8 @@ Similar to memory segments, only one seal invariant should impose restrictions o
         \quad \stkb \in \dom(\ms_T) \wedge \stkb \in \dom(\src{\ms_\stk}) \wedge \\
         \quad \exists R_W : \dom(\activeReg{W_\var{stack}}) \fun \World\ldotp\\
         \qquad W = \bigoplus_{r \in \dom(\activeReg{W_\var{stack}})} R_W(r) \wedge\\
-        \qquad \forall r \in \dom(\activeReg{W_\var{stack}}),n' < n \ldotp \\
-        \qquad \quad \npair[n']{R_\ms(r)} \in  W_\var{stack}(r).H \; \xi^{-1}(R_W(r))
+        \qquad \forall r \in \dom(\activeReg{W_\var{stack}}) \ldotp \\
+        \qquad \quad R_\ms(r) \in  W_\var{stack}(r).H \; R_W(r)
       \end{array}
     \right.
   \end{multline*}
@@ -551,7 +553,7 @@ As the free stack relation relates the stack of \srccm{} with the memory that re
 \begin{definition}[Stack relation]
   \label{def:stack-rel}
   \begin{multline*}
-    \memSatStack{\src{\stk},\ms_T}{W} \text{ iff } \\
+    \memSatStackNoN{\src{\stk},\ms_T}{W} \text{ iff } \\
     \left\{
         \begin{array}{l}
           \exists m, \src{\opc_0},\dots,\src{\opc_m}, \src{\ms_0}, \dots, \src{\ms_m}, W_\var{stack}\ldotp\\
@@ -565,8 +567,8 @@ As the free stack relation relates the stack of \srccm{} with the memory that re
           \quad\quad \src{\ms_0} \uplus \dots \uplus \src{\ms_m} = \biguplus_{r \in \dom(\activeReg{W_\var{stack}})} \pi_1(R_\ms(r)) \wedge \\
           \quad\quad \exists R_W : \dom(\activeReg{W_\var{stack}}) \fun \World \ldotp \\
           \quad\qquad W = \bigoplus_{r \in \dom(\activeReg{W_\var{stack}})} R_W(r) \wedge \\
-          \quad\qquad \forall r \in \dom(\activeReg{W_\var{stack}}), n' < n\ldotp \\
-          \quad\qquad \quad \npair[n']{(\pi_1(R_\ms(r)),\pi_3(R_\ms(r))} \in W_\var{stack}(r).H \; \xi^{-1}(R_W(r)) \wedge\\
+          \quad\qquad \forall r \in \dom(\activeReg{W_\var{stack}})\ldotp \\
+          \quad\qquad \quad (\pi_1(R_\ms(r)),\pi_3(R_\ms(r)) \in W_\var{stack}(r).H \; R_W(r) \wedge\\
           \quad\qquad \quad \pi_2(R_\ms(r)) = W_\var{stack}(r).\opc \wedge\\
           \quad\qquad \quad \exists i \ldotp \src{\opc_i} = W_\var{stack}(r).\opc \wedge \src{\ms_i} = \pi_1 (R_\ms(r))
         \end{array}
@@ -640,7 +642,7 @@ Memory satisfaction defines when a \srccm{} memory, consisting of a heap, a stac
 \begin{definition}[Memory satisfaction]
   For memory segments $\ms_S$, $\ms_\stk$, and $\ms_T$, stack $\stk$, and world $W$ we define memory satisfaction as
   \begin{multline*}
-      \memSat{\src{\ms_S},\src{\ms_\stk},\src{\stk},\ms_T}{W} \text{ iff }\\
+      \memSatNoN{\src{\ms_S},\src{\ms_\stk},\src{\stk},\ms_T}{W} \text{ iff }\\
       \left\{
         \begin{array}{l}
           \exists m,  \src{\opc_0}, \dots \src{\opc_m}, \src{\ms_0}, \dots, \src{\ms_m}, W_{\var{stack}}, W_{\var{free\_stack}}, W_{\var{heap}} \ldotp\\
@@ -652,9 +654,9 @@ Memory satisfaction defines when a \srccm{} memory, consisting of a heap, a stac
           \qquad \ms_T = \ms_\var{T,stack} \uplus \ms_\var{T,free\_stack} \uplus \ms_\var{T,heap} \uplus \ms_{T,f} \wedge \\
           \qquad \dom(\ms_{\var{T,stack}} \uplus \ms_\var{T,free\_stack}) = [\baddr_\stk,\eaddr_\stk] \wedge \\
           \qquad \baddr_\stk -1,\eaddr_\stk + 1 \in \dom(\ms_{T,f}) \wedge \\
-          \qquad \memSatStack{\src{\stk},\ms_\var{T,stack}}{W_{\var{stack}}} \wedge \\
-          \qquad \memSatFStack{\src{\ms_\stk},\ms_\var{T,free\_stack}}{W_{\var{free\_stack}}} \wedge \\
-          \qquad \npair{(\overline{\sigma},\src{\ms_S'},\ms_\var{T,heap})} \in \lrheap(\pwheap)(W_{\var{heap}})
+          \qquad \memSatStackNoN{\src{\stk},\ms_\var{T,stack}}{W_{\var{stack}}} \wedge \\
+          \qquad \memSatFStackNoN{\src{\ms_\stk},\ms_\var{T,free\_stack}}{W_{\var{free\_stack}}} \wedge \\
+          \qquad (\overline{\sigma},\src{\ms_S'},\ms_\var{T,heap}) \in \lrheap(\pwheap)(W_{\var{heap}})
         \end{array}
       \right.
   \end{multline*}
@@ -1026,6 +1028,8 @@ This makes it rather inconvenient to have $\Wor$ as the world, so instead we def
   \World = \Worldh \times \Worlds \times \Worldfs
 \]
 
+For ease of presentation, we have omitted step indices and the isomorphisms $\xi$ from the definitions in Section~\ref{subsubsec:mem-sat}.  
+
 %% Lau: not sure whether the following remarks should be included:
 % Note that the later placement could have been different as it just needs to guard the recursive occurrence at some level.
 % It could, for instance, have been directly on the recursive occurrence.
@@ -1314,7 +1318,7 @@ and the standard $\pure$ regions as follows
 \]
 Note that the standard $\pure$ region has an empty seal invariant and thus puts no requirements on seals.
 
-Sometimes we need to know that the contents of a memory segment stays the same.
+Sometimes we need to know that the contents of a memory segment stay the same.
 For instance, the contents of encapsulated stack frames do not change which we need to be able to rely on.
 To express this, we define a \emph{static region}.
 The static region is parameterised with a memory segment pair which is the only memory segment pair the region accepts.
@@ -1458,7 +1462,7 @@ With the memory invariant and seal invariant in hand, we define the code region 
 \[
   \codereg{\sigrets,\sigcloss,\code,\gc} \defeq (\pure, H^\mathrm{code,\square} \; \sigrets \; \sigcloss \; \code \; \gc, H^\mathrm{code}_{\mathrm{seal}} \; \sigrets \; \sigcloss \; \code \; \gc)
 \]
-The code region is $\pure$ because it needs to contain a seal invatiant and because we assume that code pointers are normal capabilities.
+The code region is $\pure$ because it needs to contain a seal invariant and because we assume that code pointers are normal capabilities.
 
 % TODO in the above, add something about the untrusted case where the seals should not be in the "global" seals because the global seals are the one that we globally agree to be trusted.
 
